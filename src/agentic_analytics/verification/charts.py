@@ -94,10 +94,28 @@ def build_chart(
     if not records:
         raise ChartError(f"result {snapshot.result_id} has no plottable rows for {request.y!r}")
 
+    # Axis tuning. Vega-Lite's defaults assume a dense series; an aggregate
+    # result has a handful of points, and the default tick density renders a
+    # crowded axis that reads as though there were far more data than there is.
+    x_axis: dict[str, Any] = {"labelOverlap": "greedy"}
+    if request.x_type == "temporal":
+        x_axis |= {"tickCount": min(len(records), 12), "format": "%Y-%m", "labelAngle": 0}
+    elif request.x_type in ("nominal", "ordinal"):
+        x_axis |= {"labelAngle": -30, "labelLimit": 120}
+
     encoding: dict[str, Any] = {
-        "x": {"field": request.x, "type": request.x_type, "title": request.x},
+        "x": {
+            "field": request.x,
+            "type": request.x_type,
+            "title": request.x,
+            "axis": x_axis,
+        },
         "y": {"field": request.y, "type": request.y_type, "title": request.y},
     }
+    if vega_mark == "bar":
+        # Full-width bars read as a filled area rather than as a comparison.
+        encoding["x"]["scale"] = {"paddingInner": 0.3, "paddingOuter": 0.15}
+
     if request.color:
         encoding["color"] = {"field": request.color, "type": "nominal"}
     encoding["tooltip"] = [
@@ -107,12 +125,15 @@ def build_chart(
 
     spec: dict[str, Any] = {
         "$schema": VEGA_LITE_SCHEMA,
+        # Carried for the card heading and the chart's accessible name; the
+        # plot itself does not repeat it.
         "title": (request.title or f"{request.y} by {request.x}")[:120],
         "data": {"values": records},
         "mark": {"type": vega_mark, "tooltip": True},
         "encoding": encoding,
         "width": "container",
-        "height": 260,
+        "height": 240,
+        "padding": {"left": 4, "right": 8, "top": 4, "bottom": 4},
     }
     validate_chart(spec, snapshot)
     return spec
