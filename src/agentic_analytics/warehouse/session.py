@@ -264,6 +264,12 @@ class SessionManager:
             for sid in list(self._sessions):
                 self._drop_locked(sid)
 
+    def describe_all(self) -> list[dict[str, Any]]:
+        """Catalogue of every live session, for the ``dataset://catalog`` resource."""
+        with self._lock:
+            self._evict_locked()
+            return [s.catalog() | {"session_id": s.session_id} for s in self._sessions.values()]
+
     def __len__(self) -> int:
         with self._lock:
             self._evict_locked()
