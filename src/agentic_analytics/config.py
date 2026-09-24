@@ -87,6 +87,16 @@ class Settings(BaseSettings):
     # object or a Streamable HTTP connection to a URL.
     mcp_transport: Literal["in-process", "http"] = "in-process"
     mcp_http_url: str = "http://127.0.0.1:8000/mcp"
+    # Host header allow-list for the mounted MCP endpoint. The SDK enables
+    # DNS-rebinding protection automatically only when the server binds to
+    # localhost; a container binds to 0.0.0.0, so the protection has to be
+    # asked for explicitly with the hostnames the deployment answers on.
+    # Comma-separated, e.g. "example.onrender.com,example.onrender.com:443".
+    mcp_allowed_hosts: str = ""
+
+    @property
+    def mcp_allowed_host_list(self) -> list[str]:
+        return [h.strip() for h in self.mcp_allowed_hosts.split(",") if h.strip()]
 
     log_level: str = "INFO"
     log_json: bool = True

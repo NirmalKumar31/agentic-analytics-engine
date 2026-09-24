@@ -1,0 +1,3371 @@
+{
+  "recording_version": 2,
+  "recording_id": "shipping-repeat",
+  "title": "Shipping delay and repeat purchase",
+  "demonstrates": "A joined cohort comparison, a two-proportion z-test, and a causal interpretation that the verifier rejects.",
+  "order": 3,
+  "recorded_at": "2026-09-24T23:08:25Z",
+  "provider": "fake",
+  "question": "Do shipping delays appear to affect repeat purchasing?",
+  "dataset": {
+    "dataset_kind": "demo",
+    "source": "Commerce demo warehouse",
+    "dataset_fingerprint": "sha256:8e9ad9348f7dc18660d78ed3cd4d4b32",
+    "tables": [
+      {
+        "name": "customers",
+        "row_count": 30000,
+        "columns": [
+          {
+            "name": "customer_id",
+            "type": "BIGINT"
+          },
+          {
+            "name": "signup_date",
+            "type": "DATE"
+          },
+          {
+            "name": "customer_segment",
+            "type": "VARCHAR"
+          },
+          {
+            "name": "region",
+            "type": "VARCHAR"
+          },
+          {
+            "name": "acquisition_channel",
+            "type": "VARCHAR"
+          }
+        ]
+      },
+      {
+        "name": "products",
+        "row_count": 800,
+        "columns": [
+          {
+            "name": "product_id",
+            "type": "BIGINT"
+          },
+          {
+            "name": "product_name",
+            "type": "VARCHAR"
+          },
+          {
+            "name": "category",
+            "type": "VARCHAR"
+          },
+          {
+            "name": "brand",
+            "type": "VARCHAR"
+          },
+          {
+            "name": "list_price",
+            "type": "DOUBLE"
+          },
+          {
+            "name": "unit_cost",
+            "type": "DOUBLE"
+          }
+        ]
+      },
+      {
+        "name": "orders",
+        "row_count": 104915,
+        "columns": [
+          {
+            "name": "order_id",
+            "type": "BIGINT"
+          },
+          {
+            "name": "customer_id",
+            "type": "BIGINT"
+          },
+          {
+            "name": "order_date",
+            "type": "DATE"
+          },
+          {
+            "name": "channel",
+            "type": "VARCHAR"
+          },
+          {
+            "name": "discount_rate",
+            "type": "DOUBLE"
+          },
+          {
+            "name": "shipping_cost",
+            "type": "DOUBLE"
+          },
+          {
+            "name": "status",
+            "type": "VARCHAR"
+          },
+          {
+            "name": "is_first_order",
+            "type": "BOOLEAN"
+          }
+        ]
+      },
+      {
+        "name": "order_items",
+        "row_count": 239794,
+        "columns": [
+          {
+            "name": "order_item_id",
+            "type": "BIGINT"
+          },
+          {
+            "name": "order_id",
+            "type": "BIGINT"
+          },
+          {
+            "name": "product_id",
+            "type": "BIGINT"
+          },
+          {
+            "name": "quantity",
+            "type": "BIGINT"
+          },
+          {
+            "name": "unit_price",
+            "type": "DOUBLE"
+          },
+          {
+            "name": "unit_cost",
+            "type": "DOUBLE"
+          },
+          {
+            "name": "list_price",
+            "type": "DOUBLE"
+          },
+          {
+            "name": "discount_amount",
+            "type": "DOUBLE"
+          }
+        ]
+      },
+      {
+        "name": "returns",
+        "row_count": 19471,
+        "columns": [
+          {
+            "name": "return_id",
+            "type": "BIGINT"
+          },
+          {
+            "name": "order_id",
+            "type": "BIGINT"
+          },
+          {
+            "name": "order_item_id",
+            "type": "BIGINT"
+          },
+          {
+            "name": "product_id",
+            "type": "BIGINT"
+          },
+          {
+            "name": "customer_id",
+            "type": "BIGINT"
+          },
+          {
+            "name": "return_date",
+            "type": "DATE"
+          },
+          {
+            "name": "return_reason",
+            "type": "VARCHAR"
+          },
+          {
+            "name": "refund_amount",
+            "type": "DOUBLE"
+          }
+        ]
+      },
+      {
+        "name": "shipping_events",
+        "row_count": 104915,
+        "columns": [
+          {
+            "name": "order_id",
+            "type": "BIGINT"
+          },
+          {
+            "name": "carrier",
+            "type": "VARCHAR"
+          },
+          {
+            "name": "region",
+            "type": "VARCHAR"
+          },
+          {
+            "name": "shipped_date",
+            "type": "DATE"
+          },
+          {
+            "name": "promised_days",
+            "type": "BIGINT"
+          },
+          {
+            "name": "delivered_date",
+            "type": "DATE"
+          },
+          {
+            "name": "delivery_days",
+            "type": "BIGINT"
+          },
+          {
+            "name": "is_late",
+            "type": "BOOLEAN"
+          }
+        ]
+      },
+      {
+        "name": "marketing_daily",
+        "row_count": 2924,
+        "columns": [
+          {
+            "name": "date",
+            "type": "DATE"
+          },
+          {
+            "name": "channel",
+            "type": "VARCHAR"
+          },
+          {
+            "name": "campaign",
+            "type": "VARCHAR"
+          },
+          {
+            "name": "spend",
+            "type": "DOUBLE"
+          },
+          {
+            "name": "impressions",
+            "type": "BIGINT"
+          },
+          {
+            "name": "clicks",
+            "type": "BIGINT"
+          }
+        ]
+      }
+    ],
+    "metrics_available": [
+      "average_order_value",
+      "avg_delivery_days",
+      "avg_discount_rate",
+      "cogs",
+      "contribution_margin",
+      "contribution_margin_pct",
+      "customer_count",
+      "discount_amount",
+      "gross_margin_pct",
+      "gross_profit",
+      "late_delivery_rate",
+      "marketing_spend",
+      "orders",
+      "refund_amount",
+      "repeat_purchase_rate",
+      "return_rate",
+      "revenue",
+      "roas",
+      "shipments",
+      "units"
+    ]
+  },
+  "report": {
+    "question": "Do shipping delays appear to affect repeat purchasing?",
+    "executive_summary": "repeat_purchase_rate rose from 71.06 in 2023-12-01 to 82.44 in 2024-01-01 (11.38). late_delivery_rate rose from 8.94 in 2024-10-01 to 14.26 in 2024-11-01 (5.32). Across acquisition_channel, social has the highest repeat_purchase_rate at 69.81 and affiliate the lowest at 65.58.",
+    "key_findings": [
+      "repeat_purchase_rate rose from 71.06 in 2023-12-01 to 82.44 in 2024-01-01 (11.38).",
+      "late_delivery_rate rose from 8.94 in 2024-10-01 to 14.26 in 2024-11-01 (5.32).",
+      "Across acquisition_channel, social has the highest repeat_purchase_rate at 69.81 and affiliate the lowest at 65.58.",
+      "Across region, Southwest has the highest repeat_purchase_rate at 69.35 and Northeast the lowest at 66.91.",
+      "Measured rate: late = 0.50, on_time = 0.70. A two-proportion z-test on late=3,401, on_time=26,599 returned p = 2.15e-122 with Cohen's h = -0.412; the difference is statistically significant at the 5% level."
+    ],
+    "sections": [
+      {
+        "heading": "What the numbers show",
+        "body": "repeat_purchase_rate rose from 71.06 in 2023-12-01 to 82.44 in 2024-01-01 (11.38). late_delivery_rate rose from 8.94 in 2024-10-01 to 14.26 in 2024-11-01 (5.32). Across acquisition_channel, social has the highest repeat_purchase_rate at 69.81 and affiliate the lowest at 65.58. Across region, Southwest has the highest repeat_purchase_rate at 69.35 and Northeast the lowest at 66.91.",
+        "finding_ids": [
+          "fin_e34012bc",
+          "fin_dcb0ecd1",
+          "fin_ca6fc6ce",
+          "fin_8b1ecf48"
+        ]
+      },
+      {
+        "heading": "Statistical comparisons",
+        "body": "Measured rate: late = 0.50, on_time = 0.70. A two-proportion z-test on late=3,401, on_time=26,599 returned p = 2.15e-122 with Cohen's h = -0.412; the difference is statistically significant at the 5% level.",
+        "finding_ids": [
+          "fin_70697a5a"
+        ]
+      }
+    ],
+    "limitations": [
+      "Ambiguity: No explicit time range; the full dataset period is used.",
+      "Ambiguity: No breakdown named in the question; likely drivers are chosen by the planner.",
+      "1 proposed finding(s) were withheld because the cited results did not support them."
+    ],
+    "next_questions": [
+      "Which dimension explains the largest share of the variation seen here?"
+    ]
+  },
+  "findings": [
+    {
+      "finding_id": "fin_e34012bc",
+      "text": "repeat_purchase_rate rose from 71.06 in 2023-12-01 to 82.44 in 2024-01-01 (11.38).",
+      "kind": "calculated_fact",
+      "task_id": "task_01",
+      "result_ids": [
+        "res_95f94d9d7b39"
+      ],
+      "evidence_cells": [
+        {
+          "result_id": "res_95f94d9d7b39",
+          "row": 17,
+          "column": "repeat_purchase_rate",
+          "value": 71.05719237435008,
+          "label": "repeat_purchase_rate at 2023-12-01"
+        },
+        {
+          "result_id": "res_95f94d9d7b39",
+          "row": 18,
+          "column": "repeat_purchase_rate",
+          "value": 82.44147157190635,
+          "label": "repeat_purchase_rate at 2024-01-01"
+        }
+      ],
+      "metric_ids": [
+        "repeat_purchase_rate"
+      ],
+      "verification_status": "supported",
+      "verifier_reason": "The wording matches the values in the cited result.",
+      "numeric_check": {
+        "ok": true,
+        "reason": "Every stated number traces to a cited result.",
+        "checks": [
+          {
+            "stated": 71.06,
+            "matched": true,
+            "source": "res_95f94d9d7b39[17].repeat_purchase_rate",
+            "computed": 71.05719237435008
+          },
+          {
+            "stated": 82.44,
+            "matched": true,
+            "source": "res_95f94d9d7b39[18].repeat_purchase_rate",
+            "computed": 82.44147157190635
+          },
+          {
+            "stated": 11.38,
+            "matched": true,
+            "source": "res_95f94d9d7b39[18].change_abs",
+            "computed": 11.384279
+          },
+          {
+            "stated": 11.384279,
+            "matched": true,
+            "source": "recomputed difference from cited cells",
+            "computed": 11.384279197556268
+          }
+        ]
+      },
+      "claimed_change": {
+        "type": "difference",
+        "from": 71.05719237435008,
+        "to": 82.44147157190635,
+        "stated": 11.384279
+      }
+    },
+    {
+      "finding_id": "fin_dcb0ecd1",
+      "text": "late_delivery_rate rose from 8.94 in 2024-10-01 to 14.26 in 2024-11-01 (5.32).",
+      "kind": "calculated_fact",
+      "task_id": "task_02",
+      "result_ids": [
+        "res_f90b1f6d9e83"
+      ],
+      "evidence_cells": [
+        {
+          "result_id": "res_f90b1f6d9e83",
+          "row": 9,
+          "column": "late_delivery_rate",
+          "value": 8.93542757417103,
+          "label": "late_delivery_rate at 2024-10-01"
+        },
+        {
+          "result_id": "res_f90b1f6d9e83",
+          "row": 10,
+          "column": "late_delivery_rate",
+          "value": 14.260049404895575,
+          "label": "late_delivery_rate at 2024-11-01"
+        }
+      ],
+      "metric_ids": [
+        "late_delivery_rate"
+      ],
+      "verification_status": "supported",
+      "verifier_reason": "The wording matches the values in the cited result.",
+      "numeric_check": {
+        "ok": true,
+        "reason": "Every stated number traces to a cited result.",
+        "checks": [
+          {
+            "stated": 8.94,
+            "matched": true,
+            "source": "res_f90b1f6d9e83[9].late_delivery_rate",
+            "computed": 8.93542757417103
+          },
+          {
+            "stated": 14.26,
+            "matched": true,
+            "source": "res_f90b1f6d9e83[10].late_delivery_rate",
+            "computed": 14.260049404895575
+          },
+          {
+            "stated": 5.32,
+            "matched": true,
+            "source": "res_f90b1f6d9e83[10].change_abs",
+            "computed": 5.324622
+          },
+          {
+            "stated": 5.324622,
+            "matched": true,
+            "source": "recomputed difference from cited cells",
+            "computed": 5.324621830724546
+          }
+        ]
+      },
+      "claimed_change": {
+        "type": "difference",
+        "from": 8.93542757417103,
+        "to": 14.260049404895575,
+        "stated": 5.324622
+      }
+    },
+    {
+      "finding_id": "fin_ca6fc6ce",
+      "text": "Across acquisition_channel, social has the highest repeat_purchase_rate at 69.81 and affiliate the lowest at 65.58.",
+      "kind": "calculated_fact",
+      "task_id": "task_03",
+      "result_ids": [
+        "res_60653a1cfe4d"
+      ],
+      "evidence_cells": [
+        {
+          "result_id": "res_60653a1cfe4d",
+          "row": 0,
+          "column": "repeat_purchase_rate",
+          "value": 69.81047937569677,
+          "label": "repeat_purchase_rate for social"
+        },
+        {
+          "result_id": "res_60653a1cfe4d",
+          "row": 5,
+          "column": "repeat_purchase_rate",
+          "value": 65.58265582655827,
+          "label": "repeat_purchase_rate for affiliate"
+        }
+      ],
+      "metric_ids": [
+        "repeat_purchase_rate"
+      ],
+      "verification_status": "supported",
+      "verifier_reason": "The wording matches the values in the cited result.",
+      "numeric_check": {
+        "ok": true,
+        "reason": "Every stated number traces to a cited result.",
+        "checks": [
+          {
+            "stated": 69.81,
+            "matched": true,
+            "source": "res_60653a1cfe4d[0].repeat_purchase_rate",
+            "computed": 69.81047937569677
+          },
+          {
+            "stated": 65.58,
+            "matched": true,
+            "source": "res_60653a1cfe4d[5].repeat_purchase_rate",
+            "computed": 65.58265582655827
+          },
+          {
+            "stated": 4.227824,
+            "matched": true,
+            "source": "recomputed difference from cited cells",
+            "computed": 4.227823549138506
+          }
+        ]
+      },
+      "claimed_change": {
+        "type": "difference",
+        "from": 65.58265582655827,
+        "to": 69.81047937569677,
+        "stated": 4.227824
+      }
+    },
+    {
+      "finding_id": "fin_8b1ecf48",
+      "text": "Across region, Southwest has the highest repeat_purchase_rate at 69.35 and Northeast the lowest at 66.91.",
+      "kind": "calculated_fact",
+      "task_id": "task_04",
+      "result_ids": [
+        "res_55f8f978463a"
+      ],
+      "evidence_cells": [
+        {
+          "result_id": "res_55f8f978463a",
+          "row": 0,
+          "column": "repeat_purchase_rate",
+          "value": 69.34838861444366,
+          "label": "repeat_purchase_rate for Southwest"
+        },
+        {
+          "result_id": "res_55f8f978463a",
+          "row": 4,
+          "column": "repeat_purchase_rate",
+          "value": 66.91399152029074,
+          "label": "repeat_purchase_rate for Northeast"
+        }
+      ],
+      "metric_ids": [
+        "repeat_purchase_rate"
+      ],
+      "verification_status": "supported",
+      "verifier_reason": "The wording matches the values in the cited result.",
+      "numeric_check": {
+        "ok": true,
+        "reason": "Every stated number traces to a cited result.",
+        "checks": [
+          {
+            "stated": 69.35,
+            "matched": true,
+            "source": "res_55f8f978463a[0].repeat_purchase_rate",
+            "computed": 69.34838861444366
+          },
+          {
+            "stated": 66.91,
+            "matched": true,
+            "source": "res_55f8f978463a[4].repeat_purchase_rate",
+            "computed": 66.91399152029074
+          },
+          {
+            "stated": 2.434397,
+            "matched": true,
+            "source": "recomputed difference from cited cells",
+            "computed": 2.434397094152928
+          }
+        ]
+      },
+      "claimed_change": {
+        "type": "difference",
+        "from": 66.91399152029074,
+        "to": 69.34838861444366,
+        "stated": 2.434397
+      }
+    },
+    {
+      "finding_id": "fin_70697a5a",
+      "text": "Measured rate: late = 0.50, on_time = 0.70. A two-proportion z-test on late=3,401, on_time=26,599 returned p = 2.15e-122 with Cohen's h = -0.412; the difference is statistically significant at the 5% level.",
+      "kind": "statistical_result",
+      "task_id": "task_05",
+      "result_ids": [
+        "res_c8c9a42d8f8f"
+      ],
+      "evidence_cells": [
+        {
+          "result_id": "res_c8c9a42d8f8f",
+          "row": 0,
+          "column": "rate",
+          "value": 0.5045574830932079,
+          "label": "rate for late"
+        },
+        {
+          "result_id": "res_c8c9a42d8f8f",
+          "row": 1,
+          "column": "rate",
+          "value": 0.7041618105943832,
+          "label": "rate for on_time"
+        }
+      ],
+      "metric_ids": [
+        "repeat_purchase_rate"
+      ],
+      "verification_status": "supported",
+      "verifier_reason": "The wording matches the values in the cited result.",
+      "numeric_check": {
+        "ok": true,
+        "reason": "Every stated number traces to a cited result.",
+        "checks": [
+          {
+            "stated": 0.5,
+            "matched": true,
+            "source": "res_c8c9a42d8f8f[0].rate",
+            "computed": 0.5045574830932079
+          },
+          {
+            "stated": 0.7,
+            "matched": true,
+            "source": "res_c8c9a42d8f8f[1].rate",
+            "computed": 0.7041618105943832
+          },
+          {
+            "stated": 3401.0,
+            "matched": true,
+            "source": "res_c8c9a42d8f8f[0].n",
+            "computed": 3401.0
+          },
+          {
+            "stated": 26599.0,
+            "matched": true,
+            "source": "res_c8c9a42d8f8f[1].n",
+            "computed": 26599.0
+          },
+          {
+            "stated": 2.15e-122,
+            "matched": true,
+            "source": "res_c8c9a42d8f8f.p_value",
+            "computed": 2.1504784686352304e-122
+          },
+          {
+            "stated": -0.412,
+            "matched": true,
+            "source": "res_c8c9a42d8f8f.effect_size",
+            "computed": -0.41150176507441105
+          }
+        ]
+      },
+      "claimed_change": null
+    }
+  ],
+  "rejected": [
+    {
+      "finding_id": "fin_1ca90d16",
+      "status": "unsupported",
+      "reason": "The claim asserts causation from observational data. The groups were not randomly assigned, so the result supports an association only.",
+      "numeric_check": {
+        "rule": "causal_from_observational"
+      }
+    }
+  ],
+  "charts": [
+    {
+      "chart_id": "cht_5b51394e",
+      "title": "repeat_purchase_rate by month",
+      "result_id": "res_95f94d9d7b39",
+      "finding_ids": [
+        "fin_e34012bc"
+      ],
+      "spec": {
+        "$schema": "https://vega.github.io/schema/vega-lite/v5.json",
+        "title": "repeat_purchase_rate by month",
+        "data": {
+          "values": [
+            {
+              "period": "2022-07-01T00:00:00",
+              "repeat_purchase_rate": 71.875,
+              "prev_period": null,
+              "change_abs": null,
+              "change_pct": null
+            },
+            {
+              "period": "2022-08-01T00:00:00",
+              "repeat_purchase_rate": 66.98872785829307,
+              "prev_period": 71.875,
+              "change_abs": -4.886272,
+              "change_pct": -6.7983
+            },
+            {
+              "period": "2022-09-01T00:00:00",
+              "repeat_purchase_rate": 70.28571428571429,
+              "prev_period": 66.98872785829307,
+              "change_abs": 3.296986,
+              "change_pct": 4.9217
+            },
+            {
+              "period": "2022-10-01T00:00:00",
+              "repeat_purchase_rate": 67.32851985559567,
+              "prev_period": 70.28571428571429,
+              "change_abs": -2.957194,
+              "change_pct": -4.2074
+            },
+            {
+              "period": "2022-11-01T00:00:00",
+              "repeat_purchase_rate": 69.31608133086876,
+              "prev_period": 67.32851985559567,
+              "change_abs": 1.987561,
+              "change_pct": 2.952
+            },
+            {
+              "period": "2022-12-01T00:00:00",
+              "repeat_purchase_rate": 64.3598615916955,
+              "prev_period": 69.31608133086876,
+              "change_abs": -4.95622,
+              "change_pct": -7.1502
+            },
+            {
+              "period": "2023-01-01T00:00:00",
+              "repeat_purchase_rate": 67.00167504187604,
+              "prev_period": 64.3598615916955,
+              "change_abs": 2.641813,
+              "change_pct": 4.1048
+            },
+            {
+              "period": "2023-02-01T00:00:00",
+              "repeat_purchase_rate": 63.44294003868472,
+              "prev_period": 67.00167504187604,
+              "change_abs": -3.558735,
+              "change_pct": -5.3114
+            },
+            {
+              "period": "2023-03-01T00:00:00",
+              "repeat_purchase_rate": 68.68327402135232,
+              "prev_period": 63.44294003868472,
+              "change_abs": 5.240334,
+              "change_pct": 8.2599
+            },
+            {
+              "period": "2023-04-01T00:00:00",
+              "repeat_purchase_rate": 63.10861423220974,
+              "prev_period": 68.68327402135232,
+              "change_abs": -5.57466,
+              "change_pct": -8.1165
+            },
+            {
+              "period": "2023-05-01T00:00:00",
+              "repeat_purchase_rate": 66.26916524701873,
+              "prev_period": 63.10861423220974,
+              "change_abs": 3.160551,
+              "change_pct": 5.0081
+            },
+            {
+              "period": "2023-06-01T00:00:00",
+              "repeat_purchase_rate": 69.8501872659176,
+              "prev_period": 66.26916524701873,
+              "change_abs": 3.581022,
+              "change_pct": 5.4038
+            },
+            {
+              "period": "2023-07-01T00:00:00",
+              "repeat_purchase_rate": 66.17375231053605,
+              "prev_period": 69.8501872659176,
+              "change_abs": -3.676435,
+              "change_pct": -5.2633
+            },
+            {
+              "period": "2023-08-01T00:00:00",
+              "repeat_purchase_rate": 66.55231560891939,
+              "prev_period": 66.17375231053605,
+              "change_abs": 0.378563,
+              "change_pct": 0.5721
+            },
+            {
+              "period": "2023-09-01T00:00:00",
+              "repeat_purchase_rate": 66.35687732342008,
+              "prev_period": 66.55231560891939,
+              "change_abs": -0.195438,
+              "change_pct": -0.2937
+            },
+            {
+              "period": "2023-10-01T00:00:00",
+              "repeat_purchase_rate": 64.01384083044982,
+              "prev_period": 66.35687732342008,
+              "change_abs": -2.343036,
+              "change_pct": -3.531
+            },
+            {
+              "period": "2023-11-01T00:00:00",
+              "repeat_purchase_rate": 68.84681583476764,
+              "prev_period": 64.01384083044982,
+              "change_abs": 4.832975,
+              "change_pct": 7.5499
+            },
+            {
+              "period": "2023-12-01T00:00:00",
+              "repeat_purchase_rate": 71.05719237435008,
+              "prev_period": 68.84681583476764,
+              "change_abs": 2.210377,
+              "change_pct": 3.2106
+            },
+            {
+              "period": "2024-01-01T00:00:00",
+              "repeat_purchase_rate": 82.44147157190635,
+              "prev_period": 71.05719237435008,
+              "change_abs": 11.384279,
+              "change_pct": 16.0213
+            },
+            {
+              "period": "2024-02-01T00:00:00",
+              "repeat_purchase_rate": 82.02614379084967,
+              "prev_period": 82.44147157190635,
+              "change_abs": -0.415328,
+              "change_pct": -0.5038
+            },
+            {
+              "period": "2024-03-01T00:00:00",
+              "repeat_purchase_rate": 81.8537859007833,
+              "prev_period": 82.02614379084967,
+              "change_abs": -0.172358,
+              "change_pct": -0.2101
+            },
+            {
+              "period": "2024-04-01T00:00:00",
+              "repeat_purchase_rate": 81.47632311977716,
+              "prev_period": 81.8537859007833,
+              "change_abs": -0.377463,
+              "change_pct": -0.4611
+            },
+            {
+              "period": "2024-05-01T00:00:00",
+              "repeat_purchase_rate": 77.93190416141236,
+              "prev_period": 81.47632311977716,
+              "change_abs": -3.544419,
+              "change_pct": -4.3502
+            },
+            {
+              "period": "2024-06-01T00:00:00",
+              "repeat_purchase_rate": 77.33333333333333,
+              "prev_period": 77.93190416141236,
+              "change_abs": -0.598571,
+              "change_pct": -0.7681
+            },
+            {
+              "period": "2024-07-01T00:00:00",
+              "repeat_purchase_rate": 79.00113507377979,
+              "prev_period": 77.33333333333333,
+              "change_abs": 1.667802,
+              "change_pct": 2.1566
+            },
+            {
+              "period": "2024-08-01T00:00:00",
+              "repeat_purchase_rate": 76.71232876712328,
+              "prev_period": 79.00113507377979,
+              "change_abs": -2.288806,
+              "change_pct": -2.8972
+            },
+            {
+              "period": "2024-09-01T00:00:00",
+              "repeat_purchase_rate": 73.8970588235294,
+              "prev_period": 76.71232876712328,
+              "change_abs": -2.81527,
+              "change_pct": -3.6699
+            },
+            {
+              "period": "2024-10-01T00:00:00",
+              "repeat_purchase_rate": 72.63803680981596,
+              "prev_period": 73.8970588235294,
+              "change_abs": -1.259022,
+              "change_pct": -1.7038
+            },
+            {
+              "period": "2024-11-01T00:00:00",
+              "repeat_purchase_rate": 74.0968485780169,
+              "prev_period": 72.63803680981596,
+              "change_abs": 1.458812,
+              "change_pct": 2.0083
+            },
+            {
+              "period": "2024-12-01T00:00:00",
+              "repeat_purchase_rate": 74.28780131482834,
+              "prev_period": 74.0968485780169,
+              "change_abs": 0.190953,
+              "change_pct": 0.2577
+            },
+            {
+              "period": "2025-01-01T00:00:00",
+              "repeat_purchase_rate": 72.80832095096582,
+              "prev_period": 74.28780131482834,
+              "change_abs": -1.47948,
+              "change_pct": -1.9916
+            },
+            {
+              "period": "2025-02-01T00:00:00",
+              "repeat_purchase_rate": 70.54263565891473,
+              "prev_period": 72.80832095096582,
+              "change_abs": -2.265685,
+              "change_pct": -3.1118
+            },
+            {
+              "period": "2025-03-01T00:00:00",
+              "repeat_purchase_rate": 66.38246041412911,
+              "prev_period": 70.54263565891473,
+              "change_abs": -4.160175,
+              "change_pct": -5.8974
+            },
+            {
+              "period": "2025-04-01T00:00:00",
+              "repeat_purchase_rate": 66.83738796414853,
+              "prev_period": 66.38246041412911,
+              "change_abs": 0.454928,
+              "change_pct": 0.6853
+            },
+            {
+              "period": "2025-05-01T00:00:00",
+              "repeat_purchase_rate": 64.26966292134831,
+              "prev_period": 66.83738796414853,
+              "change_abs": -2.567725,
+              "change_pct": -3.8417
+            },
+            {
+              "period": "2025-06-01T00:00:00",
+              "repeat_purchase_rate": 62.04465334900117,
+              "prev_period": 64.26966292134831,
+              "change_abs": -2.22501,
+              "change_pct": -3.462
+            },
+            {
+              "period": "2025-07-01T00:00:00",
+              "repeat_purchase_rate": 61.00278551532033,
+              "prev_period": 62.04465334900117,
+              "change_abs": -1.041868,
+              "change_pct": -1.6792
+            },
+            {
+              "period": "2025-08-01T00:00:00",
+              "repeat_purchase_rate": 58.014354066985646,
+              "prev_period": 61.00278551532033,
+              "change_abs": -2.988431,
+              "change_pct": -4.8988
+            },
+            {
+              "period": "2025-09-01T00:00:00",
+              "repeat_purchase_rate": 55.986316989737745,
+              "prev_period": 58.014354066985646,
+              "change_abs": -2.028037,
+              "change_pct": -3.4958
+            },
+            {
+              "period": "2025-10-01T00:00:00",
+              "repeat_purchase_rate": 52.85252960172228,
+              "prev_period": 55.986316989737745,
+              "change_abs": -3.133787,
+              "change_pct": -5.5974
+            },
+            {
+              "period": "2025-11-01T00:00:00",
+              "repeat_purchase_rate": 43.933955491744435,
+              "prev_period": 52.85252960172228,
+              "change_abs": -8.918574,
+              "change_pct": -16.8745
+            },
+            {
+              "period": "2025-12-01T00:00:00",
+              "repeat_purchase_rate": 48.57142857142857,
+              "prev_period": 43.933955491744435,
+              "change_abs": 4.637473,
+              "change_pct": 10.5556
+            }
+          ]
+        },
+        "mark": {
+          "type": "line",
+          "tooltip": true
+        },
+        "encoding": {
+          "x": {
+            "field": "period",
+            "type": "temporal",
+            "title": "period"
+          },
+          "y": {
+            "field": "repeat_purchase_rate",
+            "type": "quantitative",
+            "title": "repeat_purchase_rate"
+          },
+          "tooltip": [
+            {
+              "field": "period",
+              "type": "nominal"
+            },
+            {
+              "field": "repeat_purchase_rate",
+              "type": "quantitative"
+            },
+            {
+              "field": "prev_period",
+              "type": "quantitative"
+            },
+            {
+              "field": "change_abs",
+              "type": "quantitative"
+            },
+            {
+              "field": "change_pct",
+              "type": "quantitative"
+            }
+          ]
+        },
+        "width": "container",
+        "height": 260
+      }
+    },
+    {
+      "chart_id": "cht_97831d3c",
+      "title": "late_delivery_rate by month",
+      "result_id": "res_f90b1f6d9e83",
+      "finding_ids": [
+        "fin_dcb0ecd1"
+      ],
+      "spec": {
+        "$schema": "https://vega.github.io/schema/vega-lite/v5.json",
+        "title": "late_delivery_rate by month",
+        "data": {
+          "values": [
+            {
+              "period": "2024-01-01T00:00:00",
+              "late_delivery_rate": 9.01639344262295,
+              "prev_period": null,
+              "change_abs": null,
+              "change_pct": null
+            },
+            {
+              "period": "2024-02-01T00:00:00",
+              "late_delivery_rate": 9.978540772532188,
+              "prev_period": 9.01639344262295,
+              "change_abs": 0.962147,
+              "change_pct": 10.6711
+            },
+            {
+              "period": "2024-03-01T00:00:00",
+              "late_delivery_rate": 8.830364058869094,
+              "prev_period": 9.978540772532188,
+              "change_abs": -1.148177,
+              "change_pct": -11.5065
+            },
+            {
+              "period": "2024-04-01T00:00:00",
+              "late_delivery_rate": 10.181818181818182,
+              "prev_period": 8.830364058869094,
+              "change_abs": 1.351454,
+              "change_pct": 15.3046
+            },
+            {
+              "period": "2024-05-01T00:00:00",
+              "late_delivery_rate": 10.453172205438067,
+              "prev_period": 10.181818181818182,
+              "change_abs": 0.271354,
+              "change_pct": 2.6651
+            },
+            {
+              "period": "2024-06-01T00:00:00",
+              "late_delivery_rate": 10.195227765726681,
+              "prev_period": 10.453172205438067,
+              "change_abs": -0.257944,
+              "change_pct": -2.4676
+            },
+            {
+              "period": "2024-07-01T00:00:00",
+              "late_delivery_rate": 8.486622073578594,
+              "prev_period": 10.195227765726681,
+              "change_abs": -1.708606,
+              "change_pct": -16.7589
+            },
+            {
+              "period": "2024-08-01T00:00:00",
+              "late_delivery_rate": 8.850671140939598,
+              "prev_period": 8.486622073578594,
+              "change_abs": 0.364049,
+              "change_pct": 4.2897
+            },
+            {
+              "period": "2024-09-01T00:00:00",
+              "late_delivery_rate": 9.493935591802593,
+              "prev_period": 8.850671140939598,
+              "change_abs": 0.643264,
+              "change_pct": 7.268
+            },
+            {
+              "period": "2024-10-01T00:00:00",
+              "late_delivery_rate": 8.93542757417103,
+              "prev_period": 9.493935591802593,
+              "change_abs": -0.558508,
+              "change_pct": -5.8828
+            },
+            {
+              "period": "2024-11-01T00:00:00",
+              "late_delivery_rate": 14.260049404895575,
+              "prev_period": 8.93542757417103,
+              "change_abs": 5.324622,
+              "change_pct": 59.59
+            },
+            {
+              "period": "2024-12-01T00:00:00",
+              "late_delivery_rate": 14.931788450756867,
+              "prev_period": 14.260049404895575,
+              "change_abs": 0.671739,
+              "change_pct": 4.7106
+            },
+            {
+              "period": "2025-01-01T00:00:00",
+              "late_delivery_rate": 9.825721153846153,
+              "prev_period": 14.931788450756867,
+              "change_abs": -5.106067,
+              "change_pct": -34.196
+            },
+            {
+              "period": "2025-02-01T00:00:00",
+              "late_delivery_rate": 9.22978994271165,
+              "prev_period": 9.825721153846153,
+              "change_abs": -0.595931,
+              "change_pct": -6.065
+            },
+            {
+              "period": "2025-03-01T00:00:00",
+              "late_delivery_rate": 9.895953757225433,
+              "prev_period": 9.22978994271165,
+              "change_abs": 0.666164,
+              "change_pct": 7.2175
+            },
+            {
+              "period": "2025-04-01T00:00:00",
+              "late_delivery_rate": 8.685766257389723,
+              "prev_period": 9.895953757225433,
+              "change_abs": -1.210187,
+              "change_pct": -12.2291
+            },
+            {
+              "period": "2025-05-01T00:00:00",
+              "late_delivery_rate": 11.886252045826513,
+              "prev_period": 8.685766257389723,
+              "change_abs": 3.200486,
+              "change_pct": 36.8475
+            },
+            {
+              "period": "2025-06-01T00:00:00",
+              "late_delivery_rate": 11.629731319866641,
+              "prev_period": 11.886252045826513,
+              "change_abs": -0.256521,
+              "change_pct": -2.1581
+            },
+            {
+              "period": "2025-07-01T00:00:00",
+              "late_delivery_rate": 11.606869058570991,
+              "prev_period": 11.629731319866641,
+              "change_abs": -0.022862,
+              "change_pct": -0.1966
+            },
+            {
+              "period": "2025-08-01T00:00:00",
+              "late_delivery_rate": 11.632923996017258,
+              "prev_period": 11.606869058570991,
+              "change_abs": 0.026055,
+              "change_pct": 0.2245
+            },
+            {
+              "period": "2025-09-01T00:00:00",
+              "late_delivery_rate": 11.429030702459412,
+              "prev_period": 11.632923996017258,
+              "change_abs": -0.203893,
+              "change_pct": -1.7527
+            },
+            {
+              "period": "2025-10-01T00:00:00",
+              "late_delivery_rate": 11.53570917418062,
+              "prev_period": 11.429030702459412,
+              "change_abs": 0.106678,
+              "change_pct": 0.9334
+            },
+            {
+              "period": "2025-11-01T00:00:00",
+              "late_delivery_rate": 16.19089316987741,
+              "prev_period": 11.53570917418062,
+              "change_abs": 4.655184,
+              "change_pct": 40.3546
+            },
+            {
+              "period": "2025-12-01T00:00:00",
+              "late_delivery_rate": 16.500965596166225,
+              "prev_period": 16.19089316987741,
+              "change_abs": 0.310072,
+              "change_pct": 1.9151
+            },
+            {
+              "period": "2026-01-01T00:00:00",
+              "late_delivery_rate": 15.662650602409638,
+              "prev_period": 16.500965596166225,
+              "change_abs": -0.838315,
+              "change_pct": -5.0804
+            }
+          ]
+        },
+        "mark": {
+          "type": "line",
+          "tooltip": true
+        },
+        "encoding": {
+          "x": {
+            "field": "period",
+            "type": "temporal",
+            "title": "period"
+          },
+          "y": {
+            "field": "late_delivery_rate",
+            "type": "quantitative",
+            "title": "late_delivery_rate"
+          },
+          "tooltip": [
+            {
+              "field": "period",
+              "type": "nominal"
+            },
+            {
+              "field": "late_delivery_rate",
+              "type": "quantitative"
+            },
+            {
+              "field": "prev_period",
+              "type": "quantitative"
+            },
+            {
+              "field": "change_abs",
+              "type": "quantitative"
+            },
+            {
+              "field": "change_pct",
+              "type": "quantitative"
+            }
+          ]
+        },
+        "width": "container",
+        "height": 260
+      }
+    },
+    {
+      "chart_id": "cht_710a121e",
+      "title": "repeat_purchase_rate by acquisition_channel",
+      "result_id": "res_60653a1cfe4d",
+      "finding_ids": [
+        "fin_ca6fc6ce"
+      ],
+      "spec": {
+        "$schema": "https://vega.github.io/schema/vega-lite/v5.json",
+        "title": "repeat_purchase_rate by acquisition_channel",
+        "data": {
+          "values": [
+            {
+              "acquisition_channel": "social",
+              "repeat_purchase_rate": 69.81047937569677,
+              "share_of_total_pct": 17.0293,
+              "diff_vs_best": 0.0,
+              "rank_desc": 1
+            },
+            {
+              "acquisition_channel": "email",
+              "repeat_purchase_rate": 68.95047472414677,
+              "share_of_total_pct": 16.8195,
+              "diff_vs_best": -0.860005,
+              "rank_desc": 2
+            },
+            {
+              "acquisition_channel": "paid_search",
+              "repeat_purchase_rate": 68.62745098039215,
+              "share_of_total_pct": 16.7407,
+              "diff_vs_best": -1.183028,
+              "rank_desc": 3
+            },
+            {
+              "acquisition_channel": "referral",
+              "repeat_purchase_rate": 68.60047846889952,
+              "share_of_total_pct": 16.7342,
+              "diff_vs_best": -1.210001,
+              "rank_desc": 4
+            },
+            {
+              "acquisition_channel": "organic",
+              "repeat_purchase_rate": 68.37127284386021,
+              "share_of_total_pct": 16.6782,
+              "diff_vs_best": -1.439207,
+              "rank_desc": 5
+            },
+            {
+              "acquisition_channel": "affiliate",
+              "repeat_purchase_rate": 65.58265582655827,
+              "share_of_total_pct": 15.998,
+              "diff_vs_best": -4.227824,
+              "rank_desc": 6
+            }
+          ]
+        },
+        "mark": {
+          "type": "bar",
+          "tooltip": true
+        },
+        "encoding": {
+          "x": {
+            "field": "acquisition_channel",
+            "type": "nominal",
+            "title": "acquisition_channel"
+          },
+          "y": {
+            "field": "repeat_purchase_rate",
+            "type": "quantitative",
+            "title": "repeat_purchase_rate"
+          },
+          "tooltip": [
+            {
+              "field": "acquisition_channel",
+              "type": "nominal"
+            },
+            {
+              "field": "repeat_purchase_rate",
+              "type": "quantitative"
+            },
+            {
+              "field": "share_of_total_pct",
+              "type": "quantitative"
+            },
+            {
+              "field": "diff_vs_best",
+              "type": "quantitative"
+            },
+            {
+              "field": "rank_desc",
+              "type": "quantitative"
+            }
+          ]
+        },
+        "width": "container",
+        "height": 260
+      }
+    },
+    {
+      "chart_id": "cht_361c8004",
+      "title": "repeat_purchase_rate by region",
+      "result_id": "res_55f8f978463a",
+      "finding_ids": [
+        "fin_8b1ecf48"
+      ],
+      "spec": {
+        "$schema": "https://vega.github.io/schema/vega-lite/v5.json",
+        "title": "repeat_purchase_rate by region",
+        "data": {
+          "values": [
+            {
+              "region": "Southwest",
+              "repeat_purchase_rate": 69.34838861444366,
+              "share_of_total_pct": 20.3231,
+              "diff_vs_best": 0.0,
+              "rank_desc": 1
+            },
+            {
+              "region": "Southeast",
+              "repeat_purchase_rate": 68.62244897959184,
+              "share_of_total_pct": 20.1103,
+              "diff_vs_best": -0.72594,
+              "rank_desc": 2
+            },
+            {
+              "region": "Midwest",
+              "repeat_purchase_rate": 68.23199579463817,
+              "share_of_total_pct": 19.9959,
+              "diff_vs_best": -1.116393,
+              "rank_desc": 3
+            },
+            {
+              "region": "West",
+              "repeat_purchase_rate": 68.11331286631315,
+              "share_of_total_pct": 19.9611,
+              "diff_vs_best": -1.235076,
+              "rank_desc": 4
+            },
+            {
+              "region": "Northeast",
+              "repeat_purchase_rate": 66.91399152029074,
+              "share_of_total_pct": 19.6096,
+              "diff_vs_best": -2.434397,
+              "rank_desc": 5
+            }
+          ]
+        },
+        "mark": {
+          "type": "bar",
+          "tooltip": true
+        },
+        "encoding": {
+          "x": {
+            "field": "region",
+            "type": "nominal",
+            "title": "region"
+          },
+          "y": {
+            "field": "repeat_purchase_rate",
+            "type": "quantitative",
+            "title": "repeat_purchase_rate"
+          },
+          "tooltip": [
+            {
+              "field": "region",
+              "type": "nominal"
+            },
+            {
+              "field": "repeat_purchase_rate",
+              "type": "quantitative"
+            },
+            {
+              "field": "share_of_total_pct",
+              "type": "quantitative"
+            },
+            {
+              "field": "diff_vs_best",
+              "type": "quantitative"
+            },
+            {
+              "field": "rank_desc",
+              "type": "quantitative"
+            }
+          ]
+        },
+        "width": "container",
+        "height": 260
+      }
+    }
+  ],
+  "tasks": [
+    {
+      "task_id": "task_01",
+      "status": "succeeded",
+      "findings": [
+        {
+          "finding_id": "fin_e34012bc",
+          "text": "repeat_purchase_rate rose from 71.06 in 2023-12-01 to 82.44 in 2024-01-01 (11.38).",
+          "kind": "calculated_fact",
+          "task_id": "task_01",
+          "result_ids": [
+            "res_95f94d9d7b39"
+          ],
+          "evidence_cells": [
+            {
+              "result_id": "res_95f94d9d7b39",
+              "row": 17,
+              "column": "repeat_purchase_rate",
+              "value": 71.05719237435008,
+              "label": "repeat_purchase_rate at 2023-12-01"
+            },
+            {
+              "result_id": "res_95f94d9d7b39",
+              "row": 18,
+              "column": "repeat_purchase_rate",
+              "value": 82.44147157190635,
+              "label": "repeat_purchase_rate at 2024-01-01"
+            }
+          ],
+          "metric_ids": [
+            "repeat_purchase_rate"
+          ],
+          "claimed_change": {
+            "type": "difference",
+            "from": 71.05719237435008,
+            "to": 82.44147157190635,
+            "stated": 11.384279
+          }
+        }
+      ],
+      "result_ids": [
+        "res_95f94d9d7b39"
+      ],
+      "tool_calls": 1,
+      "error": null,
+      "notes": []
+    },
+    {
+      "task_id": "task_02",
+      "status": "succeeded",
+      "findings": [
+        {
+          "finding_id": "fin_dcb0ecd1",
+          "text": "late_delivery_rate rose from 8.94 in 2024-10-01 to 14.26 in 2024-11-01 (5.32).",
+          "kind": "calculated_fact",
+          "task_id": "task_02",
+          "result_ids": [
+            "res_f90b1f6d9e83"
+          ],
+          "evidence_cells": [
+            {
+              "result_id": "res_f90b1f6d9e83",
+              "row": 9,
+              "column": "late_delivery_rate",
+              "value": 8.93542757417103,
+              "label": "late_delivery_rate at 2024-10-01"
+            },
+            {
+              "result_id": "res_f90b1f6d9e83",
+              "row": 10,
+              "column": "late_delivery_rate",
+              "value": 14.260049404895575,
+              "label": "late_delivery_rate at 2024-11-01"
+            }
+          ],
+          "metric_ids": [
+            "late_delivery_rate"
+          ],
+          "claimed_change": {
+            "type": "difference",
+            "from": 8.93542757417103,
+            "to": 14.260049404895575,
+            "stated": 5.324622
+          }
+        }
+      ],
+      "result_ids": [
+        "res_f90b1f6d9e83"
+      ],
+      "tool_calls": 1,
+      "error": null,
+      "notes": []
+    },
+    {
+      "task_id": "task_03",
+      "status": "succeeded",
+      "findings": [
+        {
+          "finding_id": "fin_ca6fc6ce",
+          "text": "Across acquisition_channel, social has the highest repeat_purchase_rate at 69.81 and affiliate the lowest at 65.58.",
+          "kind": "calculated_fact",
+          "task_id": "task_03",
+          "result_ids": [
+            "res_60653a1cfe4d"
+          ],
+          "evidence_cells": [
+            {
+              "result_id": "res_60653a1cfe4d",
+              "row": 0,
+              "column": "repeat_purchase_rate",
+              "value": 69.81047937569677,
+              "label": "repeat_purchase_rate for social"
+            },
+            {
+              "result_id": "res_60653a1cfe4d",
+              "row": 5,
+              "column": "repeat_purchase_rate",
+              "value": 65.58265582655827,
+              "label": "repeat_purchase_rate for affiliate"
+            }
+          ],
+          "metric_ids": [
+            "repeat_purchase_rate"
+          ],
+          "claimed_change": {
+            "type": "difference",
+            "from": 65.58265582655827,
+            "to": 69.81047937569677,
+            "stated": 4.227824
+          }
+        }
+      ],
+      "result_ids": [
+        "res_60653a1cfe4d"
+      ],
+      "tool_calls": 1,
+      "error": null,
+      "notes": []
+    },
+    {
+      "task_id": "task_04",
+      "status": "succeeded",
+      "findings": [
+        {
+          "finding_id": "fin_8b1ecf48",
+          "text": "Across region, Southwest has the highest repeat_purchase_rate at 69.35 and Northeast the lowest at 66.91.",
+          "kind": "calculated_fact",
+          "task_id": "task_04",
+          "result_ids": [
+            "res_55f8f978463a"
+          ],
+          "evidence_cells": [
+            {
+              "result_id": "res_55f8f978463a",
+              "row": 0,
+              "column": "repeat_purchase_rate",
+              "value": 69.34838861444366,
+              "label": "repeat_purchase_rate for Southwest"
+            },
+            {
+              "result_id": "res_55f8f978463a",
+              "row": 4,
+              "column": "repeat_purchase_rate",
+              "value": 66.91399152029074,
+              "label": "repeat_purchase_rate for Northeast"
+            }
+          ],
+          "metric_ids": [
+            "repeat_purchase_rate"
+          ],
+          "claimed_change": {
+            "type": "difference",
+            "from": 66.91399152029074,
+            "to": 69.34838861444366,
+            "stated": 2.434397
+          }
+        }
+      ],
+      "result_ids": [
+        "res_55f8f978463a"
+      ],
+      "tool_calls": 1,
+      "error": null,
+      "notes": []
+    },
+    {
+      "task_id": "task_05",
+      "status": "succeeded",
+      "findings": [
+        {
+          "finding_id": "fin_70697a5a",
+          "text": "Measured rate: late = 0.50, on_time = 0.70. A two-proportion z-test on late=3,401, on_time=26,599 returned p = 2.15e-122 with Cohen's h = -0.412; the difference is statistically significant at the 5% level.",
+          "kind": "statistical_result",
+          "task_id": "task_05",
+          "result_ids": [
+            "res_c8c9a42d8f8f"
+          ],
+          "evidence_cells": [
+            {
+              "result_id": "res_c8c9a42d8f8f",
+              "row": 0,
+              "column": "rate",
+              "value": 0.5045574830932079,
+              "label": "rate for late"
+            },
+            {
+              "result_id": "res_c8c9a42d8f8f",
+              "row": 1,
+              "column": "rate",
+              "value": 0.7041618105943832,
+              "label": "rate for on_time"
+            }
+          ],
+          "metric_ids": [
+            "repeat_purchase_rate"
+          ],
+          "claimed_change": null
+        },
+        {
+          "finding_id": "fin_1ca90d16",
+          "text": "Being in the late group causes the observed difference versus on_time.",
+          "kind": "interpretation",
+          "task_id": "task_05",
+          "result_ids": [
+            "res_c8c9a42d8f8f"
+          ],
+          "evidence_cells": [
+            {
+              "result_id": "res_c8c9a42d8f8f",
+              "row": 0,
+              "column": "rate",
+              "value": 0.5045574830932079,
+              "label": "rate for late"
+            }
+          ],
+          "metric_ids": [],
+          "claimed_change": null
+        }
+      ],
+      "result_ids": [
+        "res_c8c9a42d8f8f"
+      ],
+      "tool_calls": 1,
+      "error": null,
+      "notes": []
+    }
+  ],
+  "results": {
+    "res_f90b1f6d9e83": {
+      "result_id": "res_f90b1f6d9e83",
+      "tool_name": "analyze_timeseries",
+      "task_id": "task_02",
+      "sql": "WITH base AS (\nSELECT date_trunc('month', shipped_date) AS period, 100.0 * SUM(is_late_int) / NULLIF(COUNT(*), 0) AS \"late_delivery_rate\"\nFROM (\nSELECT\n  s.order_id,\n  s.carrier,\n  s.region,\n  s.shipped_date,\n  s.delivered_date,\n  s.delivery_days,\n  s.promised_days,\n  CASE WHEN s.is_late THEN 1 ELSE 0 END AS is_late_int,\n  c.customer_segment,\n  c.acquisition_channel\nFROM shipping_events s\nJOIN orders o    ON o.order_id = s.order_id\nJOIN customers c ON c.customer_id = o.customer_id\n) AS m\nGROUP BY date_trunc('month', shipped_date)\nORDER BY date_trunc('month', shipped_date)\n)\nSELECT period, \"late_delivery_rate\",\n  LAG(\"late_delivery_rate\") OVER (ORDER BY period) AS prev_period,\n  ROUND(\"late_delivery_rate\" - LAG(\"late_delivery_rate\") OVER (ORDER BY period), 6) AS change_abs,\n  ROUND(100.0 * (\"late_delivery_rate\" - LAG(\"late_delivery_rate\") OVER (ORDER BY period))\n        / NULLIF(ABS(LAG(\"late_delivery_rate\") OVER (ORDER BY period)), 0), 4) AS change_pct\nFROM base\nORDER BY period",
+      "columns": [
+        "period",
+        "late_delivery_rate",
+        "prev_period",
+        "change_abs",
+        "change_pct"
+      ],
+      "rows": [
+        [
+          "2024-01-01T00:00:00",
+          9.01639344262295,
+          null,
+          null,
+          null
+        ],
+        [
+          "2024-02-01T00:00:00",
+          9.978540772532188,
+          9.01639344262295,
+          0.962147,
+          10.6711
+        ],
+        [
+          "2024-03-01T00:00:00",
+          8.830364058869094,
+          9.978540772532188,
+          -1.148177,
+          -11.5065
+        ],
+        [
+          "2024-04-01T00:00:00",
+          10.181818181818182,
+          8.830364058869094,
+          1.351454,
+          15.3046
+        ],
+        [
+          "2024-05-01T00:00:00",
+          10.453172205438067,
+          10.181818181818182,
+          0.271354,
+          2.6651
+        ],
+        [
+          "2024-06-01T00:00:00",
+          10.195227765726681,
+          10.453172205438067,
+          -0.257944,
+          -2.4676
+        ],
+        [
+          "2024-07-01T00:00:00",
+          8.486622073578594,
+          10.195227765726681,
+          -1.708606,
+          -16.7589
+        ],
+        [
+          "2024-08-01T00:00:00",
+          8.850671140939598,
+          8.486622073578594,
+          0.364049,
+          4.2897
+        ],
+        [
+          "2024-09-01T00:00:00",
+          9.493935591802593,
+          8.850671140939598,
+          0.643264,
+          7.268
+        ],
+        [
+          "2024-10-01T00:00:00",
+          8.93542757417103,
+          9.493935591802593,
+          -0.558508,
+          -5.8828
+        ],
+        [
+          "2024-11-01T00:00:00",
+          14.260049404895575,
+          8.93542757417103,
+          5.324622,
+          59.59
+        ],
+        [
+          "2024-12-01T00:00:00",
+          14.931788450756867,
+          14.260049404895575,
+          0.671739,
+          4.7106
+        ],
+        [
+          "2025-01-01T00:00:00",
+          9.825721153846153,
+          14.931788450756867,
+          -5.106067,
+          -34.196
+        ],
+        [
+          "2025-02-01T00:00:00",
+          9.22978994271165,
+          9.825721153846153,
+          -0.595931,
+          -6.065
+        ],
+        [
+          "2025-03-01T00:00:00",
+          9.895953757225433,
+          9.22978994271165,
+          0.666164,
+          7.2175
+        ],
+        [
+          "2025-04-01T00:00:00",
+          8.685766257389723,
+          9.895953757225433,
+          -1.210187,
+          -12.2291
+        ],
+        [
+          "2025-05-01T00:00:00",
+          11.886252045826513,
+          8.685766257389723,
+          3.200486,
+          36.8475
+        ],
+        [
+          "2025-06-01T00:00:00",
+          11.629731319866641,
+          11.886252045826513,
+          -0.256521,
+          -2.1581
+        ],
+        [
+          "2025-07-01T00:00:00",
+          11.606869058570991,
+          11.629731319866641,
+          -0.022862,
+          -0.1966
+        ],
+        [
+          "2025-08-01T00:00:00",
+          11.632923996017258,
+          11.606869058570991,
+          0.026055,
+          0.2245
+        ],
+        [
+          "2025-09-01T00:00:00",
+          11.429030702459412,
+          11.632923996017258,
+          -0.203893,
+          -1.7527
+        ],
+        [
+          "2025-10-01T00:00:00",
+          11.53570917418062,
+          11.429030702459412,
+          0.106678,
+          0.9334
+        ],
+        [
+          "2025-11-01T00:00:00",
+          16.19089316987741,
+          11.53570917418062,
+          4.655184,
+          40.3546
+        ],
+        [
+          "2025-12-01T00:00:00",
+          16.500965596166225,
+          16.19089316987741,
+          0.310072,
+          1.9151
+        ],
+        [
+          "2026-01-01T00:00:00",
+          15.662650602409638,
+          16.500965596166225,
+          -0.838315,
+          -5.0804
+        ]
+      ],
+      "row_count": 25,
+      "truncated": false,
+      "dataset_fingerprint": "sha256:8e9ad9348f7dc18660d78ed3cd4d4b32",
+      "started_at": 1790291305.664643,
+      "duration_ms": 9.677,
+      "parameters": {
+        "metric": "late_delivery_rate",
+        "grain": "month",
+        "time_column": "shipped_date",
+        "filters": []
+      },
+      "warnings": [],
+      "statistical_result": null
+    },
+    "res_60653a1cfe4d": {
+      "result_id": "res_60653a1cfe4d",
+      "tool_name": "compare_segments",
+      "task_id": "task_03",
+      "sql": "WITH base AS (\nSELECT \"acquisition_channel\" AS \"acquisition_channel\", 100.0 * SUM(is_repeat) / NULLIF(COUNT(*), 0) AS \"repeat_purchase_rate\"\nFROM (\nWITH first_ship AS (\n  SELECT o.customer_id,\n         s.is_late      AS first_delivery_late,\n         s.carrier      AS first_carrier,\n         s.delivery_days AS first_delivery_days\n  FROM orders o\n  JOIN shipping_events s ON s.order_id = o.order_id\n  WHERE o.is_first_order\n),\norder_counts AS (\n  SELECT customer_id, COUNT(*) AS order_count\n  FROM orders GROUP BY 1\n)\nSELECT\n  c.customer_id,\n  c.signup_date,\n  c.customer_segment,\n  c.region,\n  c.acquisition_channel,\n  COALESCE(oc.order_count, 0) AS order_count,\n  CASE WHEN COALESCE(oc.order_count, 0) > 1 THEN 1 ELSE 0 END AS is_repeat,\n  f.first_delivery_late,\n  f.first_carrier,\n  f.first_delivery_days,\n  CASE WHEN f.first_delivery_late THEN 'late' ELSE 'on_time' END AS first_delivery_status\nFROM customers c\nLEFT JOIN order_counts oc ON oc.customer_id = c.customer_id\nLEFT JOIN first_ship f   ON f.customer_id = c.customer_id\n) AS m\nGROUP BY \"acquisition_channel\"\nORDER BY \"acquisition_channel\"\n)\nSELECT \"acquisition_channel\", \"repeat_purchase_rate\",\n  CASE WHEN MIN(\"repeat_purchase_rate\") OVER () >= 0 THEN\n    ROUND(100.0 * \"repeat_purchase_rate\" / NULLIF(SUM(\"repeat_purchase_rate\") OVER (), 0), 4)\n  END AS share_of_total_pct,\n  ROUND(\"repeat_purchase_rate\" - MAX(\"repeat_purchase_rate\") OVER (), 6) AS diff_vs_best,\n  ROW_NUMBER() OVER (ORDER BY \"repeat_purchase_rate\" DESC NULLS LAST) AS rank_desc\nFROM base\nORDER BY \"repeat_purchase_rate\" DESC NULLS LAST",
+      "columns": [
+        "acquisition_channel",
+        "repeat_purchase_rate",
+        "share_of_total_pct",
+        "diff_vs_best",
+        "rank_desc"
+      ],
+      "rows": [
+        [
+          "social",
+          69.81047937569677,
+          17.0293,
+          0.0,
+          1
+        ],
+        [
+          "email",
+          68.95047472414677,
+          16.8195,
+          -0.860005,
+          2
+        ],
+        [
+          "paid_search",
+          68.62745098039215,
+          16.7407,
+          -1.183028,
+          3
+        ],
+        [
+          "referral",
+          68.60047846889952,
+          16.7342,
+          -1.210001,
+          4
+        ],
+        [
+          "organic",
+          68.37127284386021,
+          16.6782,
+          -1.439207,
+          5
+        ],
+        [
+          "affiliate",
+          65.58265582655827,
+          15.998,
+          -4.227824,
+          6
+        ]
+      ],
+      "row_count": 6,
+      "truncated": false,
+      "dataset_fingerprint": "sha256:8e9ad9348f7dc18660d78ed3cd4d4b32",
+      "started_at": 1790291305.664684,
+      "duration_ms": 19.541,
+      "parameters": {
+        "metric": "repeat_purchase_rate",
+        "dimension": "acquisition_channel",
+        "segments": [],
+        "filters": []
+      },
+      "warnings": [],
+      "statistical_result": null
+    },
+    "res_55f8f978463a": {
+      "result_id": "res_55f8f978463a",
+      "tool_name": "compare_segments",
+      "task_id": "task_04",
+      "sql": "WITH base AS (\nSELECT \"region\" AS \"region\", 100.0 * SUM(is_repeat) / NULLIF(COUNT(*), 0) AS \"repeat_purchase_rate\"\nFROM (\nWITH first_ship AS (\n  SELECT o.customer_id,\n         s.is_late      AS first_delivery_late,\n         s.carrier      AS first_carrier,\n         s.delivery_days AS first_delivery_days\n  FROM orders o\n  JOIN shipping_events s ON s.order_id = o.order_id\n  WHERE o.is_first_order\n),\norder_counts AS (\n  SELECT customer_id, COUNT(*) AS order_count\n  FROM orders GROUP BY 1\n)\nSELECT\n  c.customer_id,\n  c.signup_date,\n  c.customer_segment,\n  c.region,\n  c.acquisition_channel,\n  COALESCE(oc.order_count, 0) AS order_count,\n  CASE WHEN COALESCE(oc.order_count, 0) > 1 THEN 1 ELSE 0 END AS is_repeat,\n  f.first_delivery_late,\n  f.first_carrier,\n  f.first_delivery_days,\n  CASE WHEN f.first_delivery_late THEN 'late' ELSE 'on_time' END AS first_delivery_status\nFROM customers c\nLEFT JOIN order_counts oc ON oc.customer_id = c.customer_id\nLEFT JOIN first_ship f   ON f.customer_id = c.customer_id\n) AS m\nGROUP BY \"region\"\nORDER BY \"region\"\n)\nSELECT \"region\", \"repeat_purchase_rate\",\n  CASE WHEN MIN(\"repeat_purchase_rate\") OVER () >= 0 THEN\n    ROUND(100.0 * \"repeat_purchase_rate\" / NULLIF(SUM(\"repeat_purchase_rate\") OVER (), 0), 4)\n  END AS share_of_total_pct,\n  ROUND(\"repeat_purchase_rate\" - MAX(\"repeat_purchase_rate\") OVER (), 6) AS diff_vs_best,\n  ROW_NUMBER() OVER (ORDER BY \"repeat_purchase_rate\" DESC NULLS LAST) AS rank_desc\nFROM base\nORDER BY \"repeat_purchase_rate\" DESC NULLS LAST",
+      "columns": [
+        "region",
+        "repeat_purchase_rate",
+        "share_of_total_pct",
+        "diff_vs_best",
+        "rank_desc"
+      ],
+      "rows": [
+        [
+          "Southwest",
+          69.34838861444366,
+          20.3231,
+          0.0,
+          1
+        ],
+        [
+          "Southeast",
+          68.62244897959184,
+          20.1103,
+          -0.72594,
+          2
+        ],
+        [
+          "Midwest",
+          68.23199579463817,
+          19.9959,
+          -1.116393,
+          3
+        ],
+        [
+          "West",
+          68.11331286631315,
+          19.9611,
+          -1.235076,
+          4
+        ],
+        [
+          "Northeast",
+          66.91399152029074,
+          19.6096,
+          -2.434397,
+          5
+        ]
+      ],
+      "row_count": 5,
+      "truncated": false,
+      "dataset_fingerprint": "sha256:8e9ad9348f7dc18660d78ed3cd4d4b32",
+      "started_at": 1790291305.6647072,
+      "duration_ms": 29.385,
+      "parameters": {
+        "metric": "repeat_purchase_rate",
+        "dimension": "region",
+        "segments": [],
+        "filters": []
+      },
+      "warnings": [],
+      "statistical_result": null
+    },
+    "res_95f94d9d7b39": {
+      "result_id": "res_95f94d9d7b39",
+      "tool_name": "analyze_timeseries",
+      "task_id": "task_01",
+      "sql": "WITH base AS (\nSELECT date_trunc('month', signup_date) AS period, 100.0 * SUM(is_repeat) / NULLIF(COUNT(*), 0) AS \"repeat_purchase_rate\"\nFROM (\nWITH first_ship AS (\n  SELECT o.customer_id,\n         s.is_late      AS first_delivery_late,\n         s.carrier      AS first_carrier,\n         s.delivery_days AS first_delivery_days\n  FROM orders o\n  JOIN shipping_events s ON s.order_id = o.order_id\n  WHERE o.is_first_order\n),\norder_counts AS (\n  SELECT customer_id, COUNT(*) AS order_count\n  FROM orders GROUP BY 1\n)\nSELECT\n  c.customer_id,\n  c.signup_date,\n  c.customer_segment,\n  c.region,\n  c.acquisition_channel,\n  COALESCE(oc.order_count, 0) AS order_count,\n  CASE WHEN COALESCE(oc.order_count, 0) > 1 THEN 1 ELSE 0 END AS is_repeat,\n  f.first_delivery_late,\n  f.first_carrier,\n  f.first_delivery_days,\n  CASE WHEN f.first_delivery_late THEN 'late' ELSE 'on_time' END AS first_delivery_status\nFROM customers c\nLEFT JOIN order_counts oc ON oc.customer_id = c.customer_id\nLEFT JOIN first_ship f   ON f.customer_id = c.customer_id\n) AS m\nGROUP BY date_trunc('month', signup_date)\nORDER BY date_trunc('month', signup_date)\n)\nSELECT period, \"repeat_purchase_rate\",\n  LAG(\"repeat_purchase_rate\") OVER (ORDER BY period) AS prev_period,\n  ROUND(\"repeat_purchase_rate\" - LAG(\"repeat_purchase_rate\") OVER (ORDER BY period), 6) AS change_abs,\n  ROUND(100.0 * (\"repeat_purchase_rate\" - LAG(\"repeat_purchase_rate\") OVER (ORDER BY period))\n        / NULLIF(ABS(LAG(\"repeat_purchase_rate\") OVER (ORDER BY period)), 0), 4) AS change_pct\nFROM base\nORDER BY period",
+      "columns": [
+        "period",
+        "repeat_purchase_rate",
+        "prev_period",
+        "change_abs",
+        "change_pct"
+      ],
+      "rows": [
+        [
+          "2022-07-01T00:00:00",
+          71.875,
+          null,
+          null,
+          null
+        ],
+        [
+          "2022-08-01T00:00:00",
+          66.98872785829307,
+          71.875,
+          -4.886272,
+          -6.7983
+        ],
+        [
+          "2022-09-01T00:00:00",
+          70.28571428571429,
+          66.98872785829307,
+          3.296986,
+          4.9217
+        ],
+        [
+          "2022-10-01T00:00:00",
+          67.32851985559567,
+          70.28571428571429,
+          -2.957194,
+          -4.2074
+        ],
+        [
+          "2022-11-01T00:00:00",
+          69.31608133086876,
+          67.32851985559567,
+          1.987561,
+          2.952
+        ],
+        [
+          "2022-12-01T00:00:00",
+          64.3598615916955,
+          69.31608133086876,
+          -4.95622,
+          -7.1502
+        ],
+        [
+          "2023-01-01T00:00:00",
+          67.00167504187604,
+          64.3598615916955,
+          2.641813,
+          4.1048
+        ],
+        [
+          "2023-02-01T00:00:00",
+          63.44294003868472,
+          67.00167504187604,
+          -3.558735,
+          -5.3114
+        ],
+        [
+          "2023-03-01T00:00:00",
+          68.68327402135232,
+          63.44294003868472,
+          5.240334,
+          8.2599
+        ],
+        [
+          "2023-04-01T00:00:00",
+          63.10861423220974,
+          68.68327402135232,
+          -5.57466,
+          -8.1165
+        ],
+        [
+          "2023-05-01T00:00:00",
+          66.26916524701873,
+          63.10861423220974,
+          3.160551,
+          5.0081
+        ],
+        [
+          "2023-06-01T00:00:00",
+          69.8501872659176,
+          66.26916524701873,
+          3.581022,
+          5.4038
+        ],
+        [
+          "2023-07-01T00:00:00",
+          66.17375231053605,
+          69.8501872659176,
+          -3.676435,
+          -5.2633
+        ],
+        [
+          "2023-08-01T00:00:00",
+          66.55231560891939,
+          66.17375231053605,
+          0.378563,
+          0.5721
+        ],
+        [
+          "2023-09-01T00:00:00",
+          66.35687732342008,
+          66.55231560891939,
+          -0.195438,
+          -0.2937
+        ],
+        [
+          "2023-10-01T00:00:00",
+          64.01384083044982,
+          66.35687732342008,
+          -2.343036,
+          -3.531
+        ],
+        [
+          "2023-11-01T00:00:00",
+          68.84681583476764,
+          64.01384083044982,
+          4.832975,
+          7.5499
+        ],
+        [
+          "2023-12-01T00:00:00",
+          71.05719237435008,
+          68.84681583476764,
+          2.210377,
+          3.2106
+        ],
+        [
+          "2024-01-01T00:00:00",
+          82.44147157190635,
+          71.05719237435008,
+          11.384279,
+          16.0213
+        ],
+        [
+          "2024-02-01T00:00:00",
+          82.02614379084967,
+          82.44147157190635,
+          -0.415328,
+          -0.5038
+        ],
+        [
+          "2024-03-01T00:00:00",
+          81.8537859007833,
+          82.02614379084967,
+          -0.172358,
+          -0.2101
+        ],
+        [
+          "2024-04-01T00:00:00",
+          81.47632311977716,
+          81.8537859007833,
+          -0.377463,
+          -0.4611
+        ],
+        [
+          "2024-05-01T00:00:00",
+          77.93190416141236,
+          81.47632311977716,
+          -3.544419,
+          -4.3502
+        ],
+        [
+          "2024-06-01T00:00:00",
+          77.33333333333333,
+          77.93190416141236,
+          -0.598571,
+          -0.7681
+        ],
+        [
+          "2024-07-01T00:00:00",
+          79.00113507377979,
+          77.33333333333333,
+          1.667802,
+          2.1566
+        ],
+        [
+          "2024-08-01T00:00:00",
+          76.71232876712328,
+          79.00113507377979,
+          -2.288806,
+          -2.8972
+        ],
+        [
+          "2024-09-01T00:00:00",
+          73.8970588235294,
+          76.71232876712328,
+          -2.81527,
+          -3.6699
+        ],
+        [
+          "2024-10-01T00:00:00",
+          72.63803680981596,
+          73.8970588235294,
+          -1.259022,
+          -1.7038
+        ],
+        [
+          "2024-11-01T00:00:00",
+          74.0968485780169,
+          72.63803680981596,
+          1.458812,
+          2.0083
+        ],
+        [
+          "2024-12-01T00:00:00",
+          74.28780131482834,
+          74.0968485780169,
+          0.190953,
+          0.2577
+        ],
+        [
+          "2025-01-01T00:00:00",
+          72.80832095096582,
+          74.28780131482834,
+          -1.47948,
+          -1.9916
+        ],
+        [
+          "2025-02-01T00:00:00",
+          70.54263565891473,
+          72.80832095096582,
+          -2.265685,
+          -3.1118
+        ],
+        [
+          "2025-03-01T00:00:00",
+          66.38246041412911,
+          70.54263565891473,
+          -4.160175,
+          -5.8974
+        ],
+        [
+          "2025-04-01T00:00:00",
+          66.83738796414853,
+          66.38246041412911,
+          0.454928,
+          0.6853
+        ],
+        [
+          "2025-05-01T00:00:00",
+          64.26966292134831,
+          66.83738796414853,
+          -2.567725,
+          -3.8417
+        ],
+        [
+          "2025-06-01T00:00:00",
+          62.04465334900117,
+          64.26966292134831,
+          -2.22501,
+          -3.462
+        ],
+        [
+          "2025-07-01T00:00:00",
+          61.00278551532033,
+          62.04465334900117,
+          -1.041868,
+          -1.6792
+        ],
+        [
+          "2025-08-01T00:00:00",
+          58.014354066985646,
+          61.00278551532033,
+          -2.988431,
+          -4.8988
+        ],
+        [
+          "2025-09-01T00:00:00",
+          55.986316989737745,
+          58.014354066985646,
+          -2.028037,
+          -3.4958
+        ],
+        [
+          "2025-10-01T00:00:00",
+          52.85252960172228,
+          55.986316989737745,
+          -3.133787,
+          -5.5974
+        ],
+        [
+          "2025-11-01T00:00:00",
+          43.933955491744435,
+          52.85252960172228,
+          -8.918574,
+          -16.8745
+        ],
+        [
+          "2025-12-01T00:00:00",
+          48.57142857142857,
+          43.933955491744435,
+          4.637473,
+          10.5556
+        ]
+      ],
+      "row_count": 42,
+      "truncated": false,
+      "dataset_fingerprint": "sha256:8e9ad9348f7dc18660d78ed3cd4d4b32",
+      "started_at": 1790291305.664727,
+      "duration_ms": 36.569,
+      "parameters": {
+        "metric": "repeat_purchase_rate",
+        "grain": "month",
+        "time_column": "signup_date",
+        "filters": []
+      },
+      "warnings": [],
+      "statistical_result": null
+    },
+    "res_c8c9a42d8f8f": {
+      "result_id": "res_c8c9a42d8f8f",
+      "tool_name": "statistical_test",
+      "task_id": "task_05",
+      "sql": "SELECT * FROM (\nWITH first_ship AS (\n  SELECT o.customer_id,\n         s.is_late      AS first_delivery_late,\n         s.carrier      AS first_carrier,\n         s.delivery_days AS first_delivery_days\n  FROM orders o\n  JOIN shipping_events s ON s.order_id = o.order_id\n  WHERE o.is_first_order\n),\norder_counts AS (\n  SELECT customer_id, COUNT(*) AS order_count\n  FROM orders GROUP BY 1\n)\nSELECT\n  c.customer_id,\n  c.signup_date,\n  c.customer_segment,\n  c.region,\n  c.acquisition_channel,\n  COALESCE(oc.order_count, 0) AS order_count,\n  CASE WHEN COALESCE(oc.order_count, 0) > 1 THEN 1 ELSE 0 END AS is_repeat,\n  f.first_delivery_late,\n  f.first_carrier,\n  f.first_delivery_days,\n  CASE WHEN f.first_delivery_late THEN 'late' ELSE 'on_time' END AS first_delivery_status\nFROM customers c\nLEFT JOIN order_counts oc ON oc.customer_id = c.customer_id\nLEFT JOIN first_ship f   ON f.customer_id = c.customer_id\n) AS r",
+      "columns": [
+        "group",
+        "n",
+        "successes",
+        "rate"
+      ],
+      "rows": [
+        [
+          "late",
+          3401,
+          1716.0,
+          0.5045574830932079
+        ],
+        [
+          "on_time",
+          26599,
+          18730.0,
+          0.7041618105943832
+        ]
+      ],
+      "row_count": 2,
+      "truncated": false,
+      "dataset_fingerprint": "sha256:8e9ad9348f7dc18660d78ed3cd4d4b32",
+      "started_at": 1790291305.712383,
+      "duration_ms": 0.0,
+      "parameters": {
+        "test_type": "two_proportion_z",
+        "variables": {
+          "model": "customer_lifecycle",
+          "group_column": "first_delivery_status",
+          "value_column": "is_repeat",
+          "groups": [
+            "late",
+            "on_time"
+          ]
+        },
+        "filters": []
+      },
+      "warnings": [
+        "This is an association between groups, not evidence of causation; the groups were not randomly assigned."
+      ],
+      "statistical_result": {
+        "test_name": "two-proportion z-test",
+        "statistic": -23.527173440763832,
+        "p_value": 2.1504784686352304e-122,
+        "sample_sizes": {
+          "late": 3401,
+          "on_time": 26599
+        },
+        "effect_size": -0.41150176507441105,
+        "effect_size_name": "Cohen's h",
+        "confidence_interval": [
+          -0.21728027778438122,
+          -0.18192837721796937
+        ],
+        "confidence_level": 0.95,
+        "assumptions": [
+          "independent observations within and between groups",
+          "normal approximation to the binomial (large-sample)"
+        ],
+        "warnings": [
+          "This is an association between groups, not evidence of causation; the groups were not randomly assigned."
+        ]
+      }
+    }
+  },
+  "mcp_trace": [
+    {
+      "tool_name": "analyze_timeseries",
+      "agent": "analysis_worker",
+      "task_id": "task_02",
+      "arguments": {
+        "metric": "late_delivery_rate",
+        "grain": "month",
+        "filters": [],
+        "task_id": "task_02"
+      },
+      "duration_ms": 16.72,
+      "result_id": "res_f90b1f6d9e83",
+      "row_count": 25,
+      "ok": true,
+      "error": null
+    },
+    {
+      "tool_name": "compare_segments",
+      "agent": "analysis_worker",
+      "task_id": "task_03",
+      "arguments": {
+        "metric": "repeat_purchase_rate",
+        "dimension": "acquisition_channel",
+        "filters": [],
+        "task_id": "task_03"
+      },
+      "duration_ms": 25.59,
+      "result_id": "res_60653a1cfe4d",
+      "row_count": 6,
+      "ok": true,
+      "error": null
+    },
+    {
+      "tool_name": "compare_segments",
+      "agent": "analysis_worker",
+      "task_id": "task_04",
+      "arguments": {
+        "metric": "repeat_purchase_rate",
+        "dimension": "region",
+        "filters": [],
+        "task_id": "task_04"
+      },
+      "duration_ms": 31.43,
+      "result_id": "res_55f8f978463a",
+      "row_count": 5,
+      "ok": true,
+      "error": null
+    },
+    {
+      "tool_name": "analyze_timeseries",
+      "agent": "analysis_worker",
+      "task_id": "task_01",
+      "arguments": {
+        "metric": "repeat_purchase_rate",
+        "grain": "month",
+        "filters": [],
+        "task_id": "task_01"
+      },
+      "duration_ms": 41.64,
+      "result_id": "res_95f94d9d7b39",
+      "row_count": 42,
+      "ok": true,
+      "error": null
+    },
+    {
+      "tool_name": "statistical_test",
+      "agent": "analysis_worker",
+      "task_id": "task_05",
+      "arguments": {
+        "test_type": "two_proportion_z",
+        "variables": {
+          "model": "customer_lifecycle",
+          "group_column": "first_delivery_status",
+          "value_column": "is_repeat",
+          "groups": [
+            "late",
+            "on_time"
+          ]
+        },
+        "filters": [],
+        "task_id": "task_05"
+      },
+      "duration_ms": 52.22,
+      "result_id": "res_c8c9a42d8f8f",
+      "row_count": 2,
+      "ok": true,
+      "error": null
+    }
+  ],
+  "events": [
+    {
+      "event_id": "ev_d84c34846fa8",
+      "seq": 1,
+      "type": "run_started",
+      "at": 1790291305.6462011,
+      "data": {
+        "run_id": "run_1a0d5ad64ae",
+        "question": "Do shipping delays appear to affect repeat purchasing?",
+        "provider": "fake",
+        "session_id": "ses_755ba442b508"
+      }
+    },
+    {
+      "event_id": "ev_3987b36f9a42",
+      "seq": 2,
+      "type": "dataset_loaded",
+      "at": 1790291305.6567569,
+      "data": {
+        "dataset_kind": "demo",
+        "source": "Commerce demo warehouse",
+        "dataset_fingerprint": "sha256:8e9ad9348f7dc18660d78ed3cd4d4b32",
+        "tables": [
+          {
+            "name": "customers",
+            "row_count": 30000
+          },
+          {
+            "name": "products",
+            "row_count": 800
+          },
+          {
+            "name": "orders",
+            "row_count": 104915
+          },
+          {
+            "name": "order_items",
+            "row_count": 239794
+          },
+          {
+            "name": "returns",
+            "row_count": 19471
+          },
+          {
+            "name": "shipping_events",
+            "row_count": 104915
+          },
+          {
+            "name": "marketing_daily",
+            "row_count": 2924
+          }
+        ],
+        "metrics": [
+          "average_order_value",
+          "avg_delivery_days",
+          "avg_discount_rate",
+          "cogs",
+          "contribution_margin",
+          "contribution_margin_pct",
+          "customer_count",
+          "discount_amount",
+          "gross_margin_pct",
+          "gross_profit",
+          "late_delivery_rate",
+          "marketing_spend",
+          "orders",
+          "refund_amount",
+          "repeat_purchase_rate",
+          "return_rate",
+          "revenue",
+          "roas",
+          "shipments",
+          "units"
+        ]
+      }
+    },
+    {
+      "event_id": "ev_4a516763f9db",
+      "seq": 3,
+      "type": "question_analyzed",
+      "at": 1790291305.657877,
+      "data": {
+        "intent": "Do shipping delays appear to affect repeat purchasing?",
+        "analysis_type": "correlation",
+        "target_metrics": [
+          "repeat_purchase_rate",
+          "late_delivery_rate",
+          "avg_delivery_days"
+        ],
+        "dimensions": [],
+        "time_scope": null,
+        "ambiguities": [
+          "No explicit time range; the full dataset period is used.",
+          "No breakdown named in the question; likely drivers are chosen by the planner."
+        ]
+      }
+    },
+    {
+      "event_id": "ev_08f1c7e7a711",
+      "seq": 4,
+      "type": "plan_generated",
+      "at": 1790291305.6598349,
+      "data": {
+        "task_count": 5,
+        "tasks": [
+          {
+            "task_id": "task_01",
+            "objective": "Track repeat_purchase_rate over time to locate when it moved",
+            "analysis_type": "timeseries",
+            "preferred_tool": "analyze_timeseries",
+            "metrics": [
+              "repeat_purchase_rate"
+            ],
+            "dimensions": [],
+            "priority": 1
+          },
+          {
+            "task_id": "task_02",
+            "objective": "Track late_delivery_rate over the same period for comparison",
+            "analysis_type": "timeseries",
+            "preferred_tool": "analyze_timeseries",
+            "metrics": [
+              "late_delivery_rate"
+            ],
+            "dimensions": [],
+            "priority": 1
+          },
+          {
+            "task_id": "task_03",
+            "objective": "Compare repeat_purchase_rate across acquisition_channel to find where the change concentrates",
+            "analysis_type": "segmentation",
+            "preferred_tool": "compare_segments",
+            "metrics": [
+              "repeat_purchase_rate"
+            ],
+            "dimensions": [
+              "acquisition_channel"
+            ],
+            "priority": 2
+          },
+          {
+            "task_id": "task_04",
+            "objective": "Compare repeat_purchase_rate across region to find where the change concentrates",
+            "analysis_type": "segmentation",
+            "preferred_tool": "compare_segments",
+            "metrics": [
+              "repeat_purchase_rate"
+            ],
+            "dimensions": [
+              "region"
+            ],
+            "priority": 2
+          },
+          {
+            "task_id": "task_05",
+            "objective": "Test whether customers whose first delivery was late repeat at a different rate",
+            "analysis_type": "statistical_test",
+            "preferred_tool": "statistical_test",
+            "metrics": [
+              "repeat_purchase_rate"
+            ],
+            "dimensions": [
+              "first_delivery_status"
+            ],
+            "priority": 1
+          }
+        ]
+      }
+    },
+    {
+      "event_id": "ev_922886ba4c0a",
+      "seq": 5,
+      "type": "analysis_task_started",
+      "at": 1790291305.660919,
+      "data": {
+        "task_id": "task_01",
+        "objective": "Track repeat_purchase_rate over time to locate when it moved",
+        "analysis_type": "timeseries",
+        "preferred_tool": "analyze_timeseries",
+        "metrics": [
+          "repeat_purchase_rate"
+        ],
+        "dimensions": []
+      }
+    },
+    {
+      "event_id": "ev_bcb3f916c3e5",
+      "seq": 6,
+      "type": "mcp_tool_called",
+      "at": 1790291305.66136,
+      "data": {
+        "tool_name": "analyze_timeseries",
+        "agent": "analysis_worker",
+        "task_id": "task_01",
+        "arguments": {
+          "metric": "repeat_purchase_rate",
+          "grain": "month",
+          "filters": [],
+          "task_id": "task_01"
+        },
+        "duration_ms": 0.0,
+        "result_id": null,
+        "row_count": null,
+        "ok": true,
+        "error": null,
+        "transport": "in-process"
+      }
+    },
+    {
+      "event_id": "ev_c8902abea661",
+      "seq": 7,
+      "type": "analysis_task_started",
+      "at": 1790291305.662318,
+      "data": {
+        "task_id": "task_02",
+        "objective": "Track late_delivery_rate over the same period for comparison",
+        "analysis_type": "timeseries",
+        "preferred_tool": "analyze_timeseries",
+        "metrics": [
+          "late_delivery_rate"
+        ],
+        "dimensions": []
+      }
+    },
+    {
+      "event_id": "ev_2d67a822820b",
+      "seq": 8,
+      "type": "mcp_tool_called",
+      "at": 1790291305.6626759,
+      "data": {
+        "tool_name": "analyze_timeseries",
+        "agent": "analysis_worker",
+        "task_id": "task_02",
+        "arguments": {
+          "metric": "late_delivery_rate",
+          "grain": "month",
+          "filters": [],
+          "task_id": "task_02"
+        },
+        "duration_ms": 0.0,
+        "result_id": null,
+        "row_count": null,
+        "ok": true,
+        "error": null,
+        "transport": "in-process"
+      }
+    },
+    {
+      "event_id": "ev_c029a84f1d3d",
+      "seq": 9,
+      "type": "analysis_task_started",
+      "at": 1790291305.662861,
+      "data": {
+        "task_id": "task_03",
+        "objective": "Compare repeat_purchase_rate across acquisition_channel to find where the change concentrates",
+        "analysis_type": "segmentation",
+        "preferred_tool": "compare_segments",
+        "metrics": [
+          "repeat_purchase_rate"
+        ],
+        "dimensions": [
+          "acquisition_channel"
+        ]
+      }
+    },
+    {
+      "event_id": "ev_f78368ee7453",
+      "seq": 10,
+      "type": "mcp_tool_called",
+      "at": 1790291305.6631749,
+      "data": {
+        "tool_name": "compare_segments",
+        "agent": "analysis_worker",
+        "task_id": "task_03",
+        "arguments": {
+          "metric": "repeat_purchase_rate",
+          "dimension": "acquisition_channel",
+          "filters": [],
+          "task_id": "task_03"
+        },
+        "duration_ms": 0.0,
+        "result_id": null,
+        "row_count": null,
+        "ok": true,
+        "error": null,
+        "transport": "in-process"
+      }
+    },
+    {
+      "event_id": "ev_5557bbdeee3c",
+      "seq": 11,
+      "type": "analysis_task_started",
+      "at": 1790291305.663326,
+      "data": {
+        "task_id": "task_04",
+        "objective": "Compare repeat_purchase_rate across region to find where the change concentrates",
+        "analysis_type": "segmentation",
+        "preferred_tool": "compare_segments",
+        "metrics": [
+          "repeat_purchase_rate"
+        ],
+        "dimensions": [
+          "region"
+        ]
+      }
+    },
+    {
+      "event_id": "ev_00bfc346be28",
+      "seq": 12,
+      "type": "mcp_tool_called",
+      "at": 1790291305.663626,
+      "data": {
+        "tool_name": "compare_segments",
+        "agent": "analysis_worker",
+        "task_id": "task_04",
+        "arguments": {
+          "metric": "repeat_purchase_rate",
+          "dimension": "region",
+          "filters": [],
+          "task_id": "task_04"
+        },
+        "duration_ms": 0.0,
+        "result_id": null,
+        "row_count": null,
+        "ok": true,
+        "error": null,
+        "transport": "in-process"
+      }
+    },
+    {
+      "event_id": "ev_51d62fa088fe",
+      "seq": 13,
+      "type": "analysis_task_started",
+      "at": 1790291305.663765,
+      "data": {
+        "task_id": "task_05",
+        "objective": "Test whether customers whose first delivery was late repeat at a different rate",
+        "analysis_type": "statistical_test",
+        "preferred_tool": "statistical_test",
+        "metrics": [
+          "repeat_purchase_rate"
+        ],
+        "dimensions": [
+          "first_delivery_status"
+        ]
+      }
+    },
+    {
+      "event_id": "ev_420dadef3ad3",
+      "seq": 14,
+      "type": "mcp_tool_called",
+      "at": 1790291305.664171,
+      "data": {
+        "tool_name": "statistical_test",
+        "agent": "analysis_worker",
+        "task_id": "task_05",
+        "arguments": {
+          "test_type": "two_proportion_z",
+          "variables": {
+            "model": "customer_lifecycle",
+            "group_column": "first_delivery_status",
+            "value_column": "is_repeat",
+            "groups": [
+              "late",
+              "on_time"
+            ]
+          },
+          "filters": [],
+          "task_id": "task_05"
+        },
+        "duration_ms": 0.0,
+        "result_id": null,
+        "row_count": null,
+        "ok": true,
+        "error": null,
+        "transport": "in-process"
+      }
+    },
+    {
+      "event_id": "ev_e06b6d945a0e",
+      "seq": 15,
+      "type": "mcp_tool_completed",
+      "at": 1790291305.679449,
+      "data": {
+        "tool_name": "analyze_timeseries",
+        "agent": "analysis_worker",
+        "task_id": "task_02",
+        "arguments": {
+          "metric": "late_delivery_rate",
+          "grain": "month",
+          "filters": [],
+          "task_id": "task_02"
+        },
+        "duration_ms": 16.72,
+        "result_id": "res_f90b1f6d9e83",
+        "row_count": 25,
+        "ok": true,
+        "error": null
+      }
+    },
+    {
+      "event_id": "ev_b2e10d7af1f9",
+      "seq": 16,
+      "type": "finding_proposed",
+      "at": 1790291305.681644,
+      "data": {
+        "finding_id": "fin_dcb0ecd1",
+        "task_id": "task_02",
+        "kind": "calculated_fact",
+        "text": "late_delivery_rate rose from 8.94 in 2024-10-01 to 14.26 in 2024-11-01 (5.32).",
+        "result_ids": [
+          "res_f90b1f6d9e83"
+        ]
+      }
+    },
+    {
+      "event_id": "ev_872c8099acb3",
+      "seq": 17,
+      "type": "analysis_task_completed",
+      "at": 1790291305.681663,
+      "data": {
+        "task_id": "task_02",
+        "objective": "Track late_delivery_rate over the same period for comparison",
+        "status": "succeeded",
+        "findings": 1,
+        "tool_calls": 1,
+        "result_ids": [
+          "res_f90b1f6d9e83"
+        ]
+      }
+    },
+    {
+      "event_id": "ev_b751a71712d0",
+      "seq": 18,
+      "type": "mcp_tool_completed",
+      "at": 1790291305.6888058,
+      "data": {
+        "tool_name": "compare_segments",
+        "agent": "analysis_worker",
+        "task_id": "task_03",
+        "arguments": {
+          "metric": "repeat_purchase_rate",
+          "dimension": "acquisition_channel",
+          "filters": [],
+          "task_id": "task_03"
+        },
+        "duration_ms": 25.59,
+        "result_id": "res_60653a1cfe4d",
+        "row_count": 6,
+        "ok": true,
+        "error": null
+      }
+    },
+    {
+      "event_id": "ev_1596f81da8cf",
+      "seq": 19,
+      "type": "finding_proposed",
+      "at": 1790291305.6907089,
+      "data": {
+        "finding_id": "fin_ca6fc6ce",
+        "task_id": "task_03",
+        "kind": "calculated_fact",
+        "text": "Across acquisition_channel, social has the highest repeat_purchase_rate at 69.81 and affiliate the lowest at 65.58.",
+        "result_ids": [
+          "res_60653a1cfe4d"
+        ]
+      }
+    },
+    {
+      "event_id": "ev_868e12372d7c",
+      "seq": 20,
+      "type": "analysis_task_completed",
+      "at": 1790291305.690725,
+      "data": {
+        "task_id": "task_03",
+        "objective": "Compare repeat_purchase_rate across acquisition_channel to find where the change concentrates",
+        "status": "succeeded",
+        "findings": 1,
+        "tool_calls": 1,
+        "result_ids": [
+          "res_60653a1cfe4d"
+        ]
+      }
+    },
+    {
+      "event_id": "ev_97664d1ed47f",
+      "seq": 21,
+      "type": "mcp_tool_completed",
+      "at": 1790291305.695084,
+      "data": {
+        "tool_name": "compare_segments",
+        "agent": "analysis_worker",
+        "task_id": "task_04",
+        "arguments": {
+          "metric": "repeat_purchase_rate",
+          "dimension": "region",
+          "filters": [],
+          "task_id": "task_04"
+        },
+        "duration_ms": 31.43,
+        "result_id": "res_55f8f978463a",
+        "row_count": 5,
+        "ok": true,
+        "error": null
+      }
+    },
+    {
+      "event_id": "ev_d0e8877c0985",
+      "seq": 22,
+      "type": "finding_proposed",
+      "at": 1790291305.696773,
+      "data": {
+        "finding_id": "fin_8b1ecf48",
+        "task_id": "task_04",
+        "kind": "calculated_fact",
+        "text": "Across region, Southwest has the highest repeat_purchase_rate at 69.35 and Northeast the lowest at 66.91.",
+        "result_ids": [
+          "res_55f8f978463a"
+        ]
+      }
+    },
+    {
+      "event_id": "ev_3e7ddf844389",
+      "seq": 23,
+      "type": "analysis_task_completed",
+      "at": 1790291305.69679,
+      "data": {
+        "task_id": "task_04",
+        "objective": "Compare repeat_purchase_rate across region to find where the change concentrates",
+        "status": "succeeded",
+        "findings": 1,
+        "tool_calls": 1,
+        "result_ids": [
+          "res_55f8f978463a"
+        ]
+      }
+    },
+    {
+      "event_id": "ev_f6684a2c6bea",
+      "seq": 24,
+      "type": "mcp_tool_completed",
+      "at": 1790291305.703029,
+      "data": {
+        "tool_name": "analyze_timeseries",
+        "agent": "analysis_worker",
+        "task_id": "task_01",
+        "arguments": {
+          "metric": "repeat_purchase_rate",
+          "grain": "month",
+          "filters": [],
+          "task_id": "task_01"
+        },
+        "duration_ms": 41.64,
+        "result_id": "res_95f94d9d7b39",
+        "row_count": 42,
+        "ok": true,
+        "error": null
+      }
+    },
+    {
+      "event_id": "ev_3aa12a3b0827",
+      "seq": 25,
+      "type": "finding_proposed",
+      "at": 1790291305.704907,
+      "data": {
+        "finding_id": "fin_e34012bc",
+        "task_id": "task_01",
+        "kind": "calculated_fact",
+        "text": "repeat_purchase_rate rose from 71.06 in 2023-12-01 to 82.44 in 2024-01-01 (11.38).",
+        "result_ids": [
+          "res_95f94d9d7b39"
+        ]
+      }
+    },
+    {
+      "event_id": "ev_499d16dc9d3d",
+      "seq": 26,
+      "type": "analysis_task_completed",
+      "at": 1790291305.7049222,
+      "data": {
+        "task_id": "task_01",
+        "objective": "Track repeat_purchase_rate over time to locate when it moved",
+        "status": "succeeded",
+        "findings": 1,
+        "tool_calls": 1,
+        "result_ids": [
+          "res_95f94d9d7b39"
+        ]
+      }
+    },
+    {
+      "event_id": "ev_79644871002b",
+      "seq": 27,
+      "type": "mcp_tool_completed",
+      "at": 1790291305.7164218,
+      "data": {
+        "tool_name": "statistical_test",
+        "agent": "analysis_worker",
+        "task_id": "task_05",
+        "arguments": {
+          "test_type": "two_proportion_z",
+          "variables": {
+            "model": "customer_lifecycle",
+            "group_column": "first_delivery_status",
+            "value_column": "is_repeat",
+            "groups": [
+              "late",
+              "on_time"
+            ]
+          },
+          "filters": [],
+          "task_id": "task_05"
+        },
+        "duration_ms": 52.22,
+        "result_id": "res_c8c9a42d8f8f",
+        "row_count": 2,
+        "ok": true,
+        "error": null
+      }
+    },
+    {
+      "event_id": "ev_3d1350d63884",
+      "seq": 28,
+      "type": "finding_proposed",
+      "at": 1790291305.7182112,
+      "data": {
+        "finding_id": "fin_70697a5a",
+        "task_id": "task_05",
+        "kind": "statistical_result",
+        "text": "Measured rate: late = 0.50, on_time = 0.70. A two-proportion z-test on late=3,401, on_time=26,599 returned p = 2.15e-122 with Cohen's h = -0.412; the difference is statistically significant at the 5% level.",
+        "result_ids": [
+          "res_c8c9a42d8f8f"
+        ]
+      }
+    },
+    {
+      "event_id": "ev_79d95ee97ba9",
+      "seq": 29,
+      "type": "finding_proposed",
+      "at": 1790291305.718218,
+      "data": {
+        "finding_id": "fin_1ca90d16",
+        "task_id": "task_05",
+        "kind": "interpretation",
+        "text": "Being in the late group causes the observed difference versus on_time.",
+        "result_ids": [
+          "res_c8c9a42d8f8f"
+        ]
+      }
+    },
+    {
+      "event_id": "ev_da9519fa84c1",
+      "seq": 30,
+      "type": "analysis_task_completed",
+      "at": 1790291305.7182322,
+      "data": {
+        "task_id": "task_05",
+        "objective": "Test whether customers whose first delivery was late repeat at a different rate",
+        "status": "succeeded",
+        "findings": 2,
+        "tool_calls": 1,
+        "result_ids": [
+          "res_c8c9a42d8f8f"
+        ]
+      }
+    },
+    {
+      "event_id": "ev_29f2e33239fd",
+      "seq": 31,
+      "type": "finding_verified",
+      "at": 1790291305.719989,
+      "data": {
+        "finding_id": "fin_e34012bc",
+        "task_id": "task_01",
+        "status": "supported",
+        "reason": "The wording matches the values in the cited result.",
+        "text": "repeat_purchase_rate rose from 71.06 in 2023-12-01 to 82.44 in 2024-01-01 (11.38)."
+      }
+    },
+    {
+      "event_id": "ev_68ba17864d0d",
+      "seq": 32,
+      "type": "finding_verified",
+      "at": 1790291305.720763,
+      "data": {
+        "finding_id": "fin_dcb0ecd1",
+        "task_id": "task_02",
+        "status": "supported",
+        "reason": "The wording matches the values in the cited result.",
+        "text": "late_delivery_rate rose from 8.94 in 2024-10-01 to 14.26 in 2024-11-01 (5.32)."
+      }
+    },
+    {
+      "event_id": "ev_9053e0cb5af3",
+      "seq": 33,
+      "type": "finding_verified",
+      "at": 1790291305.7211862,
+      "data": {
+        "finding_id": "fin_ca6fc6ce",
+        "task_id": "task_03",
+        "status": "supported",
+        "reason": "The wording matches the values in the cited result.",
+        "text": "Across acquisition_channel, social has the highest repeat_purchase_rate at 69.81 and affiliate the lowest at 65.58."
+      }
+    },
+    {
+      "event_id": "ev_3b820d881756",
+      "seq": 34,
+      "type": "finding_verified",
+      "at": 1790291305.7215738,
+      "data": {
+        "finding_id": "fin_8b1ecf48",
+        "task_id": "task_04",
+        "status": "supported",
+        "reason": "The wording matches the values in the cited result.",
+        "text": "Across region, Southwest has the highest repeat_purchase_rate at 69.35 and Northeast the lowest at 66.91."
+      }
+    },
+    {
+      "event_id": "ev_feb5e8808294",
+      "seq": 35,
+      "type": "finding_verified",
+      "at": 1790291305.722019,
+      "data": {
+        "finding_id": "fin_70697a5a",
+        "task_id": "task_05",
+        "status": "supported",
+        "reason": "The wording matches the values in the cited result.",
+        "text": "Measured rate: late = 0.50, on_time = 0.70. A two-proportion z-test on late=3,401, on_time=26,599 returned p = 2.15e-122 with Cohen's h = -0.412; the difference is statistically significant at the 5% level."
+      }
+    },
+    {
+      "event_id": "ev_319c1af6860a",
+      "seq": 36,
+      "type": "finding_rejected",
+      "at": 1790291305.72205,
+      "data": {
+        "finding_id": "fin_1ca90d16",
+        "task_id": "task_05",
+        "status": "unsupported",
+        "reason": "The claim asserts causation from observational data. The groups were not randomly assigned, so the result supports an association only.",
+        "text": "Being in the late group causes the observed difference versus on_time."
+      }
+    },
+    {
+      "event_id": "ev_b0d8a6535ee9",
+      "seq": 37,
+      "type": "chart_created",
+      "at": 1790291305.723535,
+      "data": {
+        "chart_id": "cht_5b51394e",
+        "result_id": "res_95f94d9d7b39",
+        "title": "repeat_purchase_rate by month",
+        "mark": "line",
+        "finding_ids": [
+          "fin_e34012bc"
+        ]
+      }
+    },
+    {
+      "event_id": "ev_7d99fd6dea85",
+      "seq": 38,
+      "type": "chart_created",
+      "at": 1790291305.724093,
+      "data": {
+        "chart_id": "cht_97831d3c",
+        "result_id": "res_f90b1f6d9e83",
+        "title": "late_delivery_rate by month",
+        "mark": "line",
+        "finding_ids": [
+          "fin_dcb0ecd1"
+        ]
+      }
+    },
+    {
+      "event_id": "ev_47106187d509",
+      "seq": 39,
+      "type": "chart_created",
+      "at": 1790291305.7245781,
+      "data": {
+        "chart_id": "cht_710a121e",
+        "result_id": "res_60653a1cfe4d",
+        "title": "repeat_purchase_rate by acquisition_channel",
+        "mark": "bar",
+        "finding_ids": [
+          "fin_ca6fc6ce"
+        ]
+      }
+    },
+    {
+      "event_id": "ev_82ad93521c8f",
+      "seq": 40,
+      "type": "chart_created",
+      "at": 1790291305.72517,
+      "data": {
+        "chart_id": "cht_361c8004",
+        "result_id": "res_55f8f978463a",
+        "title": "repeat_purchase_rate by region",
+        "mark": "bar",
+        "finding_ids": [
+          "fin_8b1ecf48"
+        ]
+      }
+    },
+    {
+      "event_id": "ev_0d3629bd0c79",
+      "seq": 41,
+      "type": "report_started",
+      "at": 1790291305.725607,
+      "data": {
+        "finding_count": 5
+      }
+    },
+    {
+      "event_id": "ev_9bdcced19b26",
+      "seq": 42,
+      "type": "report_completed",
+      "at": 1790291305.7275012,
+      "data": {
+        "finding_count": 5,
+        "rejected_count": 1,
+        "chart_count": 4,
+        "sections": [
+          "What the numbers show",
+          "Statistical comparisons"
+        ]
+      }
+    },
+    {
+      "event_id": "ev_1c3d095b205b",
+      "seq": 43,
+      "type": "run_completed",
+      "at": 1790291305.7281349,
+      "data": {
+        "run_id": "run_1a0d5ad64ae",
+        "runtime_seconds": 0.082,
+        "provider": "fake",
+        "analysis_tasks": 5,
+        "tasks_succeeded": 5,
+        "tasks_warned": 0,
+        "tasks_failed": 0,
+        "mcp_tool_calls": 5,
+        "mcp_tool_failures": 0,
+        "findings_proposed": 6,
+        "findings_published": 5,
+        "findings_rejected": 1,
+        "charts": 4,
+        "llm_calls": 27,
+        "input_tokens": 18701,
+        "output_tokens": 2523
+      }
+    }
+  ],
+  "metrics": {
+    "runtime_seconds": 0.082,
+    "provider": "fake",
+    "analysis_tasks": 5,
+    "tasks_succeeded": 5,
+    "tasks_warned": 0,
+    "tasks_failed": 0,
+    "mcp_tool_calls": 5,
+    "mcp_tool_failures": 0,
+    "findings_proposed": 6,
+    "findings_published": 5,
+    "findings_rejected": 1,
+    "charts": 4,
+    "llm_calls": 27,
+    "input_tokens": 18701,
+    "output_tokens": 2523,
+    "by_role": {
+      "question_analyst": 1,
+      "planner": 1,
+      "worker_next_tool": 10,
+      "worker_findings": 5,
+      "critic": 5,
+      "visualizer": 4,
+      "reporter": 1
+    }
+  },
+  "stopped_reason": ""
+}

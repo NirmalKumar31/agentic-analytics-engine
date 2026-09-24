@@ -161,6 +161,7 @@ def publish(finding: CandidateFinding, verdict: Verdict) -> PublishedFinding:
         verification_status=verdict.status,
         verifier_reason=verdict.reason,
         numeric_check=verdict.numeric_check,
+        claimed_change=finding.claimed_change,
     )
 
 

@@ -144,6 +144,9 @@ class PublishedFinding(BaseModel):
     verification_status: VerificationStatus
     verifier_reason: str
     numeric_check: dict[str, Any] | None = None
+    # The arithmetic the worker stated, kept so the provenance drawer can
+    # show the calculation next to the cells it was computed from.
+    claimed_change: dict[str, Any] | None = None
 
 
 class TaskOutcome(BaseModel):
