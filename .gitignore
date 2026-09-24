@@ -1,0 +1,19 @@
+.venv/
+__pycache__/
+*.pyc
+*.egg-info/
+dist/
+build/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+coverage.xml
+htmlcov/
+.DS_Store
+web/node_modules/
+web/dist/
+*.tsbuildinfo
+# Generated demo warehouse and per-session scratch databases.
+var/
+.env

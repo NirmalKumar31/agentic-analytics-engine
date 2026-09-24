@@ -1,0 +1,293 @@
+# Semantic metric layer for the built-in commerce warehouse.
+#
+# A metric is an aggregate expression bound to a model (a named relation) and
+# a set of dimensions that model exposes. Agents call `compute_metric` with a
+# metric name, dimensions and filters; the SQL is assembled here, not by the
+# model. That is what keeps "revenue" meaning one thing across a whole run.
+#
+# Uploaded datasets have no metric layer: they are a single arbitrary table,
+# so agents fall back to profiling and guarded SQL for those.
+
+version: 1
+
+models:
+  sales:
+    description: >-
+      Order line grain. One row per order item, enriched with its order,
+      product and customer attributes, and flagged if it was returned.
+    time_field: order_date
+    sql: |
+      SELECT
+        o.order_id,
+        o.order_date,
+        o.customer_id,
+        o.channel            AS order_channel,
+        o.discount_rate,
+        o.shipping_cost,
+        o.status,
+        o.is_first_order,
+        i.order_item_id,
+        i.product_id,
+        i.quantity,
+        i.unit_price,
+        i.unit_cost,
+        i.list_price,
+        i.discount_amount,
+        p.category,
+        p.brand,
+        c.region,
+        c.customer_segment,
+        c.acquisition_channel,
+        CASE WHEN r.return_id IS NULL THEN 0 ELSE 1 END AS is_returned,
+        COALESCE(r.refund_amount, 0)                    AS refund_amount,
+        r.return_reason
+      FROM orders o
+      JOIN order_items i ON i.order_id = o.order_id
+      JOIN products p    ON p.product_id = i.product_id
+      JOIN customers c   ON c.customer_id = o.customer_id
+      LEFT JOIN returns r ON r.order_item_id = i.order_item_id
+    dimensions:
+      category: category
+      brand: brand
+      region: region
+      customer_segment: customer_segment
+      acquisition_channel: acquisition_channel
+      order_channel: order_channel
+      status: status
+      return_reason: return_reason
+      is_first_order: is_first_order
+
+  channel_daily:
+    description: >-
+      Daily acquisition-channel economics: revenue and cost of goods joined to
+      the marketing spend recorded for the same channel and day. Use this for
+      ROAS and for channel contribution comparisons.
+    time_field: date
+    sql: |
+      WITH rev AS (
+        SELECT o.order_date AS date,
+               c.acquisition_channel AS channel,
+               SUM(i.quantity * i.unit_price)  AS revenue,
+               SUM(i.quantity * i.unit_cost)   AS cogs,
+               SUM(i.discount_amount)          AS discount_amount,
+               COUNT(DISTINCT o.order_id)      AS orders,
+               SUM(COALESCE(r.refund_amount, 0)) AS refund_amount
+        FROM orders o
+        JOIN order_items i ON i.order_id = o.order_id
+        JOIN customers c   ON c.customer_id = o.customer_id
+        LEFT JOIN returns r ON r.order_item_id = i.order_item_id
+        WHERE o.status = 'completed'
+        GROUP BY 1, 2
+      ),
+      ship AS (
+        SELECT o.order_date AS date,
+               c.acquisition_channel AS channel,
+               SUM(o.shipping_cost) AS shipping_cost
+        FROM orders o
+        JOIN customers c ON c.customer_id = o.customer_id
+        WHERE o.status = 'completed'
+        GROUP BY 1, 2
+      ),
+      spend AS (
+        SELECT date, channel,
+               SUM(spend)       AS spend,
+               SUM(impressions) AS impressions,
+               SUM(clicks)      AS clicks
+        FROM marketing_daily
+        GROUP BY 1, 2
+      )
+      SELECT
+        COALESCE(rev.date, spend.date)       AS date,
+        COALESCE(rev.channel, spend.channel) AS channel,
+        COALESCE(rev.revenue, 0)             AS revenue,
+        COALESCE(rev.cogs, 0)                AS cogs,
+        COALESCE(rev.discount_amount, 0)     AS discount_amount,
+        COALESCE(rev.orders, 0)              AS orders,
+        COALESCE(rev.refund_amount, 0)       AS refund_amount,
+        COALESCE(ship.shipping_cost, 0)      AS shipping_cost,
+        COALESCE(spend.spend, 0)             AS spend,
+        COALESCE(spend.impressions, 0)       AS impressions,
+        COALESCE(spend.clicks, 0)            AS clicks
+      FROM rev
+      FULL OUTER JOIN spend ON rev.date = spend.date AND rev.channel = spend.channel
+      LEFT JOIN ship ON ship.date = COALESCE(rev.date, spend.date)
+                    AND ship.channel = COALESCE(rev.channel, spend.channel)
+    dimensions:
+      acquisition_channel: channel
+
+  customer_lifecycle:
+    description: >-
+      One row per customer, with their order count and whether their first
+      delivery arrived late. Use this for repeat-purchase comparisons.
+    time_field: signup_date
+    sql: |
+      WITH first_ship AS (
+        SELECT o.customer_id,
+               s.is_late      AS first_delivery_late,
+               s.carrier      AS first_carrier,
+               s.delivery_days AS first_delivery_days
+        FROM orders o
+        JOIN shipping_events s ON s.order_id = o.order_id
+        WHERE o.is_first_order
+      ),
+      order_counts AS (
+        SELECT customer_id, COUNT(*) AS order_count
+        FROM orders GROUP BY 1
+      )
+      SELECT
+        c.customer_id,
+        c.signup_date,
+        c.customer_segment,
+        c.region,
+        c.acquisition_channel,
+        COALESCE(oc.order_count, 0) AS order_count,
+        CASE WHEN COALESCE(oc.order_count, 0) > 1 THEN 1 ELSE 0 END AS is_repeat,
+        f.first_delivery_late,
+        f.first_carrier,
+        f.first_delivery_days,
+        CASE WHEN f.first_delivery_late THEN 'late' ELSE 'on_time' END AS first_delivery_status
+      FROM customers c
+      LEFT JOIN order_counts oc ON oc.customer_id = c.customer_id
+      LEFT JOIN first_ship f   ON f.customer_id = c.customer_id
+    dimensions:
+      customer_segment: customer_segment
+      region: region
+      acquisition_channel: acquisition_channel
+      first_delivery_status: first_delivery_status
+      first_carrier: first_carrier
+
+  fulfillment:
+    description: >-
+      One row per shipment, with carrier, destination region and lateness.
+    time_field: shipped_date
+    sql: |
+      SELECT
+        s.order_id,
+        s.carrier,
+        s.region,
+        s.shipped_date,
+        s.delivered_date,
+        s.delivery_days,
+        s.promised_days,
+        CASE WHEN s.is_late THEN 1 ELSE 0 END AS is_late_int,
+        c.customer_segment,
+        c.acquisition_channel
+      FROM shipping_events s
+      JOIN orders o    ON o.order_id = s.order_id
+      JOIN customers c ON c.customer_id = o.customer_id
+    dimensions:
+      carrier: carrier
+      region: region
+      customer_segment: customer_segment
+      acquisition_channel: acquisition_channel
+
+metrics:
+  revenue:
+    model: sales
+    description: Net merchandise revenue after discount, excluding shipping and refunds.
+    sql: SUM(quantity * unit_price)
+    format: currency
+  units:
+    model: sales
+    description: Total item quantity sold.
+    sql: SUM(quantity)
+    format: integer
+  orders:
+    model: sales
+    description: Distinct order count.
+    sql: COUNT(DISTINCT order_id)
+    format: integer
+  customer_count:
+    model: sales
+    description: Distinct customers who placed an order.
+    sql: COUNT(DISTINCT customer_id)
+    format: integer
+  average_order_value:
+    model: sales
+    description: Revenue divided by distinct orders.
+    sql: SUM(quantity * unit_price) / NULLIF(COUNT(DISTINCT order_id), 0)
+    format: currency
+  cogs:
+    model: sales
+    description: Cost of goods sold.
+    sql: SUM(quantity * unit_cost)
+    format: currency
+  gross_profit:
+    model: sales
+    description: Revenue minus cost of goods sold.
+    sql: SUM(quantity * unit_price) - SUM(quantity * unit_cost)
+    format: currency
+  gross_margin_pct:
+    model: sales
+    description: >-
+      Gross profit as a percentage of revenue. A ratio of sums, never an
+      average of per-row margins.
+    sql: >-
+      100.0 * (SUM(quantity * unit_price) - SUM(quantity * unit_cost))
+      / NULLIF(SUM(quantity * unit_price), 0)
+    format: percent
+  discount_amount:
+    model: sales
+    description: Total money given away as discount against list price.
+    sql: SUM(discount_amount)
+    format: currency
+  avg_discount_rate:
+    model: sales
+    description: Discount as a share of list price value.
+    sql: 100.0 * SUM(discount_amount) / NULLIF(SUM(quantity * list_price), 0)
+    format: percent
+  return_rate:
+    model: sales
+    description: Share of order items that were returned.
+    sql: 100.0 * SUM(is_returned) / NULLIF(COUNT(*), 0)
+    format: percent
+  refund_amount:
+    model: sales
+    description: Total refunded value.
+    sql: SUM(refund_amount)
+    format: currency
+  marketing_spend:
+    model: channel_daily
+    description: Paid marketing spend.
+    sql: SUM(spend)
+    format: currency
+  roas:
+    model: channel_daily
+    description: Revenue divided by marketing spend for the same channel and day.
+    sql: SUM(revenue) / NULLIF(SUM(spend), 0)
+    format: ratio
+  contribution_margin:
+    model: channel_daily
+    description: >-
+      Gross profit less shipping cost, refunds and marketing spend. This is the
+      channel profitability measure; gross margin alone ignores what a channel
+      costs to acquire and to serve.
+    sql: SUM(revenue) - SUM(cogs) - SUM(shipping_cost) - SUM(refund_amount) - SUM(spend)
+    format: currency
+  contribution_margin_pct:
+    model: channel_daily
+    description: Contribution margin as a percentage of revenue.
+    sql: >-
+      100.0 * (SUM(revenue) - SUM(cogs) - SUM(shipping_cost) - SUM(refund_amount)
+      - SUM(spend)) / NULLIF(SUM(revenue), 0)
+    format: percent
+  repeat_purchase_rate:
+    model: customer_lifecycle
+    description: Share of customers with more than one order.
+    sql: 100.0 * SUM(is_repeat) / NULLIF(COUNT(*), 0)
+    format: percent
+  late_delivery_rate:
+    model: fulfillment
+    description: Share of shipments delivered later than promised.
+    sql: 100.0 * SUM(is_late_int) / NULLIF(COUNT(*), 0)
+    format: percent
+  avg_delivery_days:
+    model: fulfillment
+    description: Mean days from ship to delivery.
+    sql: AVG(delivery_days)
+    format: number
+  shipments:
+    model: fulfillment
+    description: Shipment count.
+    sql: COUNT(*)
+    format: integer
