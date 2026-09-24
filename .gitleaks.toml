@@ -1,0 +1,47 @@
+# Secret scanning configuration.
+#
+# The repository contains no credentials. These allowlists exist so the scan
+# does not flag the placeholders and synthetic identifiers that a demo of this
+# kind necessarily contains.
+
+title = "agentic-analytics-engine"
+
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "Documentation placeholders for environment variables"
+regexes = [
+  '''AAE_CLOUD_API_KEY=(your-key-here|<.*>|\$\{.*\}|"")?''',
+  '''x-api-key''',
+]
+paths = [
+  '''README\.md''',
+  '''docs/.*\.md''',
+  '''\.env\.example''',
+  '''render\.yaml''',
+  '''deploy/.*\.yaml''',
+  '''src/agentic_analytics/llm/cloud\.py''',
+]
+
+[[allowlists]]
+description = "Synthetic identifiers in generated data, recordings and tests"
+regexes = [
+  '''sha256:[a-f0-9]{32}''',
+  '''res_[a-f0-9]{12}''',
+  '''ses_[a-f0-9]{12}''',
+  '''run_[a-f0-9]{12}''',
+  '''fin_[a-f0-9]{8}''',
+  '''ev_[a-f0-9]{12}''',
+]
+paths = [
+  '''examples/recordings/.*\.json''',
+  '''tests/.*''',
+]
+
+[[allowlists]]
+description = "Secret-shaped strings used by the secret-scanning tests themselves"
+paths = [
+  '''tests/unit/test_recordings\.py''',
+  '''src/agentic_analytics/recordings/schema\.py''',
+]

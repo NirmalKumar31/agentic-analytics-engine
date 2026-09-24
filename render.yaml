@@ -1,0 +1,49 @@
+# Render blueprint for the safe public demo.
+#
+# Recorded mode: the server serves the three recorded runs and refuses to
+# start a new analysis or accept an upload. It needs no secret of any kind,
+# so this blueprint deploys as-is.
+#
+# For live analysis, see deploy/render-live.yaml.
+
+services:
+  - type: web
+    name: agentic-analytics-engine
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    plan: starter
+    region: oregon
+    healthCheckPath: /api/health
+    autoDeploy: false
+    envVars:
+      # The scripted provider. No credential is read, and none is needed.
+      - key: AAE_PROVIDER_MODE
+        value: fake
+      # Recorded runs only. Flipping this to true makes the deployment
+      # accept arbitrary questions; see deploy/render-live.yaml for the
+      # ceilings that should accompany that.
+      - key: AAE_LIVE_ANALYTICS_ENABLED
+        value: "false"
+      - key: AAE_UPLOADS_ENABLED
+        value: "false"
+      - key: AAE_LOG_LEVEL
+        value: INFO
+      - key: AAE_LOG_JSON
+        value: "true"
+      # Conservative ceilings for a public host.
+      - key: AAE_BUDGETS__MAX_ANALYSIS_TASKS
+        value: "6"
+      - key: AAE_BUDGETS__MAX_TOTAL_TOOL_CALLS
+        value: "48"
+      - key: AAE_BUDGETS__MAX_LLM_CALLS
+        value: "40"
+      - key: AAE_BUDGETS__MAX_RUNTIME_SECONDS
+        value: "180"
+      - key: AAE_BUDGETS__MAX_RESULT_ROWS
+        value: "500"
+      - key: AAE_BUDGETS__MAX_UPLOAD_BYTES
+        value: "26214400"
+      - key: AAE_SESSION_TTL_SECONDS
+        value: "1800"
+      - key: AAE_MAX_CONCURRENT_SESSIONS
+        value: "16"

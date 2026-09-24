@@ -56,6 +56,11 @@ class Settings(BaseSettings):
         env_file=".env",
         env_file_encoding="utf-8",
         extra="ignore",
+        # Budgets are a nested model, so a deployment overrides one with
+        # AAE_BUDGETS__MAX_ANALYSIS_TASKS. Without this delimiter those
+        # variables are accepted and silently ignored, which is the worst
+        # possible behaviour for a ceiling.
+        env_nested_delimiter="__",
     )
 
     # Provider selection. `fake` is the default precisely so that tests, CI,

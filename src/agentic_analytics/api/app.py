@@ -69,6 +69,9 @@ DEMO_QUESTIONS: list[dict[str, str]] = [
 
 FRONTEND_DIR = Path(__file__).resolve().parents[3] / "web" / "dist"
 
+#: Where the Streamable HTTP MCP endpoint is served.
+MCP_PATH = "/mcp"
+
 
 def create_app(settings: Settings | None = None) -> FastAPI:
     """Build the application."""
@@ -97,9 +100,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         allowed_origins=[f"https://{h}" for h in allowed_hosts],
     )
     mcp_app = mcp.streamable_http_app(
-        # The app is mounted at /mcp, so it serves at its own root; leaving
-        # the default would put the endpoint at /mcp/mcp.
-        streamable_http_path="/",
+        streamable_http_path=MCP_PATH,
         json_response=True,
         # Passed explicitly rather than left to default: the SDK infers
         # localhost-only protection from a loopback host, which would reject
@@ -330,9 +331,15 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         except KeyError:
             raise HTTPException(status_code=404, detail="unknown recording") from None
 
-    # ------------------------------------------------------------ frontend
-    app.mount("/mcp", mcp_app)
+    # ----------------------------------------------------------------- MCP
+    # The SDK's Streamable HTTP app is a single route that accepts every
+    # method. Adopting that route directly, rather than mounting the app,
+    # keeps the endpoint at exactly `/mcp`: a Starlette mount only matches
+    # `/mcp/...`, so a bare `/mcp` would depend on a slash redirect that the
+    # single-page fallback below would shadow.
+    app.router.routes.extend(mcp_app.routes)
 
+    # ------------------------------------------------------------ frontend
     if FRONTEND_DIR.is_dir():
         app.mount("/assets", StaticFiles(directory=FRONTEND_DIR / "assets"), name="assets")
 

@@ -1,0 +1,73 @@
+# Render blueprint for live mode.
+#
+# Live mode lets a visitor ask an arbitrary question against the built-in
+# warehouse. It still needs no secret when AAE_PROVIDER_MODE is `fake`, which
+# is the recommended public posture: the scripted provider is deterministic
+# and costs nothing, and the analysis, the MCP calls and the verification are
+# all genuine regardless of which provider produced the structured decisions.
+#
+# A cloud provider is the only configuration here that requires a secret, and
+# it is deliberately left unset. Set AAE_CLOUD_API_KEY in the Render dashboard
+# (never in this file) and change AAE_PROVIDER_MODE to `cloud`.
+#
+# Uploads stay off by default even here. Turning them on accepts arbitrary
+# files from the public internet; the validation in
+# `agentic_analytics.warehouse.upload` is written for that, but it is a
+# deliberate choice rather than a default.
+
+services:
+  - type: web
+    name: agentic-analytics-engine-live
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    plan: standard
+    region: oregon
+    healthCheckPath: /api/health
+    autoDeploy: false
+    envVars:
+      - key: AAE_PROVIDER_MODE
+        value: fake
+      - key: AAE_LIVE_ANALYTICS_ENABLED
+        value: "true"
+      - key: AAE_UPLOADS_ENABLED
+        value: "false"
+      - key: AAE_LOG_LEVEL
+        value: INFO
+      - key: AAE_LOG_JSON
+        value: "true"
+
+      # Host header allow-list for the MCP endpoint. Set this to the
+      # deployment's hostname to turn on DNS-rebinding protection; leaving it
+      # empty leaves the protection off, which is documented in
+      # docs/LIMITATIONS.md.
+      - key: AAE_MCP_ALLOWED_HOSTS
+        value: ""
+
+      # Tighter ceilings than the defaults: this endpoint is open.
+      - key: AAE_BUDGETS__MAX_ANALYSIS_TASKS
+        value: "5"
+      - key: AAE_BUDGETS__MAX_TOOL_CALLS_PER_TASK
+        value: "4"
+      - key: AAE_BUDGETS__MAX_TOTAL_TOOL_CALLS
+        value: "30"
+      - key: AAE_BUDGETS__MAX_LLM_CALLS
+        value: "30"
+      - key: AAE_BUDGETS__MAX_RUNTIME_SECONDS
+        value: "120"
+      - key: AAE_BUDGETS__MAX_RESULT_ROWS
+        value: "500"
+      - key: AAE_BUDGETS__QUERY_TIMEOUT_SECONDS
+        value: "15"
+      - key: AAE_BUDGETS__MAX_UPLOAD_BYTES
+        value: "26214400"
+      - key: AAE_SESSION_TTL_SECONDS
+        value: "900"
+      - key: AAE_MAX_CONCURRENT_SESSIONS
+        value: "12"
+
+      # Required only when AAE_PROVIDER_MODE is `cloud`. Set it in the
+      # dashboard; `sync: false` keeps it out of the repository.
+      - key: AAE_CLOUD_API_KEY
+        sync: false
+      - key: AAE_CLOUD_MODEL
+        value: claude-sonnet-5

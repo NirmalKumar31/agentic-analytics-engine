@@ -241,3 +241,40 @@ class TestRecordedOnlyMode:
         body = recorded_client.get("/api/config").json()
         assert body["live_analytics_enabled"] is False
         assert body["uploads_enabled"] is False
+
+
+def test_spa_fallback_does_not_shadow_the_mcp_endpoint(client: TestClient) -> None:
+    """A catch-all route once swallowed POST /mcp and answered 405.
+
+    The MCP endpoint is an exact route on the application rather than a mount,
+    so this asserts the bare path works for the method the protocol uses.
+    """
+    response = client.post(
+        "/mcp",
+        json={
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "tools/list",
+            "params": {},
+        },
+        headers={"Accept": "application/json, text/event-stream"},
+    )
+    assert response.status_code != 405, response.text
+    assert response.status_code != 404, response.text
+
+
+def test_spa_fallback_does_not_shadow_the_api(client: TestClient) -> None:
+    assert client.get("/api/health").json()["status"] == "ok"
+    assert client.post("/api/datasets/demo").status_code == 200
+
+
+def test_unknown_path_serves_the_app_shell(client: TestClient) -> None:
+    response = client.get("/some/client/route")
+    # Served only when a built frontend is present; otherwise a plain 404.
+    assert response.status_code in (200, 404)
+
+
+def test_path_traversal_in_a_static_path_is_refused(client: TestClient) -> None:
+    for path in ("/../pyproject.toml", "/assets/../../pyproject.toml", "/%2e%2e/pyproject.toml"):
+        response = client.get(path)
+        assert b"[build-system]" not in response.content, path
