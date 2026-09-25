@@ -9,7 +9,8 @@ from __future__ import annotations
 
 from typing import Any
 
-from agentic_analytics.analytics.execute import QueryError, run_query
+from agentic_analytics.analytics.drivers import decompose_additive, decompose_shift_share
+from agentic_analytics.analytics.execute import QueryError, fetch_rows, run_query
 from agentic_analytics.analytics.filters import Filter, build_where
 from agentic_analytics.analytics.results import ResultSnapshot
 from agentic_analytics.warehouse.metrics import MetricRegistry, grain_expression
@@ -291,3 +292,226 @@ def _quote_literal(value: Any) -> str:
     if "\x00" in text:
         raise MetricError("filter value contains a null byte")
     return f"'{text}'"
+
+
+def _period_filters(session: AnalysisSession, metric: str, start: str, end: str) -> list[Filter]:
+    reg = _registry(session)
+    model = reg.model_for(metric)
+    return [Filter(column=model.time_field, op="between", value=[start, end])]
+
+
+def compare_periods(
+    session: AnalysisSession,
+    metric: str,
+    baseline: tuple[str, str],
+    current: tuple[str, str],
+    filters: list[Filter] | None = None,
+    *,
+    task_id: str | None = None,
+    timeout_seconds: float = 20.0,
+) -> ResultSnapshot:
+    """Compute one metric over two explicit windows and difference them.
+
+    The absolute and percentage change are computed in SQL, so an agent
+    reading this result never has to subtract anything itself.
+    """
+    reg = _registry(session)
+    try:
+        metric_def = reg.metric(metric)
+    except KeyError as exc:
+        raise MetricError(str(exc)) from None
+    model = reg.model_for(metric)
+    time_field = model.time_field
+
+    base_where, base_params = build_where(
+        [*(filters or []), Filter(column=time_field, op="between", value=list(baseline))],
+        reg.filterable_columns(metric),
+        model.dimensions,
+    )
+    curr_where, curr_params = build_where(
+        [*(filters or []), Filter(column=time_field, op="between", value=list(current))],
+        reg.filterable_columns(metric),
+        model.dimensions,
+    )
+
+    expr = metric_def.sql.strip()
+    sql = (
+        f"WITH baseline AS (\n"
+        f"  SELECT {expr} AS value FROM (\n{model.sql.strip()}\n) AS m{base_where}\n),\n"
+        f"current AS (\n"
+        f"  SELECT {expr} AS value FROM (\n{model.sql.strip()}\n) AS m{curr_where}\n)\n"
+        f"SELECT\n"
+        f"  '{baseline[0]}..{baseline[1]}' AS baseline_period,\n"
+        f"  '{current[0]}..{current[1]}' AS current_period,\n"
+        f"  baseline.value AS baseline_value,\n"
+        f"  current.value AS current_value,\n"
+        f"  ROUND(current.value - baseline.value, 6) AS change_abs,\n"
+        f"  ROUND(100.0 * (current.value - baseline.value)\n"
+        f"        / NULLIF(ABS(baseline.value), 0), 4) AS change_pct\n"
+        f"FROM baseline, current"
+    )
+    return _run_with_params(
+        session,
+        sql,
+        [*base_params, *curr_params],
+        tool_name="compare_periods",
+        parameters={
+            "metric": metric,
+            "baseline": list(baseline),
+            "current": list(current),
+            "time_field": time_field,
+            "filters": [f.model_dump() for f in (filters or [])],
+        },
+        task_id=task_id,
+        max_rows=2,
+        timeout_seconds=timeout_seconds,
+    )
+
+
+def _segment_values(
+    session: AnalysisSession,
+    metric: str,
+    dimension: str,
+    window: tuple[str, str],
+    filters: list[Filter] | None,
+    timeout_seconds: float,
+) -> dict[str, tuple[float, float]]:
+    """Per-segment (numerator, denominator) for one window.
+
+    An additive metric reports (value, 1.0); the denominator is unused. A
+    ratio metric reports its declared numerator and denominator so the
+    shift-share decomposition can separate rate movement from mix movement.
+    """
+    reg = _registry(session)
+    metric_def = reg.metric(metric)
+    model = reg.model_for(metric)
+    column = reg.resolve_dimension(metric, dimension)
+
+    if metric_def.decomposition == "ratio":
+        selects = f"{metric_def.numerator} AS num, {metric_def.denominator} AS den"
+    else:
+        selects = f"{metric_def.sql.strip()} AS num, 1.0 AS den"
+
+    where, params = build_where(
+        [*(filters or []), Filter(column=model.time_field, op="between", value=list(window))],
+        reg.filterable_columns(metric),
+        model.dimensions,
+    )
+    sql = (
+        f'SELECT CAST("{column}" AS VARCHAR) AS segment, {selects} '
+        f"FROM (\n{model.sql.strip()}\n) AS m{where} "
+        f'GROUP BY "{column}"'
+    )
+    _, rows = fetch_rows(session, _inline_params(sql, params), timeout_seconds)
+    out: dict[str, tuple[float, float]] = {}
+    for segment, num, den in rows:
+        if segment is None:
+            continue
+        out[str(segment)] = (float(num or 0.0), float(den or 0.0))
+    return out
+
+
+def decompose_change(
+    session: AnalysisSession,
+    metric: str,
+    dimension: str,
+    baseline: tuple[str, str],
+    current: tuple[str, str],
+    filters: list[Filter] | None = None,
+    *,
+    task_id: str | None = None,
+    max_rows: int = 500,
+    timeout_seconds: float = 20.0,
+) -> ResultSnapshot:
+    """Attribute a metric's change across two periods to its segments.
+
+    Additive metrics decompose into per-segment contributions. Ratio metrics
+    decompose into rate, mix and interaction effects, which is the difference
+    between "every segment got worse" and "volume moved to the worse
+    segments". Both reconcile to the observed change or the result says they
+    did not.
+    """
+    reg = _registry(session)
+    try:
+        metric_def = reg.metric(metric)
+    except KeyError as exc:
+        raise MetricError(str(exc)) from None
+    if not metric_def.is_decomposable:
+        raise MetricError(
+            f"metric {metric!r} does not declare a decomposition; "
+            "use compare_segments to compare periods side by side instead"
+        )
+    try:
+        reg.resolve_dimension(metric, dimension)
+    except KeyError as exc:
+        raise MetricError(str(exc)) from None
+
+    before = _segment_values(session, metric, dimension, baseline, filters, timeout_seconds)
+    after = _segment_values(session, metric, dimension, current, filters, timeout_seconds)
+    if not before and not after:
+        raise MetricError("neither period contains any rows after filtering")
+
+    if metric_def.decomposition == "additive":
+        result = decompose_additive(
+            metric,
+            dimension,
+            {k: v[0] for k, v in before.items()},
+            {k: v[0] for k, v in after.items()},
+        )
+    else:
+        scale = metric_def.scale
+        scaled_before = {k: (n * scale, d) for k, (n, d) in before.items()}
+        scaled_after = {k: (n * scale, d) for k, (n, d) in after.items()}
+        result = decompose_shift_share(metric, dimension, scaled_before, scaled_after)
+
+    snapshot = ResultSnapshot(
+        tool_name="decompose_change",
+        task_id=task_id,
+        sql=None,
+        columns=result.columns,
+        rows=result.rows()[:max_rows],
+        row_count=min(len(result.contributions), max_rows),
+        truncated=len(result.contributions) > max_rows,
+        dataset_fingerprint=session.dataset_fingerprint,
+        parameters={
+            "metric": metric,
+            "dimension": dimension,
+            "baseline": list(baseline),
+            "current": list(current),
+            "filters": [f.model_dump() for f in (filters or [])],
+            "decomposition": result.as_dict(),
+        },
+        warnings=list(result.warnings),
+    )
+    return session.results.put(snapshot)
+
+
+def rank_contributors(
+    session: AnalysisSession,
+    metric: str,
+    dimension: str,
+    baseline: tuple[str, str],
+    current: tuple[str, str],
+    top_n: int = 5,
+    filters: list[Filter] | None = None,
+    *,
+    task_id: str | None = None,
+    timeout_seconds: float = 20.0,
+) -> ResultSnapshot:
+    """The segments that moved a metric most, largest influence first."""
+    snapshot = decompose_change(
+        session,
+        metric,
+        dimension,
+        baseline,
+        current,
+        filters,
+        task_id=task_id,
+        max_rows=max(1, min(int(top_n), 50)),
+        timeout_seconds=timeout_seconds,
+    )
+    # decompose_change already orders by influence; relabel so the tool name
+    # recorded on the snapshot matches the call that produced it.
+    snapshot.tool_name = "rank_contributors"
+    snapshot.parameters["top_n"] = top_n
+    return snapshot

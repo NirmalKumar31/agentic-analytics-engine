@@ -5,7 +5,13 @@ extension, its declared content type and its bytes. So none of those are
 trusted:
 
 * the size ceiling is enforced while streaming, not from a header,
-* the format is decided by content, not by the extension,
+* the format is decided by content, not by the extension -- though "by
+  content" means different things for the two formats, and the distinction
+  is stated rather than glossed: **Parquet** has a real signature (``PAR1``
+  at both ends) and self-describing metadata, so it is genuinely validated.
+  **CSV has no magic bytes.** It is accepted as bounded delimited text after
+  being screened against the signatures of formats it is definitely not, and
+  DuckDB's parser is the real arbiter,
 * the stored filename is generated here and the user's name is kept only as a
   display label,
 * the table name is fixed by the server, so the name never reaches SQL.
@@ -20,7 +26,7 @@ import secrets
 import unicodedata
 from dataclasses import dataclass
 from pathlib import Path
-from typing import BinaryIO, Literal
+from typing import Any, BinaryIO, Literal
 
 FileFormat = Literal["csv", "parquet"]
 
@@ -56,6 +62,17 @@ MAX_LABEL_LENGTH = 80
 
 class UploadError(ValueError):
     """The upload was refused. The message is safe to show a user."""
+
+
+@dataclass
+class UploadLimits:
+    """Everything a hostile file could stretch."""
+
+    max_bytes: int = 25 * 1024 * 1024
+    max_columns: int = 200
+    max_column_name_length: int = 128
+    max_row_groups: int = 4096
+    max_metadata_bytes: int = 8 * 1024 * 1024
 
 
 @dataclass
@@ -168,3 +185,103 @@ def store_upload(
     # Owner-only, so nothing else on a shared host can read a user's data.
     os.chmod(path, 0o600)
     return StoredUpload(path=path, display_name=display, file_format=file_format, size_bytes=size)
+
+
+def inspect_parquet(path: Path, limits: UploadLimits) -> dict[str, Any]:
+    """Read Parquet metadata and bound its shape before any data is loaded.
+
+    Parquet is self-describing, so the footer alone reveals the column count,
+    the row-group count, the schema depth and the uncompressed size. Checking
+    those first means a file crafted to explode on read -- tens of thousands
+    of row groups, a deeply nested schema, a petabyte of declared uncompressed
+    data -- is refused without decoding a single value.
+    """
+    import pyarrow.parquet as pq
+
+    try:
+        metadata = pq.read_metadata(path)
+    except Exception as exc:  # pyarrow raises a family of errors here
+        raise UploadError(f"the Parquet metadata could not be read: {type(exc).__name__}") from None
+
+    if metadata.serialized_size > limits.max_metadata_bytes:
+        raise UploadError("the Parquet metadata block is larger than this service accepts")
+    if metadata.num_columns > limits.max_columns:
+        raise UploadError(
+            f"the file has {metadata.num_columns} columns; the limit is {limits.max_columns}"
+        )
+    if metadata.num_row_groups > limits.max_row_groups:
+        raise UploadError(
+            f"the file has {metadata.num_row_groups} row groups; "
+            f"the limit is {limits.max_row_groups}"
+        )
+
+    try:
+        schema = metadata.schema.to_arrow_schema()
+    except Exception as exc:
+        raise UploadError(f"the Parquet schema could not be read: {type(exc).__name__}") from None
+
+    for field_ in schema:
+        if len(field_.name) > limits.max_column_name_length:
+            raise UploadError(f"a column name exceeds {limits.max_column_name_length} characters")
+        # Any nesting at all: a struct of scalars already has depth 1.
+        if _arrow_depth(field_.type) > 0:
+            raise UploadError(
+                f"column {field_.name!r} is a nested type; this service accepts flat "
+                "tabular data only"
+            )
+
+    return {
+        "rows": int(metadata.num_rows),
+        "columns": int(metadata.num_columns),
+        "row_groups": int(metadata.num_row_groups),
+        "uncompressed_bytes": int(
+            sum(metadata.row_group(i).total_byte_size for i in range(metadata.num_row_groups))
+        ),
+    }
+
+
+def _arrow_depth(arrow_type: Any) -> int:
+    """Nesting depth of an Arrow type. Flat types are 0."""
+    if getattr(arrow_type, "num_fields", 0):
+        return 1 + max(
+            (_arrow_depth(arrow_type.field(i).type) for i in range(arrow_type.num_fields)),
+            default=0,
+        )
+    return 0
+
+
+def inspect_csv_header(head: bytes, limits: UploadLimits) -> dict[str, Any]:
+    """Bound the header of a delimited text file.
+
+    This is a header check, not a format proof. CSV has no signature; the
+    guarantee here is that the first line parses as a bounded set of
+    reasonably named fields, and that DuckDB -- not this function -- decides
+    whether the body is readable.
+    """
+    try:
+        text = head.decode("utf-8")
+    except UnicodeDecodeError:
+        text = head.decode("latin-1", errors="replace")
+
+    lines = text.splitlines()
+    if not lines or not lines[0].strip():
+        raise UploadError("the uploaded file has no header row")
+
+    header = lines[0]
+    if len(header) > limits.max_columns * limits.max_column_name_length:
+        raise UploadError("the header row is longer than this service accepts")
+
+    delimiter = max(",;\t|", key=header.count)
+    if header.count(delimiter) == 0:
+        raise UploadError(
+            "the first line has no delimiter; only CSV and Parquet files are accepted"
+        )
+
+    names = [n.strip().strip('"').strip("'") for n in header.split(delimiter)]
+    if len(names) > limits.max_columns:
+        raise UploadError(f"the file has {len(names)} columns; the limit is {limits.max_columns}")
+    for name in names:
+        if len(name) > limits.max_column_name_length:
+            raise UploadError(f"a column name exceeds {limits.max_column_name_length} characters")
+
+    return {"columns": len(names), "delimiter": delimiter}

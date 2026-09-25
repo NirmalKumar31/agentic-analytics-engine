@@ -153,6 +153,14 @@ DUCKDB_SPECIFIC_REJECTED: list[tuple[str, str]] = [
     ("information_schema", "SELECT * FROM information_schema.tables"),
     ("pg_catalog", "SELECT * FROM pg_catalog.pg_class"),
     ("comment_then_second_statement", "SELECT * FROM orders LIMIT 1 -- x\n; DROP TABLE orders"),
+    # Accepted until resource-exhaustion hardening. A recursive CTE has no
+    # statically checkable bound and the analytical tools never need one, so
+    # refusing it removes an unbounded execution path rather than leaving the
+    # query timeout to notice.
+    (
+        "recursive_cte",
+        "WITH RECURSIVE t(n) AS (SELECT 1 UNION ALL SELECT n+1 FROM t WHERE n<5) SELECT * FROM t",
+    ),
     (
         "subquery_in_predicate",
         "SELECT * FROM orders WHERE order_id IN (SELECT order_id FROM read_parquet('x.parquet'))",
@@ -177,10 +185,6 @@ DUCKDB_SPECIFIC_ALLOWED: list[tuple[str, str]] = [
     ("main_schema", "SELECT * FROM main.orders"),
     ("range", "SELECT * FROM range(10)"),
     ("generate_series", "SELECT * FROM generate_series(1, 10)"),
-    (
-        "recursive_cte",
-        "WITH RECURSIVE t(n) AS (SELECT 1 UNION ALL SELECT n+1 FROM t WHERE n<5) SELECT * FROM t",
-    ),
     ("positional_join", "SELECT * FROM orders POSITIONAL JOIN products"),
     ("tablesample", "SELECT * FROM orders TABLESAMPLE 1%"),
     ("lambda", "SELECT list_transform([1], x -> x) FROM orders"),

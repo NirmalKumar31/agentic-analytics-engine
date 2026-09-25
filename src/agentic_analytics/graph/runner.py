@@ -100,7 +100,11 @@ async def run_analysis(
     state: AnalysisState = {}
     try:
         async with AnalyticsToolset(
-            mcp_target, session_id=session.session_id, budget=budget, events=bus
+            mcp_target,
+            session_id=session.session_id,
+            session_key=session.session_key,
+            budget=budget,
+            events=bus,
         ) as toolset:
             ctx = RunContext(session, toolset, llm, bus, cfg.budgets)
             graph = build_graph(ctx)

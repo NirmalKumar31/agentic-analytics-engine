@@ -44,8 +44,13 @@ class Budgets(BaseModel):
     max_sql_length: int = Field(default=8000, ge=100, le=64000)
     query_timeout_seconds: float = Field(default=20.0, gt=0)
 
-    # Uploads.
+    # Uploads. Bounded on every axis a hostile file could stretch.
     max_upload_bytes: int = Field(default=25 * 1024 * 1024, ge=1024)
+    max_upload_rows: int = Field(default=2_000_000, ge=1)
+    max_upload_columns: int = Field(default=200, ge=1, le=2048)
+    max_column_name_length: int = Field(default=128, ge=8, le=1024)
+    max_parquet_row_groups: int = Field(default=4096, ge=1)
+    max_parquet_metadata_bytes: int = Field(default=8 * 1024 * 1024, ge=1024)
 
 
 class Settings(BaseSettings):
@@ -83,9 +88,21 @@ class Settings(BaseSettings):
     upload_dir: Path = REPO_ROOT / "var" / "uploads"
     recordings_dir: Path = REPO_ROOT / "examples" / "recordings"
 
-    session_ttl_seconds: float = 3600.0
+    session_ttl_seconds: float = 2700.0
     max_concurrent_sessions: int = 32
     max_worker_concurrency: int = 4
+
+    # Abuse controls for an unauthenticated public deployment. In-process
+    # counters, not durable quotas; see api/limits.py.
+    uploads_per_ip_per_hour: int = 6
+    analyses_per_ip_per_hour: int = 30
+    analyses_per_session: int = 12
+    max_concurrent_analyses: int = 4
+    max_active_upload_sessions: int = 24
+
+    # HttpOnly cookie carrying the session capability. Secure is set
+    # automatically when the request arrives over TLS.
+    session_cookie_name: str = "aae_session"
 
     # MCP. The agent always talks to analytics through an MCP client; this
     # chooses whether that client is an in-process connection to the server

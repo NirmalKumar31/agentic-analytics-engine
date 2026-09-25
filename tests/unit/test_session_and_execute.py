@@ -108,12 +108,15 @@ def test_guard_rejects_writes_through_the_execution_path(session: AnalysisSessio
 
 
 def test_timeout_cancels_a_runaway_query(session: AnalysisSession) -> None:
+    # Composed internal SQL bypasses the guard, so this exercises the
+    # engine-level cancellation rather than the static generator bound.
     with pytest.raises(QueryError, match="time limit"):
         run_query(
             session,
             "select count(*) from range(200000000) t(i) where i % 7 = 0",
             tool_name="run_readonly_sql",
             timeout_seconds=0.4,
+            guard=False,
         )
     # The connection must survive a cancellation.
     assert run_query(session, "select 1 as x", tool_name="run_readonly_sql").rows == [[1]]
@@ -196,12 +199,12 @@ def test_session_manager_expires_and_bounds(warehouse_dir: Path) -> None:
     b = manager.add(open_demo_session(warehouse_dir))
     assert len(manager) == 2
     time.sleep(0.01)
-    manager.get(b.session_id)
+    manager.get(b.session_id, b.session_key)
     c = manager.add(open_demo_session(warehouse_dir))
     assert len(manager) == 2
     with pytest.raises(KeyError):
-        manager.get(a.session_id)
-    assert manager.get(c.session_id) is c
+        manager.get(a.session_id, a.session_key)
+    assert manager.get(c.session_id, c.session_key) is c
     manager.close_all()
     assert len(manager) == 0
 
@@ -211,7 +214,7 @@ def test_expired_session_is_dropped(warehouse_dir: Path) -> None:
     s = manager.add(open_demo_session(warehouse_dir))
     time.sleep(0.1)
     with pytest.raises(KeyError, match="unknown or expired"):
-        manager.get(s.session_id)
+        manager.get(s.session_id, s.session_key)
 
 
 def test_upload_session_uses_a_server_chosen_table_name(tmp_path: Path) -> None:

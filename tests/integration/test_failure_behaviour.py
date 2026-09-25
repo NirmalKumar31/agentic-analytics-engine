@@ -142,7 +142,11 @@ async def test_a_worker_whose_tool_call_fails_reports_the_failure(setup) -> None
     session, server = setup()
     bus = EventBus()
     async with AnalyticsToolset(
-        server, session_id=session.session_id, events=bus, budget=ToolBudget()
+        server,
+        session_id=session.session_id,
+        session_key=session.session_key,
+        events=bus,
+        budget=ToolBudget(),
     ) as toolset:
         task = AnalysisTask(
             task_id="bad_task",

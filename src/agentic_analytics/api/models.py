@@ -2,17 +2,35 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field, field_validator
 
 MAX_QUESTION_LENGTH = 500
 
 
+ExecutionMode = Literal["recorded", "deterministic_live", "ai_live"]
+
+
+def execution_mode(live_enabled: bool, provider_mode: str) -> ExecutionMode:
+    """Which of the three modes the server is actually in.
+
+    The distinction matters: a run driven by the scripted provider executes
+    the same graph, MCP calls, SQL and verification as one driven by a
+    language model, but the planning decisions are deterministic rules. The
+    UI labels these differently so a scripted run is never presented as a
+    model-driven one.
+    """
+    if not live_enabled:
+        return "recorded"
+    return "deterministic_live" if provider_mode == "fake" else "ai_live"
+
+
 class HealthResponse(BaseModel):
     status: str = "ok"
     version: str
     provider_mode: str
+    execution_mode: ExecutionMode
     live_analytics_enabled: bool
     demo_warehouse_ready: bool
     recordings: int
@@ -23,19 +41,36 @@ class ServerConfig(BaseModel):
 
     version: str
     provider_mode: str
+    #: recorded | deterministic_live | ai_live. Drives the badge in the UI.
+    execution_mode: ExecutionMode
+    #: True only when a language model makes the agent decisions. When false,
+    #: derived schema and results never leave this server.
+    model_inference_remote: bool
     live_analytics_enabled: bool
     uploads_enabled: bool
     demo_warehouse_ready: bool
     max_upload_mb: int
+    max_upload_columns: int
+    session_ttl_minutes: int
     budgets: dict[str, Any]
     demo_questions: list[dict[str, str]]
     recordings: list[dict[str, Any]]
 
 
 class SessionResponse(BaseModel):
+    """A dataset session.
+
+    The capability that authorises this session is **not** in this body. It
+    is set as an HttpOnly cookie, so it stays out of browser history, server
+    access logs and `Referer` headers.
+    """
+
     session_id: str
     catalog: dict[str, Any]
     metrics: list[dict[str, Any]] = Field(default_factory=list)
+    #: Deterministic profile shown before the first question is asked.
+    summary: dict[str, Any] | None = None
+    expires_in_seconds: float = 0.0
 
 
 class AnalysisRequest(BaseModel):

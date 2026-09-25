@@ -19,7 +19,7 @@ import json
 from typing import Any, Literal
 
 from mcp.server import MCPServer
-from mcp.server.mcpserver.exceptions import ToolError
+from mcp.server.mcpserver.exceptions import ResourceError, ToolError
 from pydantic import BaseModel, Field
 
 from agentic_analytics.analytics import catalog as catalog_tools
@@ -28,6 +28,7 @@ from agentic_analytics.analytics import stats as stats_tools
 from agentic_analytics.analytics.execute import QueryError, run_query
 from agentic_analytics.analytics.filters import FilterError, coerce_filters
 from agentic_analytics.analytics.results import ResultSnapshot
+from agentic_analytics.analytics.semantic import infer_schema
 from agentic_analytics.config import Budgets, Settings, get_settings
 from agentic_analytics.logging import get_logger
 from agentic_analytics.warehouse.metrics import load_registry
@@ -112,6 +113,35 @@ class MetricInfo(BaseModel):
     format: str
 
 
+class ProfileField(BaseModel):
+    name: str
+    data_type: str
+    role: str
+    null_pct: float
+    distinct_count: int
+    reason: str
+    min_value: str | None = None
+    max_value: str | None = None
+
+
+class DatasetProfile(BaseModel):
+    """Inferred analytical shape of a table.
+
+    `status` is always "inferred": these roles come from column types and
+    cardinality, not from a governed definition anyone wrote down.
+    """
+
+    table: str
+    row_count: int
+    status: str = "inferred"
+    fields: list[ProfileField] = Field(default_factory=list)
+    time_fields: list[str] = Field(default_factory=list)
+    dimensions: list[str] = Field(default_factory=list)
+    measures: list[str] = Field(default_factory=list)
+    identifiers: list[str] = Field(default_factory=list)
+    ambiguities: list[dict[str, Any]] = Field(default_factory=list)
+
+
 class MetricList(BaseModel):
     metrics: list[MetricInfo]
     note: str = ""
@@ -132,11 +162,38 @@ def build_server(manager: SessionManager, settings: Settings | None = None) -> M
         description="Read-only analytical tools over a DuckDB dataset.",
     )
 
-    def _session(session_id: str) -> AnalysisSession:
+    def _session(session_id: str, session_key: str | None) -> AnalysisSession:
+        """Resolve a session from its handle and capability.
+
+        Both are injected by the MCP client, never chosen by a model. A tool
+        call carrying a handle but no matching capability is refused, so the
+        handle alone -- which appears in resource URIs -- grants nothing.
+        """
         try:
-            return manager.get(session_id)
+            return manager.get(session_id, session_key)
         except KeyError as exc:
             raise ToolError(str(exc)) from None
+
+    def _public_session(session_id: str) -> AnalysisSession:
+        """Resolve a session for a resource read, demo datasets only.
+
+        The built-in warehouse is identical for every visitor and holds no
+        user data, so its schema and results are safe to expose by handle. An
+        uploaded session is refused: its data is reachable only through the
+        tools, which carry the capability.
+        """
+        try:
+            session = manager.get_unchecked(session_id)
+        except KeyError as exc:
+            # ResourceError, not ToolError: the SDK wraps an unexpected
+            # exception from a resource handler and the message is lost.
+            raise ResourceError(str(exc)) from None
+        if session.kind != "demo":
+            raise ResourceError(
+                "this resource serves the built-in demo dataset only; read an "
+                "uploaded session through the tools, which carry its capability"
+            )
+        return session
 
     def _guarded(fn: Any, *args: Any, **kwargs: Any) -> Any:
         """Translate internal errors into recoverable tool errors.
@@ -162,8 +219,8 @@ def build_server(manager: SessionManager, settings: Settings | None = None) -> M
     # ---------------------------------------------------------------- tools
 
     @mcp.tool(description="List the tables available in this dataset with their row counts.")
-    def list_tables(session_id: str) -> TableList:
-        session = _session(session_id)
+    def list_tables(session_id: str, session_key: str) -> TableList:
+        session = _session(session_id, session_key)
         return TableList(
             tables=[TableSummary(**t) for t in catalog_tools.list_tables(session)],
             dataset_kind=session.kind,
@@ -171,8 +228,8 @@ def build_server(manager: SessionManager, settings: Settings | None = None) -> M
         )
 
     @mcp.tool(description="Describe one table: its columns, types and row count.")
-    def describe_table(session_id: str, table: str) -> TableDescription:
-        session = _session(session_id)
+    def describe_table(session_id: str, session_key: str, table: str) -> TableDescription:
+        session = _session(session_id, session_key)
         described = _guarded(catalog_tools.describe_table, session, table)
         return TableDescription(
             table=described["table"],
@@ -188,8 +245,8 @@ def build_server(manager: SessionManager, settings: Settings | None = None) -> M
             "yourself before writing SQL."
         )
     )
-    def profile_table(session_id: str, table: str) -> ToolResult:
-        session = _session(session_id)
+    def profile_table(session_id: str, session_key: str, table: str) -> ToolResult:
+        session = _session(session_id, session_key)
         snapshot = _guarded(
             catalog_tools.profile_table,
             session,
@@ -204,8 +261,8 @@ def build_server(manager: SessionManager, settings: Settings | None = None) -> M
             f"{budgets.max_sample_rows} rows; use aggregates for anything larger."
         )
     )
-    def sample_rows(session_id: str, table: str, limit: int = 10) -> ToolResult:
-        session = _session(session_id)
+    def sample_rows(session_id: str, session_key: str, table: str, limit: int = 10) -> ToolResult:
+        session = _session(session_id, session_key)
         snapshot = _guarded(
             catalog_tools.sample_rows,
             session,
@@ -223,8 +280,8 @@ def build_server(manager: SessionManager, settings: Settings | None = None) -> M
             "question."
         )
     )
-    def run_readonly_sql(session_id: str, sql: str) -> ToolResult:
-        session = _session(session_id)
+    def run_readonly_sql(session_id: str, session_key: str, sql: str) -> ToolResult:
+        session = _session(session_id, session_key)
         snapshot = _guarded(
             run_query,
             session,
@@ -242,8 +299,8 @@ def build_server(manager: SessionManager, settings: Settings | None = None) -> M
             "SQL expression and the dimensions each one supports."
         )
     )
-    def list_metrics(session_id: str) -> MetricList:
-        session = _session(session_id)
+    def list_metrics(session_id: str, session_key: str) -> MetricList:
+        session = _session(session_id, session_key)
         if session.registry is None:
             return MetricList(
                 metrics=[],
@@ -265,13 +322,14 @@ def build_server(manager: SessionManager, settings: Settings | None = None) -> M
     )
     def compute_metric(
         session_id: str,
+        session_key: str,
         metric: str,
         dimensions: list[str] | None = None,
         filters: list[dict[str, Any]] | None = None,
         time_grain: Literal["day", "week", "month", "quarter", "year"] | None = None,
         task_id: str | None = None,
     ) -> ToolResult:
-        session = _session(session_id)
+        session = _session(session_id, session_key)
         snapshot = _guarded(
             compute_tools.compute_metric,
             session,
@@ -294,13 +352,14 @@ def build_server(manager: SessionManager, settings: Settings | None = None) -> M
     )
     def compare_segments(
         session_id: str,
+        session_key: str,
         metric: str,
         dimension: str,
         segments: list[str] | None = None,
         filters: list[dict[str, Any]] | None = None,
         task_id: str | None = None,
     ) -> ToolResult:
-        session = _session(session_id)
+        session = _session(session_id, session_key)
         snapshot = _guarded(
             compute_tools.compare_segments,
             session,
@@ -323,13 +382,14 @@ def build_server(manager: SessionManager, settings: Settings | None = None) -> M
     )
     def analyze_timeseries(
         session_id: str,
+        session_key: str,
         metric: str,
         grain: Literal["day", "week", "month", "quarter", "year"] = "month",
         time_column: str | None = None,
         filters: list[dict[str, Any]] | None = None,
         task_id: str | None = None,
     ) -> ToolResult:
-        session = _session(session_id)
+        session = _session(session_id, session_key)
         snapshot = _guarded(
             compute_tools.analyze_timeseries,
             session,
@@ -345,6 +405,125 @@ def build_server(manager: SessionManager, settings: Settings | None = None) -> M
 
     @mcp.tool(
         description=(
+            "Compare one metric between two explicit date windows. Returns "
+            "both values with the absolute and percentage change already "
+            "computed. Use this rather than subtracting two separate calls."
+        )
+    )
+    def compare_periods(
+        session_id: str,
+        session_key: str,
+        metric: str,
+        baseline_start: str,
+        baseline_end: str,
+        current_start: str,
+        current_end: str,
+        filters: list[dict[str, Any]] | None = None,
+        task_id: str | None = None,
+    ) -> ToolResult:
+        session = _session(session_id, session_key)
+        snapshot = _guarded(
+            compute_tools.compare_periods,
+            session,
+            metric,
+            (baseline_start, baseline_end),
+            (current_start, current_end),
+            coerce_filters(filters),
+            task_id=task_id,
+            timeout_seconds=budgets.query_timeout_seconds,
+        )
+        return ToolResult.of(snapshot)
+
+    @mcp.tool(
+        description=(
+            "Attribute a metric's change between two periods to the values of "
+            "a dimension. An additive metric (revenue, units) decomposes into "
+            "per-segment contributions summing to the total change. A rate "
+            "metric (gross_margin_pct, return_rate) decomposes into a rate "
+            "effect, a mix effect and an interaction term, separating 'every "
+            "segment got worse' from 'volume moved to the worse segments'. "
+            "This is the tool for a 'what caused it' question; do not attempt "
+            "the attribution yourself."
+        )
+    )
+    def decompose_change(
+        session_id: str,
+        session_key: str,
+        metric: str,
+        dimension: str,
+        baseline_start: str,
+        baseline_end: str,
+        current_start: str,
+        current_end: str,
+        filters: list[dict[str, Any]] | None = None,
+        task_id: str | None = None,
+    ) -> ToolResult:
+        session = _session(session_id, session_key)
+        snapshot = _guarded(
+            compute_tools.decompose_change,
+            session,
+            metric,
+            dimension,
+            (baseline_start, baseline_end),
+            (current_start, current_end),
+            coerce_filters(filters),
+            task_id=task_id,
+            max_rows=budgets.max_result_rows,
+            timeout_seconds=budgets.query_timeout_seconds,
+        )
+        return ToolResult.of(snapshot)
+
+    @mcp.tool(
+        description=(
+            "The segments that moved a metric the most between two periods, "
+            "largest influence first."
+        )
+    )
+    def rank_contributors(
+        session_id: str,
+        session_key: str,
+        metric: str,
+        dimension: str,
+        baseline_start: str,
+        baseline_end: str,
+        current_start: str,
+        current_end: str,
+        top_n: int = 5,
+        filters: list[dict[str, Any]] | None = None,
+        task_id: str | None = None,
+    ) -> ToolResult:
+        session = _session(session_id, session_key)
+        snapshot = _guarded(
+            compute_tools.rank_contributors,
+            session,
+            metric,
+            dimension,
+            (baseline_start, baseline_end),
+            (current_start, current_end),
+            top_n,
+            coerce_filters(filters),
+            task_id=task_id,
+            timeout_seconds=budgets.query_timeout_seconds,
+        )
+        return ToolResult.of(snapshot)
+
+    @mcp.tool(
+        description=(
+            "Infer the analytical shape of a table: which columns are time "
+            "fields, dimensions, measures or identifiers, with null rates and "
+            "cardinality. Use this first on an uploaded dataset, which has no "
+            "predefined metric layer. The roles are inferred from types and "
+            "cardinality, not governed definitions."
+        )
+    )
+    def profile_dataset(session_id: str, session_key: str, table: str) -> DatasetProfile:
+        session = _session(session_id, session_key)
+        name = _guarded(catalog_tools.resolve_table, session, table)
+        schema = _guarded(infer_schema, session, name)
+        return DatasetProfile(**schema.as_dict())
+
+    @mcp.tool(
+        description=(
             "Pairwise Pearson correlation between numeric columns of a table "
             "or semantic model. Correlation is not causation and this does not "
             "adjust for confounders."
@@ -352,12 +531,13 @@ def build_server(manager: SessionManager, settings: Settings | None = None) -> M
     )
     def correlation_matrix(
         session_id: str,
+        session_key: str,
         table: str,
         columns: list[str],
         filters: list[dict[str, Any]] | None = None,
         task_id: str | None = None,
     ) -> ToolResult:
-        session = _session(session_id)
+        session = _session(session_id, session_key)
         snapshot = _guarded(
             stats_tools.correlation_matrix,
             session,
@@ -384,12 +564,13 @@ def build_server(manager: SessionManager, settings: Settings | None = None) -> M
     )
     def statistical_test(
         session_id: str,
+        session_key: str,
         test_type: str,
         variables: dict[str, Any],
         filters: list[dict[str, Any]] | None = None,
         task_id: str | None = None,
     ) -> ToolResult:
-        session = _session(session_id)
+        session = _session(session_id, session_key)
         snapshot = _guarded(
             stats_tools.statistical_test,
             session,
@@ -407,8 +588,8 @@ def build_server(manager: SessionManager, settings: Settings | None = None) -> M
             "finding can be re-checked against the exact rows it cites."
         )
     )
-    def get_result(session_id: str, result_id: str) -> ToolResult:
-        session = _session(session_id)
+    def get_result(session_id: str, session_key: str, result_id: str) -> ToolResult:
+        session = _session(session_id, session_key)
         snapshot = _guarded(session.results.get, result_id)
         return ToolResult.of(snapshot)
 
@@ -431,7 +612,7 @@ def build_server(manager: SessionManager, settings: Settings | None = None) -> M
         mime_type="application/json",
     )
     def dataset_schema(session_id: str, table: str) -> str:
-        session = _session(session_id)
+        session = _public_session(session_id)
         return json.dumps(_guarded(catalog_tools.describe_table, session, table), indent=2)
 
     @mcp.resource(
@@ -450,7 +631,7 @@ def build_server(manager: SessionManager, settings: Settings | None = None) -> M
         mime_type="application/json",
     )
     def result_resource(session_id: str, result_id: str) -> str:
-        session = _session(session_id)
+        session = _public_session(session_id)
         snapshot: ResultSnapshot = _guarded(session.results.get, result_id)
         return json.dumps(snapshot.model_dump(mode="json"), indent=2, default=str)
 
@@ -459,6 +640,10 @@ def build_server(manager: SessionManager, settings: Settings | None = None) -> M
 
 TOOL_NAMES: tuple[str, ...] = (
     "list_tables",
+    "profile_dataset",
+    "compare_periods",
+    "decompose_change",
+    "rank_contributors",
     "describe_table",
     "profile_table",
     "sample_rows",

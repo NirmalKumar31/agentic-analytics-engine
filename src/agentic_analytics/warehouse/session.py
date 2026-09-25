@@ -1,4 +1,20 @@
-"""Per-session DuckDB isolation.
+"""Per-session DuckDB isolation and the anonymous capability model.
+
+There is no authentication. A session is reached with a **capability**: a
+cryptographically random bearer token issued when the dataset is opened. The
+token is the only thing that authorises access to that session's data.
+
+Two identifiers, deliberately separate:
+
+* ``session_id`` -- a public opaque handle. It appears in MCP resource URIs
+  and in tool arguments. On its own it authorises nothing.
+* ``session_key`` -- the private capability. It travels in an HttpOnly cookie
+  to the browser and is injected by the MCP client into every tool call. A
+  model never chooses it and it is redacted from the trace.
+
+This is capability-based isolation, not authentication: anyone holding the
+token is the session. That is an accurate description of what it provides and
+the documentation says so rather than implying more.
 
 Each analysis session owns a private in-memory DuckDB database. The database
 is built in two phases:
@@ -19,9 +35,10 @@ from __future__ import annotations
 
 import contextlib
 import hashlib
+import secrets
+import shutil
 import threading
 import time
-import uuid
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Literal
@@ -40,6 +57,22 @@ DatasetKind = Literal["demo", "upload"]
 # The single table an uploaded file becomes. The name is fixed by the server;
 # a user-supplied filename never reaches SQL.
 UPLOAD_TABLE = "uploaded_data"
+
+# Identifier sizes. Both are generated with `secrets`, so neither is
+# guessable and neither is derived from the other. A counter would make the
+# handle predictable, and the handle appears in URIs.
+SESSION_ID_BYTES = 12
+SESSION_KEY_BYTES = 32
+
+
+def new_session_id() -> str:
+    """A public opaque session handle."""
+    return f"ses_{secrets.token_urlsafe(SESSION_ID_BYTES)}"
+
+
+def new_session_key() -> str:
+    """A private session capability."""
+    return secrets.token_urlsafe(SESSION_KEY_BYTES)
 
 
 class DatasetError(RuntimeError):
@@ -91,8 +124,14 @@ class AnalysisSession:
         fingerprint: str,
         registry: MetricRegistry | None,
         source_label: str,
+        session_key: str | None = None,
+        scratch_dir: Path | None = None,
     ) -> None:
         self.session_id = session_id
+        # The capability. Compared in constant time on every access.
+        self.session_key = session_key or new_session_key()
+        # Anything written for this session lives here and is removed with it.
+        self.scratch_dir = scratch_dir
         self.kind = kind
         self.con = con
         self.tables = tables
@@ -120,6 +159,18 @@ class AnalysisSession:
     def close(self) -> None:
         with contextlib.suppress(Exception):  # close is best effort
             self.con.close()
+        # Uploaded bytes are ephemeral: the scratch directory goes with the
+        # session, whether it ended by TTL, by eviction or by an explicit
+        # delete from the user.
+        if self.scratch_dir is not None:
+            with contextlib.suppress(OSError):
+                shutil.rmtree(self.scratch_dir, ignore_errors=True)
+
+    def authorises(self, session_key: str | None) -> bool:
+        """True when the presented capability matches this session."""
+        if not session_key:
+            return False
+        return secrets.compare_digest(self.session_key, session_key)
 
     def catalog(self) -> dict[str, Any]:
         """The dataset description an agent is given up front."""
@@ -169,7 +220,7 @@ def open_demo_session(warehouse_dir: Path, session_id: str | None = None) -> Ana
     _lock_down(con)
     tables = {n: _read_table_info(con, n) for n in TABLE_NAMES}
     return AnalysisSession(
-        session_id=session_id or f"ses_{uuid.uuid4().hex[:12]}",
+        session_id=session_id or new_session_id(),
         kind="demo",
         con=con,
         tables=tables,
@@ -185,6 +236,7 @@ def open_upload_session(
     file_format: Literal["csv", "parquet"],
     session_id: str | None = None,
     max_rows: int | None = None,
+    scratch_dir: Path | None = None,
 ) -> AnalysisSession:
     """Load a single uploaded file into a locked private database.
 
@@ -210,8 +262,9 @@ def open_upload_session(
 
     digest = hashlib.sha256(file_path.read_bytes()).hexdigest()[:32]
     return AnalysisSession(
-        session_id=session_id or f"ses_{uuid.uuid4().hex[:12]}",
+        session_id=session_id or new_session_id(),
         kind="upload",
+        scratch_dir=scratch_dir,
         con=con,
         tables={UPLOAD_TABLE: info},
         fingerprint=f"sha256:{digest}",
@@ -246,7 +299,28 @@ class SessionManager:
         )
         return session
 
-    def get(self, session_id: str) -> AnalysisSession:
+    def get(self, session_id: str, session_key: str | None = None) -> AnalysisSession:
+        """Resolve a session, checking the capability.
+
+        The same error is raised for an unknown handle and a wrong capability,
+        so a caller cannot use the response to learn which handles exist.
+        """
+        with self._lock:
+            self._evict_locked()
+            session = self._sessions.get(session_id)
+            if session is None or not session.authorises(session_key):
+                raise KeyError(f"unknown or expired session {session_id!r}")
+            session.touch()
+            return session
+
+    def get_unchecked(self, session_id: str) -> AnalysisSession:
+        """Resolve without a capability. Callers must gate on `kind`.
+
+        Used only by the MCP resource handlers, which serve the built-in demo
+        dataset -- identical for every visitor and containing no user data.
+        An uploaded session is refused there; its data is reachable only
+        through the tools, which carry the capability.
+        """
         with self._lock:
             self._evict_locked()
             session = self._sessions.get(session_id)
@@ -264,11 +338,26 @@ class SessionManager:
             for sid in list(self._sessions):
                 self._drop_locked(sid)
 
-    def describe_all(self) -> list[dict[str, Any]]:
-        """Catalogue of every live session, for the ``dataset://catalog`` resource."""
+    def upload_count(self) -> int:
+        """Live uploaded sessions, for the global upload ceiling."""
         with self._lock:
             self._evict_locked()
-            return [s.catalog() | {"session_id": s.session_id} for s in self._sessions.values()]
+            return sum(1 for s in self._sessions.values() if s.kind == "upload")
+
+    def describe_all(self) -> list[dict[str, Any]]:
+        """Catalogue for the ``dataset://catalog`` resource.
+
+        Only demo sessions are listed. Enumerating uploaded sessions would
+        disclose other visitors' schemas and handles to anyone who can read
+        the resource.
+        """
+        with self._lock:
+            self._evict_locked()
+            return [
+                s.catalog() | {"session_id": s.session_id}
+                for s in self._sessions.values()
+                if s.kind == "demo"
+            ]
 
     def __len__(self) -> int:
         with self._lock:

@@ -21,6 +21,7 @@ TimeGrain = Literal["day", "week", "month", "quarter", "year"]
 VALID_GRAINS: frozenset[str] = frozenset({"day", "week", "month", "quarter", "year"})
 
 MetricFormat = Literal["currency", "percent", "integer", "number", "ratio"]
+DecompositionKind = Literal["additive", "ratio", "none"]
 
 
 class ModelDef(BaseModel):
@@ -42,6 +43,27 @@ class MetricDef(BaseModel):
     description: str
     sql: str
     format: MetricFormat = "number"
+
+    # How this metric decomposes into per-segment drivers.
+    #
+    #   additive -- the total is the sum of the parts, so each segment's
+    #               contribution is simply its own change.
+    #   ratio    -- the two sums the rate is built from. A weighted average
+    #               has no additive split, so a shift-share decomposition is
+    #               used instead; without these fields a driver analysis of a
+    #               rate would be wrong rather than merely unavailable.
+    decomposition: DecompositionKind = "none"
+    numerator: str | None = None
+    denominator: str | None = None
+    #: Multiplier the metric expression applies to the raw ratio (100 for a
+    #: percentage), so a decomposition can be reported in the metric's units.
+    scale: float = 1.0
+
+    @property
+    def is_decomposable(self) -> bool:
+        if self.decomposition == "additive":
+            return True
+        return self.decomposition == "ratio" and bool(self.numerator and self.denominator)
 
     def public(self, dimensions: list[str], time_field: str) -> dict[str, object]:
         """The view of a metric that is safe to put in a prompt."""
@@ -109,6 +131,11 @@ def load_registry(path: Path | None = None) -> MetricRegistry:
     for metric in metrics.values():
         if metric.model not in models:
             raise ValueError(f"metric {metric.name!r} references unknown model {metric.model!r}")
+        if metric.decomposition == "ratio" and not (metric.numerator and metric.denominator):
+            raise ValueError(
+                f"metric {metric.name!r} declares a ratio decomposition but does not "
+                "define both numerator and denominator"
+            )
     return MetricRegistry(models=models, metrics=metrics)
 
 

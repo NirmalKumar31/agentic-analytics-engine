@@ -187,16 +187,19 @@ metrics:
     description: Net merchandise revenue after discount, excluding shipping and refunds.
     sql: SUM(quantity * unit_price)
     format: currency
+    decomposition: additive
   units:
     model: sales
     description: Total item quantity sold.
     sql: SUM(quantity)
     format: integer
+    decomposition: additive
   orders:
     model: sales
     description: Distinct order count.
     sql: COUNT(DISTINCT order_id)
     format: integer
+    decomposition: additive
   customer_count:
     model: sales
     description: Distinct customers who placed an order.
@@ -212,11 +215,13 @@ metrics:
     description: Cost of goods sold.
     sql: SUM(quantity * unit_cost)
     format: currency
+    decomposition: additive
   gross_profit:
     model: sales
     description: Revenue minus cost of goods sold.
     sql: SUM(quantity * unit_price) - SUM(quantity * unit_cost)
     format: currency
+    decomposition: additive
   gross_margin_pct:
     model: sales
     description: >-
@@ -226,31 +231,46 @@ metrics:
       100.0 * (SUM(quantity * unit_price) - SUM(quantity * unit_cost))
       / NULLIF(SUM(quantity * unit_price), 0)
     format: percent
+    decomposition: ratio
+    numerator: SUM(quantity * unit_price) - SUM(quantity * unit_cost)
+    denominator: SUM(quantity * unit_price)
+    scale: 100.0
   discount_amount:
     model: sales
     description: Total money given away as discount against list price.
     sql: SUM(discount_amount)
     format: currency
+    decomposition: additive
   avg_discount_rate:
     model: sales
     description: Discount as a share of list price value.
     sql: 100.0 * SUM(discount_amount) / NULLIF(SUM(quantity * list_price), 0)
     format: percent
+    decomposition: ratio
+    numerator: SUM(discount_amount)
+    denominator: SUM(quantity * list_price)
+    scale: 100.0
   return_rate:
     model: sales
     description: Share of order items that were returned.
     sql: 100.0 * SUM(is_returned) / NULLIF(COUNT(*), 0)
     format: percent
+    decomposition: ratio
+    numerator: SUM(is_returned)
+    denominator: COUNT(*)
+    scale: 100.0
   refund_amount:
     model: sales
     description: Total refunded value.
     sql: SUM(refund_amount)
     format: currency
+    decomposition: additive
   marketing_spend:
     model: channel_daily
     description: Paid marketing spend.
     sql: SUM(spend)
     format: currency
+    decomposition: additive
   roas:
     model: channel_daily
     description: Revenue divided by marketing spend for the same channel and day.
@@ -264,6 +284,7 @@ metrics:
       costs to acquire and to serve.
     sql: SUM(revenue) - SUM(cogs) - SUM(shipping_cost) - SUM(refund_amount) - SUM(spend)
     format: currency
+    decomposition: additive
   contribution_margin_pct:
     model: channel_daily
     description: Contribution margin as a percentage of revenue.
@@ -271,16 +292,28 @@ metrics:
       100.0 * (SUM(revenue) - SUM(cogs) - SUM(shipping_cost) - SUM(refund_amount)
       - SUM(spend)) / NULLIF(SUM(revenue), 0)
     format: percent
+    decomposition: ratio
+    numerator: SUM(revenue) - SUM(cogs) - SUM(shipping_cost) - SUM(refund_amount) - SUM(spend)
+    denominator: SUM(revenue)
+    scale: 100.0
   repeat_purchase_rate:
     model: customer_lifecycle
     description: Share of customers with more than one order.
     sql: 100.0 * SUM(is_repeat) / NULLIF(COUNT(*), 0)
     format: percent
+    decomposition: ratio
+    numerator: SUM(is_repeat)
+    denominator: COUNT(*)
+    scale: 100.0
   late_delivery_rate:
     model: fulfillment
     description: Share of shipments delivered later than promised.
     sql: 100.0 * SUM(is_late_int) / NULLIF(COUNT(*), 0)
     format: percent
+    decomposition: ratio
+    numerator: SUM(is_late_int)
+    denominator: COUNT(*)
+    scale: 100.0
   avg_delivery_days:
     model: fulfillment
     description: Mean days from ship to delivery.

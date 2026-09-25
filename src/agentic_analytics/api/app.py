@@ -12,17 +12,21 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import json
+import shutil
+import tempfile
 from collections.abc import AsyncIterator
 from pathlib import Path
 from typing import Any
 
-from fastapi import FastAPI, HTTPException, Request, UploadFile
+from fastapi import FastAPI, HTTPException, Request, Response, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from mcp.server.transport_security import TransportSecuritySettings
 
 from agentic_analytics import __version__
+from agentic_analytics.analytics.semantic import infer_schema
+from agentic_analytics.api.limits import Capacity, RateLimit, client_key
 from agentic_analytics.api.models import (
     AnalysisRequest,
     AnalysisStarted,
@@ -30,6 +34,7 @@ from agentic_analytics.api.models import (
     HealthResponse,
     ServerConfig,
     SessionResponse,
+    execution_mode,
 )
 from agentic_analytics.api.runs import RunRegistry
 from agentic_analytics.config import Settings, get_settings
@@ -40,12 +45,19 @@ from agentic_analytics.logging import configure_logging, get_logger
 from agentic_analytics.mcp_layer.server import build_server
 from agentic_analytics.recordings.store import RecordingStore
 from agentic_analytics.warehouse.session import (
+    AnalysisSession,
     DatasetError,
     SessionManager,
     open_demo_session,
     open_upload_session,
 )
-from agentic_analytics.warehouse.upload import UploadError, store_upload
+from agentic_analytics.warehouse.upload import (
+    UploadError,
+    UploadLimits,
+    inspect_csv_header,
+    inspect_parquet,
+    store_upload,
+)
 
 log = get_logger(__name__)
 
@@ -82,6 +94,20 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         ttl_seconds=cfg.session_ttl_seconds, max_sessions=cfg.max_concurrent_sessions
     )
     runs = RunRegistry()
+    upload_limiter = RateLimit(cfg.uploads_per_ip_per_hour, 3600.0)
+    analysis_limiter = RateLimit(cfg.analyses_per_ip_per_hour, 3600.0)
+    analysis_capacity = Capacity(cfg.max_concurrent_analyses)
+    # Uploaded bytes live here, never in the repository or the working
+    # directory, and every session's directory is removed when it ends.
+    upload_root = cfg.upload_dir
+    upload_limits = UploadLimits(
+        max_bytes=cfg.budgets.max_upload_bytes,
+        max_columns=cfg.budgets.max_upload_columns,
+        max_column_name_length=cfg.budgets.max_column_name_length,
+        max_row_groups=cfg.budgets.max_parquet_row_groups,
+        max_metadata_bytes=cfg.budgets.max_parquet_metadata_bytes,
+    )
+    mode = execution_mode(cfg.live_analytics_enabled, cfg.provider_mode)
     recordings = RecordingStore(cfg.recordings_dir)
     mcp = build_server(sessions, cfg)
     # Streamable HTTP, with JSON responses so a plain HTTP client can talk to
@@ -177,6 +203,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         return HealthResponse(
             version=__version__,
             provider_mode=cfg.provider_mode,
+            execution_mode=mode,
             live_analytics_enabled=cfg.live_analytics_enabled,
             demo_warehouse_ready=_warehouse_ready(cfg),
             recordings=len(recordings),
@@ -187,76 +214,218 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         return ServerConfig(
             version=__version__,
             provider_mode=cfg.provider_mode,
+            execution_mode=mode,
+            # Only an actual language model sends anything off this server.
+            model_inference_remote=cfg.provider_mode == "cloud",
             live_analytics_enabled=cfg.live_analytics_enabled,
             uploads_enabled=cfg.uploads_enabled and cfg.live_analytics_enabled,
             demo_warehouse_ready=_warehouse_ready(cfg),
             max_upload_mb=cfg.budgets.max_upload_bytes // (1024 * 1024),
+            max_upload_columns=cfg.budgets.max_upload_columns,
+            session_ttl_minutes=int(cfg.session_ttl_seconds // 60),
             budgets=cfg.budgets.model_dump(),
             demo_questions=DEMO_QUESTIONS,
             recordings=recordings.index(),
         )
 
+    # ------------------------------------------------------- session cookie
+    def _ensure_upload_root() -> Path:
+        upload_root.mkdir(parents=True, exist_ok=True)
+        return upload_root
+
+    def _issue(response: Response, request: Request, session: AnalysisSession) -> None:
+        """Hand the capability to the browser as an HttpOnly cookie.
+
+        Kept out of the response body and out of URLs, so it does not reach
+        browser history, access logs or `Referer` headers. `Secure` is set
+        whenever the request arrived over TLS.
+        """
+        response.set_cookie(
+            cfg.session_cookie_name,
+            session.session_key,
+            max_age=int(cfg.session_ttl_seconds),
+            httponly=True,
+            samesite="lax",
+            secure=request.url.scheme == "https",
+            path="/",
+        )
+
+    def _clear(response: Response, request: Request) -> None:
+        response.delete_cookie(
+            cfg.session_cookie_name,
+            path="/",
+            httponly=True,
+            samesite="lax",
+            secure=request.url.scheme == "https",
+        )
+
+    def _session_or_404(session_id: str, request: Request) -> AnalysisSession:
+        """Resolve a session from its handle plus the capability cookie.
+
+        The same 404 is returned for an unknown handle and for a wrong
+        capability, so a caller cannot probe for which handles exist.
+        """
+        try:
+            return sessions.get(session_id, request.cookies.get(cfg.session_cookie_name))
+        except KeyError:
+            raise HTTPException(
+                status_code=404, detail="unknown or expired dataset session"
+            ) from None
+
+    def _summary(session: AnalysisSession) -> dict[str, Any] | None:
+        """The deterministic profile shown before the first question."""
+        try:
+            table = next(iter(session.tables))
+        except StopIteration:
+            return None
+        try:
+            schema = infer_schema(session, table)
+        except Exception:
+            log.warning("profile_failed", kind=session.kind)
+            return None
+        return schema.as_dict() | {"headline": schema.summary_line()}
+
     # ------------------------------------------------------------ datasets
     @app.post("/api/datasets/demo", response_model=SessionResponse)
-    async def open_demo() -> SessionResponse:
+    async def open_demo(request: Request, response: Response) -> SessionResponse:
         if not _warehouse_ready(cfg):
             raise DatasetError("the demo warehouse has not been generated on this server")
         session = sessions.add(open_demo_session(cfg.demo_warehouse_dir))
+        _issue(response, request, session)
         return SessionResponse(
             session_id=session.session_id,
             catalog=session.catalog(),
             metrics=session.registry.describe_all() if session.registry else [],
+            summary=_summary(session),
+            expires_in_seconds=cfg.session_ttl_seconds,
         )
 
     @app.post("/api/datasets/upload", response_model=SessionResponse)
-    async def upload(file: UploadFile) -> SessionResponse:
+    async def upload(request: Request, response: Response, file: UploadFile) -> SessionResponse:
+        """Accept one CSV or Parquet file into a fresh isolated session.
+
+        The refusal checks run before any bytes are read, so a disabled
+        service or a rate-limited client never causes an allocation.
+        """
         if not (cfg.uploads_enabled and cfg.live_analytics_enabled):
             raise HTTPException(status_code=403, detail="uploads are disabled on this server")
-        stored = store_upload(
-            file.file,
-            file.filename or "upload",
-            cfg.upload_dir,
-            cfg.budgets.max_upload_bytes,
+
+        client = client_key(
+            request.headers.get("x-forwarded-for"), request.client.host if request.client else None
         )
+        allowed, retry_after = upload_limiter.check(client)
+        if not allowed:
+            raise HTTPException(
+                status_code=429,
+                detail="too many uploads from this address; try again shortly",
+                headers={"Retry-After": str(int(retry_after) + 1)},
+            )
+        if sessions.upload_count() >= cfg.max_active_upload_sessions:
+            raise HTTPException(
+                status_code=429,
+                detail="the demo is at capacity for uploaded datasets; try again shortly",
+            )
+
+        # Every session's bytes live in their own directory, which is removed
+        # with the session. The user's filename is never a path component.
+        scratch = Path(tempfile.mkdtemp(prefix="aae_", dir=_ensure_upload_root()))
         try:
+            stored = store_upload(
+                file.file, file.filename or "upload", scratch, cfg.budgets.max_upload_bytes
+            )
+            if stored.file_format == "parquet":
+                shape = inspect_parquet(stored.path, upload_limits)
+                if shape["rows"] > cfg.budgets.max_upload_rows:
+                    raise UploadError(
+                        f"the file has {shape['rows']:,} rows; "
+                        f"the limit is {cfg.budgets.max_upload_rows:,}"
+                    )
+            else:
+                inspect_csv_header(stored.path.read_bytes()[:8192], upload_limits)
+
             session = sessions.add(
                 open_upload_session(
                     stored.path,
                     stored.display_name,
                     stored.file_format,
-                    max_rows=2_000_000,
+                    max_rows=cfg.budgets.max_upload_rows,
+                    scratch_dir=scratch,
                 )
             )
-        finally:
-            # The rows are in DuckDB now; the file itself is not kept.
-            stored.unlink()
-        return SessionResponse(session_id=session.session_id, catalog=session.catalog())
+        except BaseException:
+            shutil.rmtree(scratch, ignore_errors=True)
+            raise
+        # The rows are in DuckDB now; the file itself is no longer needed.
+        stored.unlink()
+
+        if len(session.tables[next(iter(session.tables))].columns) > cfg.budgets.max_upload_columns:
+            sessions.drop(session.session_id)
+            raise UploadError(f"the file has more than {cfg.budgets.max_upload_columns} columns")
+
+        _issue(response, request, session)
+        log.info("upload_accepted", session_id=session.session_id, format=stored.file_format)
+        return SessionResponse(
+            session_id=session.session_id,
+            catalog=session.catalog(),
+            summary=_summary(session),
+            expires_in_seconds=cfg.session_ttl_seconds,
+        )
 
     @app.get("/api/datasets/{session_id}")
-    async def dataset(session_id: str) -> SessionResponse:
-        session = _session_or_404(session_id)
+    async def dataset(session_id: str, request: Request) -> SessionResponse:
+        session = _session_or_404(session_id, request)
         return SessionResponse(
             session_id=session.session_id,
             catalog=session.catalog(),
             metrics=session.registry.describe_all() if session.registry else [],
+            summary=_summary(session),
+            expires_in_seconds=cfg.session_ttl_seconds,
         )
 
     @app.delete("/api/datasets/{session_id}")
-    async def close_dataset(session_id: str) -> dict[str, str]:
+    async def close_dataset(
+        session_id: str, request: Request, response: Response
+    ) -> dict[str, str]:
+        """End a session and erase its data.
+
+        Requires the capability, so one visitor cannot delete another's
+        session by guessing a handle.
+        """
+        _session_or_404(session_id, request)
         sessions.drop(session_id)
-        return {"status": "closed"}
+        _clear(response, request)
+        return {"status": "deleted"}
 
     # ------------------------------------------------------------ analyses
     @app.post("/api/analyses", response_model=AnalysisStarted, status_code=202)
-    async def start_analysis(request: AnalysisRequest) -> AnalysisStarted:
+    async def start_analysis(request: AnalysisRequest, http_request: Request) -> AnalysisStarted:
         if not cfg.live_analytics_enabled:
             raise HTTPException(
                 status_code=403,
                 detail="live analysis is disabled on this server; open a recorded run",
             )
-        if runs.active_count() >= 4:
-            raise HTTPException(status_code=429, detail="too many analyses are already running")
-        session = _session_or_404(request.session_id)
+        client = client_key(
+            http_request.headers.get("x-forwarded-for"),
+            http_request.client.host if http_request.client else None,
+        )
+        allowed, retry_after = analysis_limiter.check(client)
+        if not allowed:
+            raise HTTPException(
+                status_code=429,
+                detail="too many analyses from this address; try again shortly",
+                headers={"Retry-After": str(int(retry_after) + 1)},
+            )
+        session = _session_or_404(request.session_id, http_request)
+        if runs.session_run_count(session.session_id) >= cfg.analyses_per_session:
+            raise HTTPException(
+                status_code=429,
+                detail="this session has reached its analysis limit; start a new one",
+            )
+        if not analysis_capacity.acquire():
+            raise HTTPException(
+                status_code=429,
+                detail="the demo is currently at capacity; please try again shortly",
+            )
         record = runs.create(session.session_id, request.question)
 
         async def execute() -> None:
@@ -278,6 +447,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 record.bus.close()
             finally:
                 await provider.aclose()
+                analysis_capacity.release()
 
         record.task = asyncio.create_task(execute())
         return AnalysisStarted(
@@ -285,11 +455,15 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         )
 
     @app.get("/api/analyses/{run_id}")
-    async def analysis(run_id: str) -> dict[str, Any]:
+    async def analysis(run_id: str, request: Request) -> dict[str, Any]:
         try:
-            return runs.get(run_id).public()
+            record = runs.get(run_id)
         except KeyError:
             raise HTTPException(status_code=404, detail="unknown run") from None
+        # A run carries the dataset's results, so reading one needs the same
+        # capability as the session it belongs to.
+        _session_or_404(record.session_id, request)
+        return record.public()
 
     @app.get("/api/analyses/{run_id}/events")
     async def analysis_events(run_id: str, request: Request) -> StreamingResponse:
@@ -297,6 +471,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             record = runs.get(run_id)
         except KeyError:
             raise HTTPException(status_code=404, detail="unknown run") from None
+        _session_or_404(record.session_id, request)
 
         async def stream() -> AsyncIterator[bytes]:
             try:
@@ -354,14 +529,6 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             ):
                 return FileResponse(candidate)
             return FileResponse(FRONTEND_DIR / "index.html")
-
-    def _session_or_404(session_id: str) -> Any:
-        try:
-            return sessions.get(session_id)
-        except KeyError:
-            raise HTTPException(
-                status_code=404, detail="unknown or expired dataset session"
-            ) from None
 
     return app
 

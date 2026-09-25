@@ -27,7 +27,9 @@ from agentic_analytics.logging import get_logger
 log = get_logger(__name__)
 
 # Arguments that are never echoed into the trace shown to a user.
-_REDACT_KEYS = frozenset({"session_id"})
+# Never echoed into the trace shown to a user. The capability is a bearer
+# secret; the handle is not secret but is noise in a trace.
+_REDACT_KEYS = frozenset({"session_id", "session_key"})
 
 
 class BudgetExceeded(RuntimeError):
@@ -104,12 +106,16 @@ class AnalyticsToolset:
         target: MCPServer | str,
         *,
         session_id: str,
+        session_key: str,
         budget: ToolBudget | None = None,
         events: EventBus | None = None,
         read_timeout_seconds: float = 60.0,
     ) -> None:
         self._target = target
         self.session_id = session_id
+        # Application-controlled. A model never sees this and never chooses
+        # it; it is injected on every call and redacted from the trace.
+        self._session_key = session_key
         self.budget = budget or ToolBudget()
         self.events = events
         self._read_timeout = read_timeout_seconds
@@ -167,7 +173,10 @@ class AnalyticsToolset:
         self.budget.check(task_id)
 
         args = {k: v for k, v in (arguments or {}).items() if v is not None}
+        # Injected here rather than trusted from the caller, so an agent can
+        # neither address another session nor supply its own capability.
         args["session_id"] = self.session_id
+        args["session_key"] = self._session_key
         if task_id is not None and tool_name in _TASK_AWARE_TOOLS:
             args.setdefault("task_id", task_id)
 

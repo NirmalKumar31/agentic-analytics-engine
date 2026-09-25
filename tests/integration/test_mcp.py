@@ -29,22 +29,24 @@ from agentic_analytics.warehouse.session import SessionManager, open_demo_sessio
 
 
 @pytest.fixture
-def manager_and_session(warehouse_dir: Path) -> Iterator[tuple[SessionManager, str]]:
+def manager_and_session(
+    warehouse_dir: Path,
+) -> Iterator[tuple[SessionManager, str, str]]:
     manager = SessionManager()
     session = manager.add(open_demo_session(warehouse_dir))
     try:
-        yield manager, session.session_id
+        yield manager, session.session_id, session.session_key
     finally:
         manager.close_all()
 
 
 @pytest.fixture
-def toolset_factory(manager_and_session: tuple[SessionManager, str]):  # type: ignore[no-untyped-def]
-    manager, session_id = manager_and_session
+def toolset_factory(manager_and_session: tuple[SessionManager, str, str]):  # type: ignore[no-untyped-def]
+    manager, session_id, session_key = manager_and_session
     server = build_server(manager)
 
     def make(**kwargs: object) -> AnalyticsToolset:
-        return AnalyticsToolset(server, session_id=session_id, **kwargs)  # type: ignore[arg-type]
+        return AnalyticsToolset(server, session_id=session_id, session_key=session_key, **kwargs)  # type: ignore[arg-type]
 
     return make
 
@@ -56,11 +58,11 @@ async def test_client_and_server_negotiate(toolset_factory) -> None:  # type: ig
 
 
 async def test_every_advertised_tool_has_a_schema(
-    manager_and_session: tuple[SessionManager, str],
+    manager_and_session: tuple[SessionManager, str, str],
 ) -> None:
     from mcp import Client
 
-    manager, _ = manager_and_session
+    manager, _, _ = manager_and_session
     async with Client(build_server(manager)) as client:
         listing = await client.list_tools()
         assert len(listing.tools) == len(TOOL_NAMES)
@@ -71,11 +73,11 @@ async def test_every_advertised_tool_has_a_schema(
 
 
 async def test_resources_and_templates_are_published(
-    manager_and_session: tuple[SessionManager, str],
+    manager_and_session: tuple[SessionManager, str, str],
 ) -> None:
     from mcp import Client
 
-    manager, session_id = manager_and_session
+    manager, session_id, _ = manager_and_session
     async with Client(build_server(manager)) as client:
         resources = {str(r.uri) for r in (await client.list_resources()).resources}
         assert {"dataset://catalog", "metrics://definitions"} <= resources
@@ -228,13 +230,13 @@ def _free_port() -> int:
 
 
 @pytest.fixture
-def http_server(manager_and_session: tuple[SessionManager, str]) -> Iterator[str]:
+def http_server(manager_and_session: tuple[SessionManager, str, str]) -> Iterator[str]:
     """A real Streamable HTTP MCP server on a real port."""
     import contextlib
 
     from fastapi import FastAPI
 
-    manager, _ = manager_and_session
+    manager, _, _ = manager_and_session
     mcp = build_server(manager)
     mcp_app = mcp.streamable_http_app(json_response=True, host="127.0.0.1")
 
@@ -266,11 +268,11 @@ def http_server(manager_and_session: tuple[SessionManager, str]) -> Iterator[str
 
 
 async def test_streamable_http_transport(
-    http_server: str, manager_and_session: tuple[SessionManager, str]
+    http_server: str, manager_and_session: tuple[SessionManager, str, str]
 ) -> None:
     """The production transport, exercised over a socket."""
-    _, session_id = manager_and_session
-    async with AnalyticsToolset(http_server, session_id=session_id) as ts:
+    _, session_id, session_key = manager_and_session
+    async with AnalyticsToolset(http_server, session_id=session_id, session_key=session_key) as ts:
         assert ts.transport == "http"
         assert set(ts.available_tools) == set(TOOL_NAMES)
         payload = await ts.call("compare_segments", {"metric": "revenue", "dimension": "region"})

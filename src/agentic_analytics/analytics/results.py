@@ -42,6 +42,32 @@ class StatisticalResult(BaseModel):
     assumptions: list[str] = Field(default_factory=list)
     warnings: list[str] = Field(default_factory=list)
 
+    # Multiple-comparison accounting. When one analytical task runs several
+    # related tests, the family is corrected with Holm's step-down method and
+    # `p_value_adjusted` is what the publication gate reads. A single test
+    # leaves these unset, and `p_value_adjusted` then equals `p_value`.
+    p_value_adjusted: float | None = None
+    correction_method: str | None = None
+    family_size: int = 1
+
+    # Sampling. Populated only when a test could not read every row, so a
+    # reader can tell an exact result from an estimated one.
+    rows_available: int | None = None
+    rows_used: int | None = None
+    sampling_applied: bool = False
+    sampling_method: str | None = None
+    sampling_seed: int | None = None
+
+    @property
+    def effective_p_value(self) -> float:
+        """The p-value a significance claim must be judged against."""
+        return self.p_value if self.p_value_adjusted is None else self.p_value_adjusted
+
+    @property
+    def is_significant(self) -> bool:
+        """Significant at the 5% level after any correction."""
+        return self.effective_p_value < 0.05
+
 
 class ResultSnapshot(BaseModel):
     """A single tool execution and everything needed to audit it."""

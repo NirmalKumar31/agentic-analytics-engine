@@ -85,6 +85,10 @@ class RunRegistry:
     def active_count(self) -> int:
         return sum(1 for r in self._runs.values() if r.status == "running")
 
+    def session_run_count(self, session_id: str) -> int:
+        """How many analyses this session has started, for its per-session cap."""
+        return sum(1 for r in self._runs.values() if r.session_id == session_id)
+
     def _evict(self) -> None:
         cutoff = time.time() - self._ttl
         for run_id, record in list(self._runs.items()):

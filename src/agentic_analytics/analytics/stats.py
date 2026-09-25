@@ -15,7 +15,7 @@ from typing import Any, Literal
 import numpy as np
 from scipy import stats as sps
 
-from agentic_analytics.analytics.execute import QueryError, fetch_rows, run_query
+from agentic_analytics.analytics.execute import fetch_rows, run_query
 from agentic_analytics.analytics.filters import Filter, build_where
 from agentic_analytics.analytics.results import ResultSnapshot, StatisticalResult
 from agentic_analytics.warehouse.session import AnalysisSession
@@ -38,9 +38,36 @@ TEST_TYPES: tuple[str, ...] = (
     "spearman_correlation",
 )
 
-# Tests that need row-level values are capped. Beyond this the sample is
-# drawn deterministically and the snapshot says so.
+# Tests that need row-level values are capped. Beyond this a seeded reservoir
+# sample is drawn, and the snapshot records that it happened along with the
+# seed, so the same request against the same data reproduces exactly.
 MAX_RAW_ROWS = 50_000
+SAMPLE_SEED = 20260924
+SAMPLE_METHOD = "duckdb reservoir, seeded"
+
+# Column types each test can accept. A model chooses the test; this decides
+# whether the choice is applicable to the data, because running an
+# inapplicable test produces a number that looks like evidence and is not.
+NUMERIC_DUCK_TYPES = frozenset(
+    {
+        "TINYINT",
+        "SMALLINT",
+        "INTEGER",
+        "BIGINT",
+        "HUGEINT",
+        "UTINYINT",
+        "USMALLINT",
+        "UINTEGER",
+        "UBIGINT",
+        "FLOAT",
+        "DOUBLE",
+        "REAL",
+        "DECIMAL",
+        "BOOLEAN",
+    }
+)
+MIN_GROUP_SIZE = 2
+MIN_CORRELATION_PAIRS = 10
 MAX_GROUPS = 12
 MAX_CORRELATION_COLUMNS = 8
 
@@ -71,16 +98,47 @@ def _require(variables: dict[str, Any], key: str) -> str:
     return value
 
 
+def _relation_columns(session: AnalysisSession, relation_sql: str) -> dict[str, str]:
+    """Column name to DuckDB type for a relation, without reading any rows.
+
+    Holds the session lock. A DuckDB connection carries cursor state, so
+    reading `description` without it returns whichever query a concurrent
+    worker ran last -- which is how this function first reported the columns
+    of an unrelated result.
+    """
+    try:
+        with session.lock:
+            cursor = session.con.execute(f"SELECT * FROM (\n{relation_sql}\n) AS r LIMIT 0")
+            description = cursor.description or []
+            return {str(d[0]): str(d[1]).split("(")[0].upper() for d in description}
+    except Exception as exc:
+        raise StatsError(f"the relation could not be inspected: {exc}") from None
+
+
 def _check_column(column: str, relation_sql: str, session: AnalysisSession) -> str:
     """Confirm a column exists in the relation before it reaches SQL."""
-    try:
-        cols, _ = fetch_rows(session, f"SELECT * FROM (\n{relation_sql}\n) AS r LIMIT 0")
-    except QueryError as exc:
-        raise StatsError(str(exc)) from None
-    for c in cols:
-        if c.lower() == column.lower():
-            return c
-    raise StatsError(f"column {column!r} not found; available columns: {sorted(cols)}")
+    columns = _relation_columns(session, relation_sql)
+    for name in columns:
+        if name.lower() == column.lower():
+            return name
+    raise StatsError(f"column {column!r} not found; available columns: {sorted(columns)}")
+
+
+def _require_numeric(session: AnalysisSession, relation_sql: str, column: str) -> str:
+    """Resolve a column and refuse it if it is not numeric.
+
+    A correlation between two text columns, or a t-test on a category label,
+    is not a weaker result -- it is a meaningless one. Refusing is the only
+    honest outcome.
+    """
+    resolved = _check_column(column, relation_sql, session)
+    duck_type = _relation_columns(session, relation_sql)[resolved]
+    if duck_type not in NUMERIC_DUCK_TYPES:
+        raise StatsError(
+            f"column {resolved!r} is {duck_type}, which this test cannot use; "
+            "it requires a numeric column"
+        )
+    return resolved
 
 
 def statistical_test(
@@ -137,6 +195,26 @@ def statistical_test(
     return session.results.put(snapshot)
 
 
+def _reject_degenerate_groups(rows: list[tuple[str, int, float, float]], test_name: str) -> None:
+    """Refuse a test whose groups cannot support it.
+
+    An empty group, a single observation, or a group whose values are all
+    identical produces a statistic that is either undefined or meaningless.
+    Returning one anyway would hand a model a number that looks like evidence.
+    """
+    if not rows:
+        raise StatsError(f"{test_name}: no rows remain after filtering")
+    tiny = [name for name, n, *_ in rows if n < MIN_GROUP_SIZE]
+    if tiny:
+        raise StatsError(
+            f"{test_name}: group(s) {', '.join(tiny[:4])} have fewer than "
+            f"{MIN_GROUP_SIZE} observations"
+        )
+    for name, _n, _total, spread in rows:
+        if not math.isfinite(spread):
+            raise StatsError(f"{test_name}: group {name!r} contains a non-finite value")
+
+
 def _group_counts(
     session: AnalysisSession, base: str, group_col: str, value_col: str, timeout: float
 ) -> list[tuple[str, int, float, float]]:
@@ -162,10 +240,11 @@ def _two_proportion_z(
 ) -> tuple[list[str], list[list[Any]], StatisticalResult]:
     """Compare two rates. ``value_column`` must be 0/1 or boolean."""
     group_col = _check_column(_require(variables, "group_column"), base, session)
-    value_col = _check_column(_require(variables, "value_column"), base, session)
+    value_col = _require_numeric(session, base, _require(variables, "value_column"))
     groups = variables.get("groups")
 
     counts = _group_counts(session, base, group_col, value_col, timeout)
+    _reject_degenerate_groups(counts, "two_proportion_z")
     if groups:
         wanted = [str(g) for g in groups]
         counts = [c for c in counts if c[0] in wanted]
@@ -259,10 +338,11 @@ def _welch_t_test(
     regardless of table size.
     """
     group_col = _check_column(_require(variables, "group_column"), base, session)
-    value_col = _check_column(_require(variables, "value_column"), base, session)
+    value_col = _require_numeric(session, base, _require(variables, "value_column"))
     groups = variables.get("groups")
 
     stats_rows = _group_stats(session, base, group_col, value_col, timeout)
+    _reject_degenerate_groups(stats_rows, "welch_t_test")
     if groups:
         wanted = [str(g) for g in groups]
         stats_rows = [s for s in stats_rows if s[0] in wanted]
@@ -330,9 +410,10 @@ def _one_way_anova(
 ) -> tuple[list[str], list[list[Any]], StatisticalResult]:
     """Compare means across three or more groups."""
     group_col = _check_column(_require(variables, "group_column"), base, session)
-    value_col = _check_column(_require(variables, "value_column"), base, session)
+    value_col = _require_numeric(session, base, _require(variables, "value_column"))
 
     stats_rows = _group_stats(session, base, group_col, value_col, timeout)
+    _reject_degenerate_groups(stats_rows, "one_way_anova")
     if len(stats_rows) < 3:
         raise StatsError(
             f"one_way_anova needs at least three groups, found {len(stats_rows)}; "
@@ -459,24 +540,42 @@ def _correlation(
     timeout: float,
 ) -> tuple[list[str], list[list[Any]], StatisticalResult]:
     """Pearson or Spearman correlation between two numeric columns."""
-    x_col = _check_column(_require(variables, "x_column"), base, session)
-    y_col = _check_column(_require(variables, "y_column"), base, session)
+    x_col = _require_numeric(session, base, _require(variables, "x_column"))
+    y_col = _require_numeric(session, base, _require(variables, "y_column"))
 
-    sql = (
+    pairs_sql = (
         f'SELECT CAST("{x_col}" AS DOUBLE) AS x, CAST("{y_col}" AS DOUBLE) AS y '
         f"FROM (\n{base}\n) AS b "
-        f'WHERE "{x_col}" IS NOT NULL AND "{y_col}" IS NOT NULL '
-        f"LIMIT {MAX_RAW_ROWS + 1}"
+        f'WHERE "{x_col}" IS NOT NULL AND "{y_col}" IS NOT NULL'
     )
-    _, raw = fetch_rows(session, sql, timeout)
-    sampled = len(raw) > MAX_RAW_ROWS
+    _, count_rows = fetch_rows(session, f"SELECT COUNT(*) FROM (\n{pairs_sql}\n) AS p", timeout)
+    available = int(count_rows[0][0]) if count_rows else 0
+    sampled = available > MAX_RAW_ROWS
+
     if sampled:
-        raw = raw[:MAX_RAW_ROWS]
-    if len(raw) < 3:
-        raise StatsError("at least three paired observations are required")
+        # A seeded reservoir sample, so the same request against the same
+        # data returns the same coefficient. An unordered LIMIT would not:
+        # DuckDB makes no promise about which rows it returns first.
+        sql = (
+            f"SELECT * FROM (\n{pairs_sql}\n) AS p "
+            f"USING SAMPLE {MAX_RAW_ROWS} ROWS (reservoir, {SAMPLE_SEED})"
+        )
+    else:
+        sql = pairs_sql
+
+    _, raw = fetch_rows(session, sql, timeout)
+    if len(raw) < MIN_CORRELATION_PAIRS:
+        raise StatsError(
+            f"at least {MIN_CORRELATION_PAIRS} paired observations are required, found {len(raw)}"
+        )
 
     x = np.array([float(r[0]) for r in raw])
     y = np.array([float(r[1]) for r in raw])
+    if not (np.isfinite(x).all() and np.isfinite(y).all()):
+        finite = np.isfinite(x) & np.isfinite(y)
+        if finite.sum() < MIN_CORRELATION_PAIRS:
+            raise StatsError("too few finite observations remain after removing NaN and infinity")
+        x, y = x[finite], y[finite]
     if x.std() == 0 or y.std() == 0:
         raise StatsError("a variable is constant; correlation is undefined")
 
@@ -504,7 +603,8 @@ def _correlation(
     ]
     if sampled:
         warnings.append(
-            f"computed on the first {MAX_RAW_ROWS:,} rows; the full population is larger"
+            f"computed on a seeded random sample of {len(x):,} of {available:,} rows; "
+            "the same request reproduces the same sample"
         )
 
     result = StatisticalResult(
@@ -522,6 +622,11 @@ def _correlation(
             else ["linear relationship", "independent observations", "no extreme outliers"]
         ),
         warnings=warnings,
+        rows_available=available,
+        rows_used=len(x),
+        sampling_applied=sampled,
+        sampling_method=SAMPLE_METHOD if sampled else None,
+        sampling_seed=SAMPLE_SEED if sampled else None,
     )
     columns = ["x_column", "y_column", "n_pairs", "coefficient", "p_value"]
     rows: list[list[Any]] = [[x_col, y_col, n, r, p_value]]
