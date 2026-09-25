@@ -73,6 +73,14 @@ class UploadLimits:
     max_column_name_length: int = 128
     max_row_groups: int = 4096
     max_metadata_bytes: int = 8 * 1024 * 1024
+    #: Ceiling on the *declared* uncompressed size in the Parquet footer.
+    #: This is the one bound that a file's size on disk does not give you:
+    #: Parquet compresses well, so a 15 MB upload can declare gigabytes of
+    #: uncompressed data and expand into memory on read. It is an admission
+    #: ceiling on a self-declared number, not a prediction of RAM use --
+    #: Arrow's in-memory representation differs from the declared size in
+    #: both directions.
+    max_uncompressed_bytes: int = 2 * 1024 * 1024 * 1024
 
 
 @dataclass
@@ -215,6 +223,16 @@ def inspect_parquet(path: Path, limits: UploadLimits) -> dict[str, Any]:
             f"the limit is {limits.max_row_groups}"
         )
 
+    uncompressed = int(
+        sum(metadata.row_group(i).total_byte_size for i in range(metadata.num_row_groups))
+    )
+    if uncompressed > limits.max_uncompressed_bytes:
+        # Refused from the footer, before a single value is decoded.
+        raise UploadError(
+            f"the file declares {uncompressed / (1024 * 1024):,.0f} MB of uncompressed "
+            f"data; the limit is {limits.max_uncompressed_bytes / (1024 * 1024):,.0f} MB"
+        )
+
     try:
         schema = metadata.schema.to_arrow_schema()
     except Exception as exc:
@@ -234,9 +252,7 @@ def inspect_parquet(path: Path, limits: UploadLimits) -> dict[str, Any]:
         "rows": int(metadata.num_rows),
         "columns": int(metadata.num_columns),
         "row_groups": int(metadata.num_row_groups),
-        "uncompressed_bytes": int(
-            sum(metadata.row_group(i).total_byte_size for i in range(metadata.num_row_groups))
-        ),
+        "uncompressed_bytes": uncompressed,
     }
 
 

@@ -196,11 +196,15 @@ def statistical_test(
 
 
 def _reject_degenerate_groups(rows: list[tuple[str, int, float, float]], test_name: str) -> None:
-    """Refuse a test whose groups cannot support it.
+    """Refuse a test whose groups are too small or hold a non-finite value.
 
-    An empty group, a single observation, or a group whose values are all
-    identical produces a statistic that is either undefined or meaningless.
-    Returning one anyway would hand a model a number that looks like evidence.
+    Note what this does *not* do, because the previous docstring implied
+    otherwise: it does not reject a group whose values are all identical.
+    A zero-variance group is not automatically degenerate -- Welch's t is
+    perfectly well defined when one group is constant and the other is not.
+    Whether a particular test is actually computable is decided where it is
+    computed, by :func:`_require_finite`, which checks the statistic that
+    came out rather than guessing from the inputs.
     """
     if not rows:
         raise StatsError(f"{test_name}: no rows remain after filtering")
@@ -213,6 +217,26 @@ def _reject_degenerate_groups(rows: list[tuple[str, int, float, float]], test_na
     for name, _n, _total, spread in rows:
         if not math.isfinite(spread):
             raise StatsError(f"{test_name}: group {name!r} contains a non-finite value")
+
+
+def _require_finite(test_name: str, **values: float | None) -> None:
+    """Refuse to publish a statistic that is not a number.
+
+    NaN and infinity are what an undefined test returns, and storing one as
+    evidence is worse than failing: it travels through the pipeline, gets
+    cited by a finding, and renders in a report as though it meant
+    something. Raising here turns "undefined" into a refusal the user sees.
+    """
+    bad = [
+        name
+        for name, value in values.items()
+        if value is not None and not math.isfinite(float(value))
+    ]
+    if bad:
+        raise StatsError(
+            f"{test_name}: the test is undefined for these groups "
+            f"({', '.join(sorted(bad))} is not finite)"
+        )
 
 
 def _group_counts(
@@ -230,6 +254,35 @@ def _group_counts(
     return [(str(r[0]), int(r[1]), float(r[2]), float(r[3])) for r in rows]
 
 
+def _require_binary(session: AnalysisSession, base: str, column: str, timeout: float) -> None:
+    """Refuse a value column that is not an indicator.
+
+    This test sums the column and reads the sum as a count of successes.
+    That is only true when every value is 0, 1, or boolean. A column holding
+    2s and 5s produces a "rate" above 1, a z-statistic computed from it, and
+    a p-value -- all of them meaningless, and none of them obviously wrong to
+    a reader. Being numeric is not enough; it has to be binary.
+    """
+    sql = (
+        f'SELECT COUNT(*) FROM (\n{base}\n) AS b WHERE "{column}" IS NOT NULL '
+        f'AND CAST("{column}" AS DOUBLE) NOT IN (0, 1)'
+    )
+    _, rows = fetch_rows(session, sql, timeout)
+    offending = int(rows[0][0]) if rows else 0
+    if offending:
+        sample_sql = (
+            f'SELECT DISTINCT CAST("{column}" AS DOUBLE) FROM (\n{base}\n) AS b '
+            f'WHERE "{column}" IS NOT NULL AND CAST("{column}" AS DOUBLE) NOT IN (0, 1) '
+            f"LIMIT 3"
+        )
+        _, sample = fetch_rows(session, sample_sql, timeout)
+        seen = ", ".join(str(r[0]) for r in sample)
+        raise StatsError(
+            f"two_proportion_z needs a 0/1 or boolean value column; {column!r} has "
+            f"{offending:,} row(s) with other values (for example: {seen})"
+        )
+
+
 def _two_proportion_z(
     session: AnalysisSession,
     base: str,
@@ -241,6 +294,7 @@ def _two_proportion_z(
     """Compare two rates. ``value_column`` must be 0/1 or boolean."""
     group_col = _check_column(_require(variables, "group_column"), base, session)
     value_col = _require_numeric(session, base, _require(variables, "value_column"))
+    _require_binary(session, base, value_col, timeout)
     groups = variables.get("groups")
 
     counts = _group_counts(session, base, group_col, value_col, timeout)
@@ -365,6 +419,14 @@ def _welch_t_test(
         equal_var=False,
     )
     se = math.sqrt(sd_a**2 / n_a + sd_b**2 / n_b)
+    if se <= 0:
+        # Both groups constant: there is no sampling variability to compare
+        # the difference against, so the statistic is undefined rather than
+        # very large.
+        raise StatsError(
+            "welch_t_test: both groups are constant, so the standard error is "
+            "zero and the test is undefined"
+        )
     # Welch-Satterthwaite degrees of freedom.
     denom = (sd_a**2 / n_a) ** 2 / (n_a - 1) + (sd_b**2 / n_b) ** 2 / (n_b - 1)
     df = ((sd_a**2 / n_a + sd_b**2 / n_b) ** 2 / denom) if denom > 0 else float(n_a + n_b - 2)
@@ -372,6 +434,20 @@ def _welch_t_test(
     diff = mean_a - mean_b
     pooled_sd = math.sqrt(((n_a - 1) * sd_a**2 + (n_b - 1) * sd_b**2) / (n_a + n_b - 2))
     d = diff / pooled_sd if pooled_sd > 0 else 0.0
+
+    # Everything that reaches the snapshot has to be a real number. One
+    # group with zero variance is fine and reaches here; two are not, and
+    # were caught above.
+    _require_finite(
+        "welch_t_test",
+        statistic=float(res.statistic),
+        p_value=float(res.pvalue),
+        standard_error=se,
+        degrees_of_freedom=df,
+        lower_bound=diff - crit * se,
+        upper_bound=diff + crit * se,
+        effect_size=d,
+    )
 
     result = StatisticalResult(
         test_name="Welch's t-test",

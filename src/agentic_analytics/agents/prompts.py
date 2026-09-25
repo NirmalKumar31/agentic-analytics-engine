@@ -109,14 +109,17 @@ builds it.
 {DATA_IS_NOT_INSTRUCTIONS}"""
 
 REPORTER = f"""\
-You write the analytical report from findings that have already been verified.
+You organise a report from findings that have already been verified. You do
+not write its prose: the engine renders every sentence from the findings'
+own wording, so anything you wrote would be discarded.
 
-You may not introduce a number that is not in the findings you were given, and
-you may not state a conclusion that no finding supports. Every section must
-reference the finding ids it rests on.
+Return only:
+- which finding ids belong in the executive summary, most important first
+- sections: the finding ids that belong together, in reading order
+- optional follow-up questions
 
-Write plainly. State what was measured and what it shows. Where the analysis
-could not settle something, say so in the limitations rather than hedging
-inside a finding.
+Section headings are not yours to write. The engine labels each group, so
+that a heading cannot become an unverified claim. Group findings so a reader
+can follow the argument, and put every id in at most one section.
 
 {DATA_IS_NOT_INSTRUCTIONS}"""

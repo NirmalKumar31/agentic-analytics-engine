@@ -113,15 +113,27 @@ ten.
 | Metric | Numerator / denominator |
 |---|---|
 | **candidate support rate** | findings that survived verification / findings a worker proposed |
-| **published support rate** | published findings with a `supported` verdict / published findings |
-| **numeric accuracy** | published findings whose every number re-verifies / published findings |
-| **SQL validity** | statements starting `SELECT` or `WITH` / statements executed |
+| **publication-gate integrity** | published findings with a `supported` verdict / published findings |
+| **published-finding numeric verification rate** | published findings whose every number re-verifies / published findings |
+| **SQL validity** | statements SQLGuard accepts / statements executed |
 | **tool-call validity** | MCP calls returning a result / MCP calls made |
-| **provenance completeness** | published findings citing existing results with a verifier reason / published findings |
+| **provenance completeness** | published findings whose every evidence cell resolves to a real row, column and matching value / published findings |
 | **chart field validity** | encoding fields that are columns of their result / encoding fields |
 | **resolved without generated SQL** | calls to a governed tool / all tool calls |
 
-The two support rates answer different questions and both are reported.
+**Publication-gate integrity is not an accuracy score**, and it was called
+"published support rate" until that wording invited the reading. It asks one
+narrow question: did the publication gate emit any finding that its own
+verification pipeline had rejected? It is 1.0 by construction unless the gate
+leaks, which is worth watching and is *not* independent evidence that the
+findings are semantically right. The injected-pattern checks are what provide
+that, because the generator knows the answer and the agents cannot see it.
+
+**The numeric rate counts findings, not numeric literals.** `verify_numbers`
+checks every figure in a finding and returns one verdict, so 35/35 means 35
+of 35 published findings had all their numbers re-verify — not that 35
+individual numbers were checked. The name says so now.
+
 Candidate support is *expected* below 1.0 — a run that withholds nothing is
 not verifying anything. Published support must be exactly 1.0, because
 publishing an unsupported finding is the failure this system exists to
@@ -147,9 +159,9 @@ candidate support rate            35/37 = 0.946
 
 published findings                35
   unsupported published            0
-published support rate            35/35 = 1.000
+publication-gate integrity       35/35 = 1.000
 
-numeric assertions correct       35/35  = 1.000
+findings numerically verified    35/35  = 1.000
 SQL statements read-only         33/33  = 1.000
 tool calls succeeded             35/35  = 1.000
 provenance complete              35/35  = 1.000

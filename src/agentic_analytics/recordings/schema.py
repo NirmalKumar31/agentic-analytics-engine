@@ -12,6 +12,8 @@ import re
 from dataclasses import dataclass, field
 from typing import Any
 
+from agentic_analytics.verification.sql import is_read_only
+
 RECORDING_VERSION = 2
 
 REQUIRED_TOP_LEVEL = (
@@ -173,9 +175,12 @@ def validate_recording(recording: dict[str, Any]) -> ValidationReport:
         sql = snapshot.get("sql")
         if not sql:
             continue
-        head = sql.lstrip().lower()
-        if not head.startswith(("select", "with")):
-            errors.append(f"result {result_id} SQL is not a read-only query")
+        # The real guard, not a prefix check. A recording is evidence, and
+        # evidence validated by a weaker rule than the runtime enforces is
+        # not evidence about the runtime.
+        accepted, why = is_read_only(sql)
+        if not accepted:
+            errors.append(f"result {result_id} SQL is not guard-valid read-only SQL: {why}")
         if not snapshot.get("dataset_fingerprint"):
             errors.append(f"result {result_id} has no dataset fingerprint")
 

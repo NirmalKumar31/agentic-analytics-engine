@@ -227,27 +227,35 @@ either, because it has already materialised its rows into a private
 in-memory database and holds them until it ends. The honest number is not
 derivable from the configuration, so it is measured instead.
 
-**What was measured.** `scripts/resource_rehearsal.py` against a local
-process configured to the deployment's shape — 384 MB, one thread, 4 demo
-sessions plus 4 uploads of 120,000 rows each, 2 concurrent analyses:
+**What was measured.** `scripts/resource_rehearsal.py --cycles 10` against a
+local process configured to the deployment's shape — 384 MB, one thread, and
+per cycle 4 demo sessions plus 4 uploads of 120,000 rows, 2 concurrent
+analyses, then every session deleted. All 68 checks passed. RSS after each
+cycle's cleanup:
 
-| Point | RSS |
-|---|---|
-| baseline | 220 MiB |
-| 8 sessions open | 486 MiB |
-| peak, two analyses | 503 MiB |
-| after deleting every session | 492 MiB |
+| Cycle | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 |
+|---|---|---|---|---|---|---|---|---|---|---|
+| RSS (MiB) | 378 | 446 | 546 | 602 | 610 | 572 | 591 | 594 | 593 | 386 |
 
-**RSS does not return to baseline when sessions close.** Three consecutive
-cycles against the same process peaked at 503, 534 and 543 MiB — growth that
-decelerates and flattens, which is an allocator holding freed pages rather
-than a leak. The practical consequence is that a long-lived instance sits at
-its high-water mark rather than at its idle figure, and the headroom that
-matters is measured from there.
+Baseline before the first cycle was 280 MiB.
 
-This is one run on one machine against a process, not a container on the
-target instance. It does not establish a bound, and no throughput figure was
-recorded or should be inferred.
+**What those readings support, and nothing more.** RSS rose above baseline
+and stayed there for most of the run; it stopped rising after roughly the
+fifth cycle rather than growing without bound; it fell back to 386 MiB by
+the end; and no out-of-memory kill or restart occurred — the process
+reported the same `instance_id` throughout, which is how a restart would
+have been visible.
+
+**The test does not establish why memory was retained.** An allocator
+holding freed pages and a slow leak can both look like this, and telling
+them apart needs a longer run and a heap profiler, neither of which this
+is. No claim of "no memory leak" is made or supported here. The practical
+consequence either way is that a long-lived instance sits above its idle
+figure, so headroom should be judged from the high-water mark — around 610
+MiB in this run, against a 2 GB instance — rather than from the baseline.
+
+This was a process on a developer machine, not a container on the target
+instance. It establishes no bound, and no throughput figure was recorded.
 
 Sessions expire on a timer rather than on the next request, and a browser
 opening a second dataset retires its first. Both were previously true only

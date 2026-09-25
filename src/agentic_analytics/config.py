@@ -55,6 +55,11 @@ class Budgets(BaseModel):
     max_column_name_length: int = Field(default=128, ge=8, le=1024)
     max_parquet_row_groups: int = Field(default=4096, ge=1)
     max_parquet_metadata_bytes: int = Field(default=8 * 1024 * 1024, ge=1024)
+    #: Ceiling on the uncompressed size a Parquet footer declares. Checked
+    #: before any value is decoded, because compression means the size on
+    #: disk says nothing about what a read will allocate. An admission
+    #: ceiling on a declared number, not a measurement of memory use.
+    max_parquet_uncompressed_bytes: int = Field(default=2 * 1024 * 1024 * 1024, ge=1024)
 
 
 class Settings(BaseSettings):

@@ -20,16 +20,37 @@ class BenchmarkCase:
     case_id: str
     question: str
     pattern_id: str | None
-    #: Metric names that must appear among the published findings.
-    expect_metrics: tuple[str, ...] = ()
+    #: Metrics that must **all** appear. Use this when the question asks
+    #: about several things and recovering one of them is not the answer.
+    expect_metrics_all: tuple[str, ...] = ()
+    #: Metrics of which **any one** satisfies the check. Use this only when
+    #: the alternatives are genuinely interchangeable ways to express the
+    #: same result, not when they are separate facts.
+    expect_metrics_any: tuple[str, ...] = ()
+    #: Direction per metric, checked against the findings that actually
+    #: report that metric. A run where revenue rose and margin fell must not
+    #: pass because the word "fell" appears somewhere in the corpus.
+    expect_metric_directions: tuple[tuple[str, str], ...] = ()
     #: Lowercased substrings, any one of which satisfies the entity check.
     expect_entity_any: tuple[str, ...] = ()
+    #: Direction anywhere in the published corpus. Only meaningful when the
+    #: case reports a single metric; prefer `expect_metric_directions`.
     expect_direction: str | None = None
     #: True when the question should provoke a real statistical test.
     expect_statistical_test: bool = False
-    #: True when a causal over-claim should be caught and withheld.
-    expect_rejection: bool = False
+    #: Sign the test's effect size must carry, for a pattern whose signature
+    #: is a difference *between groups* rather than a movement over time.
+    #: Read from the SciPy-computed `effect_size`, not from wording.
+    expect_effect_sign: str | None = None
+    #: A causal over-claim must be caught. Checked against the rejection's
+    #: own reason, not against "something was withheld".
+    expect_causal_rejection: bool = False
     notes: str = ""
+
+    @property
+    def all_expected_metrics(self) -> tuple[str, ...]:
+        """Every metric this case mentions, for reporting."""
+        return tuple(dict.fromkeys([*self.expect_metrics_all, *self.expect_metrics_any]))
 
     @property
     def pattern_description(self) -> str:
@@ -43,32 +64,40 @@ CASES: list[BenchmarkCase] = [
         case_id="Q1",
         question="Did gross margin decline in Q3 2025, and did revenue rise?",
         pattern_id="q3_margin_compression",
-        expect_metrics=("gross_margin_pct", "revenue"),
-        expect_direction="down",
+        # Two facts, not two ways of saying one. Recovering the margin drop
+        # while missing the revenue rise is half an answer to a question that
+        # asked for both.
+        expect_metrics_all=("gross_margin_pct", "revenue"),
+        expect_metric_directions=(
+            ("gross_margin_pct", "down"),
+            ("revenue", "up"),
+        ),
         notes="Both directions must be recovered, not just the one the question leads with.",
     ),
     BenchmarkCase(
         case_id="Q2",
         question="Revenue increased in Q3 2025, but gross margin fell. What caused it?",
         pattern_id="q3_margin_compression",
-        expect_metrics=("gross_margin_pct",),
+        expect_metrics_all=("gross_margin_pct",),
+        expect_metric_directions=(("gross_margin_pct", "down"),),
         expect_entity_any=("discount", "electronics"),
-        expect_direction="down",
         notes="The injected causes are discounting and a mix shift into Electronics.",
     ),
     BenchmarkCase(
         case_id="Q3",
         question="Which product category has the highest return rate?",
         pattern_id="home_kitchen_returns",
-        expect_metrics=("return_rate",),
+        expect_metrics_all=("return_rate",),
+        # No direction expectation: the question asks which category is
+        # highest, and the answer to that is the entity, not a movement.
+        # Asserting "up" here would only be checking that the word appears.
         expect_entity_any=("home & kitchen", "home and kitchen"),
-        expect_direction="up",
     ),
     BenchmarkCase(
         case_id="Q4",
         question="Which customer segments are driving the increase in return rate?",
         pattern_id="home_kitchen_returns",
-        expect_metrics=("return_rate",),
+        expect_metrics_all=("return_rate",),
         expect_entity_any=("new",),
         expect_statistical_test=True,
     ),
@@ -76,34 +105,44 @@ CASES: list[BenchmarkCase] = [
         case_id="Q5",
         question="Which acquisition channel has the weakest contribution margin?",
         pattern_id="affiliate_weak_contribution",
-        expect_metrics=("contribution_margin_pct", "contribution_margin", "roas"),
+        # Genuinely interchangeable: any of these expresses "this channel is
+        # the weakest", so recovering one of them answers the question.
+        expect_metrics_any=("contribution_margin_pct", "contribution_margin", "roas"),
         expect_entity_any=("affiliate",),
+        # Corpus-level and therefore weak; kept as a smoke check only,
+        # because "weakest" here is cross-sectional rather than a movement.
         expect_direction="down",
     ),
     BenchmarkCase(
         case_id="Q6",
         question="Do shipping delays appear to affect repeat purchasing?",
         pattern_id="late_delivery_repeat_association",
-        expect_metrics=("repeat_purchase_rate",),
-        expect_direction="down",
+        expect_metrics_all=("repeat_purchase_rate",),
+        # No temporal direction. The injected pattern is a difference
+        # *between groups* -- customers whose first delivery was late repeat
+        # less -- not a movement over time, and the repeat rate does in fact
+        # rise across this window. The old expectation said "down" and passed
+        # only because some finding somewhere contained a down word; the
+        # signed effect below is the thing the pattern actually asserts.
         expect_statistical_test=True,
-        expect_rejection=True,
-        notes="A causal reading of this association must be withheld.",
+        expect_effect_sign="negative",
+        expect_causal_rejection=True,
+        notes="A causal reading of this association must be withheld, as causal.",
     ),
     BenchmarkCase(
         case_id="Q7",
         question="Which shipping carrier has the highest late delivery rate?",
         pattern_id="northeast_carrier_delay",
-        expect_metrics=("late_delivery_rate",),
+        expect_metrics_all=("late_delivery_rate",),
+        # As Q3: the entity is the answer to "which is highest".
         expect_entity_any=("rapidpost",),
-        expect_direction="up",
     ),
     BenchmarkCase(
         case_id="Q8",
         question="How did monthly revenue change over 2025?",
         pattern_id="q4_seasonality",
-        expect_metrics=("revenue",),
-        expect_direction="up",
+        expect_metrics_all=("revenue",),
+        expect_metric_directions=(("revenue", "up"),),
         notes="A plain trend question; checks the engine handles the simple case too.",
     ),
 ]
@@ -131,6 +170,10 @@ class CaseResult:
     entity_found: bool = False
     direction_found: bool = False
     statistical_test_run: bool = False
+    effect_sign_correct: bool = False
+    #: A rejection whose recorded reason is the causal guard, not merely
+    #: that some finding somewhere was withheld.
+    causal_rejection_observed: bool = False
     rejection_observed: bool = False
 
     # Findings, by denominator.
@@ -140,9 +183,12 @@ class CaseResult:
     published_findings: int = 0
     unsupported_published_findings: int = 0
 
-    # Numeric verification, with its own denominator.
-    numeric_assertions: int = 0
-    numeric_assertions_correct: int = 0
+    # Numeric verification. The denominator is *findings*, not numeric
+    # literals: one finding can state several numbers and `verify_numbers`
+    # checks all of them together, returning one verdict. Calling the
+    # denominator "assertions" implied a literal-level count it never was.
+    published_findings_numeric_checked: int = 0
+    published_findings_numeric_valid: int = 0
 
     sql_statements: int = 0
     sql_statements_valid: int = 0
@@ -172,8 +218,16 @@ class CaseResult:
         return self.supported_candidate_findings / self.candidate_findings
 
     @property
-    def published_support_rate(self) -> float | None:
-        """Share of published findings carrying a supported verdict."""
+    def publication_gate_integrity(self) -> float | None:
+        """Share of published findings carrying a supported verdict.
+
+        What this measures, precisely: that the publication gate emitted
+        nothing its own verification pipeline rejected. It is a consistency
+        check on the gate, and it is 1.0 by construction unless the gate
+        leaks -- which is worth watching, and is *not* an independent
+        estimate of whether the findings are semantically right. The
+        injected-pattern checks are what provide independent evidence.
+        """
         if not self.published_findings:
             return None
         return (
@@ -181,10 +235,15 @@ class CaseResult:
         ) / self.published_findings
 
     @property
-    def numeric_accuracy(self) -> float | None:
-        if not self.numeric_assertions:
+    def published_finding_numeric_verification_rate(self) -> float | None:
+        """Share of published findings whose numbers all re-verified.
+
+        Per finding, not per numeric literal. A finding stating three
+        figures counts once and passes only if all three check out.
+        """
+        if not self.published_findings_numeric_checked:
             return None
-        return self.numeric_assertions_correct / self.numeric_assertions
+        return self.published_findings_numeric_valid / self.published_findings_numeric_checked
 
     @property
     def sql_validity(self) -> float | None:
@@ -222,8 +281,10 @@ class CaseResult:
         payload.update(
             {
                 "candidate_support_rate": self.candidate_support_rate,
-                "published_support_rate": self.published_support_rate,
-                "numeric_accuracy": self.numeric_accuracy,
+                "publication_gate_integrity": self.publication_gate_integrity,
+                "published_finding_numeric_verification_rate": (
+                    self.published_finding_numeric_verification_rate
+                ),
                 "sql_validity": self.sql_validity,
                 "tool_call_validity": self.tool_call_validity,
                 "provenance_completeness": self.provenance_completeness,

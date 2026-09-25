@@ -41,7 +41,12 @@ services:
     # its demo warehouse is alive and useless, and a health check that
     # accepts it lets a broken deploy go live and stay live.
     healthCheckPath: /api/ready
-    autoDeploy: false
+    # `autoDeployTrigger: off` is the current spelling; `autoDeploy: false`
+    # is deprecated. Deploys stay manual either way, which is the point:
+    # a push should not be able to replace a service nobody has accepted.
+    # Quoted: YAML 1.1 reads a bare `off` as the boolean false, and this
+    # field takes the string "off".
+    autoDeployTrigger: "off"
     envVars:
       # See the note above before changing this to `local`.
       - key: AAE_PROVIDER_MODE
@@ -91,6 +96,13 @@ services:
         value: "750000"
       - key: AAE_BUDGETS__MAX_UPLOAD_COLUMNS
         value: "200"
+      # Ceiling on the uncompressed size a Parquet footer declares, checked
+      # before any value is decoded. Parquet compresses well, so a 15 MB
+      # upload can declare gigabytes; this refuses that from the metadata.
+      # An admission ceiling on a self-declared number, not a measurement of
+      # what a read would allocate.
+      - key: AAE_BUDGETS__MAX_PARQUET_UNCOMPRESSED_BYTES
+        value: "536870912"
 
       - key: AAE_SESSION_TTL_SECONDS
         value: "1800"

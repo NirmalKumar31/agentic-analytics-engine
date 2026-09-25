@@ -81,6 +81,7 @@ async def verify_finding(
             finding_id=finding.finding_id,
             status="unsupported",
             reason=shape.reason,
+            rule=shape.rule,
             numeric_check={"rule": shape.rule},
         )
         _emit(events, finding, verdict)
@@ -97,6 +98,7 @@ async def verify_finding(
             finding_id=finding.finding_id,
             status="unsupported",
             reason=numeric.reason,
+            rule="numeric_mismatch",
             numeric_check=numeric.as_dict(),
         )
         _emit(events, finding, verdict)
@@ -121,11 +123,15 @@ async def verify_finding(
         # A critic that cannot answer must not wave a finding through.
         status = "partially_supported"
         reason = f"The verifier could not complete its check ({exc})."
+        rule = "critic_unavailable"
+    else:
+        rule = "critic"
 
     verdict = Verdict(
         finding_id=finding.finding_id,
         status=status,
         reason=reason,
+        rule=rule,
         numeric_check=numeric.as_dict(),
     )
     _emit(events, finding, verdict)

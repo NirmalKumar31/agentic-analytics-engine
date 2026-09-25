@@ -132,6 +132,13 @@ class Verdict(BaseModel):
     finding_id: str
     status: VerificationStatus
     reason: str
+    #: Which gate decided this, as a stable identifier rather than prose.
+    #: `causal_from_observational`, `significance_without_test`,
+    #: `no_evidence`, `missing_result`, `numeric_mismatch`, `critic`, or
+    #: `critic_unavailable`. Anything reading a verdict programmatically --
+    #: the benchmark, the UI -- keys off this rather than matching on the
+    #: wording, which is written for a person and may change.
+    rule: str = ""
     # Set when deterministic arithmetic, not the critic, settled the matter.
     numeric_check: dict[str, Any] | None = None
 
@@ -185,6 +192,37 @@ class ReportSection(BaseModel):
     heading: str
     body: str
     finding_ids: list[str] = Field(default_factory=list)
+
+
+class ReportPlanSection(BaseModel):
+    """One group of findings the reporter wants kept together.
+
+    There is deliberately no heading field. A heading is short enough to look
+    like a label and long enough to be a claim -- "Electronics underperformed"
+    is five words and an unverified assertion -- and distinguishing the two
+    needs exactly the semantic judgement the verification pipeline exists to
+    avoid trusting. So the engine derives the heading from what is actually
+    in the group, and the model keeps the part that is genuinely editorial:
+    which findings belong together, and in what order.
+    """
+
+    finding_ids: list[str] = Field(default_factory=list)
+
+
+class ReportPlan(BaseModel):
+    """Everything the reporter model is allowed to decide.
+
+    Deliberately contains no prose that asserts anything. The model chooses
+    *which* verified findings appear, how they are grouped and in what order;
+    the engine writes the report from the findings' own exact text. A model
+    that is never asked for a factual sentence cannot introduce one, which is
+    a stronger guarantee than checking afterwards for the ones we thought to
+    look for.
+    """
+
+    executive_finding_ids: list[str] = Field(default_factory=list)
+    sections: list[ReportPlanSection] = Field(default_factory=list)
+    next_questions: list[str] = Field(default_factory=list)
 
 
 class AnalysisReport(BaseModel):

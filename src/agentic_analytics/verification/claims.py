@@ -51,6 +51,12 @@ _SIGNIFICANCE = re.compile(
 )
 
 
+#: Stable identifiers for the deterministic gates, so callers key off these
+#: rather than matching on wording written for a person.
+CAUSAL_RULE = "causal_from_observational"
+SIGNIFICANCE_RULE = "significance_without_test"
+
+
 @dataclass
 class ClaimVerdict:
     """Outcome of the deterministic claim checks."""
@@ -81,7 +87,7 @@ def check_claim(
     if _SIGNIFICANCE.search(text) and not has_test:
         return ClaimVerdict(
             ok=False,
-            rule="significance_without_test",
+            rule=SIGNIFICANCE_RULE,
             reason=(
                 "The claim uses the language of statistical significance but no "
                 "statistical test was run on the cited result."
@@ -91,7 +97,7 @@ def check_claim(
     if _CAUSAL.search(text) and not _HEDGED.search(text):
         return ClaimVerdict(
             ok=False,
-            rule="causal_from_observational",
+            rule=CAUSAL_RULE,
             reason=(
                 "The claim asserts causation from observational data. The groups "
                 "were not randomly assigned, so the result supports an association "

@@ -12,7 +12,7 @@ is.
    ┌──────────────────────────────────────┐
    │  Question Analyst   Planner          │   decides what to investigate
    │  Worker             Critic           │   interprets what came back
-   │  Visualiser         Reporter         │   writes the narrative
+   │  Visualiser         Reporter         │   selects and organises
    └──────────────────┬───────────────────┘
                       │
                       │  typed requests: metric names, dimensions,

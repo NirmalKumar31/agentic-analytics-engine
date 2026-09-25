@@ -74,17 +74,42 @@ async def test_candidate_and_published_rates_use_different_denominators(
     assert summary["candidate_support_rate"] == pytest.approx(
         summary["supported_candidate_findings"] / candidates
     )
-    assert summary["published_support_rate"] == 1.0
+    assert summary["publication_gate_integrity"] == 1.0
     assert summary["unsupported_published_findings"] == 0
+    assert summary["published_with_supported_verdict"] == published
     # The two rates must not be the same number by accident.
-    assert summary["candidate_support_rate"] < summary["published_support_rate"]
+    assert summary["candidate_support_rate"] < summary["publication_gate_integrity"]
 
 
-async def test_numeric_accuracy_reports_its_denominator(report: dict[str, Any]) -> None:
+async def test_the_gate_metric_says_what_it_is(report: dict[str, Any]) -> None:
+    """It is a consistency check on the publication gate, not an accuracy score.
+
+    The old name, `published_support_rate`, read like the latter. The report
+    now carries the caveat alongside the number so a reader of the JSON does
+    not have to find it in the documentation.
+    """
     summary = report["summary"]
-    assert summary["numeric_assertions"] == summary["published_findings"]
-    assert summary["numeric_assertions_correct"] == summary["numeric_assertions"]
-    assert summary["numeric_accuracy"] == 1.0
+    assert "published_support_rate" not in summary, "the misleading name is back"
+    note = summary["publication_gate_integrity_note"]
+    assert "not an independent" in note
+    assert "semantic accuracy" in note
+
+
+async def test_numeric_verification_names_its_denominator(report: dict[str, Any]) -> None:
+    """Per published finding, not per numeric literal.
+
+    `verify_numbers` checks every figure in a finding and returns one
+    verdict, so the denominator was never a count of literals. The old name
+    `numeric_assertions` implied it was.
+    """
+    summary = report["summary"]
+    assert "numeric_assertions" not in summary
+    assert "numeric_accuracy" not in summary
+    assert summary["published_findings_numeric_checked"] == summary["published_findings"]
+    assert (
+        summary["published_findings_numeric_valid"] == summary["published_findings_numeric_checked"]
+    )
+    assert summary["published_finding_numeric_verification_rate"] == 1.0
 
 
 async def test_all_sql_is_read_only(report: dict[str, Any]) -> None:
@@ -142,3 +167,121 @@ async def test_driver_decomposition_is_actually_exercised(
     """The deterministic attribution is the answer to a 'why' question."""
     assert report["summary"]["decomposition_tool_calls"] > 0
     assert report["summary"]["statistical_tool_calls"] > 0
+
+
+# ----------------------------------------------- expectation semantics
+def test_q1_requires_both_metrics_and_both_directions() -> None:
+    """The case documents "both directions"; the schema must enforce it.
+
+    `expect_metrics` used to be satisfied by *any* listed metric, so a run
+    that recovered the margin decline and missed the revenue rise scored the
+    same as one that found both — while the note said otherwise.
+    """
+    from agentic_analytics.evaluation.cases import CASES
+
+    q1 = next(c for c in CASES if c.case_id == "Q1")
+    assert set(q1.expect_metrics_all) == {"gross_margin_pct", "revenue"}
+    assert not q1.expect_metrics_any
+    assert dict(q1.expect_metric_directions) == {
+        "gross_margin_pct": "down",
+        "revenue": "up",
+    }
+
+
+def test_only_genuinely_interchangeable_metrics_use_any() -> None:
+    """`any` is for alternative spellings of one result, not separate facts."""
+    from agentic_analytics.evaluation.cases import CASES
+
+    for case in CASES:
+        if case.expect_metrics_any:
+            assert case.case_id == "Q5", (
+                f"{case.case_id} uses expect_metrics_any; check the alternatives "
+                "really are interchangeable ways to say the same thing"
+            )
+
+
+def test_a_direction_is_checked_against_the_metric_that_reports_it() -> None:
+    """A "fell" somewhere else in the run must not satisfy it."""
+    from agentic_analytics.agents.schemas import PublishedFinding
+    from agentic_analytics.analytics.results import ResultSnapshot
+    from agentic_analytics.evaluation.harness import _metric_directions_hold
+
+    def finding(text: str, metric: str, result_id: str) -> PublishedFinding:
+        return PublishedFinding(
+            finding_id=f"fin_{metric}",
+            text=text,
+            kind="calculated_fact",
+            task_id="t",
+            result_ids=[result_id],
+            evidence_cells=[],
+            metric_ids=[metric],
+            verification_status="supported",
+            verifier_reason="ok",
+            claimed_change={"type": "difference", "from": 10.0, "to": 5.0},
+        )
+
+    results = {"res_ts": ResultSnapshot(tool_name="analyze_timeseries")}
+    published = [
+        finding("gross_margin_pct fell from 10 to 5.", "gross_margin_pct", "res_ts"),
+        finding("revenue fell from 10 to 5.", "revenue", "res_ts"),
+    ]
+    # Revenue is down here, so expecting it up must fail even though the
+    # corpus is full of the word "fell".
+    holds, failures = _metric_directions_hold(
+        published,
+        (("gross_margin_pct", "down"), ("revenue", "up")),
+        results,
+    )
+    assert not holds
+    assert any("revenue" in f for f in failures), failures
+
+
+def test_a_segment_comparison_is_not_read_as_a_trend() -> None:
+    """ "Apparel highest, Toys lowest" is not "revenue rose"."""
+    from agentic_analytics.agents.schemas import PublishedFinding
+    from agentic_analytics.analytics.results import ResultSnapshot
+    from agentic_analytics.evaluation.harness import _signed_change
+
+    comparison = PublishedFinding(
+        finding_id="fin_seg",
+        text="Across category, Apparel has the highest revenue and Toys the lowest.",
+        kind="calculated_fact",
+        task_id="t",
+        result_ids=["res_seg"],
+        evidence_cells=[],
+        metric_ids=["revenue"],
+        verification_status="supported",
+        verifier_reason="ok",
+        claimed_change={"type": "difference", "from": 825693.0, "to": 1522302.0},
+    )
+    results = {"res_seg": ResultSnapshot(tool_name="compare_segments")}
+    assert _signed_change(comparison, results) is None
+
+
+def test_q6_requires_the_causal_guard_specifically(report: dict[str, Any]) -> None:
+    """Not "something was withheld" but "the causal rule withheld something".
+
+    An unrelated numeric mismatch used to satisfy this case, which exists to
+    prove causal over-claims are caught.
+    """
+    from agentic_analytics.evaluation.cases import CASES
+
+    q6 = next(c for c in CASES if c.case_id == "Q6")
+    assert q6.expect_causal_rejection is True
+
+    case = next(c for c in report["cases"] if c["case_id"] == "Q6")
+    assert case["causal_rejection_observed"] is True
+    assert case["effect_sign_correct"] is True
+
+
+def test_sql_validity_uses_the_real_guard() -> None:
+    """Not a prefix check. The scorer and the runtime must agree."""
+    from agentic_analytics.verification.sql import is_read_only
+
+    ok, _ = is_read_only("SELECT category, SUM(net_revenue) FROM order_items GROUP BY 1")
+    assert ok
+    # Starts with SELECT and would pass a prefix check; the guard refuses it.
+    refused, why = is_read_only("SELECT * FROM read_csv_auto('/etc/passwd')")
+    assert not refused and why
+    refused, why = is_read_only("SELECT 1; DROP TABLE orders")
+    assert not refused and why

@@ -70,7 +70,11 @@ def test_blueprints_are_well_formed(name: str) -> None:
     # demo warehouse never built, which is alive and cannot serve anyone.
     assert service["healthCheckPath"] == "/api/ready"
     assert service["dockerfilePath"] == "./Dockerfile"
-    assert service["autoDeploy"] is False
+    # `autoDeployTrigger: "off"` is the current field; `autoDeploy: false` is
+    # deprecated. Quoted, because YAML 1.1 turns a bare `off` into a boolean
+    # and this field wants the string.
+    assert service["autoDeployTrigger"] == "off"
+    assert "autoDeploy" not in service, "the deprecated field is still present"
 
 
 @pytest.mark.parametrize("name", ["render.yaml", "deploy/render-live.yaml"])

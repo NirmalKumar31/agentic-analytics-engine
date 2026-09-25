@@ -228,17 +228,24 @@ def main(argv: list[str]) -> int:
     parser.add_argument("base_url")
     parser.add_argument("--container", help="container name, for docker stats")
     parser.add_argument("--pid", help="process id, for ps; use when the target is not a container")
+    parser.add_argument(
+        "--cycles",
+        type=int,
+        default=1,
+        help="repeat the fill/analyse/delete cycle this many times, for a bounded soak",
+    )
     args = parser.parse_args(argv)
     base = args.base_url.rstrip("/")
     report = Report()
-    opened: list[tuple[Client, str]] = []
 
     print(f"resource rehearsal against {base}")
     print(
         f"  {DEMO_SESSIONS} demo sessions, {UPLOAD_SESSIONS} uploads of "
-        f"{UPLOAD_ROWS:,} rows, {CONCURRENT_ANALYSES} concurrent analyses."
+        f"{UPLOAD_ROWS:,} rows, {CONCURRENT_ANALYSES} concurrent analyses"
+        + (f", x{args.cycles} cycles." if args.cycles > 1 else ".")
     )
-    print("  Breakage check, not a benchmark. No throughput figure is reported.\n")
+    print("  Breakage check, not a benchmark. No throughput figure is reported.")
+    print("  Memory readings show what was retained, not why it was retained.\n")
 
     status, health = Client(base).json("/api/health")
     if not report.add("the service is up", status == 200, f"HTTP {status}"):
@@ -252,83 +259,104 @@ def main(argv: list[str]) -> int:
     baseline = measure(args.container, args.pid)
     print(f"      memory, baseline:            {baseline}")
 
-    # ------------------------------------------------- fill the envelope
-    for index in range(DEMO_SESSIONS):
-        client = Client(base)
-        status, body = client.json("/api/datasets/demo", method="POST")
-        if status != 200:
-            report.add(f"demo session {index} opens", False, f"HTTP {status}: {str(body)[:120]}")
-            break
-        opened.append((client, body["session_id"]))
-    report.add("every demo session opened", len(opened) == DEMO_SESSIONS, f"{len(opened)} opened")
+    # One cycle: fill the envelope, run two analyses, delete everything.
+    # Repeating it is how a bounded soak is done here -- the readings from
+    # each cycle are printed for a human to compare, and nothing is
+    # asserted about the trend, because three or ten cycles cannot tell an
+    # allocator holding pages from a slow leak.
+    for cycle in range(1, args.cycles + 1):
+        if args.cycles > 1:
+            print(f"\n  --- cycle {cycle} of {args.cycles} ---")
+            print(f"      memory, cycle start:         {measure(args.container, args.pid)}")
+        # Per cycle, not accumulated: every session opened here is deleted
+        # before the cycle ends, so carrying the list forward would compare
+        # this cycle's count against every previous cycle's total.
+        opened: list[tuple[Client, str]] = []
+        # ------------------------------------------------- fill the envelope
+        for index in range(DEMO_SESSIONS):
+            client = Client(base)
+            status, body = client.json("/api/datasets/demo", method="POST")
+            if status != 200:
+                report.add(
+                    f"demo session {index} opens", False, f"HTTP {status}: {str(body)[:120]}"
+                )
+                break
+            opened.append((client, body["session_id"]))
+        report.add(
+            "every demo session opened", len(opened) == DEMO_SESSIONS, f"{len(opened)} opened"
+        )
 
-    markers = [f"ZONE{index}" for index in range(UPLOAD_SESSIONS)]
-    uploads: list[tuple[Client, str, str]] = []
-    for marker in markers:
-        client = Client(base)
-        body, content_type = _multipart(f"{marker}.csv", _csv_for(marker, UPLOAD_ROWS))
-        status, raw = client.request("/api/datasets/upload", "POST", body, content_type)
-        if status != 200:
+        markers = [f"ZONE{index}" for index in range(UPLOAD_SESSIONS)]
+        uploads: list[tuple[Client, str, str]] = []
+        for marker in markers:
+            client = Client(base)
+            body, content_type = _multipart(f"{marker}.csv", _csv_for(marker, UPLOAD_ROWS))
+            status, raw = client.request("/api/datasets/upload", "POST", body, content_type)
+            if status != 200:
+                report.add(
+                    f"upload {marker} accepted",
+                    False,
+                    f"HTTP {status}: {raw[:160].decode('replace')}",
+                )
+                continue
+            uploads.append((client, json.loads(raw)["session_id"], marker))
+        report.add(
+            "every upload was accepted", len(uploads) == UPLOAD_SESSIONS, f"{len(uploads)} accepted"
+        )
+
+        after_open = measure(args.container, args.pid)
+        print(f"      memory, sessions open:       {after_open}")
+
+        # --------------------------------------------- two analyses at once
+        if len(uploads) >= CONCURRENT_ANALYSES:
+            targets = [(c, s) for c, s, _ in uploads[:CONCURRENT_ANALYSES]]
+            with ThreadPoolExecutor(max_workers=CONCURRENT_ANALYSES) as pool:
+                runs = list(
+                    pool.map(lambda t: _analyse(t, "What is the total revenue by region?"), targets)
+                )
+            peak = measure(args.container, args.pid)
+            print(f"      memory, during analyses:     {peak}")
             report.add(
-                f"upload {marker} accepted", False, f"HTTP {status}: {raw[:160].decode('replace')}"
+                "concurrent analyses completed or were cleanly rate-limited",
+                all(r.get("status") in {"completed", "rate_limited"} for r in runs),
+                str([r.get("status") for r in runs]),
             )
-            continue
-        uploads.append((client, json.loads(raw)["session_id"], marker))
-    report.add(
-        "every upload was accepted", len(uploads) == UPLOAD_SESSIONS, f"{len(uploads)} accepted"
-    )
-
-    after_open = measure(args.container, args.pid)
-    print(f"      memory, sessions open:       {after_open}")
-
-    # --------------------------------------------- two analyses at once
-    if len(uploads) >= CONCURRENT_ANALYSES:
-        targets = [(c, s) for c, s, _ in uploads[:CONCURRENT_ANALYSES]]
-        with ThreadPoolExecutor(max_workers=CONCURRENT_ANALYSES) as pool:
-            runs = list(
-                pool.map(lambda t: _analyse(t, "What is the total revenue by region?"), targets)
+            report.add(
+                "no analysis timed out or became unreachable",
+                not any(r.get("status") in {"timeout", "unreachable"} for r in runs),
             )
-        peak = measure(args.container, args.pid)
-        print(f"      memory, during analyses:     {peak}")
-        report.add(
-            "concurrent analyses completed or were cleanly rate-limited",
-            all(r.get("status") in {"completed", "rate_limited"} for r in runs),
-            str([r.get("status") for r in runs]),
-        )
-        report.add(
-            "no analysis timed out or became unreachable",
-            not any(r.get("status") in {"timeout", "unreachable"} for r in runs),
-        )
-        completed = [r for r in runs if r.get("status") == "completed"]
-        report.add(
-            "findings from concurrent runs are all supported",
-            all(
-                f.get("verification_status") == "supported"
-                for r in completed
-                for f in r.get("findings", [])
+            completed = [r for r in runs if r.get("status") == "completed"]
+            report.add(
+                "findings from concurrent runs are all supported",
+                all(
+                    f.get("verification_status") == "supported"
+                    for r in completed
+                    for f in r.get("findings", [])
+                )
+                and all(r.get("findings") for r in completed),
             )
-            and all(r.get("findings") for r in completed),
-        )
-        # Cross-talk is detectable because each file's values name its session.
-        crosstalk = []
-        for run, (_, _, marker) in zip(completed, uploads[:CONCURRENT_ANALYSES], strict=False):
-            blob = json.dumps(run.get("findings", [])) + json.dumps(run.get("results", {}))
-            crosstalk += [
-                f"{marker} saw {other}" for other in markers if other != marker and other in blob
-            ]
-        report.add("no session saw another session's data", not crosstalk, "; ".join(crosstalk))
-    else:
-        report.add("enough uploads to run concurrent analyses", False, f"{len(uploads)}")
+            # Cross-talk is detectable because each file's values name its session.
+            crosstalk = []
+            for run, (_, _, marker) in zip(completed, uploads[:CONCURRENT_ANALYSES], strict=False):
+                blob = json.dumps(run.get("findings", [])) + json.dumps(run.get("results", {}))
+                crosstalk += [
+                    f"{marker} saw {other}"
+                    for other in markers
+                    if other != marker and other in blob
+                ]
+            report.add("no session saw another session's data", not crosstalk, "; ".join(crosstalk))
+        else:
+            report.add("enough uploads to run concurrent analyses", False, f"{len(uploads)}")
 
-    # ------------------------------------------------------- tear it down
-    for client, session_id, _ in uploads:
-        client.json(f"/api/datasets/{session_id}", method="DELETE")
-    for client, session_id in opened:
-        client.json(f"/api/datasets/{session_id}", method="DELETE")
+        # ------------------------------------------------------- tear it down
+        for client, session_id, _ in uploads:
+            client.json(f"/api/datasets/{session_id}", method="DELETE")
+        for client, session_id in opened:
+            client.json(f"/api/datasets/{session_id}", method="DELETE")
 
-    time.sleep(3.0)
-    after_cleanup = measure(args.container, args.pid)
-    print(f"      memory, after cleanup:       {after_cleanup}")
+        time.sleep(3.0)
+        after_cleanup = measure(args.container, args.pid)
+        print(f"      memory, after cleanup:       {after_cleanup}")
 
     # Capacity must be available again now that nothing is running.
     client = Client(base)

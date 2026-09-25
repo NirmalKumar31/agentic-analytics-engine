@@ -230,6 +230,16 @@ Before the critic model is consulted, two deterministic gates run:
 
 A model is the wrong tool for checking arithmetic, so it is not asked to.
 
+**And the report cannot undo that.** The reporter is an organiser, not an
+author: it returns which verified findings belong in the summary and how to
+group them, and the engine writes every factual sentence from those
+findings' own text. Section headings are engine-chosen too, because a
+heading short enough to look like a label is still long enough to assert
+something. There is no free-text field in the schema the reporter fills, so
+a sentence like *"New customers are the primary cause of poor Electronics
+performance"* has nowhere to enter — which is a stronger guarantee than
+scanning the prose afterwards for the claims someone thought to look for.
+
 ---
 
 ## The demo dataset
@@ -282,10 +292,10 @@ candidate support rate            35/37 = 0.946
 
 published findings                35
   unsupported published            0
-published support rate            35/35 = 1.000
+publication-gate integrity        35/35 = 1.000
 
-numeric assertions correct        35/35 = 1.000
-SQL statements read-only          33/33 = 1.000
+findings numerically verified     35/35 = 1.000
+SQL statements SQLGuard accepts   33/33 = 1.000
 tool calls succeeded              35/35 = 1.000
 provenance complete               35/35 = 1.000
 chart fields valid              205/205 = 1.000
@@ -294,9 +304,16 @@ tool calls using a governed tool  35/35 = 1.000
 tool calls using generated SQL     0
 ```
 
-The two support rates answer different questions and are both reported: a run
-that withholds nothing is not verifying anything, so candidate support is
-*expected* below 1.0. Published support must be exactly 1.0.
+The two rates answer different questions. Candidate support is *expected*
+below 1.0 — a run that withholds nothing is not verifying anything.
+Publication-gate integrity must be exactly 1.0, and is a consistency check on
+the gate rather than an accuracy score: it asks whether the gate emitted
+anything its own pipeline rejected. Independent evidence that the findings
+are *right* comes from the injected patterns, which the agents cannot see.
+
+The eight cases are a controlled synthetic regression suite over one
+generated warehouse. They are not evidence of external validity across
+arbitrary business datasets, and nothing here should be read as such.
 
 Engine runtime is 0.094 s per question on a local machine and about 0.15 s on
 a GitHub-hosted runner, both with the scripted provider. That is a

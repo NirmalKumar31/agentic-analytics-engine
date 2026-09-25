@@ -511,62 +511,32 @@ class FakeProvider(LLMProvider):
     # ------------------------------------------------------------ reporter
 
     def _role_reporter(self, ctx: dict[str, Any]) -> dict[str, Any]:
+        """Plan the report's shape. It does not write any of its prose.
+
+        The engine renders every factual sentence from the findings' own
+        text, so what is returned here is selection and grouping only.
+        """
         question: str = ctx.get("question", "")
         findings: list[dict[str, Any]] = list(ctx.get("findings", []))
-        limitations: list[str] = list(ctx.get("limitations", []))
-
         if not findings:
-            return {
-                "executive_summary": (
-                    "No finding survived verification, so this report states no "
-                    "conclusion. The limitations below explain what blocked the analysis."
-                ),
-                "key_findings": [],
-                "sections": [],
-                "limitations": limitations or ["Every proposed finding failed verification."],
-                "next_questions": [
-                    "Is the question answerable from the columns this dataset contains?"
-                ],
-            }
+            return {"executive_finding_ids": [], "sections": [], "next_questions": []}
 
         facts = [f for f in findings if f.get("kind") == "calculated_fact"]
         stats = [f for f in findings if f.get("kind") == "statistical_result"]
         interpretations = [f for f in findings if f.get("kind") == "interpretation"]
 
-        summary_parts = [f.get("text", "") for f in (facts + stats)[:3]]
-        executive_summary = " ".join(summary_parts) or findings[0].get("text", "")
-
-        sections: list[dict[str, Any]] = []
-        if facts:
-            sections.append(
-                {
-                    "heading": "What the numbers show",
-                    "body": " ".join(f["text"] for f in facts[:6]),
-                    "finding_ids": [f["finding_id"] for f in facts[:6]],
-                }
-            )
-        if stats:
-            sections.append(
-                {
-                    "heading": "Statistical comparisons",
-                    "body": " ".join(f["text"] for f in stats[:4]),
-                    "finding_ids": [f["finding_id"] for f in stats[:4]],
-                }
-            )
-        if interpretations:
-            sections.append(
-                {
-                    "heading": "Reading of the results",
-                    "body": " ".join(f["text"] for f in interpretations[:4]),
-                    "finding_ids": [f["finding_id"] for f in interpretations[:4]],
-                }
-            )
+        # Grouped by evidence kind. The engine labels each group; this only
+        # says which findings belong together.
+        sections: list[dict[str, Any]] = [
+            {"finding_ids": [f["finding_id"] for f in group[:cap]]}
+            for group, cap in ((facts, 6), (stats, 4), (interpretations, 4))
+            if group
+        ]
 
         return {
-            "executive_summary": executive_summary,
-            "key_findings": [f["text"] for f in findings[:6]],
+            "executive_finding_ids": [f["finding_id"] for f in (facts + stats)[:3]]
+            or [findings[0]["finding_id"]],
             "sections": sections,
-            "limitations": limitations,
             "next_questions": _next_questions(question, findings),
         }
 

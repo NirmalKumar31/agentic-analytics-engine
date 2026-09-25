@@ -13,6 +13,7 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
+from agentic_analytics.agents.schemas import PublishedFinding
 from agentic_analytics.config import Settings, get_settings
 from agentic_analytics.data.ground_truth import PATTERNS_BY_ID
 from agentic_analytics.evaluation.cases import (
@@ -23,8 +24,9 @@ from agentic_analytics.evaluation.cases import (
 )
 from agentic_analytics.graph.runner import RunResult, run_analysis
 from agentic_analytics.mcp_layer.server import build_server
-from agentic_analytics.verification.claims import is_causal
+from agentic_analytics.verification.claims import CAUSAL_RULE, is_causal
 from agentic_analytics.verification.numeric import verify_numbers
+from agentic_analytics.verification.sql import is_read_only
 from agentic_analytics.warehouse.session import SessionManager, open_demo_session
 
 DOWN_WORDS = ("fell", "declin", "decreas", "lower", "worst", "lowest", "down", "weakest")
@@ -36,6 +38,137 @@ def _direction_present(text: str, direction: str | None) -> bool:
         return True
     words = DOWN_WORDS if direction == "down" else UP_WORDS
     return any(w in text for w in words)
+
+
+def _findings_reporting(published: list[PublishedFinding], metric: str) -> list[PublishedFinding]:
+    """Findings that actually report this metric.
+
+    Preferring the structured `metric_ids` over the prose, and falling back
+    to the text only when a finding recorded no metric id. Without this
+    scoping, a direction check reads the whole run: a case expecting margin
+    *down* and revenue *up* would pass on a run that said "fell" once about
+    anything at all.
+    """
+    tagged = [f for f in published if metric in f.metric_ids]
+    if tagged:
+        return tagged
+    return [f for f in published if metric in f.text.lower()]
+
+
+#: Tools whose results are a movement through time. A `claimed_change` on
+#: anything else is a difference between two segments -- "Apparel exceeds
+#: Toys" -- which has a sign but is not a direction of travel.
+TEMPORAL_TOOLS = frozenset({"analyze_timeseries", "compare_periods", "decompose_change"})
+
+
+def _provenance_resolves(finding: PublishedFinding, results: dict[str, Any]) -> bool:
+    """Every link from a finding back to the data must actually resolve.
+
+    One definition, shared with the recording validator: the finding cites
+    results, those results exist, each evidence cell names a real row and
+    column, the value recorded on the cell still matches the stored
+    snapshot, and a verifier reason was written. Checking only that the
+    result ids exist would call a finding "fully traceable" while its cited
+    cell pointed at a column that is not there.
+    """
+    if not finding.result_ids or not finding.verifier_reason:
+        return False
+    if not all(rid in results for rid in finding.result_ids):
+        return False
+    for cell in finding.evidence_cells:
+        snapshot = results.get(cell.result_id)
+        if snapshot is None:
+            return False
+        try:
+            stored = snapshot.cell(cell.row, cell.column)
+        except (KeyError, IndexError):
+            return False
+        if cell.value is None:
+            continue
+        if isinstance(stored, int | float) and isinstance(cell.value, int | float):
+            if abs(float(stored) - float(cell.value)) > max(1e-6, abs(float(stored)) * 1e-9):
+                return False
+        elif stored != cell.value:
+            return False
+    return True
+
+
+def _signed_change(finding: PublishedFinding, results: dict[str, Any]) -> str | None:
+    """Up, down, or None, from the finding's recorded arithmetic.
+
+    `claimed_change` is the structured from/to the worker stated and the
+    verifier recomputed, so its sign is a fact about the run rather than a
+    word that happened to appear in a sentence.
+
+    Only counted for a finding whose evidence came from a temporal tool. A
+    segment comparison also records a from/to -- "Apparel 1,522,302 versus
+    Toys 825,693" -- and reading that as "revenue rose" is how a
+    cross-sectional result gets mistaken for a trend.
+    """
+    temporal = any(
+        getattr(results.get(rid), "tool_name", None) in TEMPORAL_TOOLS for rid in finding.result_ids
+    )
+    if not temporal:
+        return None
+    change = finding.claimed_change or {}
+    before, after = change.get("from"), change.get("to")
+    if not isinstance(before, int | float) or not isinstance(after, int | float):
+        return None
+    if after == before:
+        return None
+    return "up" if after > before else "down"
+
+
+def _worded_direction(text: str) -> str | None:
+    """A direction from wording, but only when the wording is unambiguous.
+
+    "Apparel has the highest revenue and Toys the lowest" contains both an up
+    word and a down word: it is a cross-sectional comparison, not a movement,
+    and reading either direction out of it is how a check for "revenue rose"
+    passed on a run that never said so.
+    """
+    low = text.lower()
+    up = any(w in low for w in UP_WORDS)
+    down = any(w in low for w in DOWN_WORDS)
+    if up == down:
+        return None
+    return "up" if up else "down"
+
+
+def _metric_directions_hold(
+    published: list[PublishedFinding],
+    expectations: tuple[tuple[str, str], ...],
+    results: dict[str, Any],
+) -> tuple[bool, list[str]]:
+    """Check each metric's direction against the findings reporting it.
+
+    Structured arithmetic first, wording only as a fallback for findings
+    that state a direction without recording a from/to -- a statistical
+    result, for instance.
+    """
+    failures: list[str] = []
+    for metric, direction in expectations:
+        reporting = _findings_reporting(published, metric)
+        if not reporting:
+            failures.append(f"no published finding reports {metric}")
+            continue
+
+        signed = [d for d in (_signed_change(f, results) for f in reporting) if d is not None]
+        if signed:
+            if direction not in signed:
+                failures.append(
+                    f"{metric} was reported as {sorted(set(signed))}, expected {direction}"
+                )
+            continue
+
+        worded = [d for d in (_worded_direction(f.text) for f in reporting) if d is not None]
+        if not worded:
+            failures.append(f"no finding states a direction for {metric}")
+        elif direction not in worded:
+            failures.append(
+                f"{metric} was described as {sorted(set(worded))}, expected {direction}"
+            )
+    return (not failures), failures
 
 
 # Tools that own computation. A run resolved through these rather than
@@ -89,36 +222,81 @@ def score_case(case: BenchmarkCase, result: RunResult) -> CaseResult:
     corpus = " ".join(f.text.lower() for f in result.published)
     metric_ids = {m for f in result.published for m in f.metric_ids}
 
-    scored.metric_found = (
-        any(m in metric_ids or m in corpus for m in case.expect_metrics)
-        if case.expect_metrics
-        else True
-    )
+    def reports(metric: str) -> bool:
+        return metric in metric_ids or metric in corpus
+
+    # Every metric in `all`, any one in `any`. A question asking about two
+    # things is not answered by recovering one of them.
+    missing_all = [m for m in case.expect_metrics_all if not reports(m)]
+    any_satisfied = not case.expect_metrics_any or any(reports(m) for m in case.expect_metrics_any)
+    scored.metric_found = not missing_all and any_satisfied
+
     scored.entity_found = (
         any(e in corpus for e in case.expect_entity_any) if case.expect_entity_any else True
     )
-    scored.direction_found = _direction_present(corpus, case.expect_direction)
-    scored.statistical_test_run = any(
-        s.statistical_result is not None for s in result.results.values()
-    )
-    scored.rejection_observed = bool(result.rejected)
 
-    if not scored.metric_found:
-        scored.failures.append(f"no published finding reports {case.expect_metrics}")
+    # Directions are checked per metric, against the findings that report
+    # that metric, and only fall back to the whole corpus for a case that
+    # names a single bare direction.
+    directions_hold, direction_failures = _metric_directions_hold(
+        result.published, case.expect_metric_directions, result.results
+    )
+    scored.direction_found = directions_hold and _direction_present(corpus, case.expect_direction)
+
+    tests = [
+        s.statistical_result for s in result.results.values() if s.statistical_result is not None
+    ]
+    scored.statistical_test_run = bool(tests)
+
+    # The sign of a SciPy-computed effect size, for a pattern whose signature
+    # is a between-group difference rather than a trend.
+    if case.expect_effect_sign is None:
+        scored.effect_sign_correct = True
+    else:
+        signs = {
+            ("negative" if t.effect_size < 0 else "positive")
+            for t in tests
+            if t.effect_size is not None and t.effect_size != 0
+        }
+        scored.effect_sign_correct = case.expect_effect_sign in signs
+        if not scored.effect_sign_correct:
+            scored.failures.append(
+                f"no test reported a {case.expect_effect_sign} effect; "
+                f"saw {sorted(signs) or 'none'}"
+            )
+    scored.rejection_observed = bool(result.rejected)
+    # Not "something was withheld" but "the causal guard withheld something".
+    # An unrelated numeric mismatch must not satisfy a case that exists to
+    # prove causal over-claims are caught.
+    scored.causal_rejection_observed = any(v.rule == CAUSAL_RULE for v in result.rejected)
+
+    if missing_all:
+        scored.failures.append(f"no published finding reports {missing_all}")
+    if not any_satisfied:
+        scored.failures.append(f"none of {case.expect_metrics_any} appears in the findings")
     if not scored.entity_found:
         scored.failures.append(f"none of {case.expect_entity_any} appears in the findings")
-    if not scored.direction_found:
+    scored.failures.extend(direction_failures)
+    if case.expect_direction and not _direction_present(corpus, case.expect_direction):
         scored.failures.append(f"the {case.expect_direction} direction was not stated")
     if case.expect_statistical_test and not scored.statistical_test_run:
         scored.failures.append("no statistical test was run")
-    if case.expect_rejection and not scored.rejection_observed:
-        scored.failures.append("no over-claim was caught")
+    if case.expect_causal_rejection and not scored.causal_rejection_observed:
+        rules = sorted({v.rule for v in result.rejected}) or ["(nothing was withheld)"]
+        scored.failures.append(f"no causal over-claim was caught; rejection rules seen: {rules}")
     if scored.unsupported_published_findings:
         scored.failures.append(
             f"{scored.unsupported_published_findings} unsupported finding(s) were published"
         )
 
-    scored.pattern_found = scored.metric_found and scored.entity_found and scored.direction_found
+    scored.pattern_found = (
+        scored.metric_found
+        and scored.entity_found
+        and scored.direction_found
+        and scored.effect_sign_correct
+        and (not case.expect_causal_rejection or scored.causal_rejection_observed)
+        and (not case.expect_statistical_test or scored.statistical_test_run)
+    )
 
     # --- numeric accuracy: re-verify every published number independently
     for finding in result.published:
@@ -135,18 +313,23 @@ def score_case(case: BenchmarkCase, result: RunResult) -> CaseResult:
             if isinstance(value, int | float) and not isinstance(value, bool):
                 cells.append((float(value), f"{cell.result_id}[{cell.row}].{cell.column}"))
         verdict = verify_numbers(finding.text, finding.claimed_change, cells, cited)
-        scored.numeric_assertions += 1
+        scored.published_findings_numeric_checked += 1
         if verdict.ok:
-            scored.numeric_assertions_correct += 1
+            scored.published_findings_numeric_valid += 1
         else:
             scored.failures.append(f"numeric check failed: {verdict.reason}")
 
-    # --- SQL validity
+    # --- SQL validity, decided by the guard that protects the database.
+    # Not by a prefix check: "does it start with SELECT" would score a
+    # statement the runtime would have refused as valid.
     statements = [s.sql for s in result.results.values() if s.sql]
     scored.sql_statements = len(statements)
-    scored.sql_statements_valid = sum(
-        1 for sql in statements if sql.lstrip().lower().startswith(("select", "with"))
-    )
+    for sql in statements:
+        accepted, why = is_read_only(sql)
+        if accepted:
+            scored.sql_statements_valid += 1
+        else:
+            scored.failures.append(f"SQLGuard would refuse a recorded statement: {why}")
 
     # --- tool calls, and how many were governed rather than generated SQL
     scored.tool_calls = len(result.mcp_trace)
@@ -162,12 +345,12 @@ def score_case(case: BenchmarkCase, result: RunResult) -> CaseResult:
         if name in DECOMPOSITION_TOOLS:
             scored.decomposition_tool_calls += 1
 
-    # --- provenance completeness
-    scored.provenance_complete = sum(
-        1
-        for f in result.published
-        if f.result_ids and all(r in result.results for r in f.result_ids) and f.verifier_reason
-    )
+    # --- provenance completeness, down to the cell
+    for finding in result.published:
+        if _provenance_resolves(finding, result.results):
+            scored.provenance_complete += 1
+        else:
+            scored.failures.append(f"provenance does not resolve for finding {finding.finding_id}")
 
     # --- chart field validity
     for chart in result.charts:
@@ -255,14 +438,27 @@ async def run_benchmark(
         "withheld_findings": total("withheld_findings"),
         "candidate_support_rate": ratio("supported_candidate_findings", "candidate_findings"),
         "published_findings": published,
+        "published_with_supported_verdict": published - unsupported_published,
         "unsupported_published_findings": unsupported_published,
-        "published_support_rate": (
+        # Renamed from `published_support_rate`, which read like an accuracy
+        # score. It is a consistency check on the publication gate: did the
+        # gate emit anything its own pipeline rejected? 1.0 by construction
+        # unless the gate leaks. Not an independent semantic estimate.
+        "publication_gate_integrity": (
             round((published - unsupported_published) / published, 6) if published else None
         ),
+        "publication_gate_integrity_note": (
+            "verifies the publication gate emitted no finding its verification "
+            "pipeline rejected; not an independent human semantic accuracy estimate"
+        ),
         # --- verification, each with its denominator named
-        "numeric_assertions": total("numeric_assertions"),
-        "numeric_assertions_correct": total("numeric_assertions_correct"),
-        "numeric_accuracy": ratio("numeric_assertions_correct", "numeric_assertions"),
+        # Per published finding, not per numeric literal: `verify_numbers`
+        # checks every figure in a finding and returns one verdict.
+        "published_findings_numeric_checked": total("published_findings_numeric_checked"),
+        "published_findings_numeric_valid": total("published_findings_numeric_valid"),
+        "published_finding_numeric_verification_rate": ratio(
+            "published_findings_numeric_valid", "published_findings_numeric_checked"
+        ),
         "sql_statements": total("sql_statements"),
         "sql_validity": ratio("sql_statements_valid", "sql_statements"),
         "tool_calls": total("tool_calls"),

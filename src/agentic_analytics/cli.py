@@ -89,14 +89,15 @@ def evaluate(
     table.add_column("ok", justify="center")
     table.add_column("candidates", justify="right")
     for case in report["cases"]:
-        numeric = case["numeric_accuracy"]
+        numeric = case["published_finding_numeric_verification_rate"]
         candidate = case["candidate_support_rate"]
         table.add_row(
             case["case_id"],
             case["pattern_id"] or "-",
             "[green]yes[/green]" if case["pattern_found"] else "[red]no[/red]",
-            f"{case['numeric_assertions_correct']}/{case['numeric_assertions']}"
-            if case["numeric_assertions"]
+            f"{case['published_findings_numeric_valid']}"
+            f"/{case['published_findings_numeric_checked']}"
+            if case["published_findings_numeric_checked"]
             else "-",
             "[green]ok[/green]" if numeric in (1.0, None) else "[red]fail[/red]",
             f"{case['supported_candidate_findings']}/{case['candidate_findings']}"

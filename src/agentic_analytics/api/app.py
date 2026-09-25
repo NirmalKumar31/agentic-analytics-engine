@@ -107,6 +107,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         max_column_name_length=cfg.budgets.max_column_name_length,
         max_row_groups=cfg.budgets.max_parquet_row_groups,
         max_metadata_bytes=cfg.budgets.max_parquet_metadata_bytes,
+        max_uncompressed_bytes=cfg.budgets.max_parquet_uncompressed_bytes,
     )
     mode = execution_mode(cfg.live_analytics_enabled, cfg.provider_mode)
     # Identifies this application object for the life of the process. An
