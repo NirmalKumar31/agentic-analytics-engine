@@ -166,9 +166,9 @@ engine runtime per question    0.094 s   (excludes model inference)
 ```
 
 The runtime figure is hardware-dependent. The block above is a local run; the
-same command on a GitHub-hosted runner reports 0.150 s. Every other number in
-the block is identical on both, because the scripted provider makes the run
-deterministic.
+same command on a GitHub-hosted runner reports about 0.15 s. Every other
+number in the block is identical on both, because the scripted provider makes
+the run deterministic.
 
 `tests/evaluation/test_benchmark.py` runs the same harness on a reduced
 warehouse in CI and fails the build if any pattern is missed, if numeric
