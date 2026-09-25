@@ -104,6 +104,14 @@ coroutine.
   resets them and a second replica would count separately. They raise the cost
   of casual abuse. The client key comes from `X-Forwarded-For`, which is
   client-supplied and therefore spoofable.
+- **The limiter's memory is bounded; its guarantee is not.** Because the key
+  is attacker-chosen, so is the number of distinct keys, so the store holds
+  at most 4096 clients and evicts the least recently seen. The consequence
+  is stated rather than hidden: a flood of spoofed keys can evict a real
+  client's record, and that client's next request then starts a fresh
+  window. Bounding the store stops spoofing costing *this process* memory.
+  It does not make the header trustworthy and does not make the limit a
+  guarantee.
 - **No sandboxing of the DuckDB process.** The lockdown is a DuckDB
   configuration, not an OS boundary. A DuckDB vulnerability would not be
   contained by it.
@@ -128,8 +136,17 @@ coroutine.
 
 - One file per session. No joins across uploads, no multi-file ETL, no
   user-defined metrics.
-- 25 MB, 200 columns, CSV or Parquet only. No Excel, JSON, SQLite, archives or
-  URL ingestion.
+- CSV or Parquet only. No Excel, JSON, SQLite, archives or URL ingestion.
+- **Two different sets of limits, and the public one is the tighter.** The
+  code's defaults are 25 MB and 2,000,000 rows; the public Render deployment
+  sets 15 MB and 750,000 rows, because it is sized for a 1 CPU / 2 GB
+  instance shared by up to six uploads. 200 columns in both. Anything
+  quoting one of these numbers should say which deployment it means.
+- **An oversized file is refused, never truncated.** Parquet is rejected from
+  its metadata before any data is read; CSV is read to one row past the
+  limit and rejected if that row exists. Returning the first 750,000 rows of
+  a larger file as though it were the whole thing would make every number in
+  the analysis wrong without anything looking wrong.
 - **CSV validation is not format validation.** CSV has no magic bytes. The
   file is screened against signatures of formats it is definitely not, its
   header is bounded, and DuckDB's parser is the real arbiter. Parquet is
@@ -192,7 +209,7 @@ sequence.
 
 ## 8. Resource envelope and scale
 
-Sized for a demo. The public deployment is one `standard` Render instance --
+Sized for a demo. The public deployment is one Render `1c-2g` instance --
 1 CPU, 2 GB -- and the limits are set against that: 384 MB and one thread per
 session's DuckDB, 12 sessions admitted, 6 of them uploads, 2 analyses at once.
 
@@ -202,6 +219,35 @@ would survive; what the numbers do is stop the instance accepting work whose
 resource envelopes alone exceed it. `scripts/capacity_smoke.py` checks for
 breakage under a small bounded load and deliberately reports no throughput
 figure.
+
+Note that neither `384 MB x 12 sessions` nor `384 MB x 2 analyses` is the
+real figure. `AAE_DUCKDB_MEMORY_LIMIT` is a ceiling DuckDB will not exceed,
+not an allocation it makes up front — but an idle session is not free
+either, because it has already materialised its rows into a private
+in-memory database and holds them until it ends. The honest number is not
+derivable from the configuration, so it is measured instead.
+
+**What was measured.** `scripts/resource_rehearsal.py` against a local
+process configured to the deployment's shape — 384 MB, one thread, 4 demo
+sessions plus 4 uploads of 120,000 rows each, 2 concurrent analyses:
+
+| Point | RSS |
+|---|---|
+| baseline | 220 MiB |
+| 8 sessions open | 486 MiB |
+| peak, two analyses | 503 MiB |
+| after deleting every session | 492 MiB |
+
+**RSS does not return to baseline when sessions close.** Three consecutive
+cycles against the same process peaked at 503, 534 and 543 MiB — growth that
+decelerates and flattens, which is an allocator holding freed pages rather
+than a leak. The practical consequence is that a long-lived instance sits at
+its high-water mark rather than at its idle figure, and the headroom that
+matters is measured from there.
+
+This is one run on one machine against a process, not a container on the
+target instance. It does not establish a bound, and no throughput figure was
+recorded or should be inferred.
 
 Sessions expire on a timer rather than on the next request, and a browser
 opening a second dataset retires its first. Both were previously true only

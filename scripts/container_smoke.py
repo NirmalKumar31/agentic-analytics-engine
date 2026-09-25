@@ -80,6 +80,19 @@ def main(base: str) -> int:
     health = wait_for_health(base)
     check("health endpoint", health["status"] == "ok", str(health))
     check(
+        "health reports an instance id",
+        bool(health.get("instance_id")),
+        "without one, no caller can tell a restart from a healthy run",
+    )
+    ready_status, ready_text = _request(f"{base}/api/ready")
+    check("readiness endpoint returns 200", ready_status == 200, ready_text[:200])
+    ready = json.loads(ready_text)
+    check(
+        "readiness confirms the demo can be served",
+        ready["demo_warehouse_ready"] is True and ready["recordings_loaded"] is True,
+        str(ready),
+    )
+    check(
         "demo warehouse baked into the image",
         health["demo_warehouse_ready"] is True,
         str(health),

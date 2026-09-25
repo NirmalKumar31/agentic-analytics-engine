@@ -144,8 +144,13 @@ language model, and the UI never implies otherwise.
 | **Deterministic live** | Executing now; agent decisions from a scripted deterministic provider |
 | **AI live** | Executing now; agent decisions from a language model |
 
-`/api/config` reports `execution_mode` and `model_inference_remote`, and every
-recording carries `provider_kind` and `run_kind`.
+`/api/config` reports `execution_mode`, `model_inference_remote` and
+`mcp_remote_enabled`, and every recording carries `provider_kind` and
+`run_kind`. `/api/health` answers liveness and carries an `instance_id` that
+changes if the process is replaced; `/api/ready` is what the platform's
+health check uses, and returns 503 unless the demo warehouse and the
+recordings are both present — a container that came up without them is alive
+and cannot serve anyone.
 
 In deterministic mode the Ask panel says so in as many words: question
 interpretation is rule-based, while the SQL, the statistics, the MCP tool

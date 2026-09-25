@@ -280,10 +280,21 @@ def main(argv: list[str]) -> int:
 
     status, health_after = Client(base).json("/api/health")
     report.add("the service is still healthy", status == 200 and health_after.get("status") == "ok")
+    # `instance_id` is random per process, so a change means the process was
+    # replaced -- which is how an OOM kill looks from outside. Comparing
+    # `version` could never detect that: a restarted process runs the same
+    # build and reports the same version.
+    before_id = health.get("instance_id")
+    after_id = health_after.get("instance_id")
+    report.add(
+        "the health endpoint reports an instance id",
+        bool(before_id),
+        "no instance_id; this build cannot prove it did not restart",
+    )
     report.add(
         "the service did not restart under load",
-        health_after.get("version") == health.get("version"),
-        f"{health.get('version')} -> {health_after.get('version')}",
+        bool(before_id) and before_id == after_id,
+        f"{before_id} -> {after_id}",
     )
 
     print()

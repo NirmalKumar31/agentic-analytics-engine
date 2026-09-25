@@ -66,7 +66,9 @@ def _blueprint(name: str) -> dict[str, object]:
 @pytest.mark.parametrize("name", ["render.yaml", "deploy/render-live.yaml"])
 def test_blueprints_are_well_formed(name: str) -> None:
     service = _blueprint(name)
-    assert service["healthCheckPath"] == "/api/health"
+    # Readiness, not liveness: /api/health answers 200 for a container whose
+    # demo warehouse never built, which is alive and cannot serve anyone.
+    assert service["healthCheckPath"] == "/api/ready"
     assert service["dockerfilePath"] == "./Dockerfile"
     assert service["autoDeploy"] is False
 
@@ -182,7 +184,8 @@ def test_blueprints_size_duckdb_for_the_instance(name: str) -> None:
     """A 1 GB session envelope does not fit twelve sessions on a 2 GB box."""
     service = _blueprint(name)
     by_key = {e["key"]: e for e in service["envVars"]}  # type: ignore[index]
-    assert service["plan"] == "standard"
+    # `1c-2g` is the explicit spelling of the legacy `standard` plan.
+    assert service["plan"] == "1c-2g"
     # Parseable by the application, and smaller than the old hardcoded 1 GB.
     settings = Settings(
         duckdb_memory_limit=by_key["AAE_DUCKDB_MEMORY_LIMIT"]["value"],
@@ -195,20 +198,36 @@ def test_blueprints_size_duckdb_for_the_instance(name: str) -> None:
 
 @pytest.mark.parametrize("name", ["render.yaml", "deploy/render-live.yaml"])
 def test_the_session_envelope_fits_the_instance(name: str) -> None:
-    """Sessions x per-session memory must leave room for the process.
+    """A bound on the configuration, not a prediction about the instance.
 
-    Not a guarantee that the instance survives peak load -- these are
-    admission limits -- but admitting sessions whose envelopes alone exceed
-    the box is a configuration error that is worth catching in CI.
+    What this asserts is narrow and worth stating exactly, because the
+    obvious stronger reading is wrong.
+
+    `AAE_DUCKDB_MEMORY_LIMIT` is a *ceiling* DuckDB will not exceed, not an
+    allocation it makes up front. But an idle session is not free either: it
+    has materialised its dataset into a private in-memory database and holds
+    those rows for its whole life. So neither `per_session x sessions` nor
+    `per_session x concurrent_analyses` is the real figure -- the first
+    wildly overstates it, the second ignores every idle session.
+
+    Since the honest number is not derivable from the configuration, this
+    test does not pretend to derive it. It checks two things that *are*
+    configuration errors: a per-session ceiling large enough that two
+    analyses could alone exhaust the box, and an admitted-session count
+    beyond what the instance was sized for. The actual behaviour under load
+    is measured, not computed -- see `scripts/resource_rehearsal.py`.
     """
     by_key = {e["key"]: e for e in _blueprint(name)["envVars"]}  # type: ignore[index]
     per_session_mb = int(by_key["AAE_DUCKDB_MEMORY_LIMIT"]["value"].upper().removesuffix("MB"))
     sessions = int(by_key["AAE_MAX_CONCURRENT_SESSIONS"]["value"])
     concurrent = int(by_key["AAE_MAX_CONCURRENT_ANALYSES"]["value"])
-    # `standard` is 2 GB. Only analyses actually execute queries, so the
-    # binding constraint is concurrent analyses, not admitted sessions.
-    assert per_session_mb * concurrent < 2048
-    assert sessions <= 16
+
+    # The plan is 1 CPU / 2 GB. Two analyses at their ceiling must leave
+    # room for the interpreter, the loaded datasets and the OS.
+    assert per_session_mb * concurrent <= 1024, "two analyses could exhaust the instance"
+    # Every admitted session holds its rows whether or not it is running.
+    assert sessions <= 16, "more sessions than this instance was sized for"
+    assert int(by_key["AAE_MAX_ACTIVE_UPLOAD_SESSIONS"]["value"]) <= sessions
 
 
 def test_the_public_blueprint_keeps_the_remote_mcp_endpoint_withdrawn() -> None:

@@ -79,7 +79,9 @@ RUN mkdir -p /app/var/warehouse /tmp/aae-uploads \
 USER app
 EXPOSE 8000
 
+# Readiness, not liveness: an image whose demo warehouse failed to build
+# answers /api/health with a 200 and cannot serve a single visitor.
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
-  CMD curl -fsS "http://127.0.0.1:${PORT}/api/health" || exit 1
+  CMD curl -fsS "http://127.0.0.1:${PORT}/api/ready" || exit 1
 
 CMD ["sh", "-c", "exec uvicorn agentic_analytics.api.app:app --host 0.0.0.0 --port ${PORT} --workers 1"]

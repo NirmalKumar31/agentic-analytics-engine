@@ -8,9 +8,19 @@ Every tool resolves a session by id, performs a deterministic computation, and
 returns a bounded structured payload. Tools do not call a model, and the
 server holds no model credentials.
 
-The server is served over Streamable HTTP in production (mounted into the
-FastAPI app at ``/mcp``) and connected to in-process in tests, which is the
-SDK-supported way to exercise a real client/server pair without a socket.
+There are two transports, and which one carries production traffic matters:
+
+* **In-process, and this is what the deployed website uses.** The agent holds
+  a real :class:`mcp.Client` connected to this server object. It is a genuine
+  client/server pair speaking the protocol -- not a function call dressed up
+  as one -- and it is what makes the deployment a single container. It is not
+  a network hop.
+* **Streamable HTTP at** ``/mcp``, for callers outside the process. Exercised
+  by ``tests/integration/test_mcp.py`` against a real server and again
+  against the built container. On the public deployment it is deliberately
+  withdrawn: ``AAE_MCP_ALLOWED_HOSTS`` is empty, so the transport answers 503
+  rather than serving without Host validation, and an anonymous demo gains
+  nothing from an internet-facing MCP endpoint.
 """
 
 from __future__ import annotations

@@ -210,7 +210,25 @@ def main(argv: list[str]) -> int:
         print("\nFAIL: the service is not answering; nothing else can be checked")
         return 1
     checks.ok("health reports ok", health.get("status") == "ok", str(health))
+    checks.ok(
+        "health reports an instance id",
+        bool(health.get("instance_id")),
+        "without one, a load test cannot tell a restart from a healthy run",
+    )
     checks.ok("the demo warehouse is present", health.get("demo_warehouse_ready") is True)
+
+    # Readiness is a different question from liveness, and it is the one the
+    # platform's health check asks: a process with no demo warehouse is alive
+    # and cannot serve a visitor.
+    status, ready = client.json("/api/ready")
+    checks.ok("the service reports ready", status == 200, f"HTTP {status}: {ready}")
+    checks.ok(
+        "readiness confirms the warehouse and the recordings",
+        isinstance(ready, dict)
+        and ready.get("demo_warehouse_ready") is True
+        and ready.get("recordings_loaded") is True,
+        str(ready)[:160],
+    )
     checks.note(
         f"provider={health.get('provider_mode')} mode={health.get('execution_mode')} "
         f"live={health.get('live_analytics_enabled')} recordings={health.get('recordings')}"
@@ -280,6 +298,12 @@ def main(argv: list[str]) -> int:
         "private responses are not cacheable",
         headers.get("cache-control", "").lower().startswith("no-store"),
         headers.get("cache-control", "(absent)"),
+    )
+    _, ready_headers, _ = client.request("/api/ready")
+    checks.ok(
+        "readiness is not cacheable either",
+        ready_headers.get("cache-control", "").lower().startswith("no-store"),
+        ready_headers.get("cache-control", "(absent)"),
     )
     checks.ok("nosniff is set", headers.get("x-content-type-options") == "nosniff")
     checks.ok("a referrer policy is set", bool(headers.get("referrer-policy")))

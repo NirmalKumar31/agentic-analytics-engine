@@ -287,7 +287,14 @@ def open_upload_session(
     con = duckdb.connect(":memory:", config=_base_config(limits))
     try:
         reader = "read_parquet(?)" if file_format == "parquet" else "read_csv_auto(?)"
-        limit = f" limit {int(max_rows)}" if max_rows else ""
+        # One row *beyond* the limit, so an oversized file can be detected
+        # rather than silently becoming a smaller one. A bare `LIMIT
+        # max_rows` truncates: the visitor gets a dataset that looks valid,
+        # an analysis that looks complete, and numbers computed from an
+        # arbitrary prefix of their file. Reading one extra row keeps the
+        # load bounded and makes "too big" distinguishable from "exactly at
+        # the limit".
+        limit = f" limit {int(max_rows) + 1}" if max_rows else ""
         con.execute(
             f'create table "{UPLOAD_TABLE}" as select * from {reader}{limit}', [str(file_path)]
         )
@@ -300,6 +307,14 @@ def open_upload_session(
     if info.row_count == 0:
         con.close()
         raise DatasetError("the uploaded file contains no rows")
+    if max_rows is not None and info.row_count > max_rows:
+        # Same contract as Parquet, which is rejected from its metadata:
+        # at or under the limit is accepted, over it is refused. The
+        # connection goes now; the caller removes the scratch directory.
+        con.close()
+        raise DatasetError(
+            f"the file has more than {max_rows:,} rows; the limit for this server is {max_rows:,}"
+        )
 
     digest = hashlib.sha256(file_path.read_bytes()).hexdigest()[:32]
     return AnalysisSession(

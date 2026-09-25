@@ -14,7 +14,7 @@ PORT    ?= 8000
 
 .DEFAULT_GOAL := help
 .PHONY: help bootstrap data test test-cov lint format typecheck frontend frontend-test \
-        e2e e2e-install live-acceptance capacity-smoke \
+        e2e e2e-install live-acceptance capacity-smoke resource-rehearsal \
         dev serve record verify evaluate docker docker-run clean constraints wheel audit all
 
 help: ## Show the available targets
@@ -65,6 +65,9 @@ live-acceptance: ## Acceptance checks against a deployed URL: make live-acceptan
 
 capacity-smoke: ## Small bounded concurrency check. Not a throughput benchmark.
 	$(PY) scripts/capacity_smoke.py $(URL)
+
+resource-rehearsal: ## Fill the configured session envelope and watch memory. Not a benchmark.
+	$(PY) scripts/resource_rehearsal.py $(URL) $(if $(CONTAINER),--container $(CONTAINER)) $(if $(PID),--pid $(PID))
 
 dev: data frontend ## Generate data, build the frontend, serve with live analysis on
 	AAE_LIVE_ANALYTICS_ENABLED=true AAE_LOG_JSON=false \

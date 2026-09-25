@@ -14,6 +14,7 @@ import contextlib
 import json
 import shutil
 import tempfile
+import uuid
 from collections.abc import AsyncIterator
 from pathlib import Path
 from typing import Any
@@ -31,6 +32,7 @@ from agentic_analytics.api.models import (
     AnalysisStarted,
     ErrorResponse,
     HealthResponse,
+    ReadinessResponse,
     ServerConfig,
     SessionResponse,
     execution_mode,
@@ -107,6 +109,11 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         max_metadata_bytes=cfg.budgets.max_parquet_metadata_bytes,
     )
     mode = execution_mode(cfg.live_analytics_enabled, cfg.provider_mode)
+    # Identifies this application object for the life of the process. An
+    # external checker compares it across a load test: the same id means the
+    # process it started with is the process it finished with, which is how
+    # an OOM kill and restart is detected from outside. Not a secret.
+    instance_id = uuid.uuid4().hex
     # Every session's DuckDB connection is built with the configured
     # envelope, so the deployment's instance size is what decides it.
     engine_limits = EngineLimits.from_settings(cfg)
@@ -115,12 +122,17 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     # Streamable HTTP, with JSON responses so a plain HTTP client can talk to
     # it as easily as an SDK client can.
     #
+    # This transport is for callers *outside* this process. The website does
+    # not use it: `run_analysis` is handed the server object and the agent's
+    # `mcp.Client` connects to it in-process.
+    #
     # The SDK turns on DNS-rebinding protection by itself only when the server
     # binds to localhost. A container binds to every interface, so the Host
-    # allow-list is configured explicitly when the deployment knows its own
-    # hostname. With no allow-list the protection is off, which is the
-    # documented default: the endpoint is read-only, holds no credential, and
-    # every tool requires a session id the caller must already have.
+    # allow-list has to be configured explicitly with the hostnames the
+    # deployment answers on. A network binding that declares none does not
+    # get the endpoint served without validation -- it gets no endpoint at
+    # all, a 503, which is what `mcp_enabled` below carries. Analysis is
+    # unaffected, because it was never using this transport.
     allowed_hosts = cfg.mcp_allowed_host_list
     transport_security, mcp_enabled = _mcp_transport_security(cfg, allowed_hosts)
     mcp_app = mcp.streamable_http_app(
@@ -249,13 +261,48 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     # -------------------------------------------------------------- health
     @app.get("/api/health", response_model=HealthResponse)
     async def health() -> HealthResponse:
+        """Liveness. 200 whenever this process can answer at all.
+
+        Deliberately not conditional on the demo warehouse: a platform uses
+        this to decide whether to restart, and restarting will not build a
+        warehouse. Readiness is `/api/ready`.
+        """
         return HealthResponse(
             version=__version__,
+            instance_id=instance_id,
             provider_mode=cfg.provider_mode,
             execution_mode=mode,
             live_analytics_enabled=cfg.live_analytics_enabled,
             demo_warehouse_ready=_warehouse_ready(cfg),
             recordings=len(recordings),
+        )
+
+    @app.get("/api/ready", response_model=ReadinessResponse)
+    async def ready(response: Response) -> ReadinessResponse:
+        """Readiness. 200 only when this process can actually serve the demo.
+
+        `/api/health` answers 200 for a process with no demo warehouse, which
+        is alive and useless -- and a health check that accepts it lets a
+        broken deploy go live and stay live. Both facts checked here are
+        local to this container; readiness never depends on the network.
+        """
+        warehouse = _warehouse_ready(cfg)
+        loaded = len(recordings) > 0
+        if warehouse and loaded:
+            return ReadinessResponse(
+                status="ready", demo_warehouse_ready=True, recordings_loaded=True
+            )
+        missing = [
+            name
+            for name, present in (("demo warehouse", warehouse), ("recordings", loaded))
+            if not present
+        ]
+        response.status_code = 503
+        return ReadinessResponse(
+            status="not_ready",
+            demo_warehouse_ready=warehouse,
+            recordings_loaded=loaded,
+            detail=f"not available in this image: {', '.join(missing)}",
         )
 
     @app.get("/api/config", response_model=ServerConfig)

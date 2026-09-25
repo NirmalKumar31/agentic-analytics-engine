@@ -27,9 +27,14 @@ services:
     name: agentic-analytics-engine
     runtime: docker
     dockerfilePath: ./Dockerfile
-    plan: standard
+    # `1c-2g` is the explicit spelling of the legacy `standard` plan:
+    # 1 CPU, 2 GB. The numbers below are sized against exactly that.
+    plan: 1c-2g
     region: oregon
-    healthCheckPath: /api/health
+    # Readiness rather than liveness: a container that came up without
+    # its demo warehouse is alive and useless, and a health check that
+    # accepts it lets a broken deploy go live and stay live.
+    healthCheckPath: /api/ready
     autoDeploy: false
     envVars:
       # The scripted provider. No credential is read, and none is needed.

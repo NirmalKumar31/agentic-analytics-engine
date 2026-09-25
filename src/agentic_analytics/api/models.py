@@ -29,11 +29,32 @@ def execution_mode(live_enabled: bool, provider_mode: str) -> ExecutionMode:
 class HealthResponse(BaseModel):
     status: str = "ok"
     version: str
+    #: Random, generated once when this application object is built. Two
+    #: reads returning different values mean the process was replaced --
+    #: which is the only way to see an OOM kill and restart from outside.
+    #: Comparing `version` cannot: a restarted process runs the same build.
+    #: Not a secret, and not stable across deploys by design.
+    instance_id: str
     provider_mode: str
     execution_mode: ExecutionMode
     live_analytics_enabled: bool
     demo_warehouse_ready: bool
     recordings: int
+
+
+class ReadinessResponse(BaseModel):
+    """Whether this process can serve the demo, not merely whether it is up.
+
+    Separate from health because they answer different questions and a
+    platform acts on each differently. A process whose demo warehouse never
+    got built is alive and completely useless; returning 200 for it means a
+    broken deploy goes live and stays live.
+    """
+
+    status: str
+    demo_warehouse_ready: bool
+    recordings_loaded: bool
+    detail: str = ""
 
 
 class ServerConfig(BaseModel):
