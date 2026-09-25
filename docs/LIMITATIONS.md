@@ -84,7 +84,7 @@ pass; an innocent sentence using "drove" could be withheld.
 
 **What holds.** Two independent layers stand between a model and DuckDB: an
 AST-based SQL guard and an engine locked with `enable_external_access=false`
-and `lock_configuration=true` after load. 185 adversarial tests cover both,
+and `lock_configuration=true` after load. 188 adversarial tests cover both,
 including tests that bypass the guard on purpose. Query cancellation uses
 `con.interrupt()` and was verified to stop CPU work, not merely the waiting
 coroutine.
