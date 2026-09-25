@@ -58,6 +58,31 @@ def test_recorded_runs_used_a_credential_free_provider(
         assert recording["provider"] in ("fake", "local")
 
 
+def test_recordings_declare_what_produced_them(
+    recordings: list[dict[str, Any]],
+) -> None:
+    """A scripted run must never be presented as a model-driven one."""
+    for recording in recordings:
+        assert recording["provider_kind"] == "scripted-deterministic"
+        assert recording["run_kind"] == "recorded deterministic engine run"
+        assert "ai" not in recording["run_kind"].lower().split()
+        assert recording["engine_version"]
+        assert recording["metrics_definition_hash"].startswith("sha256:")
+        assert recording["run_id"]
+        assert isinstance(recording["git_dirty"], bool)
+        assert recording["dataset_seed"] == 20260924
+
+
+def test_recording_counts_match_their_contents(
+    recordings: list[dict[str, Any]],
+) -> None:
+    for recording in recordings:
+        assert recording["published_findings"] == len(recording["findings"])
+        assert recording["withheld_findings"] == len(recording["rejected"])
+        assert recording["mcp_tool_calls"] == len(recording["mcp_trace"])
+        assert recording["task_count"] == len(recording["tasks"])
+
+
 def test_store_loads_and_indexes(tmp_path: Path) -> None:
     store = RecordingStore(RECORDINGS_DIR)
     store.load()
@@ -99,6 +124,9 @@ BREAKAGES: list[tuple[str, str]] = [
     ("no fingerprint", "strip_fingerprint"),
     ("session id in trace", "session_in_trace"),
     ("bad version", "bad_version"),
+    ("missing provider kind", "strip_provider_kind"),
+    ("run kind implies a model", "mislabel_run_kind"),
+    ("missing metrics hash", "strip_metrics_hash"),
 ]
 
 
@@ -127,6 +155,12 @@ def _break(recording: dict[str, Any], kind: str) -> dict[str, Any]:
         r["mcp_trace"][0]["arguments"]["session_id"] = "ses_leak"
     elif kind == "bad_version":
         r["recording_version"] = RECORDING_VERSION + 5
+    elif kind == "strip_provider_kind":
+        r.pop("provider_kind", None)
+    elif kind == "mislabel_run_kind":
+        r["run_kind"] = "recorded AI analysis"
+    elif kind == "strip_metrics_hash":
+        r["metrics_definition_hash"] = ""
     return r
 
 

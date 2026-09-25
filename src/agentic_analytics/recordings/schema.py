@@ -19,6 +19,15 @@ REQUIRED_TOP_LEVEL = (
     "recording_id",
     "recorded_at",
     "provider",
+    # Provenance. A published artefact has to say what produced it, so that
+    # a deterministic engine run is never displayed as a model-driven one.
+    "provider_kind",
+    "run_kind",
+    "engine_version",
+    "git_commit",
+    "git_dirty",
+    "metrics_definition_hash",
+    "run_id",
     "question",
     "dataset",
     "report",
@@ -204,6 +213,26 @@ def validate_recording(recording: dict[str, Any]) -> ValidationReport:
     for required in ("run_started", "plan_generated", "mcp_tool_called", "run_completed"):
         if required not in kinds:
             errors.append(f"the event stream is missing {required!r}")
+
+    # --- provenance must be specific, not merely present
+    provider_kind = recording.get("provider_kind")
+    if provider_kind not in ("scripted-deterministic", "language-model"):
+        errors.append(f"provider_kind is {provider_kind!r}")
+    if provider_kind == "scripted-deterministic":
+        run_kind = str(recording.get("run_kind", ""))
+        if "deterministic" not in run_kind:
+            errors.append(
+                "a scripted-provider recording must describe itself as a "
+                f"deterministic engine run, not {run_kind!r}"
+            )
+        # Guard against the description drifting into implying a model.
+        for word in (" ai ", "model-driven", "llm"):
+            if word in run_kind.lower():
+                errors.append(f"run_kind implies a language model: {run_kind!r}")
+    if not str(recording.get("engine_version", "")):
+        errors.append("engine_version is empty")
+    if not str(recording.get("metrics_definition_hash", "")).startswith("sha256:"):
+        errors.append("metrics_definition_hash is missing or malformed")
 
     if not findings:
         warnings.append("the recording publishes no findings")

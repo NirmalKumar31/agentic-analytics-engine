@@ -120,11 +120,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     # documented default: the endpoint is read-only, holds no credential, and
     # every tool requires a session id the caller must already have.
     allowed_hosts = cfg.mcp_allowed_host_list
-    transport_security = TransportSecuritySettings(
-        enable_dns_rebinding_protection=bool(allowed_hosts),
-        allowed_hosts=[*allowed_hosts, *(f"{h}:*" for h in allowed_hosts)],
-        allowed_origins=[f"https://{h}" for h in allowed_hosts],
-    )
+    transport_security, mcp_enabled = _mcp_transport_security(cfg, allowed_hosts)
     mcp_app = mcp.streamable_http_app(
         streamable_http_path=MCP_PATH,
         json_response=True,
@@ -512,7 +508,28 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     # keeps the endpoint at exactly `/mcp`: a Starlette mount only matches
     # `/mcp/...`, so a bare `/mcp` would depend on a slash redirect that the
     # single-page fallback below would shadow.
-    app.router.routes.extend(mcp_app.routes)
+    if mcp_enabled:
+        app.router.routes.extend(mcp_app.routes)
+    else:
+        # Fail closed. Serving the endpoint with Host validation disabled
+        # would be worse than not serving it: the agent reaches analytics
+        # in-process either way, so nothing is lost but the exposure.
+        @app.api_route(
+            MCP_PATH,
+            methods=["GET", "POST", "DELETE"],
+            include_in_schema=False,
+        )
+        async def mcp_disabled() -> JSONResponse:
+            return JSONResponse(
+                status_code=503,
+                content=ErrorResponse(
+                    error="mcp_endpoint_disabled",
+                    detail=(
+                        "the remote MCP endpoint is disabled because this server "
+                        "binds to a network interface without AAE_MCP_ALLOWED_HOSTS"
+                    ),
+                ).model_dump(),
+            )
 
     # ------------------------------------------------------------ frontend
     if FRONTEND_DIR.is_dir():
@@ -531,6 +548,65 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             return FileResponse(FRONTEND_DIR / "index.html")
 
     return app
+
+
+def _mcp_transport_security(
+    cfg: Settings, allowed_hosts: list[str]
+) -> tuple[TransportSecuritySettings, bool]:
+    """Decide Host/Origin policy for the MCP endpoint, failing closed.
+
+    Three cases, and none of them quietly exposes an unprotected endpoint:
+
+    * **Local development** -- the server binds to loopback, so only this
+      machine can reach it. Protection is enabled with a localhost allow-list,
+      which is what the SDK would do on its own.
+    * **Network binding with an allow-list** -- protection is enabled with the
+      declared hostnames.
+    * **Network binding without one** -- the remote MCP endpoint is disabled
+      rather than served with Host validation off. The agent still reaches
+      analytics, because it connects to the server object in-process; what is
+      withdrawn is the publicly reachable transport.
+    """
+    if allowed_hosts:
+        return (
+            TransportSecuritySettings(
+                enable_dns_rebinding_protection=True,
+                allowed_hosts=[*allowed_hosts, *(f"{h}:*" for h in allowed_hosts)],
+                allowed_origins=[
+                    *(f"https://{h}" for h in allowed_hosts),
+                    *(f"http://{h}" for h in allowed_hosts),
+                ],
+            ),
+            True,
+        )
+
+    if cfg.is_local_binding:
+        return (
+            TransportSecuritySettings(
+                enable_dns_rebinding_protection=True,
+                allowed_hosts=["127.0.0.1:*", "localhost:*", "[::1]:*", "testserver"],
+                allowed_origins=[
+                    "http://127.0.0.1:*",
+                    "http://localhost:*",
+                    "http://[::1]:*",
+                ],
+            ),
+            True,
+        )
+
+    log.warning(
+        "mcp_remote_endpoint_disabled",
+        reason="AAE_MCP_ALLOWED_HOSTS is empty and the server is not bound to loopback",
+        bind_host=cfg.bind_host,
+    )
+    return (
+        TransportSecuritySettings(
+            enable_dns_rebinding_protection=True,
+            allowed_hosts=[],
+            allowed_origins=[],
+        ),
+        False,
+    )
 
 
 def _warehouse_ready(cfg: Settings) -> bool:

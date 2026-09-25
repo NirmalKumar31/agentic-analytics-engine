@@ -123,8 +123,13 @@ def serve(
     reload: Annotated[bool, typer.Option()] = False,
 ) -> None:
     """Run the web application."""
+    import os
+
     import uvicorn
 
+    # The MCP host policy keys off where the server binds, so the CLI's
+    # choice has to reach the settings the application reads.
+    os.environ.setdefault("AAE_BIND_HOST", host)
     uvicorn.run("agentic_analytics.api.app:app", host=host, port=port, reload=reload)
 
 

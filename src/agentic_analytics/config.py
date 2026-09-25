@@ -115,10 +115,20 @@ class Settings(BaseSettings):
     # asked for explicitly with the hostnames the deployment answers on.
     # Comma-separated, e.g. "example.onrender.com,example.onrender.com:443".
     mcp_allowed_hosts: str = ""
+    #: Where the server binds. Loopback is treated as local development and
+    #: gets a localhost allow-list automatically; anything else is a network
+    #: binding and must declare its hostnames or the remote endpoint is
+    #: withdrawn.
+    bind_host: str = "127.0.0.1"
 
     @property
     def mcp_allowed_host_list(self) -> list[str]:
         return [h.strip() for h in self.mcp_allowed_hosts.split(",") if h.strip()]
+
+    @property
+    def is_local_binding(self) -> bool:
+        """True when the server is reachable only from this machine."""
+        return self.bind_host in {"127.0.0.1", "localhost", "::1", ""}
 
     log_level: str = "INFO"
     log_json: bool = True

@@ -35,6 +35,7 @@ from __future__ import annotations
 
 import contextlib
 import hashlib
+import json
 import secrets
 import shutil
 import threading
@@ -138,6 +139,9 @@ class AnalysisSession:
         self.dataset_fingerprint = fingerprint
         self.registry = registry
         self.source_label = source_label
+        #: Generator seed, for the demo warehouse only. An uploaded file has
+        #: no seed; its fingerprint is the hash of the bytes.
+        self.dataset_seed: int | None = None
         self.results = ResultStore()
         self.created_at = time.time()
         self.last_used_at = self.created_at
@@ -178,6 +182,7 @@ class AnalysisSession:
             "dataset_kind": self.kind,
             "source": self.source_label,
             "dataset_fingerprint": self.dataset_fingerprint,
+            "dataset_seed": self.dataset_seed,
             "tables": [
                 {
                     "name": t.name,
@@ -219,7 +224,7 @@ def open_demo_session(warehouse_dir: Path, session_id: str | None = None) -> Ana
         con.execute(f'create table "{name}" as select * from read_parquet(?)', [str(path)])
     _lock_down(con)
     tables = {n: _read_table_info(con, n) for n in TABLE_NAMES}
-    return AnalysisSession(
+    session = AnalysisSession(
         session_id=session_id or new_session_id(),
         kind="demo",
         con=con,
@@ -228,6 +233,11 @@ def open_demo_session(warehouse_dir: Path, session_id: str | None = None) -> Ana
         registry=load_registry(),
         source_label="Commerce demo warehouse",
     )
+    manifest = warehouse_dir / "manifest.json"
+    if manifest.exists():
+        with contextlib.suppress(OSError, ValueError, KeyError):
+            session.dataset_seed = int(json.loads(manifest.read_text())["seed"])
+    return session
 
 
 def open_upload_session(
