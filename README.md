@@ -92,7 +92,7 @@ make dev          # build the frontend and serve on http://127.0.0.1:8000
 No `.env` required. `make verify` runs everything CI runs.
 
 ```bash
-make test         # 513 Python tests
+make test         # 540 Python tests
 make evaluate     # score the engine against the injected patterns
 make record       # re-record the three demo runs
 ```
@@ -269,12 +269,13 @@ Reproduce with `make evaluate`. Details in
 The model never reaches DuckDB directly.
 
 **SQLGuard** parses every statement with `sqlglot` and works on the AST.
-150 adversarial tests cover writes, DDL, `COPY`, `ATTACH`, extension loading,
+177 adversarial tests cover writes, DDL, `COPY`, `ATTACH`, extension loading,
 remote URLs, multi-statement payloads, file-as-table syntax, and DuckDB
-specifics like `SUMMARIZE` and `FROM x SELECT`. It also covers read-only
-denial of service: generator bounds, AST size and depth, join and CTE
-ceilings, and a refusal of recursive CTEs. Deep nesting previously crashed
-sqlglot's recursive-descent parser before any check could run.
+specifics like `SUMMARIZE` and `FROM x SELECT`. A further set covers read-only
+denial of service: unbounded generators, cross-join explosion, AST size and
+depth, join and CTE ceilings, and recursive CTEs, which are refused outright.
+Deep nesting previously crashed sqlglot's recursive-descent parser before any
+check could run.
 
 **The engine** runs with `enable_external_access=false` and
 `lock_configuration=true`, applied after loading and irreversible for the
@@ -347,7 +348,7 @@ The full list is in [docs/LIMITATIONS.md](docs/LIMITATIONS.md).
 
 ## Verified
 
-513 Python tests, 35 frontend tests, 87% branch coverage. `ruff`,
+540 Python tests, 35 frontend tests, 87% branch coverage. `ruff`,
 `ruff format`, `mypy` (with `disallow_untyped_defs`), `pip-audit` and
 `npm audit` clean. Frontend production bundle 383 kB gzipped, of which 298 kB
 is the Vega chart engine in a lazily-loaded chunk.
