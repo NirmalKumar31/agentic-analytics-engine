@@ -173,7 +173,7 @@ def _critic_prompt(finding: CandidateFinding, cited: list[ResultSnapshot]) -> st
             f"sql: {snapshot.sql}",
             f"columns: {snapshot.columns}",
         ]
-        for index, row in enumerate(snapshot.rows[:40]):
+        for index, row in enumerate(snapshot.agent_rows()[:40]):
             lines.append(f"  row {index}: {row}")
         if snapshot.statistical_result is not None:
             lines.append(

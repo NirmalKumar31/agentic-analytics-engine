@@ -12,6 +12,7 @@ boundary, not from a narration of them.
 
 from __future__ import annotations
 
+import re
 import time
 from contextlib import AsyncExitStack
 from dataclasses import dataclass, field
@@ -26,6 +27,9 @@ from agentic_analytics.logging import get_logger
 
 log = get_logger(__name__)
 
+#: `Error executing tool compute_metric: ...`, as the SDK phrases it.
+_SDK_ERROR_PREFIX = re.compile(r"^Error executing tool [A-Za-z0-9_]+:\s*")
+
 # Arguments that are never echoed into the trace shown to a user.
 # Never echoed into the trace shown to a user. The capability is a bearer
 # secret; the handle is not secret but is noise in a trace.
@@ -34,6 +38,19 @@ _REDACT_KEYS = frozenset({"session_id", "session_key"})
 
 class BudgetExceeded(RuntimeError):
     """A tool-call ceiling was reached."""
+
+
+def _strip_sdk_prefix(message: str | None) -> str:
+    """Drop the SDK's `Error executing tool <name>:` wrapper.
+
+    The message ends up in a report's limitations, where the wrapper is
+    noise: a reader needs to know the question could not be mapped, not
+    which layer formatted the sentence.
+    """
+    if not message:
+        return ""
+    match = _SDK_ERROR_PREFIX.match(message)
+    return message[match.end() :].strip() if match else message
 
 
 class ToolCallFailed(RuntimeError):
@@ -200,7 +217,7 @@ class AnalyticsToolset:
         record.duration_ms = (time.perf_counter() - started) * 1000
 
         if result.is_error:
-            message = _first_text(result) or "tool returned an error"
+            message = _strip_sdk_prefix(_first_text(result)) or "tool returned an error"
             record.ok = False
             record.error = message
             self.trace.append(record)

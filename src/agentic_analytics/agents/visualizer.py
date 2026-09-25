@@ -132,7 +132,7 @@ def _default_title(snapshot: ResultSnapshot) -> str:
 
 
 def _prompt(snapshot: ResultSnapshot, finding_text: str) -> str:
-    preview = "\n".join(f"  row {i}: {row}" for i, row in enumerate(snapshot.rows[:10]))
+    preview = "\n".join(f"  row {i}: {row}" for i, row in enumerate(snapshot.agent_rows()[:10]))
     return f"""\
 RESULT {snapshot.result_id} (tool: {snapshot.tool_name})
 columns: {snapshot.columns}

@@ -53,6 +53,7 @@ DETERMINISTIC_TOOLS = frozenset(
         "statistical_test",
         "profile_dataset",
         "profile_table",
+        "aggregate_for_question",
         "describe_table",
         "list_tables",
         "list_metrics",

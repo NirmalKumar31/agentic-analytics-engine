@@ -69,6 +69,10 @@ class StatisticalResult(BaseModel):
         return self.effective_p_value < 0.05
 
 
+#: Profile columns whose values are individual cells rather than summaries.
+RAW_CELL_COLUMNS = frozenset({"min_value", "max_value"})
+
+
 class ResultSnapshot(BaseModel):
     """A single tool execution and everything needed to audit it."""
 
@@ -92,6 +96,12 @@ class ResultSnapshot(BaseModel):
     # rather than a parameter, because an agent has to read the rate/mix split
     # and the reconciliation flag to say anything about it.
     decomposition: dict[str, Any] | None = None
+    #: Set for an uploaded dataset when model inference is remote. Redaction
+    #: happens in `compact()` -- the one representation handed to an agent --
+    #: rather than at each call site, so a new agent role cannot forget it.
+    #: The stored snapshot keeps every value: the visitor sees their own
+    #: file in full, and numeric verification still checks against the truth.
+    withhold_cells: bool = False
 
     def cell(self, row: int, column: str) -> Scalar:
         """Value at a row index and column name, for evidence references."""
@@ -104,6 +114,27 @@ class ResultSnapshot(BaseModel):
     def to_records(self) -> list[dict[str, Scalar]]:
         return [dict(zip(self.columns, row, strict=False)) for row in self.rows]
 
+    def agent_rows(self) -> list[list[Scalar]]:
+        """The rows an agent may read. Use this wherever a prompt is built.
+
+        When `withhold_cells` is set, a profile's per-column minimum and
+        maximum are blanked. Those two are not summaries of the data, they
+        are cells of it -- the largest amount in the file, the earliest date
+        in it -- and an uploaded file's cells do not go to a third party.
+
+        One method rather than a check at each call site: the leak this
+        closes was a prompt that rendered `snapshot.rows` directly while the
+        structured payload beside it was already redacted.
+        """
+        if not self.withhold_cells:
+            return self.rows
+        hidden = {i for i, name in enumerate(self.columns) if name in RAW_CELL_COLUMNS}
+        if not hidden:
+            return self.rows
+        return [
+            [None if i in hidden else value for i, value in enumerate(row)] for row in self.rows
+        ]
+
     def compact(self) -> dict[str, Any]:
         """The representation handed to an agent.
 
@@ -114,7 +145,7 @@ class ResultSnapshot(BaseModel):
             "result_id": self.result_id,
             "tool_name": self.tool_name,
             "columns": self.columns,
-            "rows": self.rows,
+            "rows": self.agent_rows(),
             "row_count": self.row_count,
             "truncated": self.truncated,
             "dataset_fingerprint": self.dataset_fingerprint,

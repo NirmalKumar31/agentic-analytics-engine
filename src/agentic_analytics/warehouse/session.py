@@ -89,16 +89,37 @@ class TableInfo:
     columns: list[dict[str, str]] = field(default_factory=list)
 
 
-def _base_config() -> dict[str, Any]:
+@dataclass(frozen=True)
+class EngineLimits:
+    """The DuckDB resource envelope given to one session's connection.
+
+    Held here rather than hardcoded so a deployment can size it: these
+    numbers are multiplied by the number of sessions admitted, and the right
+    product depends on the instance, not on the code.
+    """
+
+    memory_limit: str = "1GB"
+    threads: int = 2
+
+    @classmethod
+    def from_settings(cls, cfg: Any) -> EngineLimits:
+        return cls(memory_limit=cfg.duckdb_memory_limit, threads=cfg.duckdb_threads)
+
+
+DEFAULT_ENGINE_LIMITS = EngineLimits()
+
+
+def _base_config(limits: EngineLimits | None = None) -> dict[str, Any]:
     """Connection config applied before any data is loaded.
 
     Extension autoloading is off from the very start: it is the one capability
     that could otherwise reintroduce filesystem or network access during the
     load phase.
     """
+    limits = limits or DEFAULT_ENGINE_LIMITS
     return {
-        "memory_limit": "1GB",
-        "threads": 2,
+        "memory_limit": limits.memory_limit,
+        "threads": limits.threads,
         "autoinstall_known_extensions": False,
         "autoload_known_extensions": False,
         "allow_community_extensions": False,
@@ -142,6 +163,11 @@ class AnalysisSession:
         #: Generator seed, for the demo warehouse only. An uploaded file has
         #: no seed; its fingerprint is the hash of the bytes.
         self.dataset_seed: int | None = None
+        #: Whether this dataset's individual cells may be shown to a remote
+        #: model. Set by whoever knows the provider configuration; the
+        #: session itself only carries it so that every snapshot it produces
+        #: inherits the same answer.
+        self.withhold_raw_cells = False
         self.results = ResultStore()
         self.created_at = time.time()
         self.last_used_at = self.created_at
@@ -209,14 +235,18 @@ def _read_table_info(con: duckdb.DuckDBPyConnection, name: str) -> TableInfo:
     )
 
 
-def open_demo_session(warehouse_dir: Path, session_id: str | None = None) -> AnalysisSession:
+def open_demo_session(
+    warehouse_dir: Path,
+    session_id: str | None = None,
+    limits: EngineLimits | None = None,
+) -> AnalysisSession:
     """Materialise the built-in warehouse into a locked private database."""
     missing = [n for n in TABLE_NAMES if not (warehouse_dir / f"{n}.parquet").exists()]
     if missing:
         raise DatasetError(
             f"demo warehouse is not built (missing: {', '.join(missing)}); run `make data`"
         )
-    con = duckdb.connect(":memory:", config=_base_config())
+    con = duckdb.connect(":memory:", config=_base_config(limits))
     for name in TABLE_NAMES:
         path = warehouse_dir / f"{name}.parquet"
         # The path is server-controlled, but it is still passed as a bound
@@ -247,13 +277,14 @@ def open_upload_session(
     session_id: str | None = None,
     max_rows: int | None = None,
     scratch_dir: Path | None = None,
+    limits: EngineLimits | None = None,
 ) -> AnalysisSession:
     """Load a single uploaded file into a locked private database.
 
     The table name is fixed by the server. ``original_name`` is recorded for
     display only and never reaches SQL.
     """
-    con = duckdb.connect(":memory:", config=_base_config())
+    con = duckdb.connect(":memory:", config=_base_config(limits))
     try:
         reader = "read_parquet(?)" if file_format == "parquet" else "read_csv_auto(?)"
         limit = f" limit {int(max_rows)}" if max_rows else ""
@@ -342,6 +373,40 @@ class SessionManager:
     def drop(self, session_id: str) -> None:
         with self._lock:
             self._drop_locked(session_id)
+
+    def drop_by_key(self, session_key: str | None) -> int:
+        """End whatever session the presented capability already opens.
+
+        One browser holds one capability cookie. Opening a second dataset
+        replaces that cookie, which would otherwise leave the first session
+        alive but unreachable -- holding a DuckDB connection and a scratch
+        directory until the TTL expires -- for as long as the visitor keeps
+        clicking. Retiring it at the moment the cookie is replaced keeps a
+        single browser to a single session, without touching anyone else's:
+        the capability is what identifies it.
+        """
+        if not session_key:
+            return 0
+        with self._lock:
+            doomed = [
+                sid for sid, session in self._sessions.items() if session.authorises(session_key)
+            ]
+            for sid in doomed:
+                self._drop_locked(sid)
+            return len(doomed)
+
+    def expire_stale(self) -> int:
+        """Close every session past its TTL. Returns how many were closed.
+
+        Called on a timer, not only when a request happens to arrive. An
+        abandoned upload session otherwise keeps its connection and its bytes
+        in memory until some other visitor's request triggers a sweep -- on a
+        quiet demo, indefinitely.
+        """
+        with self._lock:
+            before = len(self._sessions)
+            self._evict_locked()
+            return before - len(self._sessions)
 
     def close_all(self) -> None:
         with self._lock:

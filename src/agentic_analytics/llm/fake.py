@@ -293,25 +293,45 @@ class FakeProvider(LLMProvider):
         """Plan for a dataset that has no metric layer.
 
         An uploaded file is one arbitrary table, so there is nothing to look
-        a metric up in. The bounded loop is: profile the table, then
-        aggregate it using the columns the profile actually reported.
+        a metric up in. Two tasks, both bounded: ask the engine to map the
+        question onto the table's inferred schema, and describe the table's
+        shape regardless. The mapping is the engine's work, not this
+        provider's -- `aggregate_for_question` resolves the columns and
+        composes the SQL -- so the same plan is right whether the caller is
+        a rule or a model.
         """
         tables: list[dict[str, Any]] = list(ctx.get("tables", []))
-        tasks: list[dict[str, Any]] = []
-        for table in tables[: max(1, min(max_tasks, 2))]:
-            name = str(table.get("name", ""))
-            if not name:
-                continue
+        question = str(ctx.get("question", ""))
+        name = next((str(t.get("name", "")) for t in tables if t.get("name")), "")
+        if not name:
+            return {"tasks": []}
+
+        tasks: list[dict[str, Any]] = [
+            {
+                "task_id": "task_01",
+                "objective": f"Answer the question from {name} if it maps to the columns",
+                "analysis_type": "profiling",
+                "required_metrics": [],
+                "dimensions": [],
+                "filters": [],
+                "preferred_tool": "aggregate_for_question",
+                "priority": 1,
+                "depends_on": [],
+                "table": name,
+                "variables": {"question": question},
+            }
+        ]
+        if max_tasks > 1:
             tasks.append(
                 {
-                    "task_id": f"task_{len(tasks) + 1:02d}",
-                    "objective": f"Profile {name} and summarise it by its largest grouping",
+                    "task_id": "task_02",
+                    "objective": f"Describe the shape of {name}",
                     "analysis_type": "profiling",
                     "required_metrics": [],
                     "dimensions": [],
                     "filters": [],
                     "preferred_tool": "profile_table",
-                    "priority": 1,
+                    "priority": 2,
                     "depends_on": [],
                     "table": name,
                 }
@@ -324,22 +344,38 @@ class FakeProvider(LLMProvider):
         """Choose the next tool call for a task, or stop."""
         task: dict[str, Any] = ctx.get("task", {})
         calls_made = int(ctx.get("calls_made", 0))
-        results: list[dict[str, Any]] = list(ctx.get("results", []))
 
         # Profiling is the one task that genuinely needs a second call: the
         # aggregate can only be written once the profile has reported which
         # columns exist and how many distinct values they hold.
+        if task.get("preferred_tool") == "aggregate_for_question":
+            # One attempt. If the engine refuses the mapping the task ends
+            # with no result, and the report says so rather than substituting
+            # some other number for the answer.
+            if calls_made == 0:
+                return {
+                    "done": False,
+                    "tool": "aggregate_for_question",
+                    "arguments": {
+                        "table": task.get("table"),
+                        "question": str(task.get("variables", {}).get("question", "")),
+                    },
+                }
+            return {"done": True, "tool": None, "arguments": {}}
+
         if task.get("preferred_tool") == "profile_table":
+            # Profile and stop. This task describes the table; it does not
+            # answer the question, and following it with an aggregate over
+            # whichever column happened to look groupable produced a number
+            # that read like an answer without being one. Answering is
+            # `aggregate_for_question`'s job, and it refuses rather than
+            # guesses.
             if calls_made == 0:
                 return {
                     "done": False,
                     "tool": "profile_table",
                     "arguments": {"table": task.get("table")},
                 }
-            if calls_made == 1 and results:
-                sql = _aggregate_from_profile(str(task.get("table", "")), results[-1])
-                if sql:
-                    return {"done": False, "tool": "run_readonly_sql", "arguments": {"sql": sql}}
             return {"done": True, "tool": None, "arguments": {}}
 
         if calls_made > 0:
@@ -640,7 +676,7 @@ def _findings_for_result(task: dict[str, Any], result: dict[str, Any]) -> list[d
         return _composition_findings(task, result)
     if tool == "profile_table":
         return _profile_findings(task, result)
-    if tool == "run_readonly_sql":
+    if tool in ("run_readonly_sql", "aggregate_for_question"):
         return _adhoc_findings(task, result)
     return _scalar_findings(task, result)
 
@@ -949,73 +985,6 @@ _PROFILE_NUMERIC = ("non_null", "null_pct", "distinct_count")
 def _quote_ident(name: str) -> str:
     """Double-quote an identifier, doubling any embedded quote."""
     return '"' + str(name).replace('"', '""') + '"'
-
-
-def _aggregate_from_profile(table: str, profile: dict[str, Any]) -> str | None:
-    """Compose a grouped aggregate from what the profile reported.
-
-    Column names come from the profile result, which came from the database
-    catalogue rather than from a model, and the statement still passes the SQL
-    guard before it executes.
-    """
-    columns: list[str] = list(profile.get("columns", []))
-    rows: list[list[Any]] = list(profile.get("rows", []))
-    if not table or "column_name" not in columns:
-        return None
-
-    idx_name = columns.index("column_name")
-    idx_type = columns.index("data_type") if "data_type" in columns else None
-    idx_distinct = columns.index("distinct_count") if "distinct_count" in columns else None
-
-    group_column: str | None = None
-    value_column: str | None = None
-    for row in rows:
-        name = str(row[idx_name])
-        dtype = str(row[idx_type]).upper() if idx_type is not None else ""
-        distinct = row[idx_distinct] if idx_distinct is not None else None
-        is_numeric = dtype in NUMERIC_PROFILE_TYPES
-        if is_numeric and value_column is None:
-            value_column = name
-        elif (
-            not is_numeric
-            and group_column is None
-            and isinstance(distinct, int | float)
-            and 1 < float(distinct) <= 50
-        ):
-            group_column = name
-    if group_column is None:
-        return None
-
-    group = _quote_ident(group_column)
-    select = [f"{group} AS segment", "COUNT(*) AS row_count"]
-    order = "row_count"
-    if value_column:
-        value = _quote_ident(value_column)
-        select.insert(1, f"ROUND(SUM(CAST({value} AS DOUBLE)), 4) AS total_value")
-        order = "total_value"
-    return (
-        f"SELECT {', '.join(select)} FROM {_quote_ident(table)} "
-        f"GROUP BY {group} ORDER BY {order} DESC NULLS LAST LIMIT 25"
-    )
-
-
-NUMERIC_PROFILE_TYPES = frozenset(
-    {
-        "TINYINT",
-        "SMALLINT",
-        "INTEGER",
-        "BIGINT",
-        "HUGEINT",
-        "UTINYINT",
-        "USMALLINT",
-        "UINTEGER",
-        "UBIGINT",
-        "FLOAT",
-        "DOUBLE",
-        "REAL",
-        "DECIMAL",
-    }
-)
 
 
 def _decomposition_findings(task: dict[str, Any], result: dict[str, Any]) -> list[dict[str, Any]]:

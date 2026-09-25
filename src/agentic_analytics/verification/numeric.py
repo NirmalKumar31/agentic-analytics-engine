@@ -26,7 +26,12 @@ from agentic_analytics.analytics.results import ResultSnapshot
 # labels, and bare years. Stripped before extraction so "2025-07-01" does not
 # read as the three numbers 2025, 7 and 1.
 _DATE_LIKE = re.compile(
-    r"\b\d{4}-\d{2}-\d{2}\b"
+    # ISO timestamps first: stripping only the date part of
+    # `2025-03-01T00:00:00` leaves `00:00:00`, which then reads as three
+    # claimed values of zero and fails a finding that stated nothing of the
+    # kind.
+    r"\b\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?(?:Z|[-+]\d{2}:?\d{2})?"
+    r"|\b\d{4}-\d{2}-\d{2}\b"
     r"|\b\d{4}-\d{2}\b"
     r"|\b[Qq][1-4]\s*(?:20\d{2})?\b"
     r"|\b20\d{2}\b"

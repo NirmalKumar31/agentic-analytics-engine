@@ -19,7 +19,6 @@ from pathlib import Path
 from typing import Any
 
 from fastapi import FastAPI, HTTPException, Request, Response, UploadFile
-from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from mcp.server.transport_security import TransportSecuritySettings
@@ -47,6 +46,7 @@ from agentic_analytics.recordings.store import RecordingStore
 from agentic_analytics.warehouse.session import (
     AnalysisSession,
     DatasetError,
+    EngineLimits,
     SessionManager,
     open_demo_session,
     open_upload_session,
@@ -107,6 +107,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         max_metadata_bytes=cfg.budgets.max_parquet_metadata_bytes,
     )
     mode = execution_mode(cfg.live_analytics_enabled, cfg.provider_mode)
+    # Every session's DuckDB connection is built with the configured
+    # envelope, so the deployment's instance size is what decides it.
+    engine_limits = EngineLimits.from_settings(cfg)
     recordings = RecordingStore(cfg.recordings_dir)
     mcp = build_server(sessions, cfg)
     # Streamable HTTP, with JSON responses so a plain HTTP client can talk to
@@ -130,6 +133,25 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         max_request_body_size=2 * 1024 * 1024,
     )
 
+    async def janitor() -> None:
+        """Expire sessions on a clock.
+
+        Without this, expiry only happens when some later request calls into
+        the manager, so an abandoned upload keeps its DuckDB connection and
+        its bytes resident for as long as the demo stays quiet. A sweep that
+        raises must not take the application down with it, so the loop logs
+        and continues; only cancellation ends it.
+        """
+        while True:
+            await asyncio.sleep(cfg.session_sweep_seconds)
+            try:
+                closed = sessions.expire_stale()
+            except Exception:  # pragma: no cover - defensive
+                log.exception("session_sweep_failed")
+            else:
+                if closed:
+                    log.info("sessions_expired", count=closed)
+
     @contextlib.asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         # The MCP session manager needs its own lifespan to run.
@@ -143,9 +165,15 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 recordings=len(recordings),
                 warehouse_ready=_warehouse_ready(cfg),
             )
+            sweeper = asyncio.create_task(janitor())
             try:
                 yield
             finally:
+                # Cancel *and await*: a task that is only cancelled may not
+                # have unwound by the time the process exits.
+                sweeper.cancel()
+                with contextlib.suppress(asyncio.CancelledError):
+                    await sweeper
                 await runs.shutdown()
                 sessions.close_all()
 
@@ -156,15 +184,41 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         docs_url="/api/docs",
         openapi_url="/api/openapi.json",
     )
-    app.add_middleware(
-        CORSMiddleware,
-        # The API carries no credentials and no authentication, so a
-        # permissive origin policy exposes nothing a direct request would not.
-        allow_origins=["*"],
-        allow_credentials=False,
-        allow_methods=["GET", "POST", "DELETE"],
-        allow_headers=["*"],
-    )
+
+    @app.middleware("http")
+    async def _response_policy(request: Request, call_next: Any) -> Response:
+        """Stop private responses being cached, and set browser defaults.
+
+        Everything under `/api/` is derived from a particular visitor's
+        session -- their uploaded rows, their run, their results -- so none
+        of it may sit in a shared cache or come back from the bfcache after
+        the session has been deleted. Fingerprinted frontend assets are
+        deliberately left alone; they are public and immutable, and caching
+        them is the point.
+
+        The CSP here restricts framing and base URIs only. A `script-src`
+        policy would need `unsafe-eval` for Vega, which compiles chart
+        expressions with `new Function`, and a CSP that has to allow eval to
+        work is not buying protection worth the risk of breaking charts.
+        """
+        response: Response = await call_next(request)
+        if request.url.path.startswith("/api/") and "cache-control" not in response.headers:
+            response.headers["Cache-Control"] = "no-store"
+            response.headers["Pragma"] = "no-cache"
+        response.headers.setdefault("X-Content-Type-Options", "nosniff")
+        response.headers.setdefault("Referrer-Policy", "same-origin")
+        response.headers.setdefault("X-Frame-Options", "DENY")
+        response.headers.setdefault(
+            "Content-Security-Policy", "frame-ancestors 'none'; base-uri 'self'"
+        )
+        return response
+
+    # No CORS middleware. The frontend is served from this same origin, so
+    # there is no cross-origin consumer to permit -- and the API is not
+    # credential-free as an earlier comment here claimed: it authorises on an
+    # HttpOnly capability cookie, which is exactly the kind of ambient
+    # credential a permissive origin policy exists to protect. A future
+    # cross-origin client would get an explicit allow-list, never "*".
 
     # ------------------------------------------------------------- errors
     @app.exception_handler(DatasetError)
@@ -228,12 +282,18 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         upload_root.mkdir(parents=True, exist_ok=True)
         return upload_root
 
-    def _issue(response: Response, request: Request, session: AnalysisSession) -> None:
+    def _issue(response: Response, session: AnalysisSession) -> None:
         """Hand the capability to the browser as an HttpOnly cookie.
 
         Kept out of the response body and out of URLs, so it does not reach
-        browser history, access logs or `Referer` headers. `Secure` is set
-        whenever the request arrived over TLS.
+        browser history, access logs or `Referer` headers.
+
+        `Secure` comes from configuration, not from `request.url.scheme`. A
+        TLS-terminating proxy forwards plain HTTP to this process, so the
+        scheme the application sees is `http` on a site that is HTTPS for
+        every browser that visits it -- and the cookie would go out without
+        `Secure` on exactly the deployment that needs it. No `Domain`
+        attribute, so the cookie stays host-only.
         """
         response.set_cookie(
             cfg.session_cookie_name,
@@ -241,18 +301,35 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             max_age=int(cfg.session_ttl_seconds),
             httponly=True,
             samesite="lax",
-            secure=request.url.scheme == "https",
+            secure=cfg.session_cookie_secure,
             path="/",
         )
 
-    def _clear(response: Response, request: Request) -> None:
+    def _clear(response: Response) -> None:
+        # Same attributes as `_issue`. A browser matches a deletion against
+        # name, path and domain; differing on `Secure` here is what leaves a
+        # stale cookie behind on the hosted site.
         response.delete_cookie(
             cfg.session_cookie_name,
             path="/",
             httponly=True,
             samesite="lax",
-            secure=request.url.scheme == "https",
+            secure=cfg.session_cookie_secure,
         )
+
+    def _retire_previous(request: Request) -> None:
+        """End whatever session this browser already holds.
+
+        Opening a second dataset replaces the capability cookie, so the first
+        session becomes unreachable while still holding a DuckDB connection
+        and, for an upload, the rows themselves. A visitor clicking through
+        four datasets would leave three of those behind until the TTL caught
+        them. Keyed on the capability, so it can only ever close a session
+        the caller could already reach.
+        """
+        retired = sessions.drop_by_key(request.cookies.get(cfg.session_cookie_name))
+        if retired:
+            log.info("previous_session_retired", count=retired)
 
     def _session_or_404(session_id: str, request: Request) -> AnalysisSession:
         """Resolve a session from its handle plus the capability cookie.
@@ -285,8 +362,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     async def open_demo(request: Request, response: Response) -> SessionResponse:
         if not _warehouse_ready(cfg):
             raise DatasetError("the demo warehouse has not been generated on this server")
-        session = sessions.add(open_demo_session(cfg.demo_warehouse_dir))
-        _issue(response, request, session)
+        _retire_previous(request)
+        session = sessions.add(open_demo_session(cfg.demo_warehouse_dir, limits=engine_limits))
+        _issue(response, session)
         return SessionResponse(
             session_id=session.session_id,
             catalog=session.catalog(),
@@ -315,6 +393,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 detail="too many uploads from this address; try again shortly",
                 headers={"Retry-After": str(int(retry_after) + 1)},
             )
+        _retire_previous(request)
         if sessions.upload_count() >= cfg.max_active_upload_sessions:
             raise HTTPException(
                 status_code=429,
@@ -345,6 +424,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                     stored.file_format,
                     max_rows=cfg.budgets.max_upload_rows,
                     scratch_dir=scratch,
+                    limits=engine_limits,
                 )
             )
         except BaseException:
@@ -357,7 +437,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             sessions.drop(session.session_id)
             raise UploadError(f"the file has more than {cfg.budgets.max_upload_columns} columns")
 
-        _issue(response, request, session)
+        _issue(response, session)
         log.info("upload_accepted", session_id=session.session_id, format=stored.file_format)
         return SessionResponse(
             session_id=session.session_id,
@@ -388,7 +468,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         """
         _session_or_404(session_id, request)
         sessions.drop(session_id)
-        _clear(response, request)
+        _clear(response)
         return {"status": "deleted"}
 
     # ------------------------------------------------------------ analyses
@@ -483,7 +563,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             stream(),
             media_type="text/event-stream",
             headers={
-                "Cache-Control": "no-cache, no-transform",
+                # `no-store` for the same reason as every other private
+                # response; `no-transform` so a proxy cannot buffer or
+                # rewrite the stream and stall the event feed.
+                "Cache-Control": "no-store, no-transform",
                 "Connection": "keep-alive",
                 "X-Accel-Buffering": "no",
             },

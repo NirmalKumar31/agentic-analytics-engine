@@ -25,6 +25,7 @@ from pydantic import BaseModel, Field
 from agentic_analytics.analytics import catalog as catalog_tools
 from agentic_analytics.analytics import compute as compute_tools
 from agentic_analytics.analytics import stats as stats_tools
+from agentic_analytics.analytics import upload_plan
 from agentic_analytics.analytics.execute import QueryError, run_query
 from agentic_analytics.analytics.filters import FilterError, coerce_filters
 from agentic_analytics.analytics.results import ResultSnapshot
@@ -157,6 +158,10 @@ def build_server(manager: SessionManager, settings: Settings | None = None) -> M
     """
     cfg = settings or get_settings()
     budgets: Budgets = cfg.budgets
+    #: Raw-cell disclosure for uploaded data. Permitted when inference stays
+    #: on this machine (`fake`, `local`) and otherwise only when a deployment
+    #: opts in explicitly. See `sample_rows`.
+    _raw_rows_allowed = cfg.provider_mode != "cloud" or cfg.allow_upload_row_disclosure
     mcp: MCPServer = MCPServer(
         name=SERVER_NAME,
         version="0.1.0",
@@ -172,9 +177,14 @@ def build_server(manager: SessionManager, settings: Settings | None = None) -> M
         handle alone -- which appears in resource URIs -- grants nothing.
         """
         try:
-            return manager.get(session_id, session_key)
+            session = manager.get(session_id, session_key)
         except KeyError as exc:
             raise ToolError(str(exc)) from None
+        # Applied on resolution rather than at session construction, so the
+        # policy follows this server's configuration for every session it is
+        # asked about, however that session was opened.
+        session.withhold_raw_cells = session.kind == "upload" and not _raw_rows_allowed
+        return session
 
     def _public_session(session_id: str) -> AnalysisSession:
         """Resolve a session for a resource read, demo datasets only.
@@ -265,6 +275,16 @@ def build_server(manager: SessionManager, settings: Settings | None = None) -> M
     )
     def sample_rows(session_id: str, session_key: str, table: str, limit: int = 10) -> ToolResult:
         session = _session(session_id, session_key)
+        if session.kind == "upload" and not _raw_rows_allowed:
+            # Raw cells are the only path by which unaggregated user data
+            # reaches a prompt, and a prompt in this configuration goes to a
+            # third party. Somebody trying a spreadsheet in a demo has not
+            # agreed to that. Schema, profile and aggregates are enough to
+            # plan an analysis, and they are all still available.
+            raise ToolError(
+                "raw rows from an uploaded dataset are not disclosed while model "
+                "inference is remote; use profile_table or an aggregate instead"
+            )
         snapshot = _guarded(
             catalog_tools.sample_rows,
             session,
@@ -522,7 +542,52 @@ def build_server(manager: SessionManager, settings: Settings | None = None) -> M
         session = _session(session_id, session_key)
         name = _guarded(catalog_tools.resolve_table, session, table)
         schema = _guarded(infer_schema, session, name)
-        return DatasetProfile(**schema.as_dict())
+        payload = schema.as_dict()
+        if session.withhold_raw_cells:
+            # A column's range is two cells of the visitor's file, not a
+            # summary of it, so it does not travel to a remote model.
+            payload["fields"] = [
+                f | {"min_value": None, "max_value": None} for f in payload["fields"]
+            ]
+        return DatasetProfile(**payload)
+
+    @mcp.tool(
+        description=(
+            "Answer a question about an arbitrary table by mapping it onto "
+            "the inferred schema and computing a bounded aggregate. The "
+            "mapping is rule-based and the SQL is composed by the engine. "
+            "Fails with an explanation when the question cannot be mapped "
+            "without guessing which column was meant -- use profile_dataset "
+            "then."
+        )
+    )
+    def aggregate_for_question(
+        session_id: str, session_key: str, table: str, question: str
+    ) -> ToolResult:
+        session = _session(session_id, session_key)
+        name = _guarded(catalog_tools.resolve_table, session, table)
+        schema = _guarded(infer_schema, session, name)
+        mapping = upload_plan.resolve_question(question, schema.as_dict())
+        sql = upload_plan.build_sql(mapping)
+        if sql is None:
+            # Refusing is the feature. Returning the sum of whichever numeric
+            # column happened to be first would look like an answer.
+            raise ToolError(
+                "this question could not be mapped to the table without guessing "
+                f"({mapping.explanation}); call profile_dataset to see the columns"
+            )
+        snapshot = _guarded(
+            run_query,
+            session,
+            sql,
+            tool_name="aggregate_for_question",
+            parameters={"table": name, "question": question} | mapping.as_dict(),
+            max_rows=budgets.max_result_rows,
+            timeout_seconds=budgets.query_timeout_seconds,
+            max_sql_length=budgets.max_sql_length,
+            extra_warnings=[f"question interpreted by rule, not by a model: {mapping.explanation}"],
+        )
+        return ToolResult.of(snapshot)
 
     @mcp.tool(
         description=(
@@ -648,6 +713,7 @@ TOOL_NAMES: tuple[str, ...] = (
     "rank_contributors",
     "describe_table",
     "profile_table",
+    "aggregate_for_question",
     "sample_rows",
     "run_readonly_sql",
     "list_metrics",

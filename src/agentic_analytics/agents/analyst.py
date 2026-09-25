@@ -14,7 +14,14 @@ from agentic_analytics.llm.base import LLMProvider
 # Tools that do not require a metric from the semantic layer. A dataset with
 # no metric layer is analysed entirely through these.
 METRIC_FREE_TOOLS = frozenset(
-    {"statistical_test", "profile_table", "run_readonly_sql", "correlation_matrix"}
+    {
+        "statistical_test",
+        "profile_table",
+        "profile_dataset",
+        "aggregate_for_question",
+        "run_readonly_sql",
+        "correlation_matrix",
+    }
 )
 
 

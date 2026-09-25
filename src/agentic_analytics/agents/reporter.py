@@ -73,6 +73,9 @@ def _allowed_numbers(
         snapshot = results.get(result_id)
         if snapshot is None:
             continue
+        # raw-rows-ok: this builds the set of numbers the report is allowed
+        # to state, which has to be checked against the real values. Nothing
+        # here is sent to a model.
         for row in snapshot.rows:
             allowed.extend(
                 float(v) for v in row if isinstance(v, int | float) and not isinstance(v, bool)

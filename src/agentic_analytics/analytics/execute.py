@@ -132,6 +132,7 @@ def run_query(
         duration_ms=round(duration_ms, 3),
         parameters=parameters or {},
         warnings=warnings,
+        withhold_cells=session.withhold_raw_cells,
     )
     return session.results.put(snapshot)
 

@@ -35,6 +35,7 @@ PREFERRED_TOOLS = (
     "statistical_test",
     "profile_dataset",
     "profile_table",
+    "aggregate_for_question",
     "run_readonly_sql",
 )
 

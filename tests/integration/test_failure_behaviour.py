@@ -166,7 +166,7 @@ async def test_a_worker_whose_tool_call_fails_reports_the_failure(setup) -> None
 async def test_an_uploaded_table_is_analysed_without_a_metric_layer(
     tmp_path: Path,
 ) -> None:
-    """An upload has no metric layer, so the run profiles and aggregates it.
+    """An upload has no metric layer, so the engine maps the question itself.
 
     This is the path that used to raise IndexError: the planner indexed into
     an empty metric list. It has to produce a real answer, not merely survive.
@@ -190,10 +190,11 @@ async def test_an_uploaded_table_is_analysed_without_a_metric_layer(
     assert result.report is not None
     assert result.published, "the upload produced no finding"
 
-    # The bounded loop is profile first, then an aggregate written from what
-    # the profile reported.
+    # Two bounded tasks: describe the table, and answer the question by
+    # mapping it onto the inferred schema. Workers run concurrently, so the
+    # trace order is not fixed.
     tools = [call["tool_name"] for call in result.mcp_trace]
-    assert tools == ["profile_table", "run_readonly_sql"], tools
+    assert sorted(tools) == ["aggregate_for_question", "profile_table"], tools
 
     # The aggregate is correct: West is 10 + 30 = 40, the largest.
     text = " ".join(f.text for f in result.published)
