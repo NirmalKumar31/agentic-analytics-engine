@@ -9,6 +9,7 @@ number, and structural checks on SQL, provenance and charts.
 from __future__ import annotations
 
 import time
+from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
@@ -37,18 +38,53 @@ def _direction_present(text: str, direction: str | None) -> bool:
     return any(w in text for w in words)
 
 
+# Tools that own computation. A run resolved through these rather than
+# through model-written SQL is the difference between an analytics engine and
+# a text-to-SQL wrapper, so the split is measured rather than asserted.
+DETERMINISTIC_TOOLS = frozenset(
+    {
+        "compute_metric",
+        "compare_segments",
+        "compare_periods",
+        "analyze_timeseries",
+        "decompose_change",
+        "rank_contributors",
+        "correlation_matrix",
+        "statistical_test",
+        "profile_dataset",
+        "profile_table",
+        "describe_table",
+        "list_tables",
+        "list_metrics",
+        "sample_rows",
+        "get_result",
+    }
+)
+STATISTICAL_TOOLS = frozenset({"statistical_test", "correlation_matrix"})
+DECOMPOSITION_TOOLS = frozenset({"decompose_change", "rank_contributors", "compare_periods"})
+
+
 def score_case(case: BenchmarkCase, result: RunResult) -> CaseResult:
     """Score one run against what the generator actually injected."""
     scored = CaseResult(
         case_id=case.case_id,
         question=case.question,
         pattern_id=case.pattern_id,
-        findings_published=len(result.published),
-        findings_rejected=len(result.rejected),
-        tool_calls=int(result.metrics.get("mcp_tool_calls", 0)),
         llm_calls=int(result.metrics.get("llm_calls", 0)),
         runtime_seconds=float(result.metrics.get("runtime_seconds", 0.0)),
     )
+
+    # --- findings, split by denominator
+    scored.published_findings = len(result.published)
+    scored.withheld_findings = len(result.rejected)
+    scored.candidate_findings = scored.published_findings + scored.withheld_findings
+    scored.supported_candidate_findings = sum(
+        1 for f in result.published if f.verification_status == "supported"
+    )
+    scored.unsupported_published_findings = sum(
+        1 for f in result.published if f.verification_status != "supported"
+    )
+
     corpus = " ".join(f.text.lower() for f in result.published)
     metric_ids = {m for f in result.published for m in f.metric_ids}
 
@@ -76,12 +112,14 @@ def score_case(case: BenchmarkCase, result: RunResult) -> CaseResult:
         scored.failures.append("no statistical test was run")
     if case.expect_rejection and not scored.rejection_observed:
         scored.failures.append("no over-claim was caught")
+    if scored.unsupported_published_findings:
+        scored.failures.append(
+            f"{scored.unsupported_published_findings} unsupported finding(s) were published"
+        )
 
     scored.pattern_found = scored.metric_found and scored.entity_found and scored.direction_found
 
     # --- numeric accuracy: re-verify every published number independently
-    numeric_checks = 0
-    numeric_ok = 0
     for finding in result.published:
         cited = [result.results[r] for r in finding.result_ids if r in result.results]
         cells: list[tuple[float, str]] = []
@@ -96,51 +134,51 @@ def score_case(case: BenchmarkCase, result: RunResult) -> CaseResult:
             if isinstance(value, int | float) and not isinstance(value, bool):
                 cells.append((float(value), f"{cell.result_id}[{cell.row}].{cell.column}"))
         verdict = verify_numbers(finding.text, finding.claimed_change, cells, cited)
-        numeric_checks += 1
+        scored.numeric_assertions += 1
         if verdict.ok:
-            numeric_ok += 1
+            scored.numeric_assertions_correct += 1
         else:
             scored.failures.append(f"numeric check failed: {verdict.reason}")
-    scored.numeric_accuracy = numeric_ok / numeric_checks if numeric_checks else 1.0
 
     # --- SQL validity
     statements = [s.sql for s in result.results.values() if s.sql]
-    valid_sql = sum(1 for sql in statements if sql.lstrip().lower().startswith(("select", "with")))
-    scored.sql_validity = valid_sql / len(statements) if statements else 1.0
+    scored.sql_statements = len(statements)
+    scored.sql_statements_valid = sum(
+        1 for sql in statements if sql.lstrip().lower().startswith(("select", "with"))
+    )
 
-    # --- tool call validity
-    calls = result.mcp_trace
-    scored.tool_call_validity = sum(1 for c in calls if c["ok"]) / len(calls) if calls else 0.0
-
-    # --- published finding support rate
-    proposed = len(result.published) + len(result.rejected)
-    scored.support_rate = len(result.published) / proposed if proposed else 0.0
+    # --- tool calls, and how many were governed rather than generated SQL
+    scored.tool_calls = len(result.mcp_trace)
+    scored.tool_calls_ok = sum(1 for c in result.mcp_trace if c["ok"])
+    for call in result.mcp_trace:
+        name = str(call["tool_name"])
+        if name == "run_readonly_sql":
+            scored.generated_sql_calls += 1
+        elif name in DETERMINISTIC_TOOLS:
+            scored.deterministic_tool_calls += 1
+        if name in STATISTICAL_TOOLS:
+            scored.statistical_tool_calls += 1
+        if name in DECOMPOSITION_TOOLS:
+            scored.decomposition_tool_calls += 1
 
     # --- provenance completeness
-    complete = sum(
+    scored.provenance_complete = sum(
         1
         for f in result.published
         if f.result_ids and all(r in result.results for r in f.result_ids) and f.verifier_reason
     )
-    scored.provenance_completeness = complete / len(result.published) if result.published else 0.0
 
     # --- chart field validity
-    chart_fields = 0
-    chart_valid = 0
     for chart in result.charts:
         snapshot = result.results.get(chart.result_id)
-        if snapshot is None:
-            chart_fields += 1
-            continue
         for encoding in chart.spec.get("encoding", {}).values():
             entries = encoding if isinstance(encoding, list) else [encoding]
             for entry in entries:
                 if not isinstance(entry, dict) or "field" not in entry:
                     continue
-                chart_fields += 1
-                if entry["field"] in snapshot.columns:
-                    chart_valid += 1
-    scored.chart_field_validity = chart_valid / chart_fields if chart_fields else 1.0
+                scored.chart_fields += 1
+                if snapshot is not None and entry["field"] in snapshot.columns:
+                    scored.chart_fields_valid += 1
 
     # --- published findings must never assert causation
     for finding in result.published:
@@ -160,6 +198,10 @@ async def run_benchmark(
     server = build_server(manager, cfg)
     started = time.monotonic()
     scored: list[CaseResult] = []
+    provider_mode = cfg.provider_mode
+    probe = open_demo_session(directory)
+    fingerprint = probe.dataset_fingerprint
+    probe.close()
 
     try:
         for case in CASES:
@@ -172,43 +214,99 @@ async def run_benchmark(
 
     found_patterns = {s.pattern_id for s in scored if s.pattern_found and s.pattern_id}
 
-    def mean(values: list[float]) -> float:
-        return round(sum(values) / len(values), 4) if values else 0.0
+    def total(attribute: str) -> int:
+        return sum(getattr(s, attribute) for s in scored)
 
-    summary = {
+    def ratio(numerator: str, denominator: str) -> float | None:
+        """A pooled rate, so the denominator is explicit and auditable.
+
+        Pooled rather than a mean of per-case rates: averaging ratios weights
+        a case with two findings the same as one with ten.
+        """
+        bottom = total(denominator)
+        return round(total(numerator) / bottom, 6) if bottom else None
+
+    candidates = total("candidate_findings")
+    published = total("published_findings")
+    unsupported_published = total("unsupported_published_findings")
+
+    summary: dict[str, Any] = {
+        # --- what the benchmark is, stated in the artefact itself
+        "benchmark_kind": "deterministic end-to-end engine benchmark",
+        "provider_mode": provider_mode,
+        "measures": (
+            "graph execution, MCP tool execution, SQL and statistical "
+            "correctness, provenance, deterministic verification and "
+            "publication behaviour"
+        ),
+        "does_not_measure": (
+            "language-model question understanding, planning quality or tool-selection reliability"
+        ),
+        # --- cases
         "cases": len(scored),
         "cases_passed": sum(1 for s in scored if not s.failures),
         "patterns_expected": len(EXPECTED_PATTERNS),
         "patterns_found": len(found_patterns),
         "patterns_missed": sorted(EXPECTED_PATTERNS - found_patterns),
-        "task_completion": mean([1.0 if s.findings_published else 0.0 for s in scored]),
-        "metric_correctness": mean([1.0 if s.metric_found else 0.0 for s in scored]),
-        "directional_correctness": mean([1.0 if s.direction_found else 0.0 for s in scored]),
-        "numeric_accuracy": mean([s.numeric_accuracy for s in scored]),
-        "sql_validity": mean([s.sql_validity for s in scored]),
-        "tool_call_validity": mean([s.tool_call_validity for s in scored]),
-        "published_support_rate": mean([s.support_rate for s in scored]),
-        "provenance_completeness": mean([s.provenance_completeness for s in scored]),
-        "chart_field_validity": mean([s.chart_field_validity for s in scored]),
-        "unsupported_findings_published": sum(
-            1 for s in scored for f in s.failures if "causal claim was published" in f
+        # --- findings, each with its denominator named
+        "candidate_findings": candidates,
+        "supported_candidate_findings": total("supported_candidate_findings"),
+        "withheld_findings": total("withheld_findings"),
+        "candidate_support_rate": ratio("supported_candidate_findings", "candidate_findings"),
+        "published_findings": published,
+        "unsupported_published_findings": unsupported_published,
+        "published_support_rate": (
+            round((published - unsupported_published) / published, 6) if published else None
         ),
-        "total_findings_published": sum(s.findings_published for s in scored),
-        "total_findings_rejected": sum(s.findings_rejected for s in scored),
-        "total_tool_calls": sum(s.tool_calls for s in scored),
-        "total_llm_calls": sum(s.llm_calls for s in scored),
-        "mean_runtime_seconds": mean([s.runtime_seconds for s in scored]),
+        # --- verification, each with its denominator named
+        "numeric_assertions": total("numeric_assertions"),
+        "numeric_assertions_correct": total("numeric_assertions_correct"),
+        "numeric_accuracy": ratio("numeric_assertions_correct", "numeric_assertions"),
+        "sql_statements": total("sql_statements"),
+        "sql_validity": ratio("sql_statements_valid", "sql_statements"),
+        "tool_calls": total("tool_calls"),
+        "tool_call_validity": ratio("tool_calls_ok", "tool_calls"),
+        "provenance_completeness": ratio("provenance_complete", "published_findings"),
+        "chart_fields": total("chart_fields"),
+        "chart_field_validity": ratio("chart_fields_valid", "chart_fields"),
+        # --- correctness against the injected patterns
+        "task_completion": ratio_of_cases(scored, lambda s: bool(s.published_findings)),
+        "metric_correctness": ratio_of_cases(scored, lambda s: s.metric_found),
+        "directional_correctness": ratio_of_cases(scored, lambda s: s.direction_found),
+        # --- tool dependence: is this an engine or a SQL-writing wrapper?
+        "deterministic_tool_calls": total("deterministic_tool_calls"),
+        "generated_sql_calls": total("generated_sql_calls"),
+        "resolved_without_generated_sql": ratio("deterministic_tool_calls", "tool_calls"),
+        "statistical_tool_calls": total("statistical_tool_calls"),
+        "decomposition_tool_calls": total("decomposition_tool_calls"),
+        # --- cost, named so it cannot be read as model latency
+        "provider_calls": total("llm_calls"),
+        "deterministic_engine_seconds_mean": round(
+            sum(s.runtime_seconds for s in scored) / len(scored), 4
+        )
+        if scored
+        else None,
+        "deterministic_engine_seconds_note": (
+            "engine runtime with the scripted provider; excludes model inference latency entirely"
+        ),
         "wall_clock_seconds": round(time.monotonic() - started, 2),
-        "dataset_fingerprint": open_demo_session(directory).dataset_fingerprint,
+        "dataset_fingerprint": fingerprint,
     }
 
     return {
         "summary": summary,
         "cases": [
-            {
-                **case.__dict__,
-                "pattern_title": (PATTERNS_BY_ID[case.pattern_id].title if case.pattern_id else ""),
-            }
+            case.as_dict()
+            | {"pattern_title": (PATTERNS_BY_ID[case.pattern_id].title if case.pattern_id else "")}
             for case in scored
         ],
     }
+
+
+def ratio_of_cases(
+    scored: list[CaseResult], predicate: Callable[[CaseResult], bool]
+) -> float | None:
+    """Share of cases satisfying a predicate. The denominator is the cases."""
+    if not scored:
+        return None
+    return round(sum(1 for s in scored if predicate(s)) / len(scored), 6)

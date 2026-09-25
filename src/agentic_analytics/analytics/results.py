@@ -88,6 +88,10 @@ class ResultSnapshot(BaseModel):
     parameters: dict[str, Any] = Field(default_factory=dict)
     warnings: list[str] = Field(default_factory=list)
     statistical_result: StatisticalResult | None = None
+    # Present when this result is a driver decomposition. A first-class field
+    # rather than a parameter, because an agent has to read the rate/mix split
+    # and the reconciliation flag to say anything about it.
+    decomposition: dict[str, Any] | None = None
 
     def cell(self, row: int, column: str) -> Scalar:
         """Value at a row index and column name, for evidence references."""
@@ -119,6 +123,8 @@ class ResultSnapshot(BaseModel):
             payload["warnings"] = self.warnings
         if self.statistical_result is not None:
             payload["statistical_result"] = self.statistical_result.model_dump(exclude_none=True)
+        if self.decomposition is not None:
+            payload["decomposition"] = self.decomposition
         return payload
 
 

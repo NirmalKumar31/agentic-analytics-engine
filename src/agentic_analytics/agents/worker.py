@@ -65,6 +65,8 @@ def _results_digest(payloads: list[dict[str, Any]]) -> str:
             lines.append("  (result truncated)")
         if payload.get("statistical_result"):
             lines.append(f"  statistical_result: {json.dumps(payload['statistical_result'])}")
+        if payload.get("decomposition"):
+            lines.append(f"  decomposition: {json.dumps(payload['decomposition'])}")
         for warning in payload.get("warnings", []):
             lines.append(f"  warning: {warning}")
         blocks.append("\n".join(lines))

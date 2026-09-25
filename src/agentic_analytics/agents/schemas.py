@@ -27,11 +27,15 @@ AnalysisType = Literal[
 PREFERRED_TOOLS = (
     "compute_metric",
     "compare_segments",
+    "compare_periods",
     "analyze_timeseries",
+    "decompose_change",
+    "rank_contributors",
     "correlation_matrix",
     "statistical_test",
-    "run_readonly_sql",
+    "profile_dataset",
     "profile_table",
+    "run_readonly_sql",
 )
 
 VerificationStatus = Literal["supported", "partially_supported", "unsupported"]
@@ -80,6 +84,11 @@ class AnalysisTask(BaseModel):
     variables: dict[str, Any] = Field(default_factory=dict)
     table: str | None = None
     columns: list[str] = Field(default_factory=list)
+    # Two explicit windows for a driver decomposition.
+    baseline_start: str | None = None
+    baseline_end: str | None = None
+    current_start: str | None = None
+    current_end: str | None = None
 
     @field_validator("objective")
     @classmethod

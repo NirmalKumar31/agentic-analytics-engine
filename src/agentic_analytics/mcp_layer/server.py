@@ -63,6 +63,7 @@ class ToolResult(BaseModel):
     dataset_fingerprint: str = ""
     warnings: list[str] = Field(default_factory=list)
     statistical_result: dict[str, Any] | None = None
+    decomposition: dict[str, Any] | None = None
 
     @classmethod
     def of(cls, snapshot: ResultSnapshot) -> ToolResult:
@@ -77,6 +78,7 @@ class ToolResult(BaseModel):
             dataset_fingerprint=payload["dataset_fingerprint"],
             warnings=payload.get("warnings", []),
             statistical_result=payload.get("statistical_result"),
+            decomposition=payload.get("decomposition"),
         )
 
 

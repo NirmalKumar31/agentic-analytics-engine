@@ -128,6 +128,15 @@ def _result_values(results: list[ResultSnapshot]) -> list[tuple[float, str]]:
                 values.append((float(high), f"{snapshot.result_id}.ci_high"))
             for name, size in stat.sample_sizes.items():
                 values.append((float(size), f"{snapshot.result_id}.n[{name}]"))
+        decomposition = snapshot.decomposition
+        if decomposition is not None:
+            # Totals a decomposition computed: the observed change and the
+            # effect split. Engine-computed and part of the result, so a
+            # finding may cite them exactly as it cites a test statistic.
+            for key, value in decomposition.items():
+                if isinstance(value, bool) or not isinstance(value, int | float):
+                    continue
+                values.append((float(value), f"{snapshot.result_id}.{key}"))
     return values
 
 

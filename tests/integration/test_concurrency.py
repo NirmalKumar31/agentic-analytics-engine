@@ -211,7 +211,8 @@ def test_decomposition_is_stable_under_contention(session: AnalysisSession, atte
     current = ("2025-07-01", "2025-09-30")
     reference = decompose_change(
         session, "gross_margin_pct", "category", baseline, current
-    ).parameters["decomposition"]
+    ).decomposition
+    assert reference is not None
 
     results: list[dict[str, object]] = []
     lock = threading.Lock()
@@ -219,7 +220,7 @@ def test_decomposition_is_stable_under_contention(session: AnalysisSession, atte
     def work() -> None:
         snapshot = decompose_change(session, "gross_margin_pct", "category", baseline, current)
         with lock:
-            results.append(snapshot.parameters["decomposition"])
+            results.append(snapshot.decomposition)
 
     def noise() -> None:
         for _ in range(ROUNDS):

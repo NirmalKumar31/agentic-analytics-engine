@@ -83,7 +83,7 @@ CASES: list[BenchmarkCase] = [
     BenchmarkCase(
         case_id="Q6",
         question="Do shipping delays appear to affect repeat purchasing?",
-        pattern_id="delay_suppresses_repeat",
+        pattern_id="late_delivery_repeat_association",
         expect_metrics=("repeat_purchase_rate",),
         expect_direction="down",
         expect_statistical_test=True,
@@ -113,7 +113,15 @@ EXPECTED_PATTERNS: set[str] = {c.pattern_id for c in CASES if c.pattern_id}
 
 @dataclass
 class CaseResult:
-    """Scoring for a single case."""
+    """Scoring for a single case.
+
+    Finding counts are split by denominator, because one number cannot mean
+    both things. A *candidate* is any finding a worker proposed; the
+    candidate support rate is how many survived verification. A *published*
+    finding is one that reached the report; the published support rate is how
+    many of those carry a `supported` verdict, and it must be 1.0 by
+    construction -- if it is not, the publication gate leaked.
+    """
 
     case_id: str
     question: str
@@ -124,15 +132,103 @@ class CaseResult:
     direction_found: bool = False
     statistical_test_run: bool = False
     rejection_observed: bool = False
-    numeric_accuracy: float = 0.0
-    sql_validity: float = 0.0
-    tool_call_validity: float = 0.0
-    support_rate: float = 0.0
-    provenance_completeness: float = 0.0
-    chart_field_validity: float = 0.0
-    findings_published: int = 0
-    findings_rejected: int = 0
+
+    # Findings, by denominator.
+    candidate_findings: int = 0
+    supported_candidate_findings: int = 0
+    withheld_findings: int = 0
+    published_findings: int = 0
+    unsupported_published_findings: int = 0
+
+    # Numeric verification, with its own denominator.
+    numeric_assertions: int = 0
+    numeric_assertions_correct: int = 0
+
+    sql_statements: int = 0
+    sql_statements_valid: int = 0
     tool_calls: int = 0
+    tool_calls_ok: int = 0
+
+    provenance_complete: int = 0
+    chart_fields: int = 0
+    chart_fields_valid: int = 0
+
+    # Tool dependence: how much of the answer came from governed analytical
+    # tools rather than from model-written SQL.
+    deterministic_tool_calls: int = 0
+    generated_sql_calls: int = 0
+    statistical_tool_calls: int = 0
+    decomposition_tool_calls: int = 0
+
     llm_calls: int = 0
     runtime_seconds: float = 0.0
     failures: list[str] = field(default_factory=list)
+
+    @property
+    def candidate_support_rate(self) -> float | None:
+        """Share of proposed findings that survived verification."""
+        if not self.candidate_findings:
+            return None
+        return self.supported_candidate_findings / self.candidate_findings
+
+    @property
+    def published_support_rate(self) -> float | None:
+        """Share of published findings carrying a supported verdict."""
+        if not self.published_findings:
+            return None
+        return (
+            self.published_findings - self.unsupported_published_findings
+        ) / self.published_findings
+
+    @property
+    def numeric_accuracy(self) -> float | None:
+        if not self.numeric_assertions:
+            return None
+        return self.numeric_assertions_correct / self.numeric_assertions
+
+    @property
+    def sql_validity(self) -> float | None:
+        if not self.sql_statements:
+            return None
+        return self.sql_statements_valid / self.sql_statements
+
+    @property
+    def tool_call_validity(self) -> float | None:
+        if not self.tool_calls:
+            return None
+        return self.tool_calls_ok / self.tool_calls
+
+    @property
+    def provenance_completeness(self) -> float | None:
+        if not self.published_findings:
+            return None
+        return self.provenance_complete / self.published_findings
+
+    @property
+    def chart_field_validity(self) -> float | None:
+        if not self.chart_fields:
+            return None
+        return self.chart_fields_valid / self.chart_fields
+
+    @property
+    def resolved_without_generated_sql(self) -> float | None:
+        total = self.deterministic_tool_calls + self.generated_sql_calls
+        if not total:
+            return None
+        return self.deterministic_tool_calls / total
+
+    def as_dict(self) -> dict[str, object]:
+        payload = dict(self.__dict__)
+        payload.update(
+            {
+                "candidate_support_rate": self.candidate_support_rate,
+                "published_support_rate": self.published_support_rate,
+                "numeric_accuracy": self.numeric_accuracy,
+                "sql_validity": self.sql_validity,
+                "tool_call_validity": self.tool_call_validity,
+                "provenance_completeness": self.provenance_completeness,
+                "chart_field_validity": self.chart_field_validity,
+                "resolved_without_generated_sql": self.resolved_without_generated_sql,
+            }
+        )
+        return payload

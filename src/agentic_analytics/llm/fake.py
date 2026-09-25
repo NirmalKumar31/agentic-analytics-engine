@@ -216,7 +216,38 @@ class FakeProvider(LLMProvider):
                     2,
                 )
 
-        # 4. Mix and discount checks, when margin is in play.
+        # 4. A driver decomposition, when the question asks what caused a
+        #    change and the window is known. This is the tool that actually
+        #    answers "why", so it is planned before the supporting cuts.
+        window = ctx.get("comparison_window") or {}
+        if (
+            window.get("baseline")
+            and window.get("current")
+            and _matches(r"caus|why|driv|explain|contribut|decompos", str(ctx.get("question", "")))
+        ):
+            # Every metric the question named, not just the first: "revenue
+            # rose but margin fell" is two changes to attribute, and the
+            # interesting one is usually the second.
+            for target in targets[:2]:
+                dimensions_for_target = _default_dimensions(target, metric_dims)
+                if not dimensions_for_target:
+                    continue
+                add(
+                    f"Attribute the change in {target} across {dimensions_for_target[0]}",
+                    "composition",
+                    [target],
+                    [dimensions_for_target[0]],
+                    "decompose_change",
+                    1,
+                    {
+                        "baseline_start": window["baseline"][0],
+                        "baseline_end": window["baseline"][1],
+                        "current_start": window["current"][0],
+                        "current_end": window["current"][1],
+                    },
+                )
+
+        # 5. Mix and discount checks, when margin is in play.
         if "gross_margin_pct" in targets or _matches(r"margin", str(analysis.get("intent", ""))):
             if "avg_discount_rate" in available:
                 add(
@@ -337,6 +368,16 @@ class FakeProvider(LLMProvider):
                 "test_type": task.get("test_type", "two_proportion_z"),
                 "variables": task.get("variables", {}),
                 "filters": filters,
+            }
+        elif tool == "decompose_change":
+            args = {
+                "metric": metric,
+                "dimension": dimensions[0] if dimensions else "category",
+                "baseline_start": task.get("baseline_start"),
+                "baseline_end": task.get("baseline_end"),
+                "current_start": task.get("current_start"),
+                "current_end": task.get("current_end"),
+                "filters": [],
             }
         elif tool == "correlation_matrix":
             args = {
@@ -593,6 +634,8 @@ def _findings_for_result(task: dict[str, Any], result: dict[str, Any]) -> list[d
         return _statistical_findings(task, result)
     if tool == "correlation_matrix":
         return _correlation_findings(task, result)
+    if tool in ("decompose_change", "rank_contributors"):
+        return _decomposition_findings(task, result)
     if tool == "compute_metric" and result.get("columns", [])[:1] == ["period"]:
         return _composition_findings(task, result)
     if tool == "profile_table":
@@ -973,6 +1016,80 @@ NUMERIC_PROFILE_TYPES = frozenset(
         "DECIMAL",
     }
 )
+
+
+def _decomposition_findings(task: dict[str, Any], result: dict[str, Any]) -> list[dict[str, Any]]:
+    """State what a deterministic decomposition attributed the change to.
+
+    The engine computed the attribution and checked that it reconciles; this
+    reports it, citing the per-segment cells it came from.
+    """
+    decomposition = result.get("decomposition") or {}
+    columns: list[str] = result["columns"]
+    rows: list[list[Any]] = result["rows"]
+    if not decomposition or not rows:
+        return []
+    if not decomposition.get("reconciled"):
+        # An attribution that does not add up is not an explanation.
+        return []
+
+    metric = str(decomposition.get("metric", ""))
+    dimension = str(decomposition.get("dimension", ""))
+    findings: list[dict[str, Any]] = []
+
+    if decomposition.get("method") == "additive":
+        i_change = columns.index("change")
+        i_share = columns.index("contribution_pct")
+        top = rows[0]
+        if not isinstance(top[i_share], int | float):
+            return []
+        findings.append(
+            {
+                "text": (
+                    f"{top[0]} accounts for {top[i_share]:,.1f}% of the change in "
+                    f"{metric}, the largest single contribution across {dimension}."
+                ),
+                "kind": "calculated_fact",
+                "task_id": task.get("task_id"),
+                "result_ids": [result["result_id"]],
+                "metric_ids": [metric],
+                "evidence_cells": [
+                    _cell(result, 0, "contribution_pct", f"{top[0]} share of the change"),
+                    _cell(result, 0, "change", f"{top[0]} change in {metric}"),
+                ],
+                "claimed_change": None,
+            }
+        )
+        del i_change
+    else:
+        rate = float(decomposition.get("rate_effect_total", 0.0))
+        mix = float(decomposition.get("mix_effect_total", 0.0))
+        observed = float(decomposition.get("observed_change", 0.0))
+        dominant = (
+            "within-segment rate movement"
+            if abs(rate) >= abs(mix)
+            else (f"a shift in mix between {dimension} values")
+        )
+        findings.append(
+            {
+                "text": (
+                    f"Of the {observed:,.2f} point change in {metric}, "
+                    f"{rate:,.2f} comes from rate movement within {dimension} values "
+                    f"and {mix:,.2f} from the mix shifting between them; "
+                    f"{dominant} is the larger part."
+                ),
+                "kind": "calculated_fact",
+                "task_id": task.get("task_id"),
+                "result_ids": [result["result_id"]],
+                "metric_ids": [metric],
+                "evidence_cells": [
+                    _cell(result, 0, "rate_effect", f"rate effect for {rows[0][0]}"),
+                    _cell(result, 0, "mix_effect", f"mix effect for {rows[0][0]}"),
+                ],
+                "claimed_change": None,
+            }
+        )
+    return findings
 
 
 def _profile_findings(task: dict[str, Any], result: dict[str, Any]) -> list[dict[str, Any]]:

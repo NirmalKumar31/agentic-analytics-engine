@@ -8,6 +8,7 @@ from typing import Any
 from agentic_analytics.agents.base import ask, bullet_list, parse_into, schema_of
 from agentic_analytics.agents.prompts import PLANNER, QUESTION_ANALYST
 from agentic_analytics.agents.schemas import AnalysisPlan, AnalysisTask, QuestionAnalysis
+from agentic_analytics.agents.timescope import comparison_window as _comparison_window
 from agentic_analytics.agents.timescope import parse_time_scope
 from agentic_analytics.llm.base import LLMProvider
 
@@ -133,6 +134,13 @@ Emit at most {max_tasks} tasks."""
             "models": models,
             "max_tasks": max_tasks,
             "default_filters": default_filters or [],
+            # The two windows a driver decomposition compares, derived from
+            # the time scope the question named.
+            "comparison_window": (
+                {"baseline": list(periods.baseline), "current": list(periods.current)}
+                if (periods := _comparison_window(analysis.time_scope))
+                else {}
+            ),
             # An uploaded file has no metric layer, so the planner falls back
             # to profiling the table it does have.
             "tables": tables or [],

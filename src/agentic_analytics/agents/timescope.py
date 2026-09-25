@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass
+from datetime import date, timedelta
 from typing import Any, Literal
 
 Grain = Literal["day", "week", "month", "quarter", "year"]
@@ -96,3 +97,46 @@ def parse_time_scope(scope: str | None) -> TimeWindow | None:
         return TimeWindow(start=f"{year}-01-01", end=f"{year}-12-31", grain="quarter")
 
     return None
+
+
+@dataclass(frozen=True)
+class ComparisonWindow:
+    """The two periods a driver decomposition compares."""
+
+    baseline: tuple[str, str]
+    current: tuple[str, str]
+
+
+def comparison_window(scope: str | None) -> ComparisonWindow | None:
+    """Derive a baseline and current window from a named period.
+
+    A question about Q3 is asking what changed against Q2, so the named
+    quarter becomes the current window and the one before it the baseline.
+    Returns ``None`` when the scope names no specific period, because
+    guessing one would compare periods the user never asked about.
+    """
+    window = parse_time_scope(scope)
+    if window is None or window.focus_period is None:
+        return None
+
+    year, month, _ = (int(part) for part in window.focus_period.split("-"))
+    if window.grain == "quarter":
+        current_start = date(year, month, 1)
+        baseline_start = _shift_months(current_start, -3)
+        current_end = _shift_months(current_start, 3) - timedelta(days=1)
+        baseline_end = current_start - timedelta(days=1)
+    else:
+        current_start = date(year, month, 1)
+        baseline_start = _shift_months(current_start, -1)
+        current_end = _shift_months(current_start, 1) - timedelta(days=1)
+        baseline_end = current_start - timedelta(days=1)
+
+    return ComparisonWindow(
+        baseline=(baseline_start.isoformat(), baseline_end.isoformat()),
+        current=(current_start.isoformat(), current_end.isoformat()),
+    )
+
+
+def _shift_months(value: date, months: int) -> date:
+    total = value.year * 12 + (value.month - 1) + months
+    return date(total // 12, total % 12 + 1, 1)

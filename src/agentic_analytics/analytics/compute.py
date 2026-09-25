@@ -479,8 +479,8 @@ def decompose_change(
             "baseline": list(baseline),
             "current": list(current),
             "filters": [f.model_dump() for f in (filters or [])],
-            "decomposition": result.as_dict(),
         },
+        decomposition=result.as_dict(),
         warnings=list(result.warnings),
     )
     return session.results.put(snapshot)

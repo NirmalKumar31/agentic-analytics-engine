@@ -81,19 +81,27 @@ def evaluate(
     configure_logging("WARNING", json_output=False)
     report = asyncio.run(run_benchmark())
 
-    table = Table(title="Evaluation")
+    table = Table(title="Deterministic engine benchmark (scripted provider)")
     table.add_column("case")
     table.add_column("pattern")
     table.add_column("found", justify="center")
-    table.add_column("numeric", justify="center")
-    table.add_column("support", justify="right")
+    table.add_column("numeric", justify="right")
+    table.add_column("ok", justify="center")
+    table.add_column("candidates", justify="right")
     for case in report["cases"]:
+        numeric = case["numeric_accuracy"]
+        candidate = case["candidate_support_rate"]
         table.add_row(
             case["case_id"],
             case["pattern_id"] or "-",
             "[green]yes[/green]" if case["pattern_found"] else "[red]no[/red]",
-            "[green]ok[/green]" if case["numeric_accuracy"] == 1.0 else "[red]fail[/red]",
-            f"{case['support_rate']:.0%}",
+            f"{case['numeric_assertions_correct']}/{case['numeric_assertions']}"
+            if case["numeric_assertions"]
+            else "-",
+            "[green]ok[/green]" if numeric in (1.0, None) else "[red]fail[/red]",
+            f"{case['supported_candidate_findings']}/{case['candidate_findings']}"
+            if candidate is not None
+            else "-",
         )
     console.print(table)
     summary = report["summary"]

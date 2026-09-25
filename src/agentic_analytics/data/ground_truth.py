@@ -1,5 +1,13 @@
 """The patterns deliberately injected into the demo warehouse.
 
+A note on wording. The generator *does* cause these patterns -- it writes the
+rows. But the analytics system only ever sees the finished table, and nothing
+in it supports a causal identification: there is no randomisation, no
+instrument, no natural experiment. So the expectations below are phrased as
+associations, matching what an agent could legitimately conclude. Where a
+sentence describes what the generator does rather than what the data shows,
+it is marked as a generator note.
+
 This module is the answer key for the evaluation suite. It is imported by
 `generator` (which injects the patterns) and by `evaluation` (which checks
 whether the agents found them). It is never imported by any agent, prompt
@@ -45,10 +53,11 @@ PATTERNS: list[InjectedPattern] = [
         description=(
             "During 2025-07-01..2025-09-30 the generator raises order discount "
             "rates and shifts unit volume toward the low-margin Electronics "
-            "category. Revenue increases against Q2 2025 because unit volume "
-            "grows, but gross margin percent falls by several percentage "
-            "points because both the discount rate and the product mix move "
-            "against margin."
+            "category. Revenue increases against Q2 2025 as unit volume "
+            "grows, while gross margin percent falls by several percentage "
+            "points. Both a higher discount rate and a mix shift toward a "
+            "lower-margin category accompany the decline; a shift-share "
+            "decomposition separates the two without needing a causal design."
         ),
         expected_entity="Electronics",
         expected_direction="down",
@@ -56,7 +65,7 @@ PATTERNS: list[InjectedPattern] = [
     ),
     InjectedPattern(
         pattern_id="home_kitchen_returns",
-        title="Home & Kitchen return rate rises among new customers",
+        title="Home & Kitchen return rate is elevated, concentrated in new customers",
         description=(
             "Home & Kitchen carries a base return rate several times the "
             "warehouse average, and the excess is concentrated in customers "
@@ -69,7 +78,7 @@ PATTERNS: list[InjectedPattern] = [
     ),
     InjectedPattern(
         pattern_id="northeast_carrier_delay",
-        title="Carrier RapidPost degrades in the Northeast from 2025-05",
+        title="RapidPost shipments to the Northeast run later from 2025-05",
         description=(
             "From 2025-05-01 the carrier 'RapidPost' shipping to region "
             "'Northeast' has its delivery time distribution shifted later, "
@@ -81,23 +90,26 @@ PATTERNS: list[InjectedPattern] = [
         accept_terms=["rapidpost", "northeast", "delay", "late"],
     ),
     InjectedPattern(
-        pattern_id="delay_suppresses_repeat",
-        title="Late delivery lowers repeat purchase rate",
+        pattern_id="late_delivery_repeat_association",
+        title="Late first delivery is associated with a lower repeat-purchase rate",
         description=(
-            "A customer whose first delivery was late repeats at a materially "
-            "lower rate than a customer whose first delivery was on time. The "
-            "effect is injected directly into the repeat-purchase draw, so the "
-            "association is real in the data. It remains an association: the "
-            "generator also makes late delivery more likely in one region, so "
-            "region confounds the comparison and a causal claim is not "
-            "supported by a two-proportion test alone."
+            "Customers whose first delivery was late repeat at a materially "
+            "lower rate than customers whose first delivery was on time. "
+            "Generator note: the effect is written directly into the "
+            "repeat-purchase draw, so the association is real rather than "
+            "spurious. It is still only an association from the data's point "
+            "of view -- the generator also makes late delivery more likely in "
+            "one region, so region confounds the comparison and a "
+            "two-proportion test cannot separate them. An agent concluding "
+            "causation here is overstating its evidence, and the verifier is "
+            "expected to withhold that claim."
         ),
         expected_direction="down",
         accept_terms=["late", "delay", "repeat", "lower"],
     ),
     InjectedPattern(
         pattern_id="affiliate_weak_contribution",
-        title="Affiliate acquisition has strong revenue but weak contribution",
+        title="Affiliate acquisition ranks high on revenue and last on contribution",
         description=(
             "The 'affiliate' acquisition channel produces high revenue per "
             "customer but the worst contribution margin: it carries the "
