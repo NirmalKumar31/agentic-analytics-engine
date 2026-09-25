@@ -134,6 +134,7 @@ def build_graph(ctx: RunContext) -> Any:
                 state["metric_catalog"],
                 state.get("model_names", []),
                 max_tasks=ctx.budgets.max_analysis_tasks,
+                tables=state["dataset_catalog"].get("tables", []),
             )
         except (LLMError, BudgetError) as exc:
             return _abort("no analysis plan could be produced", exc, ctx)

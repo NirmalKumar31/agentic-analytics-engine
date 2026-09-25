@@ -11,6 +11,12 @@ from agentic_analytics.agents.schemas import AnalysisPlan, AnalysisTask, Questio
 from agentic_analytics.agents.timescope import parse_time_scope
 from agentic_analytics.llm.base import LLMProvider
 
+# Tools that do not require a metric from the semantic layer. A dataset with
+# no metric layer is analysed entirely through these.
+METRIC_FREE_TOOLS = frozenset(
+    {"statistical_test", "profile_table", "run_readonly_sql", "correlation_matrix"}
+)
+
 
 def _metric_lines(metrics: list[dict[str, Any]]) -> str:
     return "\n".join(
@@ -84,6 +90,7 @@ async def plan_analysis(
     models: list[str],
     max_tasks: int,
     default_filters: list[dict[str, Any]] | None = None,
+    tables: list[dict[str, Any]] | None = None,
 ) -> list[AnalysisTask]:
     """Turn a brief into independent, executable analytical tasks."""
     metric_dimensions = {m["name"]: m["valid_dimensions"] for m in metrics}
@@ -107,6 +114,9 @@ METRICS AVAILABLE
 SEMANTIC MODELS AVAILABLE FOR STATISTICAL TESTS
 {", ".join(models) or "(none)"}
 
+TABLES AVAILABLE
+{", ".join(t["name"] for t in (tables or [])) or "(none)"}
+
 Emit at most {max_tasks} tasks."""
 
     payload = await ask(
@@ -123,6 +133,9 @@ Emit at most {max_tasks} tasks."""
             "models": models,
             "max_tasks": max_tasks,
             "default_filters": default_filters or [],
+            # An uploaded file has no metric layer, so the planner falls back
+            # to profiling the table it does have.
+            "tables": tables or [],
         },
     )
     plan = parse_into(AnalysisPlan, payload, "planner")
@@ -136,7 +149,7 @@ Emit at most {max_tasks} tasks."""
     cleaned: list[AnalysisTask] = []
     for task in plan.tasks:
         task.required_metrics = [m for m in task.required_metrics if m in known]
-        if not task.required_metrics and task.preferred_tool != "statistical_test":
+        if not task.required_metrics and task.preferred_tool not in METRIC_FREE_TOOLS:
             continue
         primary = task.required_metrics[0] if task.required_metrics else None
         if primary:

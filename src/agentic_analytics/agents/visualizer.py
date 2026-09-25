@@ -124,6 +124,10 @@ def _default_title(snapshot: ResultSnapshot) -> str:
         return f"{metric} by {params['grain']}"
     if metric:
         return str(metric)
+    # Hand-written SQL carries no metric parameters, so the result's own
+    # column names are the only honest description of what it shows.
+    if len(snapshot.columns) >= 2:
+        return f"{snapshot.columns[1]} by {snapshot.columns[0]}"
     return snapshot.tool_name
 
 

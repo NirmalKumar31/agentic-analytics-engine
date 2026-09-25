@@ -139,6 +139,11 @@ class FakeProvider(LLMProvider):
         max_tasks = int(ctx.get("max_tasks", 6))
         filters: list[dict[str, Any]] = list(ctx.get("default_filters", []))
 
+        if not available:
+            # No semantic metric layer, which is the case for an uploaded
+            # file. Profile the table and aggregate it directly instead.
+            return self._plan_without_metrics(ctx, max_tasks)
+
         targets: list[str] = [m for m in analysis.get("target_metrics", []) if m in available]
         if not targets:
             targets = [m for m in ("revenue",) if m in available]
@@ -253,12 +258,59 @@ class FakeProvider(LLMProvider):
             )
         return {"tasks": tasks[:max_tasks]}
 
+    def _plan_without_metrics(self, ctx: dict[str, Any], max_tasks: int) -> dict[str, Any]:
+        """Plan for a dataset that has no metric layer.
+
+        An uploaded file is one arbitrary table, so there is nothing to look
+        a metric up in. The bounded loop is: profile the table, then
+        aggregate it using the columns the profile actually reported.
+        """
+        tables: list[dict[str, Any]] = list(ctx.get("tables", []))
+        tasks: list[dict[str, Any]] = []
+        for table in tables[: max(1, min(max_tasks, 2))]:
+            name = str(table.get("name", ""))
+            if not name:
+                continue
+            tasks.append(
+                {
+                    "task_id": f"task_{len(tasks) + 1:02d}",
+                    "objective": f"Profile {name} and summarise it by its largest grouping",
+                    "analysis_type": "profiling",
+                    "required_metrics": [],
+                    "dimensions": [],
+                    "filters": [],
+                    "preferred_tool": "profile_table",
+                    "priority": 1,
+                    "depends_on": [],
+                    "table": name,
+                }
+            )
+        return {"tasks": tasks}
+
     # -------------------------------------------------------------- worker
 
     def _role_worker_next_tool(self, ctx: dict[str, Any]) -> dict[str, Any]:
         """Choose the next tool call for a task, or stop."""
         task: dict[str, Any] = ctx.get("task", {})
         calls_made = int(ctx.get("calls_made", 0))
+        results: list[dict[str, Any]] = list(ctx.get("results", []))
+
+        # Profiling is the one task that genuinely needs a second call: the
+        # aggregate can only be written once the profile has reported which
+        # columns exist and how many distinct values they hold.
+        if task.get("preferred_tool") == "profile_table":
+            if calls_made == 0:
+                return {
+                    "done": False,
+                    "tool": "profile_table",
+                    "arguments": {"table": task.get("table")},
+                }
+            if calls_made == 1 and results:
+                sql = _aggregate_from_profile(str(task.get("table", "")), results[-1])
+                if sql:
+                    return {"done": False, "tool": "run_readonly_sql", "arguments": {"sql": sql}}
+            return {"done": True, "tool": None, "arguments": {}}
+
         if calls_made > 0:
             return {"done": True, "tool": None, "arguments": {}}
 
@@ -353,6 +405,10 @@ class FakeProvider(LLMProvider):
         result: dict[str, Any] = ctx.get("result", {})
         columns: list[str] = list(result.get("columns", []))
         if len(columns) < 2:
+            return {"skip": True}
+        # A profile describes the schema; plotting null counts per column is
+        # noise next to the analysis the report is actually about.
+        if result.get("tool_name") == "profile_table":
             return {"skip": True}
 
         if "period" in columns:
@@ -499,6 +555,8 @@ def _fmt(value: Any, metric: str = "") -> str:
     if isinstance(value, int | float):
         if metric.endswith("_pct") or metric in {"return_rate", "gross_margin_pct"}:
             return f"{value:,.2f}%"
+        if isinstance(value, int) or float(value).is_integer():
+            return f"{int(value):,}"
         if abs(value) >= 1000:
             return f"{value:,.0f}"
         return f"{value:,.2f}"
@@ -537,6 +595,10 @@ def _findings_for_result(task: dict[str, Any], result: dict[str, Any]) -> list[d
         return _correlation_findings(task, result)
     if tool == "compute_metric" and result.get("columns", [])[:1] == ["period"]:
         return _composition_findings(task, result)
+    if tool == "profile_table":
+        return _profile_findings(task, result)
+    if tool == "run_readonly_sql":
+        return _adhoc_findings(task, result)
     return _scalar_findings(task, result)
 
 
@@ -835,6 +897,149 @@ def _composition_findings(task: dict[str, Any], result: dict[str, Any]) -> list[
             },
         }
     ]
+
+
+# Columns a profile reports, in the order `profile_table` returns them.
+_PROFILE_NUMERIC = ("non_null", "null_pct", "distinct_count")
+
+
+def _quote_ident(name: str) -> str:
+    """Double-quote an identifier, doubling any embedded quote."""
+    return '"' + str(name).replace('"', '""') + '"'
+
+
+def _aggregate_from_profile(table: str, profile: dict[str, Any]) -> str | None:
+    """Compose a grouped aggregate from what the profile reported.
+
+    Column names come from the profile result, which came from the database
+    catalogue rather than from a model, and the statement still passes the SQL
+    guard before it executes.
+    """
+    columns: list[str] = list(profile.get("columns", []))
+    rows: list[list[Any]] = list(profile.get("rows", []))
+    if not table or "column_name" not in columns:
+        return None
+
+    idx_name = columns.index("column_name")
+    idx_type = columns.index("data_type") if "data_type" in columns else None
+    idx_distinct = columns.index("distinct_count") if "distinct_count" in columns else None
+
+    group_column: str | None = None
+    value_column: str | None = None
+    for row in rows:
+        name = str(row[idx_name])
+        dtype = str(row[idx_type]).upper() if idx_type is not None else ""
+        distinct = row[idx_distinct] if idx_distinct is not None else None
+        is_numeric = dtype in NUMERIC_PROFILE_TYPES
+        if is_numeric and value_column is None:
+            value_column = name
+        elif (
+            not is_numeric
+            and group_column is None
+            and isinstance(distinct, int | float)
+            and 1 < float(distinct) <= 50
+        ):
+            group_column = name
+    if group_column is None:
+        return None
+
+    group = _quote_ident(group_column)
+    select = [f"{group} AS segment", "COUNT(*) AS row_count"]
+    order = "row_count"
+    if value_column:
+        value = _quote_ident(value_column)
+        select.insert(1, f"ROUND(SUM(CAST({value} AS DOUBLE)), 4) AS total_value")
+        order = "total_value"
+    return (
+        f"SELECT {', '.join(select)} FROM {_quote_ident(table)} "
+        f"GROUP BY {group} ORDER BY {order} DESC NULLS LAST LIMIT 25"
+    )
+
+
+NUMERIC_PROFILE_TYPES = frozenset(
+    {
+        "TINYINT",
+        "SMALLINT",
+        "INTEGER",
+        "BIGINT",
+        "HUGEINT",
+        "UTINYINT",
+        "USMALLINT",
+        "UINTEGER",
+        "UBIGINT",
+        "FLOAT",
+        "DOUBLE",
+        "REAL",
+        "DECIMAL",
+    }
+)
+
+
+def _profile_findings(task: dict[str, Any], result: dict[str, Any]) -> list[dict[str, Any]]:
+    """Describe the shape of a table from its profile.
+
+    States only values that are numeric cells of the profile result -- the
+    counts and the null rate -- so every number remains checkable.
+    """
+    columns: list[str] = result["columns"]
+    rows: list[list[Any]] = result["rows"]
+    if not rows or "column_name" not in columns:
+        return []
+    table = str(task.get("table") or result.get("parameters", {}).get("table") or "the table")
+
+    idx_name = columns.index("column_name")
+    idx_non_null = columns.index("non_null") if "non_null" in columns else None
+    idx_distinct = columns.index("distinct_count") if "distinct_count" in columns else None
+    if idx_non_null is None or idx_distinct is None:
+        return []
+
+    # The column with the most distinct values is the most informative thing
+    # a profile can point at.
+    candidates = [
+        (row_index, row)
+        for row_index, row in enumerate(rows)
+        if isinstance(row[idx_distinct], int | float)
+    ]
+    if not candidates:
+        return []
+    row_index, row = max(candidates, key=lambda pair: float(pair[1][idx_distinct]))
+
+    text = (
+        f"{table} has {len(rows)} columns. The column {row[idx_name]} holds "
+        f"{_fmt(row[idx_distinct])} distinct values across "
+        f"{_fmt(row[idx_non_null])} non-null rows."
+    )
+    return [
+        {
+            "text": text,
+            "kind": "calculated_fact",
+            "task_id": task.get("task_id"),
+            "result_ids": [result["result_id"]],
+            "metric_ids": [],
+            "evidence_cells": [
+                _cell(result, row_index, "distinct_count", f"distinct values in {row[idx_name]}"),
+                _cell(result, row_index, "non_null", f"non-null rows in {row[idx_name]}"),
+            ],
+            "claimed_change": None,
+        }
+    ]
+
+
+def _adhoc_findings(task: dict[str, Any], result: dict[str, Any]) -> list[dict[str, Any]]:
+    """Findings from a hand-written aggregate.
+
+    A two-column grouped result reads the same way as `compare_segments`, so
+    it reuses that wording rather than inventing a second phrasing.
+    """
+    columns: list[str] = result["columns"]
+    rows: list[list[Any]] = result["rows"]
+    if len(columns) >= 2 and len(rows) >= 2:
+        first_numeric = all(
+            isinstance(row[1], int | float) and not isinstance(row[1], bool) for row in rows
+        )
+        if first_numeric:
+            return _segment_findings(task, result)
+    return _scalar_findings(task, result)
 
 
 def _scalar_findings(task: dict[str, Any], result: dict[str, Any]) -> list[dict[str, Any]]:

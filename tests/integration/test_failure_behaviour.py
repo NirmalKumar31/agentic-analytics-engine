@@ -79,9 +79,7 @@ async def test_a_failing_worker_does_not_kill_the_run(setup) -> None:  # type: i
 async def test_a_failed_question_analysis_stops_the_run_cleanly(setup) -> None:  # type: ignore[no-untyped-def]
     session, server = setup()
     bus = EventBus()
-    result = await run_analysis(
-        QUESTION, session, server, provider=DeadProvider(), events=bus
-    )
+    result = await run_analysis(QUESTION, session, server, provider=DeadProvider(), events=bus)
     assert result.stopped_reason
     assert result.published == []
     assert EventType.RUN_FAILED in {e.type for e in bus.history}
@@ -161,23 +159,66 @@ async def test_a_worker_whose_tool_call_fails_reports_the_failure(setup) -> None
     assert EventType.ANALYSIS_TASK_FAILED in {e.type for e in bus.history}
 
 
-async def test_a_run_against_a_dataset_with_no_metrics_still_completes(
-    warehouse_dir: Path, tmp_path: Path
+async def test_an_uploaded_table_is_analysed_without_a_metric_layer(
+    tmp_path: Path,
 ) -> None:
-    """An uploaded table has no metric layer; the run must say so, not crash."""
+    """An upload has no metric layer, so the run profiles and aggregates it.
+
+    This is the path that used to raise IndexError: the planner indexed into
+    an empty metric list. It has to produce a real answer, not merely survive.
+    """
     from agentic_analytics.warehouse.session import open_upload_session
 
     csv = tmp_path / "small.csv"
-    csv.write_text("region,amount\nWest,10\nEast,20\nWest,30\n")
+    csv.write_text(
+        "region,channel,amount\n"
+        "West,web,10\nEast,web,20\nWest,retail,30\nEast,retail,5\nNorth,web,1\n"
+    )
     manager = SessionManager()
     session = manager.add(open_upload_session(csv, "small.csv", "csv"))
     server = build_server(manager)
     try:
         result = await run_analysis("What is the total amount by region?", session, server)
-        assert result.report is not None
-        assert result.stopped_reason or result.report.limitations
     finally:
         manager.close_all()
+
+    assert result.stopped_reason == ""
+    assert result.report is not None
+    assert result.published, "the upload produced no finding"
+
+    # The bounded loop is profile first, then an aggregate written from what
+    # the profile reported.
+    tools = [call["tool_name"] for call in result.mcp_trace]
+    assert tools == ["profile_table", "run_readonly_sql"], tools
+
+    # The aggregate is correct: West is 10 + 30 = 40, the largest.
+    text = " ".join(f.text for f in result.published)
+    assert "West" in text and "40" in text, text
+
+    # And every number still traces back to a cited cell.
+    for finding in result.published:
+        assert finding.result_ids
+        for cell in finding.evidence_cells:
+            snapshot = result.results[cell.result_id]
+            assert snapshot.cell(cell.row, cell.column) == cell.value
+
+
+async def test_an_upload_still_refuses_write_sql(tmp_path: Path) -> None:
+    """The guard applies to the SQL the profiling loop composes, too."""
+    from agentic_analytics.warehouse.session import open_upload_session
+
+    csv = tmp_path / "x.csv"
+    csv.write_text("a,b\n1,2\n3,4\n")
+    manager = SessionManager()
+    session = manager.add(open_upload_session(csv, "x.csv", "csv"))
+    server = build_server(manager)
+    try:
+        result = await run_analysis("Summarise this file", session, server)
+    finally:
+        manager.close_all()
+    for snapshot in result.results.values():
+        if snapshot.sql:
+            assert snapshot.sql.lstrip().lower().startswith(("select", "with"))
 
 
 async def test_the_followup_round_runs_at_most_once(setup) -> None:  # type: ignore[no-untyped-def]
