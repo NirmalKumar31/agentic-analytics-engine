@@ -233,17 +233,17 @@ test.describe('the public MCP endpoint', () => {
   test('matches the deployment policy while the website keeps working', async ({
     page,
     request,
-    baseURL,
   }) => {
+    // Checked against the server's own declared policy. Inferring it from
+    // the URL was wrong: a container published on a loopback port binds to
+    // 0.0.0.0 inside, so the address dialled says nothing about the policy.
+    const config = await (await request.get('/api/config')).json()
     const response = await request.post('/mcp', {
       data: { jsonrpc: '2.0', id: 1, method: 'initialize', params: {} },
       headers: { 'Content-Type': 'application/json' },
       failOnStatusCode: false,
     })
-    const loopback = /^https?:\/\/(127\.0\.0\.1|localhost|\[::1\])/.test(baseURL ?? '')
-    if (loopback) {
-      // A loopback binding is local development; the SDK's own
-      // localhost-only protection applies and the endpoint is served.
+    if (config.mcp_remote_enabled) {
       expect(response.status()).not.toBe(503)
     } else {
       // A network binding with no Host allow-list withdraws the transport.

@@ -48,6 +48,13 @@ class ServerConfig(BaseModel):
     model_inference_remote: bool
     live_analytics_enabled: bool
     uploads_enabled: bool
+    #: Whether the Streamable HTTP MCP endpoint at /mcp is served. False
+    #: means it answers 503 by design -- a network binding with no Host
+    #: allow-list withdraws the transport rather than serving it unvalidated.
+    #: Reported so an external check can assert the endpoint matches the
+    #: policy instead of inferring the policy from the URL it dialled, which
+    #: says nothing about how the server bound.
+    mcp_remote_enabled: bool
     demo_warehouse_ready: bool
     max_upload_mb: int
     max_upload_columns: int

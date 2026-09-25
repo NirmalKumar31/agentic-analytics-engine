@@ -100,3 +100,35 @@ def test_the_binding_policy_is_readable_from_settings() -> None:
         "a.com",
         "b.com",
     ]
+
+
+@pytest.mark.parametrize(
+    ("bind_host", "allowed_hosts", "expect_enabled"),
+    [
+        ("127.0.0.1", "", True),  # local development
+        ("0.0.0.0", "", False),  # network binding, no allow-list: withdrawn
+        ("0.0.0.0", "example.onrender.com", True),  # declared hostnames
+    ],
+)
+def test_config_reports_the_same_mcp_policy_the_endpoint_enforces(
+    bind_host: str, allowed_hosts: str, expect_enabled: bool
+) -> None:
+    """`/api/config` must not disagree with `/mcp`.
+
+    An external checker cannot infer this from the address it dialled: a
+    container published on a loopback port binds to 0.0.0.0 inside, so the
+    URL says nothing about the policy. It therefore has to be able to ask --
+    and the answer has to be true.
+    """
+    settings = Settings(bind_host=bind_host, mcp_allowed_hosts=allowed_hosts)
+    with TestClient(create_app(settings)) as client:
+        reported = client.get("/api/config").json()["mcp_remote_enabled"]
+        status = client.post(
+            "/mcp",
+            json={"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {}},
+        ).status_code
+
+    assert reported is expect_enabled
+    # 503 is the withdrawn transport. Anything else means it is being served,
+    # including the 421 a wrong Host gets once protection is on.
+    assert (status != 503) is expect_enabled, f"reported {reported}, endpoint gave {status}"

@@ -268,6 +268,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             model_inference_remote=cfg.provider_mode == "cloud",
             live_analytics_enabled=cfg.live_analytics_enabled,
             uploads_enabled=cfg.uploads_enabled and cfg.live_analytics_enabled,
+            mcp_remote_enabled=mcp_enabled,
             demo_warehouse_ready=_warehouse_ready(cfg),
             max_upload_mb=cfg.budgets.max_upload_bytes // (1024 * 1024),
             max_upload_columns=cfg.budgets.max_upload_columns,

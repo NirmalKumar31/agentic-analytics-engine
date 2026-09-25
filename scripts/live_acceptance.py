@@ -25,7 +25,6 @@ import json
 import sys
 import time
 import urllib.error
-import urllib.parse
 import urllib.request
 from http.cookiejar import CookieJar
 from typing import Any
@@ -100,11 +99,6 @@ class Client:
 
     def cookie(self, name: str) -> Any:
         return next((c for c in self.jar if c.name == name), None)
-
-
-def _is_loopback(base: str) -> bool:
-    host = urllib.parse.urlsplit(base).hostname or ""
-    return host in {"127.0.0.1", "localhost", "::1"}
 
 
 def _sample_csv() -> bytes:
@@ -302,22 +296,27 @@ def main(argv: list[str]) -> int:
         json.dumps({"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {}}).encode(),
         "application/json",
     )
-    if _is_loopback(base):
-        # A loopback binding is local development: the SDK's own
-        # localhost-only protection applies and the endpoint is served. Only
-        # a network binding without an allow-list withdraws it.
+    # Asserted against the server's own declared policy rather than guessed
+    # from the URL: connecting to 127.0.0.1 says nothing about how the
+    # server bound, and a container published on a loopback port binds to
+    # 0.0.0.0 inside. Guessing made this check fail on a correct service.
+    remote_enabled = bool(config.get("mcp_remote_enabled"))
+    if remote_enabled:
         checks.ok(
-            "the MCP endpoint is served for a loopback binding",
+            "the MCP endpoint is served, as the configuration says",
             status != 503,
-            f"HTTP {status}",
+            f"HTTP {status}: {mcp_body[:120]!r}",
         )
     else:
         checks.ok(
-            "the public MCP endpoint is withdrawn (503)",
+            "the MCP endpoint is withdrawn (503), as the configuration says",
             status == 503,
             f"HTTP {status}: {mcp_body[:120]!r}",
         )
-    checks.note("the website reaches the same MCP server over the in-process transport")
+    checks.note(
+        f"mcp_remote_enabled={remote_enabled}; the website reaches the same "
+        "MCP server over the in-process transport either way"
+    )
 
     # ------------------------------------------------------------ upload
     body, content_type = _multipart("file", "live_acceptance.csv", _sample_csv())
