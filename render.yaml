@@ -1,10 +1,19 @@
-# Render blueprint for the safe public demo.
+# Render blueprint for the public demo.
 #
-# Recorded mode: the server serves the three recorded runs and refuses to
-# start a new analysis or accept an upload. It needs no secret of any kind,
-# so this blueprint deploys as-is.
+# Deploys with no secret of any kind. The provider is the deterministic
+# scripted stand-in, so the analysis, the MCP tool calls, the SQL and the
+# verification all execute for real and nothing is sent to an external model
+# provider.
 #
-# For live analysis, see deploy/render-live.yaml.
+# Two things need setting by hand after the first deploy:
+#
+#   AAE_MCP_ALLOWED_HOSTS  -- the service's own hostname. Until it is set, the
+#                            remote MCP endpoint is withdrawn rather than
+#                            served without Host validation. The application
+#                            works either way; only the public MCP transport
+#                            is affected.
+#   AAE_BIND_HOST          -- already set to 0.0.0.0 below, which is what tells
+#                            the host policy this is a network binding.
 
 services:
   - type: web
@@ -19,31 +28,59 @@ services:
       # The scripted provider. No credential is read, and none is needed.
       - key: AAE_PROVIDER_MODE
         value: fake
-      # Recorded runs only. Flipping this to true makes the deployment
-      # accept arbitrary questions; see deploy/render-live.yaml for the
-      # ceilings that should accompany that.
+      # Visitors may ask their own questions and upload their own data.
       - key: AAE_LIVE_ANALYTICS_ENABLED
-        value: "false"
+        value: "true"
       - key: AAE_UPLOADS_ENABLED
-        value: "false"
+        value: "true"
+
+      # Network binding. The MCP host policy reads this.
+      - key: AAE_BIND_HOST
+        value: 0.0.0.0
+      # Set to this service's hostname to enable the remote MCP endpoint.
+      # Left empty the endpoint is withdrawn, which is the safe default.
+      - key: AAE_MCP_ALLOWED_HOSTS
+        value: ""
+
       - key: AAE_LOG_LEVEL
         value: INFO
       - key: AAE_LOG_JSON
         value: "true"
-      # Conservative ceilings for a public host.
+
+      # Ceilings for an endpoint anyone can reach.
       - key: AAE_BUDGETS__MAX_ANALYSIS_TASKS
-        value: "6"
+        value: "5"
+      - key: AAE_BUDGETS__MAX_TOOL_CALLS_PER_TASK
+        value: "4"
       - key: AAE_BUDGETS__MAX_TOTAL_TOOL_CALLS
-        value: "48"
+        value: "30"
       - key: AAE_BUDGETS__MAX_LLM_CALLS
-        value: "40"
+        value: "30"
       - key: AAE_BUDGETS__MAX_RUNTIME_SECONDS
-        value: "180"
+        value: "120"
+      - key: AAE_BUDGETS__QUERY_TIMEOUT_SECONDS
+        value: "15"
       - key: AAE_BUDGETS__MAX_RESULT_ROWS
         value: "500"
       - key: AAE_BUDGETS__MAX_UPLOAD_BYTES
         value: "26214400"
+      - key: AAE_BUDGETS__MAX_UPLOAD_COLUMNS
+        value: "200"
+
+      # Uploaded data is ephemeral, and these bound how much of it can exist.
       - key: AAE_SESSION_TTL_SECONDS
-        value: "1800"
+        value: "2700"
       - key: AAE_MAX_CONCURRENT_SESSIONS
-        value: "16"
+        value: "32"
+      - key: AAE_MAX_ACTIVE_UPLOAD_SESSIONS
+        value: "24"
+
+      # Abuse controls. In-process counters, not durable quotas.
+      - key: AAE_UPLOADS_PER_IP_PER_HOUR
+        value: "6"
+      - key: AAE_ANALYSES_PER_IP_PER_HOUR
+        value: "30"
+      - key: AAE_ANALYSES_PER_SESSION
+        value: "12"
+      - key: AAE_MAX_CONCURRENT_ANALYSES
+        value: "4"

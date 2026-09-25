@@ -98,22 +98,51 @@ def test_blueprint_env_vars_are_all_real_settings(name: str) -> None:
             assert name_part in fields, f"{key} is not a setting"
 
 
-def test_recorded_blueprint_needs_no_secret() -> None:
+def test_public_blueprint_needs_no_secret() -> None:
+    """The public deployment must deploy as-is, with nothing to configure."""
     service = _blueprint("render.yaml")
-    keys = {e["key"] for e in service["envVars"]}  # type: ignore[index]
-    assert not any(k.endswith("API_KEY") for k in keys)
-    assert {"AAE_PROVIDER_MODE", "AAE_LIVE_ANALYTICS_ENABLED"} <= keys
     by_key = {e["key"]: e for e in service["envVars"]}  # type: ignore[index]
+    assert not any(k.endswith("API_KEY") for k in by_key)
     assert by_key["AAE_PROVIDER_MODE"]["value"] == "fake"
-    assert by_key["AAE_LIVE_ANALYTICS_ENABLED"]["value"] == "false"
+    # The public demo is the product: visitors ask their own questions of
+    # their own data.
+    assert by_key["AAE_LIVE_ANALYTICS_ENABLED"]["value"] == "true"
+    assert by_key["AAE_UPLOADS_ENABLED"]["value"] == "true"
 
 
-def test_live_blueprint_does_not_default_to_a_paid_provider() -> None:
+def test_public_blueprint_binds_to_a_network_interface_and_says_so() -> None:
+    """The MCP host policy keys off the bind host, so it has to be declared."""
+    service = _blueprint("render.yaml")
+    by_key = {e["key"]: e for e in service["envVars"]}  # type: ignore[index]
+    assert by_key["AAE_BIND_HOST"]["value"] == "0.0.0.0"
+    # Empty means the remote MCP endpoint is withdrawn rather than exposed
+    # without Host validation. That is the safe default for a fresh deploy.
+    assert by_key["AAE_MCP_ALLOWED_HOSTS"]["value"] == ""
+
+
+def test_public_blueprint_bounds_uploads_and_abuse() -> None:
+    service = _blueprint("render.yaml")
+    by_key = {e["key"]: e for e in service["envVars"]}  # type: ignore[index]
+    for key in (
+        "AAE_BUDGETS__MAX_UPLOAD_BYTES",
+        "AAE_BUDGETS__MAX_UPLOAD_COLUMNS",
+        "AAE_SESSION_TTL_SECONDS",
+        "AAE_MAX_ACTIVE_UPLOAD_SESSIONS",
+        "AAE_UPLOADS_PER_IP_PER_HOUR",
+        "AAE_ANALYSES_PER_IP_PER_HOUR",
+        "AAE_MAX_CONCURRENT_ANALYSES",
+    ):
+        assert key in by_key, key
+        assert int(by_key[key]["value"]) > 0
+
+
+def test_model_blueprint_does_not_default_to_a_paid_provider() -> None:
     service = _blueprint("deploy/render-live.yaml")
     by_key = {e["key"]: e for e in service["envVars"]}  # type: ignore[index]
+    # Opt-in only: deploying this file unchanged spends nothing.
     assert by_key["AAE_PROVIDER_MODE"]["value"] == "fake"
-    assert by_key["AAE_LIVE_ANALYTICS_ENABLED"]["value"] == "true"
-    assert by_key["AAE_UPLOADS_ENABLED"]["value"] == "false"
+    assert by_key["AAE_CLOUD_API_KEY"].get("sync") is False
+    assert "value" not in by_key["AAE_CLOUD_API_KEY"]
 
 
 def test_env_example_documents_only_real_settings() -> None:

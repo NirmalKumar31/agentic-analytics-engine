@@ -1,23 +1,18 @@
-# Render blueprint for live mode.
+# Render blueprint for a deployment backed by a real language model.
 #
-# Live mode lets a visitor ask an arbitrary question against the built-in
-# warehouse. It still needs no secret when AAE_PROVIDER_MODE is `fake`, which
-# is the recommended public posture: the scripted provider is deterministic
-# and costs nothing, and the analysis, the MCP calls and the verification are
-# all genuine regardless of which provider produced the structured decisions.
+# The difference from `render.yaml` is one setting: AAE_PROVIDER_MODE. With
+# `fake` the agent decisions are deterministic rules; with `local` or `cloud`
+# a model makes them. Everything else -- the MCP tools, the SQL guard, the
+# statistics, the verification, the provenance -- is identical, because none
+# of it depends on the provider.
 #
-# A cloud provider is the only configuration here that requires a secret, and
-# it is deliberately left unset. Set AAE_CLOUD_API_KEY in the Render dashboard
-# (never in this file) and change AAE_PROVIDER_MODE to `cloud`.
-#
-# Uploads stay off by default even here. Turning them on accepts arbitrary
-# files from the public internet; the validation in
-# `agentic_analytics.warehouse.upload` is written for that, but it is a
-# deliberate choice rather than a default.
+# This file is not "the AI one" and `render.yaml` is not "the fake one". Both
+# run the same engine. This one additionally requires a credential, which is
+# the only reason it is separate.
 
 services:
   - type: web
-    name: agentic-analytics-engine-live
+    name: agentic-analytics-engine-model
     runtime: docker
     dockerfilePath: ./Dockerfile
     plan: standard
@@ -25,48 +20,62 @@ services:
     healthCheckPath: /api/health
     autoDeploy: false
     envVars:
+      # Change to `cloud` (with a key below) or `local` (with an Ollama URL).
+      # Left as `fake` this deploys exactly like render.yaml.
       - key: AAE_PROVIDER_MODE
         value: fake
+
       - key: AAE_LIVE_ANALYTICS_ENABLED
         value: "true"
       - key: AAE_UPLOADS_ENABLED
-        value: "false"
+        value: "true"
+
+      - key: AAE_BIND_HOST
+        value: 0.0.0.0
+      - key: AAE_MCP_ALLOWED_HOSTS
+        value: ""
+
       - key: AAE_LOG_LEVEL
         value: INFO
       - key: AAE_LOG_JSON
         value: "true"
 
-      # Host header allow-list for the MCP endpoint. Set this to the
-      # deployment's hostname to turn on DNS-rebinding protection; leaving it
-      # empty leaves the protection off, which is documented in
-      # docs/LIMITATIONS.md.
-      - key: AAE_MCP_ALLOWED_HOSTS
-        value: ""
-
-      # Tighter ceilings than the defaults: this endpoint is open.
+      # Tighter than the scripted deployment: a model call has a real cost
+      # and a real latency, so a run gets less room.
       - key: AAE_BUDGETS__MAX_ANALYSIS_TASKS
-        value: "5"
+        value: "4"
       - key: AAE_BUDGETS__MAX_TOOL_CALLS_PER_TASK
         value: "4"
       - key: AAE_BUDGETS__MAX_TOTAL_TOOL_CALLS
-        value: "30"
+        value: "20"
       - key: AAE_BUDGETS__MAX_LLM_CALLS
-        value: "30"
+        value: "24"
       - key: AAE_BUDGETS__MAX_RUNTIME_SECONDS
-        value: "120"
-      - key: AAE_BUDGETS__MAX_RESULT_ROWS
-        value: "500"
+        value: "180"
       - key: AAE_BUDGETS__QUERY_TIMEOUT_SECONDS
         value: "15"
+      - key: AAE_BUDGETS__MAX_RESULT_ROWS
+        value: "500"
       - key: AAE_BUDGETS__MAX_UPLOAD_BYTES
         value: "26214400"
-      - key: AAE_SESSION_TTL_SECONDS
-        value: "900"
-      - key: AAE_MAX_CONCURRENT_SESSIONS
-        value: "12"
 
-      # Required only when AAE_PROVIDER_MODE is `cloud`. Set it in the
-      # dashboard; `sync: false` keeps it out of the repository.
+      - key: AAE_SESSION_TTL_SECONDS
+        value: "1800"
+      - key: AAE_MAX_ACTIVE_UPLOAD_SESSIONS
+        value: "16"
+      - key: AAE_ANALYSES_PER_IP_PER_HOUR
+        value: "12"
+      - key: AAE_MAX_CONCURRENT_ANALYSES
+        value: "2"
+
+      # For AAE_PROVIDER_MODE=local. No credential.
+      - key: AAE_OLLAMA_BASE_URL
+        value: http://127.0.0.1:11434
+
+      # For AAE_PROVIDER_MODE=cloud only. `sync: false` keeps the value out of
+      # the repository; set it in the Render dashboard. Note that with a cloud
+      # provider, derived schema and analysis results leave this server, and
+      # the UI tells the user so.
       - key: AAE_CLOUD_API_KEY
         sync: false
       - key: AAE_CLOUD_MODEL

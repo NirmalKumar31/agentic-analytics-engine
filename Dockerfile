@@ -40,9 +40,11 @@ ENV PYTHONUNBUFFERED=1 \
     PIP_NO_CACHE_DIR=1 \
     AAE_PROVIDER_MODE=fake \
     AAE_LIVE_ANALYTICS_ENABLED=false \
+    AAE_UPLOADS_ENABLED=false \
     AAE_DATA_DIR=/app/var/warehouse \
-    AAE_UPLOAD_DIR=/app/var/uploads \
+    AAE_UPLOAD_DIR=/tmp/aae-uploads \
     AAE_RECORDINGS_DIR=/app/examples/recordings \
+    AAE_BIND_HOST=0.0.0.0 \
     PORT=8000
 
 WORKDIR /app
@@ -66,10 +68,12 @@ COPY examples/recordings /app/examples/recordings
 
 # Generate the demo warehouse into the image, then hand ownership to the
 # unprivileged user. The application never writes outside /app/var.
-RUN mkdir -p /app/var/warehouse /app/var/uploads \
+# Uploaded bytes go to /tmp, never into the image or the application
+# directory, and each session's directory is removed with the session.
+RUN mkdir -p /app/var/warehouse /tmp/aae-uploads \
  && python -m agentic_analytics.cli generate-data --out /app/var/warehouse/commerce \
  && python -m agentic_analytics.cli validate-recordings --directory /app/examples/recordings \
- && chown -R app:app /app/var
+ && chown -R app:app /app/var /tmp/aae-uploads
 
 USER app
 EXPOSE 8000

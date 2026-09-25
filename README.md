@@ -1,55 +1,83 @@
 # Agentic Analytics Engine
 
-A bounded multi-agent analytics workflow over DuckDB. A business question is
-decomposed into analytical tasks, the tasks run deterministic queries and
-statistics through an MCP tool layer, a verifier checks every proposed claim
-against the rows it cites, and the report publishes only what survived.
+An analytics engine where language models plan investigations and interpret
+results, while deterministic tools own computation, statistics, security and
+provenance.
 
-Every number in the report is clickable. Clicking it shows the analytical
-task, the SQL that ran, the result rows with the cited cells highlighted, the
-arithmetic the engine recomputed, the MCP calls involved, and the dataset
-fingerprint.
+Point it at a built-in commerce warehouse or upload your own CSV or Parquet
+file. Ask a question in plain English. The engine decomposes it into
+analytical tasks, runs them in parallel through an MCP tool layer over DuckDB,
+verifies every claim against the rows that produced it, and publishes only
+what survived.
 
-The whole thing runs with no API credentials.
+Every number in the report is clickable. Clicking it shows the task, the SQL,
+the result rows with the cited cells highlighted, the arithmetic the engine
+recomputed, the MCP calls involved, and the dataset fingerprint.
+
+It runs with no API credentials.
 
 ---
 
-## The problem this addresses
+## The architecture that matters
 
-"Chat with your CSV" tools fail in a specific way: the model writes SQL, reads
-the output, and then writes prose. Nothing checks that the prose matches the
-output. A number that is off by a factor of ten, a direction that is
-backwards, or a causal claim built on a correlation all look exactly like a
-correct answer.
+```
+        PROBABILISTIC CONTROL PLANE          decides what to investigate
+   ┌──────────────────────────────────────┐
+   │  Question Analyst   Planner          │
+   │  Worker             Critic           │
+   │  Visualiser         Reporter         │
+   └──────────────────┬───────────────────┘
+                      │  typed requests only
+                      ▼
+        DETERMINISTIC ANALYTICS PLANE        owns every number
+   ┌──────────────────────────────────────┐
+   │  MCP server (16 tools, 4 resources)  │
+   │  Semantic metric layer               │
+   │  DuckDB, locked read-only            │
+   │  SciPy statistics                    │
+   │  Change decomposition                │
+   │  Result registry                     │
+   │  Numeric verification                │
+   │  Chart builder                       │
+   │  Session isolation                   │
+   └──────────────────────────────────────┘
+```
 
-This project separates the three things that get conflated:
+The model chooses *what* to compute. It never computes. It does not write the
+metric formulas, run the database, calculate a statistic, build a chart
+specification, decide what a session may access, or validate its own numbers.
+
+**What survives if you delete every model provider:** dataset ingestion,
+profiling, semantic schema inference, the metric layer, DuckDB execution,
+period comparison, segmentation, trend analysis, statistical testing, change
+decomposition, the MCP server and client, the SQL guard, numeric
+verification, provenance, chart construction, session isolation, the
+evaluation harness, and the API. What is lost is natural-language
+interpretation, dynamic planning, hypothesis generation and narrative writing.
+
+That split is the point of the project. See
+[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+
+---
+
+## The problem it addresses
+
+"Chat with your CSV" fails in a specific way: the model writes SQL, reads the
+output, then writes prose, and nothing checks that the prose matches the
+output. A number off by a factor of ten, a direction that is backwards, and a
+causal claim built on a correlation all look exactly like a correct answer.
+
+This separates three things those tools conflate:
 
 | | Produced by | Checked by |
 |---|---|---|
 | **Calculated fact** | DuckDB | Arithmetic recomputed from the cited cells |
 | **Statistical result** | SciPy | The test is run, never asserted |
-| **Interpretation** | The model | A critic, and deterministic claim-shape rules |
+| **Interpretation** | The model | Deterministic claim rules, then a critic |
 
-A claim that fails any check does not reach the report. In the recorded
+A claim failing any check does not reach the report. In the recorded
 `shipping-repeat` demo the worker proposes *"Being in the late group causes
-the observed difference"*; the verifier withholds it, and the report says so.
-
----
-
-## What runs
-
-```
-DATASET ──▶ ASK ──▶ PLAN ──▶ parallel analysis ──▶ VERIFY ──▶ REPORT
-                                     │
-                              MCP tool calls
-                        (DuckDB queries, SciPy tests)
-```
-
-- **Backend** — Python 3.12, FastAPI, LangGraph 1.2, DuckDB 1.5, PyArrow, SciPy
-- **Tools** — a real MCP server on the official Python SDK v2 (`mcp` 2.2), over
-  Streamable HTTP in production and an in-process connection in tests
-- **Frontend** — React 19, TypeScript, Vite, Vega-Lite
-- **Provider** — pluggable; the default is a deterministic scripted stand-in
+the observed difference"*; the verifier withholds it and the report says so.
 
 ---
 
@@ -57,73 +85,105 @@ DATASET ──▶ ASK ──▶ PLAN ──▶ parallel analysis ──▶ VERIF
 
 ```bash
 make bootstrap    # virtualenv, Python and npm dependencies
-make data         # generate the demo warehouse (deterministic, ~4 seconds)
+make data         # generate the demo warehouse (deterministic, ~2 seconds)
 make dev          # build the frontend and serve on http://127.0.0.1:8000
 ```
 
-No `.env` is required. `make verify` runs everything CI runs.
+No `.env` required. `make verify` runs everything CI runs.
 
 ```bash
-make test         # 406 Python tests
-make evaluate     # score the agents against the injected ground truth
+make test         # 486 Python tests
+make evaluate     # score the engine against the injected patterns
 make record       # re-record the three demo runs
 ```
 
 ---
 
-## Why MCP, and what "real MCP" means here
+## Deterministic analytics, not generated SQL
 
-The agents cannot import the analytics package. Every capability they have
-arrives through an MCP client, so the tool trace the UI displays is the set of
-calls that actually crossed that boundary rather than a narration of them.
+The MCP server exposes analytical capabilities, not a SQL endpoint. In the
+benchmark, **35 of 35 tool calls used a governed tool and none used
+model-written SQL.**
 
-That boundary is also where the budgets are enforced, where the session id is
-injected (an agent cannot address another session's data), and where the trace
-is recorded.
-
-**12 tools** — `list_tables`, `describe_table`, `profile_table`, `sample_rows`,
-`run_readonly_sql`, `list_metrics`, `compute_metric`, `compare_segments`,
-`analyze_timeseries`, `correlation_matrix`, `statistical_test`, `get_result`
+**16 tools** — `list_tables`, `describe_table`, `profile_table`,
+`profile_dataset`, `sample_rows`, `list_metrics`, `compute_metric`,
+`compare_segments`, `compare_periods`, `analyze_timeseries`,
+`decompose_change`, `rank_contributors`, `correlation_matrix`,
+`statistical_test`, `get_result`, and `run_readonly_sql` as a guarded
+fallback.
 
 **4 resources** — `dataset://catalog`, `dataset://schema/{session_id}/{table}`,
-`metrics://definitions`, `result://{session_id}/{result_id}`
+`metrics://definitions`, `result://{session_id}/{result_id}`.
 
-Both transports are covered by tests: `Client(server)` in-process, and a real
-`uvicorn` server over Streamable HTTP. Protocol version `2026-07-28`.
+The tool that answers "why" is `decompose_change`. For an additive metric it
+splits a change into per-segment contributions. For a rate it runs a
+shift-share decomposition separating movement *within* segments from volume
+moving *between* them, and both reconcile exactly to the observed change or
+report that they did not. On the demo warehouse the Q3 margin drop resolves to
+−3.76pp of rate effect and −3.67pp of mix effect, summing to the observed
+−7.63pp — which is the pattern the generator injected.
+
+Built on the official MCP Python SDK v2 (`mcp` 2.2.0, protocol `2026-07-28`),
+tested in-process and over a real Streamable HTTP server.
 
 ---
 
-## The agents
+## Three execution modes, labelled
 
-| Agent | Does | Cannot |
-|---|---|---|
-| **Question Analyst** | Turns a question into target metrics, dimensions, time scope, ambiguities | Run SQL |
-| **Analysis Planner** | Emits independent, executable `AnalysisTask` objects | Write prose the engine never reads |
-| **Analysis Worker** | Runs one task in a bounded tool loop, states findings with cited cells | Exceed its per-task call budget |
-| **Statistical Analyst** | Chooses a test and its variables | Compute a statistic, p-value or effect size |
-| **Critic** | Judges whether wording fairly describes the result | Overrule the arithmetic check |
-| **Visualisation Agent** | Picks a mark and two fields | Emit a chart specification |
-| **Report Agent** | Writes from verified findings only | Introduce a number no finding supports |
+A scripted-provider run executes the same graph, the same MCP calls, the same
+SQL and the same verification as a model-driven one. It is still not a
+language model, and the UI never implies otherwise.
 
-Workers run concurrently via LangGraph `Send`. The graph has exactly one loop
-edge, guarded by a counter in state, so it terminates by construction.
+| Badge | What it means |
+|---|---|
+| **Recorded** | Replaying a committed run |
+| **Deterministic live** | Executing now; agent decisions from a scripted deterministic provider |
+| **AI live** | Executing now; agent decisions from a language model |
+
+`/api/config` reports `execution_mode` and `model_inference_remote`, and every
+recording carries `provider_kind` and `run_kind`.
+
+---
+
+## Upload your own data
+
+The public deployment accepts a CSV or Parquet file with no account.
+
+Each upload gets a **capability-based anonymous session**: a cryptographically
+random handle plus a separate bearer capability delivered as an HttpOnly
+cookie. The handle appears in MCP resource URIs and authorises nothing on its
+own. This is isolation, not authentication — anyone holding the token is the
+session, and the docs say so rather than implying more.
+
+- One file, 25 MB, 200 columns, CSV or Parquet only
+- Its own DuckDB database and its own scratch directory, both erased when the
+  session ends or expires after 45 minutes
+- Parquet validated through its metadata — columns, row groups, nesting,
+  declared uncompressed size — before any data is read
+- CSV screened as bounded delimited text. **CSV has no magic bytes**, and the
+  implementation does not claim otherwise
+- Per-IP and global rate limits, and a cap on concurrent analyses
+
+An uploaded file has no governed metric layer, so the engine infers one from
+column types and cardinality and marks everything `inferred`. It will not
+invent business meaning: two columns that could both be revenue produce a
+clarifying question, not a guess.
 
 ---
 
 ## Provenance
 
-Every tool execution produces a `ResultSnapshot`: the SQL, the columns, the
-rows, the row count, whether it was truncated, the duration, the parameters,
-the warnings, and the dataset fingerprint. A finding cites `result_id`s and
-specific `(row, column)` cells.
+Every tool execution produces a `ResultSnapshot`: the SQL, columns, rows, row
+count, truncation flag, duration, parameters, warnings, and the dataset
+fingerprint. A finding cites `result_id`s and specific `(row, column)` cells.
 
 Before the critic model is consulted, two deterministic gates run:
 
-1. **Claim shape** — causal language on observational data, the word
-   "significant" with no test behind it, or a claim citing nothing.
+1. **Claim shape** — causal language on observational data, "significant" with
+   no test behind it, or a claim citing nothing.
 2. **Arithmetic** — every number in the text must appear in a cited result or
    be derivable from two cited cells by subtraction, ratio or percentage
-   change. A stated change is recomputed and compared.
+   change. A stated change is recomputed and compared, including its sign.
 
 A model is the wrong tool for checking arithmetic, so it is not asked to.
 
@@ -131,7 +191,7 @@ A model is the wrong tool for checking arithmetic, so it is not asked to.
 
 ## The demo dataset
 
-Generated locally from a fixed seed (`20260924`). No download, no Kaggle.
+Generated locally from seed `20260924`. No download.
 
 | Table | Rows |
 |---|---|
@@ -143,105 +203,110 @@ Generated locally from a fixed seed (`20260924`). No download, no Kaggle.
 | `shipping_events` | 104,915 |
 | `marketing_daily` | 2,924 |
 
-Two years (2024-01-01 to 2025-12-31), 5.3 MB of Parquet, fingerprint
+Two years, 5.3 MB of Parquet, fingerprint
 `sha256:8e9ad9348f7dc18660d78ed3cd4d4b32`. CI generates it twice and fails if
 the fingerprints differ.
 
-Six phenomena are deliberately injected — a Q3 margin compression driven by
-discounting and a product-mix shift, a category with elevated returns
-concentrated among new customers, a carrier degrading in one region, late
-delivery suppressing repeat purchase, an acquisition channel that leads on
-revenue and trails on contribution, and Q4 seasonality.
+Six phenomena are injected: a Q3 margin compression from discounting and a
+mix shift; a category with elevated returns concentrated in new customers; a
+carrier running late in one region; late first delivery associated with lower
+repeat purchase; an acquisition channel leading on revenue and trailing on
+contribution; and Q4 seasonality.
 
-The answer key lives in `data/ground_truth.py`. A test walks the import graph
-of every agent-facing package and fails if that module is reachable from any
-of them.
+The answer key lives in `data/ground_truth.py`. Two tests keep it away from
+the agents: one walks the import graph, and one captures every prompt, context
+object and schema any provider sees during a full benchmark and asserts the
+answer key appears in none of them.
 
 ---
 
-## Evaluation
+## Benchmark
 
-Eight benchmark questions, scored against the injected patterns after the run.
+**This is a deterministic end-to-end engine benchmark.** It runs with the
+scripted provider, so it measures graph execution, MCP execution, SQL and
+statistical correctness, provenance, deterministic verification and
+publication behaviour. It does **not** measure language-model question
+understanding, planning quality or tool-selection reliability.
 
 ```
-cases                            8 / 8 passed
-injected patterns recovered      6 / 6
-numeric accuracy                 1.00
-SQL validity                     1.00
-tool-call validity               1.00
-provenance completeness          1.00
-chart field validity             1.00
-published support rate           0.95
-unsupported findings published   0
+cases passed                      8 / 8
+injected patterns recovered       6 / 6
+
+candidate findings                37
+  supported                       35
+  withheld                         2
+candidate support rate            35/37 = 0.946
+
+published findings                35
+  unsupported published            0
+published support rate            35/35 = 1.000
+
+numeric assertions correct        35/35 = 1.000
+SQL statements read-only          33/33 = 1.000
+tool calls succeeded              35/35 = 1.000
+provenance complete               35/35 = 1.000
+chart fields valid              205/205 = 1.000
+
+tool calls using a governed tool  35/35 = 1.000
+tool calls using generated SQL     0
 ```
 
-35 findings published, 2 withheld, 35 MCP tool calls, 193 provider calls,
-0.09 s mean runtime per question. Reproduce with `make evaluate`.
+The two support rates answer different questions and are both reported: a run
+that withholds nothing is not verifying anything, so candidate support is
+*expected* below 1.0. Published support must be exactly 1.0.
 
-See [docs/EVALUATION.md](docs/EVALUATION.md) for what each metric measures and
-how a case is scored.
+Engine runtime is 0.094 s per question with the scripted provider. That is a
+deterministic engine figure and **excludes model inference entirely** — it is
+not a latency claim about an AI system.
+
+Reproduce with `make evaluate`. Details in
+[docs/EVALUATION.md](docs/EVALUATION.md).
 
 ---
 
 ## Security
 
-The model never reaches DuckDB directly. Two independent layers stand between:
+The model never reaches DuckDB directly.
 
 **SQLGuard** parses every statement with `sqlglot` and works on the AST.
-Regex screening is defeated by comments, casing and string literals, and
-cannot distinguish `read_csv` in a `FROM` clause from the same characters
-inside a quoted string. 125 adversarial tests cover writes, DDL, `COPY`,
-`ATTACH`, extension loading, remote URLs, multi-statement payloads,
-file-as-table syntax, and DuckDB-specific forms such as `SUMMARIZE` and
-`FROM x SELECT`.
+150 adversarial tests cover writes, DDL, `COPY`, `ATTACH`, extension loading,
+remote URLs, multi-statement payloads, file-as-table syntax, and DuckDB
+specifics like `SUMMARIZE` and `FROM x SELECT`. It also covers read-only
+denial of service: generator bounds, AST size and depth, join and CTE
+ceilings, and a refusal of recursive CTEs. Deep nesting previously crashed
+sqlglot's recursive-descent parser before any check could run.
 
-**The engine itself** runs with `enable_external_access=false` and
-`lock_configuration=true`, applied after the data is loaded and irreversible
-for the life of the connection. Filesystem reads, network reads, `COPY`,
-`ATTACH` and extension loading are refused by DuckDB even for a statement that
-somehow got past the parser — which the tests verify by bypassing the guard on
-purpose.
+**The engine** runs with `enable_external_access=false` and
+`lock_configuration=true`, applied after loading and irreversible for the
+connection's life. Tests bypass the guard on purpose to confirm DuckDB refuses
+on its own. Query cancellation uses `con.interrupt()`, verified to stop CPU
+work rather than just the waiting coroutine.
 
-Uploads are validated by content, not by name: the size ceiling is enforced
-while streaming, the format is decided from magic bytes, the stored filename
-is server-generated, and the table name is fixed, so a user filename never
-reaches SQL. Chart specifications are built by the engine from an encoding the
-model chose, then validated on both the server and the browser.
+**The MCP endpoint fails closed.** A loopback binding gets a localhost
+allow-list automatically. A network binding must declare its hostnames; one
+that declares none has the remote transport withdrawn with a 503 rather than
+served with Host validation disabled.
+
+**Charts** are built by the engine from an encoding the model chose, then
+validated on the server and again in the browser.
 
 Dataset values are data. A cell containing `IGNORE PREVIOUS INSTRUCTIONS` or
-`<script>` round-trips as a string; React renders it as text and the SQL guard
-treats it as a literal.
-
----
-
-## Live and recorded modes
-
-`AAE_LIVE_ANALYTICS_ENABLED=false` (the default, and what `render.yaml`
-deploys) serves the three recorded runs and refuses to start a new analysis or
-accept an upload. Recordings are captured from real runs and are written only
-if they pass every publication rule — no unsupported finding, no chart field
-that is not a column of its result, all SQL read-only, a dataset fingerprint
-present, and no secret, host path or model reasoning anywhere in the file.
-CI re-checks the committed recordings on every push.
-
-Setting it to `true` accepts arbitrary questions. That still needs no
-credential: the default provider is deterministic and free.
+`<script>` round-trips as a string.
 
 ---
 
 ## Providers
 
-| Mode | Needs a credential | Used for |
+| Mode | Credential | Used for |
 |---|---|---|
 | `fake` | no | tests, CI, recordings, the public demo |
 | `local` | no | an Ollama-compatible server |
 | `cloud` | yes | a hosted API, configured only through the environment |
 
-The scripted provider is not a language model. It is a rule-based stand-in
-that produces the same structured outputs, reading every figure it writes out
-of a real `ResultSnapshot`. On correlation tasks it proposes a causal claim,
-because that is the mistake real models make most often — so the rejection
-path is exercised by a genuine error rather than a staged one.
+The scripted provider is a rule-based stand-in, not a language model. It reads
+every figure it writes out of a real `ResultSnapshot`, and on correlation
+tasks it proposes a causal claim — the mistake real models make most often —
+so the rejection path is exercised by a genuine error.
 
 Reaching a paid endpoint requires both `AAE_PROVIDER_MODE=cloud` and a key in
 the environment. No default path spends money.
@@ -253,36 +318,28 @@ the environment. No default path spends money.
 ```
 src/agentic_analytics/
   data/         deterministic generator + the injected answer key
-  warehouse/    DuckDB sessions, metric layer, SQL guard, upload validation
-  analytics/    result contract, execution path, metrics, SciPy statistics
+  warehouse/    DuckDB sessions, capability model, metric layer, SQL guard, uploads
+  analytics/    result contract, execution, metrics, statistics, decomposition, semantics
   mcp_layer/    MCP server (tools + resources) and the client agents use
   llm/          provider interface, scripted / Ollama / cloud adapters
   agents/       analyst, planner, worker, critic, visualiser, reporter
-  verification/ arithmetic, claim shape, chart safety
+  verification/ arithmetic, claim shape, chart safety, multiple comparisons
   graph/        LangGraph workflow, state reducers, run orchestration
-  api/          FastAPI, SSE, uploads, mounted MCP endpoint
+  api/          FastAPI, SSE, uploads, rate limits, mounted MCP endpoint
   recordings/   capture and publication acceptance
   evaluation/   benchmark cases and scoring
 web/            React frontend
 ```
 
-More detail in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
-
 ---
 
 ## Limitations
 
-The scripted provider is a heuristic planner, not a language model — it maps
-question keywords to metrics. Live mode with a real model exercises the same
-graph, the same tools and the same verification, but its plans are not
-represented in the measured numbers above.
-
-Uploaded files get no semantic metric layer: one arbitrary table is profiled
-and aggregated directly. Statistical tests requiring row-level values are
-computed on the first 50,000 rows.
-
-The Docker image has not been built on the development machine — no container
-runtime is available there. The build and a container health check run in CI.
+The benchmark numbers come from the scripted provider and measure the engine,
+not model planning. Statistical scope is five test families with Holm
+correction within a task and no causal identification. Correlations above
+50,000 rows use a seeded sample. There is no authentication — session
+capability is not an account. Rate limits are in-process, not durable quotas.
 
 The full list is in [docs/LIMITATIONS.md](docs/LIMITATIONS.md).
 
@@ -290,9 +347,9 @@ The full list is in [docs/LIMITATIONS.md](docs/LIMITATIONS.md).
 
 ## Verified
 
-406 Python tests, 35 frontend tests, 88% branch coverage. `ruff`,
+486 Python tests, 35 frontend tests, 86% branch coverage. `ruff`,
 `ruff format`, `mypy` (with `disallow_untyped_defs`), `pip-audit` and
-`npm audit` all clean. Frontend production bundle 369.6 kB gzipped, of which
-295.7 kB is the Vega chart engine in a lazily-loaded chunk.
+`npm audit` clean. Frontend production bundle 371 kB gzipped, of which 288 kB
+is the Vega chart engine in a lazily-loaded chunk.
 
 MIT licensed.
