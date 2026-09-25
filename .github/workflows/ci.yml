@@ -45,7 +45,9 @@ jobs:
         run: ruff format --check .
 
       - name: Types
-        run: mypy
+        run: |
+          mypy
+          mypy scripts
 
       - name: Generate the demo warehouse
         run: python -m agentic_analytics.cli generate-data

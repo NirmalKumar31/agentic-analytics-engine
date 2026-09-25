@@ -45,8 +45,12 @@ format: ## Apply formatting and safe lint fixes
 	$(RUFF) check --fix .
 	$(RUFF) format .
 
-typecheck: ## Run mypy
+typecheck: ## Run mypy over the package and the release scripts
 	$(MYPY)
+	# `mypy` alone checks the package. The scripts are release-critical --
+	# they are what decides whether a deployment is accepted -- so they are
+	# checked too rather than being the one untyped corner.
+	$(MYPY) scripts
 
 frontend: ## Build the production frontend bundle
 	cd $(WEB) && npm run build
