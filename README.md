@@ -255,9 +255,10 @@ The two support rates answer different questions and are both reported: a run
 that withholds nothing is not verifying anything, so candidate support is
 *expected* below 1.0. Published support must be exactly 1.0.
 
-Engine runtime is 0.094 s per question with the scripted provider. That is a
-deterministic engine figure and **excludes model inference entirely** — it is
-not a latency claim about an AI system.
+Engine runtime is 0.094 s per question on a local machine and 0.150 s on a
+GitHub-hosted runner, both with the scripted provider. That is a deterministic
+engine figure, it varies with the hardware, and it **excludes model inference
+entirely** — it is not a latency claim about an AI system.
 
 Reproduce with `make evaluate`. Details in
 [docs/EVALUATION.md](docs/EVALUATION.md).
