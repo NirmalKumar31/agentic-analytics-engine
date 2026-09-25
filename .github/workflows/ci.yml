@@ -107,6 +107,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          # Scanning history requires it; the default checkout is shallow.
+          fetch-depth: 0
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ env.PYTHON_VERSION }}
@@ -121,10 +124,26 @@ jobs:
       - name: pip-audit the pinned runtime closure
         run: python -m pip_audit --strict --progress-spinner off -r constraints.txt
 
-      - name: Secret scan
-        uses: gitleaks/gitleaks-action@v2
+      # The gitleaks binary rather than the action: the action gates on a
+      # licence key and wants write permissions to annotate, neither of
+      # which this repository needs. Running the binary keeps the scan
+      # reproducible with the same config used locally.
+      - name: Install gitleaks
+        run: |
+          curl -sSfL \
+            "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz" \
+            -o /tmp/gitleaks.tar.gz
+          tar -xzf /tmp/gitleaks.tar.gz -C /tmp gitleaks
+          sudo install /tmp/gitleaks /usr/local/bin/gitleaks
+          gitleaks version
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITLEAKS_VERSION: "8.29.0"
+
+      - name: Secret scan of the working tree
+        run: gitleaks dir . --config .gitleaks.toml --redact --no-banner --exit-code 1
+
+      - name: Secret scan of the full history
+        run: gitleaks git . --config .gitleaks.toml --redact --no-banner --exit-code 1
 
   recordings:
     name: Recorded run acceptance
@@ -251,40 +270,35 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      - name: Boot the container and check its health endpoint
+      - name: Boot the container
         run: |
-          docker run -d --name aae -p 8000:8000 agentic-analytics-engine:ci
+          docker run -d --name aae \
+            -p 8000:8000 \
+            -e AAE_LIVE_ANALYTICS_ENABLED=true \
+            agentic-analytics-engine:ci
+
+      - name: Container smoke test
+        run: python scripts/container_smoke.py http://127.0.0.1:8000
+
+      - name: The image must not default to live analysis
+        run: |
+          docker rm -f aae
+          docker run -d --name aae-default -p 8001:8000 agentic-analytics-engine:ci
           for i in $(seq 1 60); do
-            if curl -fsS http://127.0.0.1:8000/api/health >/dev/null 2>&1; then
-              break
-            fi
+            curl -fsS http://127.0.0.1:8001/api/health >/dev/null 2>&1 && break
             sleep 2
           done
-          curl -fsS http://127.0.0.1:8000/api/health | tee /tmp/health.json
+          curl -fsS http://127.0.0.1:8001/api/health | tee /tmp/default.json
           python -c "
-          import json, sys
-          health = json.load(open('/tmp/health.json'))
-          assert health['status'] == 'ok', health
-          assert health['demo_warehouse_ready'] is True, health
-          assert health['recordings'] == 3, health
-          assert health['live_analytics_enabled'] is False, 'the image must default to recorded mode'
-          print('container health ok:', health)
+          import json
+          health = json.load(open('/tmp/default.json'))
+          assert health['live_analytics_enabled'] is False, health
+          assert health['execution_mode'] == 'recorded', health
+          print('image defaults to recorded mode:', health)
           "
-
-      - name: The app shell is served
-        run: |
-          curl -fsS http://127.0.0.1:8000/ | grep -q '<div id="root">'
-          echo "frontend served"
-
-      - name: The MCP endpoint answers
-        run: |
-          code=$(curl -s -o /dev/null -w '%{http_code}' -X POST http://127.0.0.1:8000/mcp \
-            -H 'Content-Type: application/json' \
-            -H 'Accept: application/json, text/event-stream' \
-            -d '{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}')
-          echo "MCP responded $code"
-          test "$code" != "404" && test "$code" != "405"
 
       - name: Container logs
         if: always()
-        run: docker logs aae || true
+        run: |
+          docker logs aae 2>&1 | tail -40 || true
+          docker logs aae-default 2>&1 | tail -20 || true

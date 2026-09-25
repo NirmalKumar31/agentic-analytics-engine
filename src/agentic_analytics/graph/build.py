@@ -29,7 +29,8 @@ from agentic_analytics.agents.schemas import (
     Verdict,
 )
 from agentic_analytics.agents.worker import run_task
-from agentic_analytics.analytics.results import ResultSnapshot
+from agentic_analytics.analytics.corrections import apply_family_correction
+from agentic_analytics.analytics.results import ResultSnapshot, StatisticalResult
 from agentic_analytics.config import Budgets
 from agentic_analytics.events import EventBus, EventType
 from agentic_analytics.graph.state import AnalysisState, WorkerInput
@@ -219,6 +220,17 @@ def build_graph(ctx: RunContext) -> Any:
     # ---------------------------------------------------- critique_findings
     async def critique_findings(state: AnalysisState) -> dict[str, Any]:
         results = ctx.results()
+        # Apply the same family correction to the stored snapshots that the
+        # workers applied to their payloads, so the numbers a reader sees in
+        # the provenance drawer match the ones the findings were written
+        # from. Holm is deterministic, so correcting the same family twice
+        # produces the same values.
+        by_task: dict[str | None, list[StatisticalResult]] = {}
+        for snapshot in results.values():
+            if snapshot.statistical_result is not None:
+                by_task.setdefault(snapshot.task_id, []).append(snapshot.statistical_result)
+        for family in by_task.values():
+            apply_family_correction(family)
         published: list[PublishedFinding] = []
         rejected: list[Verdict] = []
         verdicts: list[Verdict] = []

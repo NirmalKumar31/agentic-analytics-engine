@@ -14,6 +14,8 @@ published significance claim.
 
 from __future__ import annotations
 
+from typing import Any
+
 from agentic_analytics.analytics.results import StatisticalResult
 
 METHOD = "holm"
@@ -65,3 +67,42 @@ def apply_family_correction(results: list[StatisticalResult]) -> None:
                 f"after adjusting for {len(tests)} related tests "
                 f"(Holm-adjusted p={value:.3g})"
             )
+
+
+def apply_family_correction_to_payloads(payloads: list[dict[str, Any]]) -> int:
+    """Correct the statistical results inside a list of MCP tool payloads.
+
+    The worker sees results as the dictionaries the tool returned, not as
+    snapshots, and it writes its findings from those. Correcting here means
+    the wording a worker chooses already reflects the adjustment, rather than
+    claiming a significance that the verifier would then have to strip.
+
+    The snapshots held by the session are corrected separately with the same
+    function over the same family, so the two agree exactly -- Holm is
+    deterministic on a given set of p-values.
+
+    Returns the size of the family that was corrected.
+    """
+    tests = [
+        payload["statistical_result"]
+        for payload in payloads
+        if isinstance(payload.get("statistical_result"), dict)
+        and "p_value" in payload["statistical_result"]
+    ]
+    if len(tests) <= 1:
+        for test in tests:
+            test["family_size"] = 1
+        return len(tests)
+
+    adjusted = holm_adjust([float(t["p_value"]) for t in tests])
+    for test, value in zip(tests, adjusted, strict=True):
+        test["p_value_adjusted"] = value
+        test["correction_method"] = METHOD
+        test["family_size"] = len(tests)
+        if float(test["p_value"]) < 0.05 <= value:
+            test.setdefault("warnings", []).append(
+                f"significant before correction (p={float(test['p_value']):.3g}) but "
+                f"not after adjusting for {len(tests)} related tests "
+                f"(Holm-adjusted p={value:.3g})"
+            )
+    return len(tests)

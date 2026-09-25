@@ -79,7 +79,6 @@ DEMO_QUESTIONS: list[dict[str, str]] = [
     },
 ]
 
-FRONTEND_DIR = Path(__file__).resolve().parents[3] / "web" / "dist"
 
 #: Where the Streamable HTTP MCP endpoint is served.
 MCP_PATH = "/mcp"
@@ -532,20 +531,26 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             )
 
     # ------------------------------------------------------------ frontend
-    if FRONTEND_DIR.is_dir():
-        app.mount("/assets", StaticFiles(directory=FRONTEND_DIR / "assets"), name="assets")
+    # Resolved from settings, not from this file's location: an installed
+    # wheel has no `web/` beside it, so a path relative to the package puts
+    # the frontend inside site-packages and every page 404s. The container
+    # sets AAE_FRONTEND_DIR, and the container smoke test fetches `/`.
+    frontend_dir = cfg.frontend_dir
+    if frontend_dir.is_dir():
+        log.info("frontend_mounted", directory=str(frontend_dir))
+        app.mount("/assets", StaticFiles(directory=frontend_dir / "assets"), name="assets")
 
         @app.get("/{full_path:path}", include_in_schema=False)
         async def spa(full_path: str) -> FileResponse:
             # Any non-API path serves the app shell; routing happens client side.
-            candidate = (FRONTEND_DIR / full_path).resolve()
+            candidate = (frontend_dir / full_path).resolve()
             if (
                 full_path
                 and candidate.is_file()
-                and candidate.is_relative_to(FRONTEND_DIR.resolve())
+                and candidate.is_relative_to(frontend_dir.resolve())
             ):
                 return FileResponse(candidate)
-            return FileResponse(FRONTEND_DIR / "index.html")
+            return FileResponse(frontend_dir / "index.html")
 
     return app
 

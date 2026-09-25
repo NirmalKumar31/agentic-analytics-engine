@@ -44,6 +44,7 @@ ENV PYTHONUNBUFFERED=1 \
     AAE_DATA_DIR=/app/var/warehouse \
     AAE_UPLOAD_DIR=/tmp/aae-uploads \
     AAE_RECORDINGS_DIR=/app/examples/recordings \
+    AAE_FRONTEND_DIR=/app/web/dist \
     AAE_BIND_HOST=0.0.0.0 \
     PORT=8000
 

@@ -87,6 +87,11 @@ class Settings(BaseSettings):
     data_dir: Path = REPO_ROOT / "var" / "warehouse"
     upload_dir: Path = REPO_ROOT / "var" / "uploads"
     recordings_dir: Path = REPO_ROOT / "examples" / "recordings"
+    #: Built frontend. The repo-relative default only exists in a source
+    #: checkout; an installed wheel has no `web/` beside it, so the container
+    #: sets this explicitly. Getting it wrong serves a 404 for every page,
+    #: which is why the container smoke test fetches `/`.
+    frontend_dir: Path = REPO_ROOT / "web" / "dist"
 
     session_ttl_seconds: float = 2700.0
     max_concurrent_sessions: int = 32

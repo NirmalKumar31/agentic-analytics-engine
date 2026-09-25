@@ -21,6 +21,9 @@ from agentic_analytics.agents.schemas import (
     TaskOutcome,
     TaskStatus,
 )
+from agentic_analytics.analytics.corrections import (
+    apply_family_correction_to_payloads,
+)
 from agentic_analytics.events import EventBus, EventType
 from agentic_analytics.llm.base import LLMError, LLMProvider
 from agentic_analytics.logging import get_logger
@@ -156,6 +159,16 @@ async def run_task(
                 error=outcome.error,
             )
         return outcome
+
+    # One task is one family of related hypotheses. Correcting before the
+    # findings are written means a worker never claims a significance that
+    # the adjustment removes.
+    family_size = apply_family_correction_to_payloads(payloads)
+    if family_size > 1:
+        notes.append(
+            f"{family_size} related significance tests in this task were "
+            "Holm-corrected for multiple comparisons"
+        )
 
     try:
         findings_payload = await ask(
