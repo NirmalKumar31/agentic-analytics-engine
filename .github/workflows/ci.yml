@@ -340,11 +340,16 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
+      # Uploads are off in the image by default, which is the safe posture
+      # for anyone who runs it without reading anything. The public
+      # deployment turns them on, so the acceptance run below has to as
+      # well or it would be checking a different service.
       - name: Boot the container
         run: |
           docker run -d --name aae \
             -p 8000:8000 \
             -e AAE_LIVE_ANALYTICS_ENABLED=true \
+            -e AAE_UPLOADS_ENABLED=true \
             agentic-analytics-engine:ci
 
       - name: Container smoke test
