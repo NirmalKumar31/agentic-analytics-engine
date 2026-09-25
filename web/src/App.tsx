@@ -165,7 +165,11 @@ export function App() {
   )
 
   return (
-    <div className="shell">
+    // The session *handle* is exposed as an attribute so browser tests can
+    // check that it stops working after the session ends. The handle is
+    // public by design and authorises nothing on its own; the capability is
+    // in an HttpOnly cookie and never reaches this markup.
+    <div className="shell" data-session-id={session?.session_id ?? undefined}>
       <header className="topbar">
         <div className="brand">
           <Mark />
@@ -453,6 +457,14 @@ function AskPanel({
         <h2>Ask</h2>
       </div>
       <div className="panel-body stack">
+        {config?.execution_mode === 'deterministic_live' && (
+          <p className="notice info small" data-testid="interpretation-notice" style={{ margin: 0 }}>
+            Question interpretation is rule-based in this public demo: a scripted
+            provider maps your wording onto the dataset, and says so when it cannot.
+            The SQL, the statistics, the MCP tool execution, the verification and the
+            provenance are real.
+          </p>
+        )}
         <textarea
           className="field"
           rows={3}

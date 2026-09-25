@@ -5,22 +5,29 @@
 # verification all execute for real and nothing is sent to an external model
 # provider.
 #
-# Two things need setting by hand after the first deploy:
+# Sizing. `standard` is 1 CPU / 2 GB. The numbers below are chosen against
+# that, not against a hoped-for load: each session's DuckDB gets 384 MB and
+# one thread, and at most 12 sessions (6 of them uploads) are admitted at
+# once. Those are admission limits, not a measured concurrency guarantee --
+# 12 sessions all running large aggregates simultaneously is not something
+# this instance is claimed to survive.
 #
-#   AAE_MCP_ALLOWED_HOSTS  -- the service's own hostname. Until it is set, the
-#                            remote MCP endpoint is withdrawn rather than
-#                            served without Host validation. The application
-#                            works either way; only the public MCP transport
-#                            is affected.
-#   AAE_BIND_HOST          -- already set to 0.0.0.0 below, which is what tells
-#                            the host policy this is a network binding.
+# One thing needs setting by hand, and deliberately is not set:
+#
+#   AAE_MCP_ALLOWED_HOSTS  -- left empty, so the public Streamable HTTP MCP
+#                            endpoint returns 503 rather than being served
+#                            without Host validation. The website is
+#                            unaffected: its agents reach the same MCP server
+#                            over the SDK's in-process transport. Exposing an
+#                            internet-facing MCP endpoint for an anonymous
+#                            demo would be exposure bought for appearance.
 
 services:
   - type: web
     name: agentic-analytics-engine
     runtime: docker
     dockerfilePath: ./Dockerfile
-    plan: starter
+    plan: standard
     region: oregon
     healthCheckPath: /api/health
     autoDeploy: false
@@ -36,16 +43,26 @@ services:
 
       # Network binding. The MCP host policy reads this.
       - key: AAE_BIND_HOST
-        value: 0.0.0.0
-      # Set to this service's hostname to enable the remote MCP endpoint.
-      # Left empty the endpoint is withdrawn, which is the safe default.
+        value: "0.0.0.0"
+      # Empty on purpose: the remote MCP endpoint stays withdrawn. See above.
       - key: AAE_MCP_ALLOWED_HOSTS
         value: ""
+
+      # Render terminates TLS and forwards plain HTTP, so the application
+      # cannot infer this from the request scheme.
+      - key: AAE_SESSION_COOKIE_SECURE
+        value: "true"
 
       - key: AAE_LOG_LEVEL
         value: INFO
       - key: AAE_LOG_JSON
         value: "true"
+
+      # Per-session DuckDB envelope, sized for 1 CPU / 2 GB.
+      - key: AAE_DUCKDB_MEMORY_LIMIT
+        value: 384MB
+      - key: AAE_DUCKDB_THREADS
+        value: "1"
 
       # Ceilings for an endpoint anyone can reach.
       - key: AAE_BUDGETS__MAX_ANALYSIS_TASKS
@@ -63,24 +80,28 @@ services:
       - key: AAE_BUDGETS__MAX_RESULT_ROWS
         value: "500"
       - key: AAE_BUDGETS__MAX_UPLOAD_BYTES
-        value: "26214400"
+        value: "15728640"
+      - key: AAE_BUDGETS__MAX_UPLOAD_ROWS
+        value: "750000"
       - key: AAE_BUDGETS__MAX_UPLOAD_COLUMNS
         value: "200"
 
       # Uploaded data is ephemeral, and these bound how much of it can exist.
       - key: AAE_SESSION_TTL_SECONDS
-        value: "2700"
+        value: "1800"
       - key: AAE_MAX_CONCURRENT_SESSIONS
-        value: "32"
-      - key: AAE_MAX_ACTIVE_UPLOAD_SESSIONS
-        value: "24"
-
-      # Abuse controls. In-process counters, not durable quotas.
-      - key: AAE_UPLOADS_PER_IP_PER_HOUR
-        value: "6"
-      - key: AAE_ANALYSES_PER_IP_PER_HOUR
-        value: "30"
-      - key: AAE_ANALYSES_PER_SESSION
         value: "12"
-      - key: AAE_MAX_CONCURRENT_ANALYSES
+      - key: AAE_MAX_ACTIVE_UPLOAD_SESSIONS
+        value: "6"
+
+      # Abuse controls. In-process counters, not durable quotas: a restart
+      # resets them, and the client key comes from X-Forwarded-For, which is
+      # client-supplied.
+      - key: AAE_UPLOADS_PER_IP_PER_HOUR
         value: "4"
+      - key: AAE_ANALYSES_PER_IP_PER_HOUR
+        value: "20"
+      - key: AAE_ANALYSES_PER_SESSION
+        value: "8"
+      - key: AAE_MAX_CONCURRENT_ANALYSES
+        value: "2"

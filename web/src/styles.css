@@ -347,6 +347,7 @@ pre.sql {
 .notice { padding: 11px 14px; border-radius: var(--radius-sm); border: 1px solid var(--border-strong); background: var(--bg-inset); color: var(--text-muted); font-size: 13px; }
 .notice.error { border-color: rgb(224 108 117 / 45%); color: #f0a7ad; }
 .notice.warn { border-color: rgb(229 164 76 / 45%); color: #eec287; }
+.notice.info { border-color: var(--border-strong); }
 
 .chart-card { border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--bg-inset); padding: 12px; }
 .chart-card h4 { margin: 0 0 9px; font-size: 13px; font-weight: 500; color: var(--text-muted); }

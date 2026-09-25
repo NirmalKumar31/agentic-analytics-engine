@@ -252,6 +252,76 @@ jobs:
               assert health["demo_warehouse_ready"] is True
           PY
 
+  e2e:
+    name: Browser end to end
+    runs-on: ubuntu-latest
+    needs: [python, frontend]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - name: Build the image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: false
+          load: true
+          tags: agentic-analytics-engine:e2e
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      # The per-IP upload ceiling is 4-6 an hour in the real deployment,
+      # and the suite uploads several times per browser from one address.
+      # Raised here so every test runs; the ceiling itself is covered by
+      # tests/security and by the live acceptance run.
+      - name: Boot the container
+        run: |
+          docker run -d --name aae-e2e -p 8000:8000 \
+            -e AAE_LIVE_ANALYTICS_ENABLED=true \
+            -e AAE_UPLOADS_ENABLED=true \
+            -e AAE_UPLOADS_PER_IP_PER_HOUR=60 \
+            -e AAE_ANALYSES_PER_IP_PER_HOUR=200 \
+            -e AAE_ANALYSES_PER_SESSION=40 \
+            agentic-analytics-engine:e2e
+          for i in $(seq 1 60); do
+            curl -fsS http://127.0.0.1:8000/api/health >/dev/null 2>&1 && break
+            sleep 2
+          done
+          curl -fsS http://127.0.0.1:8000/api/health
+
+      - name: Install Playwright and Chromium
+        working-directory: web
+        run: |
+          npm ci --no-audit --no-fund
+          npx playwright install --with-deps chromium
+
+      # Chromium only here. Firefox and WebKit are run against the deployed
+      # URL at release time, where the cross-browser question is real;
+      # installing three engines on every push costs more than it finds.
+      - name: Chromium end to end
+        working-directory: web
+        env:
+          AAE_E2E_BASE_URL: http://127.0.0.1:8000
+          AAE_E2E_BROWSERS: chromium
+        run: npx playwright test
+
+      - name: Playwright report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: web/playwright-report
+          if-no-files-found: ignore
+
+      - name: Container logs
+        if: always()
+        run: docker logs aae-e2e 2>&1 | tail -60 || true
+
   docker:
     name: Docker image
     runs-on: ubuntu-latest
@@ -279,6 +349,9 @@ jobs:
 
       - name: Container smoke test
         run: python scripts/container_smoke.py http://127.0.0.1:8000
+
+      - name: Live acceptance script against the container
+        run: python scripts/live_acceptance.py http://127.0.0.1:8000
 
       # The default container withdraws the MCP endpoint because no host
       # allow-list is configured. That is the fail-closed behaviour, and it
@@ -369,5 +442,6 @@ jobs:
         if: always()
         run: |
           docker logs aae 2>&1 | tail -40 || true
+          docker logs aae-e2e 2>&1 | tail -40 || true
           docker logs aae-mcp 2>&1 | tail -20 || true
           docker logs aae-default 2>&1 | tail -20 || true

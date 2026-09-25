@@ -17,3 +17,9 @@ web/dist/
 # Generated demo warehouse and per-session scratch databases.
 var/
 .env
+
+# Playwright
+web/test-results/
+web/playwright-report/
+web/blob-report/
+web/.playwright/

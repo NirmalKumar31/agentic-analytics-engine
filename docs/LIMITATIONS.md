@@ -32,6 +32,8 @@ benchmark cannot be mistaken for autonomous planning:
 - reads findings out of result rows, never inventing a number
 - proposes a causal claim on correlation tasks, because that is the mistake
   real models make most often
+- for an uploaded file, asks the engine to map the question onto the inferred
+  schema (`aggregate_for_question`) rather than mapping it itself
 
 The plans are not question-specific lookups — the same rules run for every
 question — but they are rules, not reasoning.
@@ -82,7 +84,7 @@ pass; an innocent sentence using "drove" could be withheld.
 
 **What holds.** Two independent layers stand between a model and DuckDB: an
 AST-based SQL guard and an engine locked with `enable_external_access=false`
-and `lock_configuration=true` after load. 177 adversarial tests cover both,
+and `lock_configuration=true` after load. 185 adversarial tests cover both,
 including tests that bypass the guard on purpose. Query cancellation uses
 `con.interrupt()` and was verified to stop CPU work, not merely the waiting
 coroutine.
@@ -93,6 +95,11 @@ coroutine.
   the session. There are no accounts, no identity and no revocation beyond
   ending the session. The isolation between two visitors is real and tested;
   the boundary is a bearer secret, and that is all it is.
+- **The session cookie's `Secure` flag is configuration, not detection.** It
+  is set from `AAE_SESSION_COOKIE_SECURE`, because a TLS-terminating proxy
+  forwards plain HTTP and the request scheme would say `http` on an HTTPS
+  site. A deployment that forgets to set it serves the capability without
+  `Secure`; nothing in the application can notice.
 - **Rate limits are in-process counters, not durable quotas.** A restart
   resets them and a second replica would count separately. They raise the cost
   of casual abuse. The client key comes from `X-Forwarded-For`, which is
@@ -131,10 +138,27 @@ coroutine.
   cardinality. It is marked `inferred` everywhere and will misclassify —
   a numeric code with few distinct values reads as a dimension, a text column
   with one value per row is dropped as ungroupable.
-- Analysis of an uploaded file is profile-then-aggregate. It produces a real,
-  verified answer for the common shape (a categorical column and a numeric
-  one) and little for anything else. The demo warehouse is where the
-  interesting analysis lives.
+- **Question interpretation for an uploaded file is a set of rules, not
+  understanding.** `aggregate_for_question` recognises five operations --
+  count, total, average, ranking, trend -- matches column names as whole
+  tokens (with simple pluralisation), and reads an explicit `by <column>`
+  grouping. It resolves a column the question did not name only when the
+  schema offers exactly one candidate of the right role.
+- Everything outside that is **refused with a reason**, and the profile is
+  offered instead. "Why did revenue fall?" names no operation and gets no
+  answer. That is deliberate, but it means the deterministic demo answers a
+  narrow band of questions about an arbitrary file, and the demo warehouse is
+  where the interesting analysis lives.
+- The rules are literal. A question that says "turnover" about a column
+  called `revenue` is refused, because synonym matching would be guessing.
+- **Raw cells of an uploaded file are not sent to a remote model**, and this
+  is scoped precisely. `sample_rows` is refused and profile extrema are
+  withheld. What is *not* claimed: an aggregate over a group of one row
+  equals that row's value, so a sum by a near-unique dimension can reproduce
+  a cell. That is inherent to aggregation, not a hole in the redaction, and
+  nothing in the design prevents it.
+- The restriction applies only when inference is remote (`cloud`). In `fake`
+  and `local` mode nothing leaves the machine, so nothing is withheld.
 
 ---
 
@@ -166,13 +190,29 @@ sequence.
 
 ---
 
-## 8. Scale
+## 8. Resource envelope and scale
 
-Sized for a demo. Each session materialises its dataset into a private
-in-memory DuckDB with a 1 GB limit and 2 threads. Results returned to an agent
-are capped at 500 rows, charts at 200. A run is bounded to 30–48 MCP tool
-calls and 120–300 seconds depending on deployment. No query cache, no
-incremental computation, no persistence between sessions.
+Sized for a demo. The public deployment is one `standard` Render instance --
+1 CPU, 2 GB -- and the limits are set against that: 384 MB and one thread per
+session's DuckDB, 12 sessions admitted, 6 of them uploads, 2 analyses at once.
+
+**Those are admission limits, not a measured concurrency guarantee.** Nothing
+here establishes that 12 sessions running large aggregates simultaneously
+would survive; what the numbers do is stop the instance accepting work whose
+resource envelopes alone exceed it. `scripts/capacity_smoke.py` checks for
+breakage under a small bounded load and deliberately reports no throughput
+figure.
+
+Sessions expire on a timer rather than on the next request, and a browser
+opening a second dataset retires its first. Both were previously true only
+when later traffic happened to arrive.
+
+Each session materialises its dataset into a private in-memory DuckDB.
+Results returned to an agent are capped at 500 rows, charts at 200. A run is
+bounded to 20–48 MCP tool calls and 120–300 seconds depending on deployment.
+No query cache, no incremental computation, no persistence between sessions.
+The local default is still 1 GB and two threads per session, because a
+developer's machine is not the constraint the deployment is.
 
 ---
 
@@ -182,14 +222,39 @@ incremental computation, no persistence between sessions.
 - No virtualised tables. A 500-row result renders capped at 60 displayed rows.
 - Vega is 298 kB gzipped, lazily loaded on first chart render, and dominates
   the bundle.
-- Tested with Vitest and Testing Library. Playwright is not used — the
-  environment could not download its browser — so there is no automated
-  end-to-end browser test. Flows were verified manually through headless
-  Chrome driven over the DevTools protocol, including a real file upload.
+- Tested with Vitest and Testing Library for components, and with Playwright
+  for the assembled application: 12 browser tests covering the landing page,
+  a recorded run, a demo analysis, provenance, upload, refusal, session
+  deletion, cross-session isolation, cookie flags and the MCP endpoint
+  policy. They run against a real server, not a mock.
+- CI runs those tests on Chromium only. Firefox and WebKit are run against
+  the deployed URL at release time; between releases, a browser-specific
+  regression in either would not be caught.
+- The suite uploads several files per browser, which a deployment's per-IP
+  hourly ceiling will legitimately refuse. Those tests skip with the reason
+  rather than failing, so a rate-limited run reports fewer executed tests.
 
 ---
 
-## 10. Deliberately out of scope
+## 10. Not yet deployed
+
+At the time of writing there is **no live URL**. `render.yaml` is committed
+and complete and every check in this repository passes against a container
+built from the same Dockerfile, but nothing here is evidence that the service
+runs on Render. In particular these are untested until it does:
+
+- behaviour behind a TLS-terminating proxy, which is the reason
+  `AAE_SESSION_COOKIE_SECURE` exists at all
+- the 384 MB / 1 thread envelope against a real 2 GB instance under load
+- cold-start latency on a free-tier-adjacent plan
+- Firefox and WebKit against the deployed build (they pass locally)
+
+This section is replaced with the deployment's actual details once the site
+is up and the acceptance run has passed against it.
+
+---
+
+## 11. Deliberately out of scope
 
 No authentication, billing, multi-tenant persistence or scheduled jobs. No
 arbitrary Python or notebook execution by the model. No vector database, RAG

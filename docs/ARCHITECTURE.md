@@ -20,7 +20,7 @@ is.
                       ▼
         DETERMINISTIC ANALYTICS PLANE
    ┌──────────────────────────────────────┐
-   │  MCP server -- 16 tools, 4 resources │   owns every number
+   │  MCP server -- 17 tools, 4 resources │   owns every number
    │  Semantic metric layer               │
    │  DuckDB, locked read-only            │
    │  SciPy statistics + Holm correction  │
@@ -101,9 +101,28 @@ Agents never import `agentic_analytics.analytics`. They hold an
   agent, so an agent cannot address another session's data. A test passes a
   foreign `session_id` and asserts the client overrides it.
 
-In production the client connects over Streamable HTTP to `/mcp` on the same
-process; in tests it connects in-process with `Client(server)`. Both are
-covered.
+**Which transport carries this, precisely.** The agent always holds a real
+`mcp.Client`; what differs is what that client is connected to.
+
+- **The deployed website uses the SDK's in-process transport.** `run_analysis`
+  is handed the `MCPServer` object and the client connects to it directly.
+  That is what makes the deployment one container, and it is the path every
+  analysis on the site actually takes. It is a real client and a real server
+  speaking the protocol -- not a function call dressed up as one -- but it is
+  not a network hop, and claiming the site makes HTTP MCP requests to itself
+  would be false.
+- **`/mcp` is a separate Streamable HTTP transport** for callers outside this
+  process. It is exercised in CI (`tests/integration/test_mcp.py` runs a real
+  server) and again against the built container, where a second instance is
+  started with a Host allow-list and asked to `initialize`, list tools, and
+  refuse a tool call that presents the wrong capability.
+- **On the public deployment `/mcp` is deliberately withdrawn**, because
+  `AAE_MCP_ALLOWED_HOSTS` is left empty. An anonymous demo gains nothing from
+  an internet-facing MCP endpoint, and the site is unaffected: its agents were
+  never using that transport.
+
+There is no setting to switch the web application onto HTTP. One existed and
+nothing read it, which is worse than not having it.
 
 ### Model ↔ DuckDB
 

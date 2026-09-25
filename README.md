@@ -31,7 +31,7 @@ It runs with no API credentials.
                       ▼
         DETERMINISTIC ANALYTICS PLANE        owns every number
    ┌──────────────────────────────────────┐
-   │  MCP server (16 tools, 4 resources)  │
+   │  MCP server (17 tools, 4 resources)  │
    │  Semantic metric layer               │
    │  DuckDB, locked read-only            │
    │  SciPy statistics                    │
@@ -92,7 +92,7 @@ make dev          # build the frontend and serve on http://127.0.0.1:8000
 No `.env` required. `make verify` runs everything CI runs.
 
 ```bash
-make test         # 540 Python tests
+make test         # 597 Python tests
 make evaluate     # score the engine against the injected patterns
 make record       # re-record the three demo runs
 ```
@@ -105,12 +105,12 @@ The MCP server exposes analytical capabilities, not a SQL endpoint. In the
 benchmark, **35 of 35 tool calls used a governed tool and none used
 model-written SQL.**
 
-**16 tools** — `list_tables`, `describe_table`, `profile_table`,
+**17 tools** — `list_tables`, `describe_table`, `profile_table`,
 `profile_dataset`, `sample_rows`, `list_metrics`, `compute_metric`,
 `compare_segments`, `compare_periods`, `analyze_timeseries`,
 `decompose_change`, `rank_contributors`, `correlation_matrix`,
-`statistical_test`, `get_result`, and `run_readonly_sql` as a guarded
-fallback.
+`statistical_test`, `aggregate_for_question`, `get_result`, and
+`run_readonly_sql` as a guarded fallback.
 
 **4 resources** — `dataset://catalog`, `dataset://schema/{session_id}/{table}`,
 `metrics://definitions`, `result://{session_id}/{result_id}`.
@@ -123,8 +123,12 @@ report that they did not. On the demo warehouse the Q3 margin drop resolves to
 −3.76pp of rate effect and −3.67pp of mix effect, summing to the observed
 −7.63pp — which is the pattern the generator injected.
 
-Built on the official MCP Python SDK v2 (`mcp` 2.2.0, protocol `2026-07-28`),
-tested in-process and over a real Streamable HTTP server.
+Built on the official MCP Python SDK v2 (`mcp` 2.2.0, protocol `2026-07-28`).
+Agents always hold a real `mcp.Client`. On the deployed site that client uses
+the SDK's **in-process transport** to the server object in the same container;
+`/mcp` is a **separate Streamable HTTP transport** for external callers,
+exercised in CI and against the built image. On the public deployment `/mcp`
+is withdrawn on purpose — see [Security](#security).
 
 ---
 
@@ -143,6 +147,10 @@ language model, and the UI never implies otherwise.
 `/api/config` reports `execution_mode` and `model_inference_remote`, and every
 recording carries `provider_kind` and `run_kind`.
 
+In deterministic mode the Ask panel says so in as many words: question
+interpretation is rule-based, while the SQL, the statistics, the MCP tool
+execution, the verification and the provenance are real.
+
 ---
 
 ## Upload your own data
@@ -155,9 +163,9 @@ cookie. The handle appears in MCP resource URIs and authorises nothing on its
 own. This is isolation, not authentication — anyone holding the token is the
 session, and the docs say so rather than implying more.
 
-- One file, 25 MB, 200 columns, CSV or Parquet only
+- One file, 15 MB, 200 columns, CSV or Parquet only on the public deployment
 - Its own DuckDB database and its own scratch directory, both erased when the
-  session ends or expires after 45 minutes
+  session ends or expires after 30 minutes
 - Parquet validated through its metadata — columns, row groups, nesting,
   declared uncompressed size — before any data is read
 - CSV screened as bounded delimited text. **CSV has no magic bytes**, and the
@@ -168,6 +176,36 @@ An uploaded file has no governed metric layer, so the engine infers one from
 column types and cardinality and marks everything `inferred`. It will not
 invent business meaning: two columns that could both be revenue produce a
 clarifying question, not a guess.
+
+### How a question about your file is answered
+
+`aggregate_for_question` maps the question onto that inferred schema by rule,
+inside the engine. A column counts only when the question names it; the
+operation comes from a fixed vocabulary — count, total, average, ranking,
+trend; and a column the operation needs is filled in only when the schema
+offers exactly one candidate, so the choice is forced rather than guessed.
+The engine then composes the SQL itself and it still passes the guard.
+
+When the question cannot be resolved that way, **it is refused with the
+reason** and the table's profile is offered instead:
+
+> this question could not be mapped to the table without guessing (the
+> question does not name which numeric column to use, and the table has 2 to
+> choose from)
+
+That refusal is the feature. Aggregating whichever column happened to look
+groupable would produce a number that reads like an answer without being one.
+
+### What leaves the server
+
+Nothing, on the public deployment: the provider is the scripted one and no
+inference call is made. On a deployment configured with a cloud model, the
+schema, the profile and aggregated results are sent — and individual cells of
+your file are not. `sample_rows` is refused for uploaded data, and a profile's
+per-column minimum and maximum are withheld from the model, because those are
+cells rather than summaries. An aggregate over a group of one row can still
+equal a cell; that is inherent to aggregation and is stated in
+[docs/LIMITATIONS.md](docs/LIMITATIONS.md) rather than glossed over.
 
 ---
 
@@ -270,7 +308,7 @@ Reproduce with `make evaluate`. Details in
 The model never reaches DuckDB directly.
 
 **SQLGuard** parses every statement with `sqlglot` and works on the AST.
-177 adversarial tests cover writes, DDL, `COPY`, `ATTACH`, extension loading,
+185 adversarial tests cover writes, DDL, `COPY`, `ATTACH`, extension loading,
 remote URLs, multi-statement payloads, file-as-table syntax, and DuckDB
 specifics like `SUMMARIZE` and `FROM x SELECT`. A further set covers read-only
 denial of service: unbounded generators, cross-join explosion, AST size and
@@ -287,7 +325,15 @@ work rather than just the waiting coroutine.
 **The MCP endpoint fails closed.** A loopback binding gets a localhost
 allow-list automatically. A network binding must declare its hostnames; one
 that declares none has the remote transport withdrawn with a 503 rather than
-served with Host validation disabled.
+served with Host validation disabled. The public deployment leaves the
+allow-list empty, so the endpoint is withdrawn there by choice — the site's
+agents reach the same MCP server in-process, so nothing is lost but the
+exposure.
+
+**Uploaded cells do not go to a remote model.** `sample_rows` is refused for
+an uploaded dataset whenever inference is remote, and a profile's per-column
+minimum and maximum are withheld from the one representation handed to an
+agent. A test inspects the actual prompt payloads rather than the code path.
 
 **Charts** are built by the engine from an encoding the model chose, then
 validated on the server and again in the browser.
@@ -349,9 +395,10 @@ The full list is in [docs/LIMITATIONS.md](docs/LIMITATIONS.md).
 
 ## Verified
 
-540 Python tests, 35 frontend tests, 87% branch coverage. `ruff`,
+597 Python tests, 35 frontend tests, 36 browser tests across Chromium,
+Firefox and WebKit, 88% branch coverage. `ruff`,
 `ruff format`, `mypy` (with `disallow_untyped_defs`), `pip-audit` and
-`npm audit` clean. Frontend production bundle 383 kB gzipped, of which 298 kB
-is the Vega chart engine in a lazily-loaded chunk.
+`npm audit` clean. Frontend production bundle about 380 kB gzipped, of which
+about 296 kB is the Vega chart engine in a lazily-loaded chunk.
 
 MIT licensed.

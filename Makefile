@@ -14,10 +14,11 @@ PORT    ?= 8000
 
 .DEFAULT_GOAL := help
 .PHONY: help bootstrap data test test-cov lint format typecheck frontend frontend-test \
+        e2e e2e-install live-acceptance capacity-smoke \
         dev serve record verify evaluate docker docker-run clean constraints wheel audit all
 
 help: ## Show the available targets
-	@grep -hE '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) \
+	@grep -hE '^[a-zA-Z0-9_-]+:.*?## ' $(MAKEFILE_LIST) \
 	 | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-16s\033[0m %s\n", $$1, $$2}'
 
 bootstrap: ## Create the virtualenv, install Python and frontend dependencies
@@ -52,6 +53,18 @@ frontend: ## Build the production frontend bundle
 
 frontend-test: ## Typecheck and test the frontend
 	cd $(WEB) && npm run typecheck && npm run test
+
+e2e-install: ## Download the browsers Playwright drives
+	cd $(WEB) && npx playwright install --with-deps chromium
+
+e2e: ## Browser tests against a server you are already running (AAE_E2E_BASE_URL)
+	cd $(WEB) && AAE_E2E_BASE_URL=$${AAE_E2E_BASE_URL:-http://127.0.0.1:$(PORT)} npx playwright test
+
+live-acceptance: ## Acceptance checks against a deployed URL: make live-acceptance URL=https://...
+	$(PY) scripts/live_acceptance.py $(URL)
+
+capacity-smoke: ## Small bounded concurrency check. Not a throughput benchmark.
+	$(PY) scripts/capacity_smoke.py $(URL)
 
 dev: data frontend ## Generate data, build the frontend, serve with live analysis on
 	AAE_LIVE_ANALYTICS_ENABLED=true AAE_LOG_JSON=false \

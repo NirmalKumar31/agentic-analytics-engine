@@ -168,3 +168,60 @@ def test_dockerfile_runs_as_an_unprivileged_user() -> None:
     # The image must not default to live analysis.
     assert "AAE_LIVE_ANALYTICS_ENABLED=false" in dockerfile
     assert "AAE_PROVIDER_MODE=fake" in dockerfile
+
+
+@pytest.mark.parametrize("name", ["render.yaml", "deploy/render-live.yaml"])
+def test_blueprints_mark_the_cookie_secure(name: str) -> None:
+    """Render terminates TLS, so the application cannot infer this."""
+    by_key = {e["key"]: e for e in _blueprint(name)["envVars"]}  # type: ignore[index]
+    assert by_key["AAE_SESSION_COOKIE_SECURE"]["value"] == "true"
+
+
+@pytest.mark.parametrize("name", ["render.yaml", "deploy/render-live.yaml"])
+def test_blueprints_size_duckdb_for_the_instance(name: str) -> None:
+    """A 1 GB session envelope does not fit twelve sessions on a 2 GB box."""
+    service = _blueprint(name)
+    by_key = {e["key"]: e for e in service["envVars"]}  # type: ignore[index]
+    assert service["plan"] == "standard"
+    # Parseable by the application, and smaller than the old hardcoded 1 GB.
+    settings = Settings(
+        duckdb_memory_limit=by_key["AAE_DUCKDB_MEMORY_LIMIT"]["value"],
+        duckdb_threads=int(by_key["AAE_DUCKDB_THREADS"]["value"]),
+    )
+    assert settings.duckdb_memory_limit.upper().endswith("MB")
+    assert int(settings.duckdb_memory_limit[:-2]) <= 512
+    assert settings.duckdb_threads == 1
+
+
+@pytest.mark.parametrize("name", ["render.yaml", "deploy/render-live.yaml"])
+def test_the_session_envelope_fits_the_instance(name: str) -> None:
+    """Sessions x per-session memory must leave room for the process.
+
+    Not a guarantee that the instance survives peak load -- these are
+    admission limits -- but admitting sessions whose envelopes alone exceed
+    the box is a configuration error that is worth catching in CI.
+    """
+    by_key = {e["key"]: e for e in _blueprint(name)["envVars"]}  # type: ignore[index]
+    per_session_mb = int(by_key["AAE_DUCKDB_MEMORY_LIMIT"]["value"].upper().removesuffix("MB"))
+    sessions = int(by_key["AAE_MAX_CONCURRENT_SESSIONS"]["value"])
+    concurrent = int(by_key["AAE_MAX_CONCURRENT_ANALYSES"]["value"])
+    # `standard` is 2 GB. Only analyses actually execute queries, so the
+    # binding constraint is concurrent analyses, not admitted sessions.
+    assert per_session_mb * concurrent < 2048
+    assert sessions <= 16
+
+
+def test_the_public_blueprint_keeps_the_remote_mcp_endpoint_withdrawn() -> None:
+    """An anonymous demo has no reason to expose MCP to the internet.
+
+    The website's agents use the in-process transport, so nothing is lost.
+    """
+    by_key = {e["key"]: e for e in _blueprint("render.yaml")["envVars"]}  # type: ignore[index]
+    assert by_key["AAE_MCP_ALLOWED_HOSTS"]["value"] == ""
+
+
+def test_the_model_blueprint_does_not_imply_ollama_is_available() -> None:
+    """`local` needs an Ollama that this image does not contain or start."""
+    text = (REPO / "deploy" / "render-live.yaml").read_text()
+    assert "does not contain or" in text
+    assert "11434" in text
