@@ -92,7 +92,7 @@ make dev          # build the frontend and serve on http://127.0.0.1:8000
 No `.env` required. `make verify` runs everything CI runs.
 
 ```bash
-make test         # 608 Python tests
+make test         # 639 Python tests
 make evaluate     # score the engine against the injected patterns
 make record       # re-record the three demo runs
 ```
@@ -313,7 +313,7 @@ Reproduce with `make evaluate`. Details in
 The model never reaches DuckDB directly.
 
 **SQLGuard** parses every statement with `sqlglot` and works on the AST.
-188 adversarial tests cover writes, DDL, `COPY`, `ATTACH`, extension loading,
+207 adversarial tests cover writes, DDL, `COPY`, `ATTACH`, extension loading,
 remote URLs, multi-statement payloads, file-as-table syntax, and DuckDB
 specifics like `SUMMARIZE` and `FROM x SELECT`. A further set covers read-only
 denial of service: unbounded generators, cross-join explosion, AST size and
@@ -400,7 +400,7 @@ The full list is in [docs/LIMITATIONS.md](docs/LIMITATIONS.md).
 
 ## Verified
 
-608 Python tests, 35 frontend tests, and 12 browser tests run on Chromium
+639 Python tests, 35 frontend tests, and 12 browser tests run on Chromium
 in CI and on Chromium, Firefox and WebKit before a release. 88% branch
 coverage. `ruff`,
 `ruff format`, `mypy` (with `disallow_untyped_defs`), `pip-audit` and
