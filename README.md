@@ -92,7 +92,7 @@ make dev          # build the frontend and serve on http://127.0.0.1:8000
 No `.env` required. `make verify` runs everything CI runs.
 
 ```bash
-make test         # 497 Python tests
+make test         # 513 Python tests
 make evaluate     # score the engine against the injected patterns
 make record       # re-record the three demo runs
 ```
@@ -347,9 +347,9 @@ The full list is in [docs/LIMITATIONS.md](docs/LIMITATIONS.md).
 
 ## Verified
 
-497 Python tests, 35 frontend tests, 86% branch coverage. `ruff`,
+513 Python tests, 35 frontend tests, 87% branch coverage. `ruff`,
 `ruff format`, `mypy` (with `disallow_untyped_defs`), `pip-audit` and
-`npm audit` clean. Frontend production bundle 371 kB gzipped, of which 288 kB
+`npm audit` clean. Frontend production bundle 383 kB gzipped, of which 298 kB
 is the Vega chart engine in a lazily-loaded chunk.
 
 MIT licensed.

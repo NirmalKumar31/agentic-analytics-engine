@@ -180,7 +180,7 @@ incremental computation, no persistence between sessions.
 
 - No client-side routing; one page.
 - No virtualised tables. A 500-row result renders capped at 60 displayed rows.
-- Vega is 288 kB gzipped, lazily loaded on first chart render, and dominates
+- Vega is 298 kB gzipped, lazily loaded on first chart render, and dominates
   the bundle.
 - Tested with Vitest and Testing Library. Playwright is not used — the
   environment could not download its browser — so there is no automated

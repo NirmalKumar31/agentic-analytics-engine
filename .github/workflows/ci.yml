@@ -280,6 +280,74 @@ jobs:
       - name: Container smoke test
         run: python scripts/container_smoke.py http://127.0.0.1:8000
 
+      # The default container withdraws the MCP endpoint because no host
+      # allow-list is configured. That is the fail-closed behaviour, and it
+      # means the smoke test above cannot exercise MCP. So a second
+      # container is started *with* an allow-list, proving the endpoint
+      # negotiates and serves tools when it is configured to.
+      - name: MCP endpoint works when a host allow-list is configured
+        run: |
+          docker run -d --name aae-mcp -p 8002:8000 \
+            -e AAE_MCP_ALLOWED_HOSTS=127.0.0.1:8002 \
+            -e AAE_LIVE_ANALYTICS_ENABLED=true \
+            agentic-analytics-engine:ci
+          for i in $(seq 1 60); do
+            curl -fsS http://127.0.0.1:8002/api/health >/dev/null 2>&1 && break
+            sleep 2
+          done
+          python - <<'SMOKE'
+          import json, urllib.request
+
+          BASE = "http://127.0.0.1:8002"
+
+          def rpc(method, params, session=None):
+              body = json.dumps(
+                  {"jsonrpc": "2.0", "id": 1, "method": method, "params": params}
+              ).encode()
+              request = urllib.request.Request(f"{BASE}/mcp", data=body, method="POST")
+              request.add_header("Content-Type", "application/json")
+              request.add_header("Accept", "application/json, text/event-stream")
+              if session:
+                  request.add_header("Mcp-Session-Id", session)
+              with urllib.request.urlopen(request, timeout=30) as response:
+                  return response.headers.get("Mcp-Session-Id"), response.read().decode()
+
+          session, initialized = rpc(
+              "initialize",
+              {
+                  "protocolVersion": "2026-07-28",
+                  "capabilities": {},
+                  "clientInfo": {"name": "ci", "version": "1"},
+              },
+          )
+          assert "agentic-analytics" in initialized, initialized[:300]
+          print("MCP initialize ok; protocol negotiated")
+
+          _, tools = rpc("tools/list", {}, session)
+          for name in ("compute_metric", "decompose_change", "statistical_test"):
+              assert name in tools, f"{name} missing from tool discovery"
+          print("MCP tool discovery ok")
+
+          # A tool call without the session capability must be refused.
+          opener = urllib.request.build_opener(urllib.request.HTTPCookieProcessor())
+          demo = json.loads(
+              opener.open(
+                  urllib.request.Request(f"{BASE}/api/datasets/demo", method="POST"),
+                  timeout=30,
+              ).read()
+          )
+          _, refused = rpc(
+              "tools/call",
+              {
+                  "name": "list_tables",
+                  "arguments": {"session_id": demo["session_id"], "session_key": "wrong"},
+              },
+              session,
+          )
+          assert "unknown or expired" in refused, refused[:300]
+          print("MCP tool call without the capability is refused")
+          SMOKE
+
       - name: The image must not default to live analysis
         run: |
           docker rm -f aae
@@ -301,4 +369,5 @@ jobs:
         if: always()
         run: |
           docker logs aae 2>&1 | tail -40 || true
+          docker logs aae-mcp 2>&1 | tail -20 || true
           docker logs aae-default 2>&1 | tail -20 || true

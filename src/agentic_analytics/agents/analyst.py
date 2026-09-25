@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import json
 from typing import Any
 
 from agentic_analytics.agents.base import ask, bullet_list, parse_into, schema_of
@@ -181,8 +180,3 @@ Emit at most {max_tasks} tasks."""
         if len(cleaned) >= max_tasks:
             break
     return cleaned
-
-
-def task_context(task: AnalysisTask) -> dict[str, Any]:
-    """The task as the worker's scripted provider sees it."""
-    return json.loads(task.model_dump_json())

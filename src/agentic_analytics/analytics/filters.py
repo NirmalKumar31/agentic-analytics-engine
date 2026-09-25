@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from typing import Any, Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 
 FilterOp = Literal[
     "=",
@@ -46,12 +46,6 @@ class Filter(BaseModel):
     value: Any = None
 
     model_config = {"extra": "forbid"}
-
-
-class FilterSpec(BaseModel):
-    """A conjunction of predicates."""
-
-    filters: list[Filter] = Field(default_factory=list)
 
 
 def build_where(

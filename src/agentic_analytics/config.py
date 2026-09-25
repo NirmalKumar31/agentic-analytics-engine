@@ -149,8 +149,3 @@ class Settings(BaseSettings):
 def get_settings() -> Settings:
     """Process-wide settings, read once."""
     return Settings()
-
-
-def reset_settings_cache() -> None:
-    """Drop the cached settings. Used by tests that patch the environment."""
-    get_settings.cache_clear()
