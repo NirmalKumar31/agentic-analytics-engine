@@ -4,184 +4,196 @@ What this does not do, what has not been verified, and where the edges are.
 
 ---
 
-## 1. The measured numbers come from a scripted provider
+## 1. The benchmark measures the engine, not model planning
 
-The default provider is not a language model. It is a rule-based stand-in that
-maps question keywords to metrics and produces the same structured outputs a
-model would, reading every figure it writes out of a real `ResultSnapshot`.
+The default provider is a rule-based stand-in, not a language model. It maps
+question keywords to metrics and produces the same structured outputs a model
+would, reading every figure it writes out of a real `ResultSnapshot`.
 
-This is what lets tests, CI, the recorded demos and the public deployment run
-with zero credentials and identical results. It also means the evaluation in
-[EVALUATION.md](EVALUATION.md) measures the *engine* — the metric layer, the
-statistics, the verification gates, the provenance chain — and not plan
-quality under a real model.
+That is what lets tests, CI, the recorded demos and the public deployment run
+with zero credentials and identical results. It also means the numbers in
+[EVALUATION.md](EVALUATION.md) measure graph execution, MCP execution, SQL and
+statistical correctness, provenance, verification and publication — and not
+question understanding, planning quality or tool-selection reliability.
 
-Live mode (`local` or `cloud`) drives the same graph, the same MCP tools and
-the same verification. The safety and provenance guarantees are identical. The
-planning is not measured, because measuring it would need paid calls.
+Live mode drives the same graph, the same MCP tools and the same verification,
+and every safety and provenance guarantee holds identically. Plan quality
+under a real model is simply not measured, because measuring it would require
+paid calls.
 
-The scripted provider deliberately proposes a causal claim on correlation
-tasks, because that is the mistake real models make most often. That is
-modelling a known failure, not simulating a rejection: the claim is generated
-by the same code path as every other finding, and a real deterministic rule
-catches it.
+**What the scripted provider is scripted to do**, stated plainly so the
+benchmark cannot be mistaken for autonomous planning:
 
----
+- maps question keywords to metrics and dimensions from the catalogue
+- derives a comparison window from a named period (Q3 2025 → Q2 vs Q3)
+- emits a fixed task shape: a trend per target metric, one or two segment
+  cuts, a driver decomposition when the question asks *why*, and a statistical
+  test when the question asks whether one thing relates to another
+- reads findings out of result rows, never inventing a number
+- proposes a causal claim on correlation tasks, because that is the mistake
+  real models make most often
 
-## 2. The Docker image has not been built locally
-
-No container runtime is available on the development machine — Docker Desktop
-is present as a broken stub with no binaries, and there is no podman, colima
-or nerdctl.
-
-What *was* verified instead: the wheel builds, installs cleanly into a fresh
-virtualenv against `constraints.txt`, and then performs every step the
-Dockerfile performs — generating the demo warehouse to a byte-identical
-fingerprint, validating the recordings, and serving a healthy app with only
-runtime dependencies present.
-
-The image build itself, and the container health check, run in CI and have not
-executed anywhere else. Treat the Dockerfile as reviewed and structurally
-de-risked rather than as proven.
+The plans are not question-specific lookups — the same rules run for every
+question — but they are rules, not reasoning.
 
 ---
 
-## 3. Uploaded files get no semantic metric layer
-
-An upload is one arbitrary table. There is nothing to look a metric up in, so
-`compute_metric`, `compare_segments` and `analyze_timeseries` are unavailable
-and the run takes a different route: profile the table, then compose a grouped
-aggregate from the columns and cardinalities the profile reported.
-
-That produces a real, verified answer for the common shape (a categorical
-column and a numeric one) and little for anything else. Joins across uploaded
-files, user-defined metrics and multi-file ETL are explicitly out of scope for
-v1.
-
-The demo warehouse is where the interesting analysis lives.
-
----
-
-## 4. Statistical scope
+## 2. Statistical scope
 
 - Six tests in five families: two-proportion z, Welch's t, one-way ANOVA,
-  chi-square, and Pearson / Spearman correlation. No regression, no time-series
-  decomposition, no causal inference, no multiple-comparison correction.
-- Running several segment comparisons in one report raises the family-wise
-  error rate. Nothing adjusts for that, and nothing claims to.
-- Tests needing row-level values (the correlations) are computed on the first
-  50,000 rows, and the snapshot says so when it sampled.
-- Welch's t and ANOVA are computed from group `n`/mean/sd rather than raw
-  values. This is exact for those statistics but means no distributional
-  diagnostics are available.
-- Every test attaches its assumptions and flags shaky ones — small event
-  counts, low expected cell counts — but nothing refuses to run a test whose
-  assumptions are violated. The warning travels with the result; a reader has
-  to read it.
+  chi-square, and Pearson / Spearman correlation. No regression, no
+  time-series decomposition, no causal inference.
+- **Multiple comparisons** are corrected with Holm within an analytical task,
+  and the publication gate reads the adjusted p-value. Correction does *not*
+  span tasks: a run performing related tests in two separate tasks has two
+  families, not one. That is a real limit on the guarantee.
+- Applicability is validated before a test runs — a correlation on text or a
+  t-test on a category label is refused rather than returning a meaningless
+  number — but nothing refuses a test whose *distributional* assumptions are
+  violated. The warnings travel with the result; a reader has to read them.
+- Welch's t and ANOVA are computed from group n/mean/sd. Exact for those
+  statistics, but no distributional diagnostics are available.
+- Correlations above 50,000 rows use a seeded DuckDB reservoir sample. The
+  snapshot records `rows_available`, `rows_used`, `sampling_applied`,
+  `sampling_method` and `sampling_seed`, and the same request reproduces the
+  same coefficient — but it is still an estimate.
 
 ---
 
-## 5. Verification has a ceiling
+## 3. Verification has a ceiling
 
 The arithmetic check is complete for what it covers: every number must appear
 in a cited result or be derivable from two cited cells by subtraction, ratio
 or percentage change. Derivations outside that set — a weighted average across
-three cells, a compound growth rate — would not match and would be rejected
-even if correct. That is the safe direction to fail, but it is a limit.
+three cells, a compound growth rate — would be rejected even if correct. That
+is the safe direction to fail, and it is a limit.
 
-The semantic check is a model, so it inherits a model's judgement. It runs
-last, after the arithmetic is settled, and cannot overrule it; a critic that
-fails returns `partially_supported` rather than approving. But "is this
-wording a fair description of this result" has no deterministic answer, and
-the critic will sometimes be wrong in both directions.
+The semantic check is a model and inherits a model's judgement. It runs last,
+cannot overrule the arithmetic, and a critic that fails returns
+`partially_supported` rather than approving. But "is this wording a fair
+description of this result" has no deterministic answer.
 
-Deterministic claim-shape rules are keyword-based. `is_causal` looks for
-causal verbs without hedging. A causal claim phrased unusually could pass, and
-an innocent sentence using "drove" could be withheld.
+Claim-shape rules are keyword-based. A causal claim phrased unusually could
+pass; an innocent sentence using "drove" could be withheld.
 
 ---
 
-## 6. Security boundaries
+## 4. Security boundaries
 
 **What holds.** Two independent layers stand between a model and DuckDB: an
-AST-based SQL guard, and an engine locked with `enable_external_access=false`
-and `lock_configuration=true` after load. 125 adversarial tests cover both,
-including tests that bypass the guard on purpose to confirm the engine refuses
-on its own.
+AST-based SQL guard and an engine locked with `enable_external_access=false`
+and `lock_configuration=true` after load. 150 adversarial tests cover both,
+including tests that bypass the guard on purpose. Query cancellation uses
+`con.interrupt()` and was verified to stop CPU work, not merely the waiting
+coroutine.
 
 **What is not claimed.**
 
-- **DNS-rebinding protection on `/mcp` is off unless configured.** The SDK
-  enables it automatically only for a loopback bind; a container binds to
-  every interface. Set `AAE_MCP_ALLOWED_HOSTS` to the deployment hostname to
-  turn it on. Left empty it stays off — which is the documented default,
-  because the endpoint is read-only, holds no credential, and every tool
-  requires a session id the caller must already possess.
-- **No authentication, no rate limiting beyond per-run budgets and a cap of
-  four concurrent analyses.** A public live deployment is open by
-  construction. The ceilings bound the cost of any single run, not the number
-  of runs.
+- **Session capability is not authentication.** Anyone holding the token is
+  the session. There are no accounts, no identity and no revocation beyond
+  ending the session. The isolation between two visitors is real and tested;
+  the boundary is a bearer secret, and that is all it is.
+- **Rate limits are in-process counters, not durable quotas.** A restart
+  resets them and a second replica would count separately. They raise the cost
+  of casual abuse. The client key comes from `X-Forwarded-For`, which is
+  client-supplied and therefore spoofable.
 - **No sandboxing of the DuckDB process.** The lockdown is a DuckDB
-  configuration, not an OS boundary. It is strong — the settings are
-  irreversible for the connection's life — but a DuckDB vulnerability would
-  not be contained by it.
-- **Uploaded data lives in process memory** for the session's life. It is
-  never written to disk after ingestion (the temporary file is deleted once
-  the rows are loaded) and never persisted, but a memory dump of a running
-  process would contain it.
+  configuration, not an OS boundary. A DuckDB vulnerability would not be
+  contained by it.
+- **Uploaded data lives in process memory** for the session's life. The
+  temporary file is deleted once the rows are loaded and the scratch directory
+  is removed with the session, but a memory dump of a running process would
+  contain the data.
+- **Resource exhaustion is bounded, not eliminated.** Generator arguments, AST
+  size and depth, joins, CTEs and set operations are all capped, recursive
+  CTEs are refused, and the query timeout is real. A query that is expensive
+  without being structurally unusual — a legitimate aggregate over the whole
+  warehouse — is bounded only by the timeout and the memory limit.
+- **The MCP endpoint fails closed** for a network binding with no host
+  allow-list: the transport is withdrawn rather than served unvalidated. When
+  an allow-list *is* configured, Host and Origin validation is the SDK's, and
+  the endpoint still accepts any caller who supplies a valid session handle
+  and capability.
+
+---
+
+## 5. Uploaded datasets
+
+- One file per session. No joins across uploads, no multi-file ETL, no
+  user-defined metrics.
+- 25 MB, 200 columns, CSV or Parquet only. No Excel, JSON, SQLite, archives or
+  URL ingestion.
+- **CSV validation is not format validation.** CSV has no magic bytes. The
+  file is screened against signatures of formats it is definitely not, its
+  header is bounded, and DuckDB's parser is the real arbiter. Parquet is
+  genuinely validated through its metadata before any data is read.
+- The inferred semantic schema is heuristic: roles come from column types and
+  cardinality. It is marked `inferred` everywhere and will misclassify —
+  a numeric code with few distinct values reads as a dimension, a text column
+  with one value per row is dropped as ungroupable.
+- Analysis of an uploaded file is profile-then-aggregate. It produces a real,
+  verified answer for the common shape (a categorical column and a numeric
+  one) and little for anything else. The demo warehouse is where the
+  interesting analysis lives.
+
+---
+
+## 6. Change decomposition
+
+Additive decomposition is exact. Shift-share decomposition for rate metrics
+reconciles exactly and separates rate movement from mix movement, but:
+
+- it is descriptive, not causal — it attributes arithmetic, not cause
+- it requires the metric to declare a numerator and denominator, so metrics
+  without one (`roas`, `average_order_value`) cannot be decomposed
+- a segment present in only one period contributes its whole weight to the mix
+  effect, which is correct arithmetic and can read oddly
+- if the components do not reconcile the result is marked `reconciled: false`
+  and no finding is generated from it
 
 ---
 
 ## 7. Determinism, precisely
 
 Deterministic: the generated warehouse (byte-identical for a seed, checked in
-CI by generating twice), the analytical tasks, the tool calls per task, the
-findings, and the report.
+CI), the analytical tasks, the tool calls per task, the findings, the report,
+and any sampled correlation.
 
 Not deterministic: the order entries appear in the global MCP trace, because
 workers run concurrently and the trace records real completion order. The
 reproducibility test groups the trace by task rather than asserting a global
-sequence — asserting a fixed order would be asserting something the system
-does not provide.
+sequence.
 
 ---
 
 ## 8. Scale
 
-Sized for a demo, not a warehouse.
-
-- Each session materialises its dataset into a private in-memory DuckDB.
-  32 concurrent sessions × ~250k rows is the tested shape; the memory limit is
-  1 GB per connection.
-- Uploads are capped at 25 MB and 2,000,000 rows.
-- Results returned to an agent are capped at 500 rows, charts at 200.
-- A run is bounded to 48 MCP tool calls and 300 seconds.
-
-There is no query result cache, no incremental computation, and no persistence
-between sessions.
+Sized for a demo. Each session materialises its dataset into a private
+in-memory DuckDB with a 1 GB limit and 2 threads. Results returned to an agent
+are capped at 500 rows, charts at 200. A run is bounded to 30–48 MCP tool
+calls and 120–300 seconds depending on deployment. No query cache, no
+incremental computation, no persistence between sessions.
 
 ---
 
 ## 9. Frontend
 
-- No client-side routing; the app is one page and the server serves the shell
-  for any unknown path.
-- No virtualised tables. A 500-row result in the provenance drawer renders in
-  full, capped to 60 rows displayed.
-- Vega is 295.7 kB gzipped, lazily loaded on first chart render. It dominates
+- No client-side routing; one page.
+- No virtualised tables. A 500-row result renders capped at 60 displayed rows.
+- Vega is 288 kB gzipped, lazily loaded on first chart render, and dominates
   the bundle.
 - Tested with Vitest and Testing Library. Playwright is not used — the
   environment could not download its browser — so there is no automated
-  end-to-end browser test. The flows were verified manually through headless
-  Chrome driven over the DevTools protocol.
+  end-to-end browser test. Flows were verified manually through headless
+  Chrome driven over the DevTools protocol, including a real file upload.
 
 ---
 
-## 10. Deliberately out of scope for v1
+## 10. Deliberately out of scope
 
-No authentication, billing, multi-tenant persistence, or scheduled jobs. No
-arbitrary Python or notebook execution by the model. No vector database, RAG,
-or web search. No warehouse OAuth connectors, BI-tool integrations, or
-write-back. No forecasting or model training.
+No authentication, billing, multi-tenant persistence or scheduled jobs. No
+arbitrary Python or notebook execution by the model. No vector database, RAG
+or web search. No warehouse OAuth connectors, BI integrations or write-back.
+No forecasting or model training.
 
-These are absent by design, not by omission.
+These are absent by design.

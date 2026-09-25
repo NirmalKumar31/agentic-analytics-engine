@@ -5,6 +5,56 @@ is.
 
 ---
 
+## 0. Two planes
+
+```
+        PROBABILISTIC CONTROL PLANE
+   ┌──────────────────────────────────────┐
+   │  Question Analyst   Planner          │   decides what to investigate
+   │  Worker             Critic           │   interprets what came back
+   │  Visualiser         Reporter         │   writes the narrative
+   └──────────────────┬───────────────────┘
+                      │
+                      │  typed requests: metric names, dimensions,
+                      │  filters, test types, chart encodings
+                      ▼
+        DETERMINISTIC ANALYTICS PLANE
+   ┌──────────────────────────────────────┐
+   │  MCP server -- 16 tools, 4 resources │   owns every number
+   │  Semantic metric layer               │
+   │  DuckDB, locked read-only            │
+   │  SciPy statistics + Holm correction  │
+   │  Change decomposition                │
+   │  Result registry                     │
+   │  Numeric verification                │
+   │  Chart builder                       │
+   │  Session capability isolation        │
+   └──────────────────────────────────────┘
+```
+
+The model never crosses into the lower plane. It cannot write a metric
+formula, execute a query, compute a statistic, emit a chart specification,
+choose a session, or validate its own arithmetic.
+
+### What survives if every model provider is deleted
+
+Dataset ingestion. Profiling and semantic schema inference. The metric layer.
+DuckDB execution with its guard. Period comparison, segmentation, trend
+analysis. Statistical testing with applicability checks and multiple-comparison
+correction. Change decomposition. The MCP server and client. Numeric
+verification. Provenance. Chart construction. Session isolation. The
+evaluation harness. The API and the UI.
+
+What is lost: natural-language interpretation, dynamic planning, hypothesis
+generation, tool selection, follow-up reasoning, narrative generation.
+
+A caller could drive the MCP tools directly and get every number, every
+statistic and every decomposition this system produces. If deleting the model
+destroyed the analytical product, the architecture would have failed its own
+test.
+
+---
+
 ## 1. The shape of a run
 
 ```
@@ -324,3 +374,137 @@ to `/mcp` and asserts it is neither 404 nor 405.
 `render.yaml` deploys recorded mode and needs no secret of any kind.
 `deploy/render-live.yaml` enables live analysis with tighter ceilings, still
 with no secret unless a cloud provider is explicitly selected.
+
+
+---
+
+## 13. Session capability isolation
+
+There is no authentication. A session is reached with a capability, and two
+identifiers are kept deliberately separate:
+
+* **`session_id`** — a public opaque handle. It appears in MCP resource URIs
+  and in tool arguments. On its own it authorises nothing.
+* **`session_key`** — a private bearer capability, compared in constant time.
+  It reaches the browser as an HttpOnly cookie (so it stays out of history,
+  access logs and `Referer` headers) and is injected by the MCP client into
+  every tool call. A model never sees or chooses either.
+
+Both come from `secrets`. Neither is derived from the other, and an
+incrementing id would make the handle guessable — which matters because the
+handle is in URIs.
+
+**Tools** require the capability. **Resources**, which are keyed only by the
+handle, serve the built-in demo dataset and refuse an uploaded session:
+`dataset://catalog` lists demo sessions only, and reading an uploaded
+session's schema by handle returns an error directing the caller to the tools.
+The demo warehouse is identical for every visitor and holds no user data, so
+exposing it by handle discloses nothing.
+
+The same 404 is returned for an unknown handle and a wrong capability, so a
+caller cannot probe for which handles exist.
+
+This is capability-based isolation, not authentication. Anyone holding the
+token is the session. `tests/security/test_session_isolation.py` runs two
+browsers with separate cookie jars and asserts neither can reach the other's
+file, schema, results, runs or session.
+
+---
+
+## 14. Uploaded datasets
+
+An upload is one arbitrary table, so there is nothing to look a metric up in.
+It takes a different route:
+
+1. **Validate by content.** Parquet is checked through its footer — columns,
+   row groups, schema nesting, declared uncompressed size — before any data is
+   read. CSV has no magic bytes, so it is screened against the signatures of
+   formats it definitely is not, its header is bounded, and DuckDB's parser is
+   the real arbiter. The code says this rather than claiming CSV is
+   magic-byte validated.
+2. **Isolate.** Its own DuckDB database, its own scratch directory under
+   `/tmp`, both erased when the session ends. The table name is fixed by the
+   server; a user filename is never a path component and never reaches SQL.
+3. **Infer a schema.** Column roles from type and cardinality, everything
+   marked `inferred`. A real number is always a measure — a price is not a key
+   and not a grouping — and cardinality rules only apply once there are enough
+   rows for a value to have had the chance to repeat.
+4. **Ask when it matters.** Two columns that could both be revenue produce a
+   clarifying question rather than a guess.
+5. **Analyse.** Profile the table, then compose a grouped aggregate from the
+   columns the profile reported. The second call is a genuine bounded loop —
+   the SQL cannot be written until the profile comes back — and the composed
+   statement still passes the guard.
+
+An inferred measure is not a governed metric, and the UI says so.
+
+---
+
+## 15. Change decomposition
+
+The tool that answers "why".
+
+**Additive metrics** (revenue, units, orders). The total change is the sum of
+per-segment changes, so each segment's contribution is its own change.
+
+**Ratio metrics** (gross margin percent, return rate). A weighted average has
+no additive split, so a shift-share decomposition runs instead:
+
+```text
+overall change = rate effect + mix effect + interaction
+
+rate effect  = sum_s  w0_s * (r1_s - r0_s)      movement within segments
+mix effect   = sum_s  (w1_s - w0_s) * r0_s      volume moving between them
+interaction  = sum_s  (w1_s - w0_s) * (r1_s - r0_s)
+```
+
+where `w` is a segment's share of the denominator and `r` its own rate. This
+separates "every segment got worse" from "volume moved to the worse segments"
+— the distinction the Q3 margin question turns on. On the demo warehouse it
+resolves to −3.76pp rate and −3.67pp mix against an observed −7.63pp.
+
+Both forms reconcile to the observed change or the result is marked
+`reconciled: false`, and no finding is generated from an unreconciled
+decomposition. A randomised test asserts reconciliation across 400 cases.
+
+Metrics declare how they decompose in `metrics.yml`; a ratio metric must
+define its numerator and denominator or the registry refuses to load.
+
+---
+
+## 16. Multiple comparisons
+
+A task running several related significance tests will produce a false
+positive roughly one time in twenty per test. Holm's step-down method controls
+the family-wise error rate without assuming independence, which is the right
+default: segment comparisons on one dataset are usually correlated.
+
+Correction is applied per analytical task, because a task is the unit in which
+a worker asks a family of related questions. The result carries `p_value`,
+`p_value_adjusted`, `correction_method` and `family_size`, and the publication
+gate reads the adjusted value — so an uncorrected p-value can never be the
+basis for a published significance claim. A family of one is left alone rather
+than marked corrected.
+
+Correction does not span tasks. That limit is stated in
+[LIMITATIONS.md](LIMITATIONS.md).
+
+---
+
+## 17. Concurrency, learned the hard way
+
+Workers run in parallel against one DuckDB connection per session. A DuckDB
+connection carries cursor state, so reading `description` or `fetchall`
+outside the session lock returns whichever query finished last.
+
+That is not hypothetical: relation inspection for statistical tests was
+written without the lock and, under parallel workers, reported the columns of
+an unrelated result. `tests/integration/test_concurrency.py` exists because of
+it, and asserts that concurrent queries get their own columns, that result ids
+never collide, that decomposition is stable under contention, and that
+repeated parallel runs agree.
+
+Every query path now holds the lock. The audit is a grep away: outside the
+single-threaded load phase in `session.py`, `con.execute` appears in three
+places -- two in `analytics/execute.py` and one in `analytics/stats.py` --
+and all three are inside `with session.lock`.
