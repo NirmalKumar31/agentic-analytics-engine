@@ -48,6 +48,12 @@ TEMPORAL_TYPES = frozenset(
 IDENTIFIER_UNIQUENESS = 0.92
 # Above this many distinct values a text column is a label, not a grouping.
 MAX_DIMENSION_CARDINALITY = 200
+# A numeric column is a grouping only if its values genuinely repeat: few
+# distinct values *and* a small share of the rows. An absolute threshold
+# alone turns every numeric column in a ten-row file into a dimension.
+MAX_NUMERIC_DIMENSION_DISTINCT = 12
+MAX_NUMERIC_DIMENSION_SHARE = 0.2
+MIN_ROWS_FOR_CARDINALITY_RULES = 40
 # Column names that are keys regardless of how they are typed.
 IDENTIFIER_HINTS = ("_id", "id_", "uuid", "guid", "key", "code", "number", "no.")
 
@@ -198,15 +204,24 @@ def _classify(name: str, dtype: str, distinct_count: int, row_count: int) -> tup
             return "identifier", "numeric, but the name reads as a key"
         if distinct_count <= 1:
             return "ignored", "constant"
-        # Uniqueness only implies a key for integers. A monetary column is
-        # often almost entirely distinct and is still a quantity to sum, so
-        # applying the heuristic to reals would turn revenue into an id.
-        if dtype in INTEGER_TYPES:
-            uniqueness = distinct_count / max(row_count, 1)
-            if uniqueness >= IDENTIFIER_UNIQUENESS and row_count > 50:
-                return "identifier", f"integer and {uniqueness:.0%} distinct, so probably a key"
-        if distinct_count <= 12:
-            return "dimension", f"numeric with only {distinct_count} distinct values"
+
+        # A real number is a quantity: nobody groups by a price, and a
+        # monetary column is often almost entirely distinct, so neither the
+        # identifier nor the dimension heuristic should see it.
+        if dtype in REAL_TYPES:
+            return "measure", "numeric and aggregatable"
+
+        uniqueness = distinct_count / max(row_count, 1)
+        if uniqueness >= IDENTIFIER_UNIQUENESS and row_count > 50:
+            return "identifier", f"integer and {uniqueness:.0%} distinct, so probably a key"
+        # Cardinality only means something once there are enough rows for a
+        # value to have had the chance to repeat.
+        if (
+            row_count >= MIN_ROWS_FOR_CARDINALITY_RULES
+            and distinct_count <= MAX_NUMERIC_DIMENSION_DISTINCT
+            and uniqueness <= MAX_NUMERIC_DIMENSION_SHARE
+        ):
+            return "dimension", f"integer repeating across only {distinct_count} values"
         return "measure", "numeric and aggregatable"
 
     if dtype == "BOOLEAN":

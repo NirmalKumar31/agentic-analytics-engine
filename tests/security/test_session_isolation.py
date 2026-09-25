@@ -131,6 +131,15 @@ def test_a_visitor_cannot_read_another_run(visitors) -> None:  # type: ignore[no
     )
     assert started.status_code == 202, started.text
     run_id = started.json()["run_id"]
+
+    # Drain the event stream so the run finishes inside the test rather than
+    # being cancelled at teardown, which would leave the assertion racing an
+    # unwinding task.
+    with a.stream("GET", f"/api/analyses/{run_id}/events") as response:
+        for line in response.iter_lines():
+            if line.startswith("event: stream_end"):
+                break
+
     assert b.get(f"/api/analyses/{run_id}").status_code == 404
     assert a.get(f"/api/analyses/{run_id}").status_code == 200
 

@@ -366,3 +366,23 @@ pre.sql {
 .metric-tile { background: var(--bg-inset); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 9px 11px; }
 .metric-tile .value { font-size: 18px; font-variant-numeric: tabular-nums; letter-spacing: -0.02em; }
 .metric-tile .label { font-size: 11px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.04em; }
+
+/* ------------------------------------------------- execution mode + roles */
+
+.mode-pill.deterministic .dot { background: var(--statistical); }
+.mode-pill.replay .dot { background: var(--accent); }
+.mode-pill.live .dot { background: var(--supported); }
+
+.choice.dropping {
+  border-color: var(--accent);
+  background: rgb(91 156 255 / 12%);
+}
+
+.tag.role-time { color: var(--accent); border-color: var(--accent-dim); }
+.tag.role-measure { color: var(--supported); border-color: rgb(63 191 143 / 40%); }
+.tag.role-dimension { color: var(--statistical); border-color: rgb(167 139 250 / 40%); }
+.tag.role-identifier { color: var(--text-dim); }
+.tag.role-ignored { color: var(--text-dim); opacity: 0.7; }
+
+/* Role tags sit inside a monospace table, so they need to stay compact. */
+table.data .tag { font-size: 10px; padding: 1px 6px; }

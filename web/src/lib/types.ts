@@ -194,13 +194,19 @@ export interface RunEvent {
   data: Record<string, unknown>
 }
 
+export type ExecutionMode = 'recorded' | 'deterministic_live' | 'ai_live'
+
 export interface ServerConfig {
   version: string
   provider_mode: string
+  execution_mode: ExecutionMode
+  model_inference_remote: boolean
   live_analytics_enabled: boolean
   uploads_enabled: boolean
   demo_warehouse_ready: boolean
   max_upload_mb: number
+  max_upload_columns: number
+  session_ttl_minutes: number
   budgets: Record<string, number>
   demo_questions: { id: string; question: string; why: string }[]
   recordings: RecordingSummary[]
@@ -212,6 +218,8 @@ export interface RecordingSummary {
   question: string
   recorded_at: string
   provider: string
+  provider_kind?: string
+  run_kind?: string
   findings: number
   rejected: number
   charts: number
@@ -225,6 +233,35 @@ export interface SessionPayload {
   session_id: string
   catalog: DatasetCatalog
   metrics: MetricInfo[]
+  summary: DatasetSummary | null
+  expires_in_seconds: number
+}
+
+/** Deterministic profile shown before the first question is asked. */
+export interface DatasetSummary {
+  table: string
+  row_count: number
+  /** Always "inferred": these roles come from types and cardinality, not
+   *  from a governed definition anyone wrote down. */
+  status: string
+  headline: string
+  fields: InferredField[]
+  time_fields: string[]
+  dimensions: string[]
+  measures: string[]
+  identifiers: string[]
+  ambiguities: { concept: string; candidates: string[]; question: string }[]
+}
+
+export interface InferredField {
+  name: string
+  data_type: string
+  role: 'time' | 'dimension' | 'measure' | 'identifier' | 'ignored'
+  null_pct: number
+  distinct_count: number
+  reason: string
+  min_value: string | null
+  max_value: string | null
 }
 
 export interface MetricInfo {

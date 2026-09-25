@@ -47,6 +47,11 @@ class RecordingStore:
                 "title": r.get("title", r["question"]),
                 "recorded_at": r["recorded_at"],
                 "provider": r["provider"],
+                # Carried into the index so a card can say what produced the
+                # run without fetching the whole recording.
+                "provider_kind": r.get("provider_kind", ""),
+                "run_kind": r.get("run_kind", ""),
+                "engine_version": r.get("engine_version", ""),
                 "findings": len(r["findings"]),
                 "rejected": len(r["rejected"]),
                 "charts": len(r["charts"]),

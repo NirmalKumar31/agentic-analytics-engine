@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import { ActivityLog } from './components/ActivityLog'
+import { DatasetSummary } from './components/DatasetSummary'
 import { ExecutionFlow } from './components/ExecutionFlow'
+import { ModeBadge } from './components/ModeBadge'
 import { ProvenanceDrawer } from './components/ProvenanceDrawer'
 import { ReportView } from './components/ReportView'
 import { RightRail } from './components/RightRail'
@@ -136,6 +138,24 @@ export function App() {
     setOpenFinding(null)
   }, [])
 
+  const endSession = useCallback(async () => {
+    if (!session) return
+    setBusy(true)
+    try {
+      await api.endSession(session.session_id)
+    } catch {
+      // The session may already have expired; either way it is gone.
+    } finally {
+      setSession(null)
+      setRun(null)
+      setRunId(null)
+      setReplay(null)
+      setOpenFinding(null)
+      setQuestion('')
+      setBusy(false)
+    }
+  }, [session])
+
   const finding = run?.findings.find((f) => f.finding_id === openFinding) ?? null
   const catalog = run?.dataset ?? session?.catalog ?? null
   const metrics: MetricInfo[] = session?.metrics ?? []
@@ -156,11 +176,15 @@ export function App() {
           </div>
         </div>
         <div className="topbar-spacer" />
-        {config && (
-          <span className={`mode-pill ${config.live_analytics_enabled ? 'live' : 'replay'}`}>
-            <span className="dot" />
-            {config.live_analytics_enabled ? 'live analysis' : 'recorded runs'} · {config.provider_mode}
-          </span>
+        {config && <ModeBadge mode={replay ? 'recorded' : config.execution_mode} />}
+        {session && (
+          <button
+            className="btn ghost small"
+            onClick={endSession}
+            title="Delete this dataset and everything derived from it"
+          >
+            End session
+          </button>
         )}
         {(run || runId) && (
           <button className="btn ghost small" onClick={reset}>
@@ -198,6 +222,7 @@ export function App() {
               busy={busy}
               onDemo={openDemo}
               onUploadClick={() => fileInput.current?.click()}
+              onFile={(file) => void upload(file)}
               onRecording={openRecording}
             />
           )}
@@ -213,6 +238,10 @@ export function App() {
               e.target.value = ''
             }}
           />
+
+          {session?.summary && session.catalog.dataset_kind === 'upload' && !run && !runId && (
+            <DatasetSummary summary={session.summary} onAsk={setQuestion} />
+          )}
 
           {session && !run && !runId && (
             <AskPanel
@@ -297,6 +326,7 @@ function DatasetPanel({
   busy,
   onDemo,
   onUploadClick,
+  onFile,
   onRecording,
 }: {
   config: ServerConfig
@@ -305,8 +335,10 @@ function DatasetPanel({
   busy: boolean
   onDemo: () => void
   onUploadClick: () => void
+  onFile: (file: File) => void
   onRecording: (r: RecordingSummary) => void
 }) {
+  const [dragging, setDragging] = useState(false)
   return (
     <section className="panel">
       <div className="panel-head">
@@ -330,25 +362,51 @@ function DatasetPanel({
             </span>
           </button>
           <button
-            className="choice"
+            className={`choice ${dragging ? 'dropping' : ''}`}
             onClick={onUploadClick}
             disabled={busy || !config.uploads_enabled}
             aria-pressed={Boolean(session && session.catalog.dataset_kind === 'upload')}
+            onDragOver={(e) => {
+              if (!config.uploads_enabled) return
+              e.preventDefault()
+              setDragging(true)
+            }}
+            onDragLeave={() => setDragging(false)}
+            onDrop={(e) => {
+              e.preventDefault()
+              setDragging(false)
+              const file = e.dataTransfer.files?.[0]
+              if (file && config.uploads_enabled) onFile(file)
+            }}
           >
-            <strong>Upload CSV or Parquet</strong>
+            <strong>Upload your data</strong>
             <span>
               {config.uploads_enabled
-                ? `One file, up to ${config.max_upload_mb} MB. Held in memory for the session only.`
+                ? `Drop a CSV or Parquet file, or click to choose one. Up to ${config.max_upload_mb} MB and ${config.max_upload_columns} columns.`
                 : 'Disabled on this server.'}
             </span>
           </button>
         </div>
 
+        {config.uploads_enabled && (
+          <p className="small dim" style={{ margin: 0 }}>
+            Your file is used only for this analysis session and is deleted when the
+            session ends or expires, after {config.session_ttl_minutes} minutes of
+            inactivity. There are no accounts, so anyone with your session cookie is
+            your session. Please do not upload sensitive or regulated data to this
+            public demo.
+            {config.model_inference_remote
+              ? ' This server is configured with a cloud model, so derived schema information and analysis results are sent to that provider.'
+              : ' This server uses a local deterministic provider, so nothing derived from your file is sent to an external model provider.'}
+          </p>
+        )}
+
         {config.recordings.length > 0 && (
           <>
             <p className="small dim" style={{ margin: '4px 0 0' }}>
-              Or open a recorded run — a real run captured end to end, with its
-              queries, results and verification decisions intact.
+              Or open a recorded run. Each is a real run captured end to end, with its
+              queries, results and verification decisions intact. These were produced
+              by the deterministic scripted provider, not a language model.
             </p>
             <div className="example-list">
               {config.recordings.map((recording) => (
@@ -361,7 +419,9 @@ function DatasetPanel({
                 >
                   {recording.title}
                   <small>
-                    {recording.demonstrates} · {recording.findings} published,{' '}
+                    {recording.demonstrates}
+                    <br />
+                    {recording.run_kind ?? 'recorded run'} · {recording.findings} published,{' '}
                     {recording.rejected} withheld, {recording.mcp_tool_calls} MCP calls
                   </small>
                 </button>

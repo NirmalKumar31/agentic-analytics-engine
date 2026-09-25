@@ -106,6 +106,10 @@ def _result_values(results: list[ResultSnapshot]) -> list[tuple[float, str]]:
     """Every numeric cell in every cited result, with a human label."""
     values: list[tuple[float, str]] = []
     for snapshot in results:
+        # The shape of the result is part of the result. A finding that says
+        # "the table has 7 columns" is citing the row count of a profile,
+        # which the engine computed and can be checked.
+        values.append((float(snapshot.row_count), f"{snapshot.result_id}.row_count"))
         for row_index, row in enumerate(snapshot.rows):
             for col_index, value in enumerate(row):
                 if isinstance(value, bool) or not isinstance(value, int | float):

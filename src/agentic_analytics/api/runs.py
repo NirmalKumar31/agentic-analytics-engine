@@ -8,6 +8,7 @@ public demo with no authentication: nothing may accumulate without a ceiling.
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import time
 import uuid
 from dataclasses import dataclass, field
@@ -100,8 +101,19 @@ class RunRegistry:
                 break
             self._runs.pop(oldest.run_id, None)
 
-    async def shutdown(self) -> None:
-        for record in self._runs.values():
-            if record.task and not record.task.done():
-                record.task.cancel()
+    async def shutdown(self, grace_seconds: float = 5.0) -> None:
+        """Cancel in-flight runs and wait for them to unwind.
+
+        Cancelling without awaiting leaves a task part-way through an async
+        context manager -- an open MCP client, a DuckDB cursor -- and the
+        exception surfaces later, attached to whatever happens to be running.
+        A container receiving SIGTERM mid-analysis hits exactly this path.
+        """
+        tasks = [r.task for r in self._runs.values() if r.task and not r.task.done()]
+        for task in tasks:
+            task.cancel()
+        if tasks:
+            with contextlib.suppress(TimeoutError):
+                async with asyncio.timeout(grace_seconds):
+                    await asyncio.gather(*tasks, return_exceptions=True)
         self._runs.clear()

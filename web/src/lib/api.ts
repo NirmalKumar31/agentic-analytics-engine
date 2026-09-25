@@ -14,7 +14,9 @@ export class ApiError extends Error {
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   let response: Response
   try {
-    response = await fetch(path, init)
+    // The session capability is an HttpOnly cookie; it only travels if
+    // credentials are included.
+    response = await fetch(path, { credentials: 'same-origin', ...init })
   } catch {
     throw new ApiError('Could not reach the server.', 0)
   }
@@ -51,4 +53,8 @@ export const api = {
     }),
   run: (runId: string) => request<RunPayload>(`/api/analyses/${encodeURIComponent(runId)}`),
   recording: (id: string) => request<RunPayload>(`/api/recordings/${encodeURIComponent(id)}`),
+  endSession: (sessionId: string) =>
+    request<{ status: string }>(`/api/datasets/${encodeURIComponent(sessionId)}`, {
+      method: 'DELETE',
+    }),
 }
