@@ -92,7 +92,7 @@ make dev          # build the frontend and serve on http://127.0.0.1:8000
 No `.env` required. `make verify` runs everything CI runs.
 
 ```bash
-make test         # 683 Python tests
+make test         # 742 Python tests
 make evaluate     # score the engine against the injected patterns
 make record       # re-record the three demo runs
 ```
@@ -417,7 +417,7 @@ The full list is in [docs/LIMITATIONS.md](docs/LIMITATIONS.md).
 
 ## Verified
 
-683 Python tests, 35 frontend tests, and 12 browser tests run on Chromium
+742 Python tests, 35 frontend tests, and 12 browser tests run on Chromium
 in CI and on Chromium, Firefox and WebKit before a release. 88% branch
 coverage. `ruff`,
 `ruff format`, `mypy` (with `disallow_untyped_defs`), `pip-audit` and

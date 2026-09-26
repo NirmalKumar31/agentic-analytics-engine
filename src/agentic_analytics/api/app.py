@@ -158,6 +158,11 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         while True:
             await asyncio.sleep(cfg.session_sweep_seconds)
             try:
+                # Ask which sessions are due, cancel their runs, and only
+                # then close them. Expiring a session out from under a live
+                # analysis is the same use-after-close as deleting one.
+                for session_id in sessions.stale_session_ids():
+                    await _close_session(session_id, "the dataset session expired")
                 closed = sessions.expire_stale()
             except Exception:  # pragma: no cover - defensive
                 log.exception("session_sweep_failed")
@@ -366,7 +371,21 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             secure=cfg.session_cookie_secure,
         )
 
-    def _retire_previous(request: Request) -> None:
+    async def _close_session(session_id: str, reason: str) -> None:
+        """Stop the session's runs, then close it. Never the other way round.
+
+        This is the teardown contract in one place. An analysis holds the
+        `AnalysisSession` and therefore its DuckDB connection; closing the
+        session while a run can still make a tool call gives that run a
+        closed connection, which surfaces to the visitor as an internal
+        error. `cancel_session` cancels *and awaits*, so by the time it
+        returns each task has run its `finally` -- provider closed, capacity
+        slot released -- and nothing is left that could touch the session.
+        """
+        await runs.cancel_session(session_id, reason=reason)
+        sessions.drop(session_id)
+
+    async def _retire_previous(request: Request) -> None:
         """End whatever session this browser already holds.
 
         Opening a second dataset replaces the capability cookie, so the first
@@ -374,11 +393,23 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         and, for an upload, the rows themselves. A visitor clicking through
         four datasets would leave three of those behind until the TTL caught
         them. Keyed on the capability, so it can only ever close a session
-        the caller could already reach.
+        the caller could already reach -- and any analysis still running in
+        it is cancelled before it is closed.
         """
-        retired = sessions.drop_by_key(request.cookies.get(cfg.session_cookie_name))
-        if retired:
-            log.info("previous_session_retired", count=retired)
+        key = request.cookies.get(cfg.session_cookie_name)
+        for session_id in sessions.session_ids_for_key(key):
+            await _close_session(session_id, "the dataset was replaced")
+
+    async def _make_room_for_a_session() -> None:
+        """Cancel the runs of whichever session is about to be evicted.
+
+        `SessionManager.add` evicts the least recently used session when it
+        is full. Left alone that closes a session an analysis may still be
+        using, so the candidate is asked for first and its runs stopped.
+        """
+        candidate = sessions.next_eviction_candidate()
+        if candidate is not None:
+            await _close_session(candidate, "the demo reached its session limit")
 
     def _session_or_404(session_id: str, request: Request) -> AnalysisSession:
         """Resolve a session from its handle plus the capability cookie.
@@ -411,7 +442,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     async def open_demo(request: Request, response: Response) -> SessionResponse:
         if not _warehouse_ready(cfg):
             raise DatasetError("the demo warehouse has not been generated on this server")
-        _retire_previous(request)
+        await _retire_previous(request)
+        await _make_room_for_a_session()
         session = sessions.add(open_demo_session(cfg.demo_warehouse_dir, limits=engine_limits))
         _issue(response, session)
         return SessionResponse(
@@ -442,7 +474,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 detail="too many uploads from this address; try again shortly",
                 headers={"Retry-After": str(int(retry_after) + 1)},
             )
-        _retire_previous(request)
+        await _retire_previous(request)
+        await _make_room_for_a_session()
         if sessions.upload_count() >= cfg.max_active_upload_sessions:
             raise HTTPException(
                 status_code=429,
@@ -516,7 +549,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         session by guessing a handle.
         """
         _session_or_404(session_id, request)
-        sessions.drop(session_id)
+        await _close_session(session_id, "the dataset was deleted")
         _clear(response)
         return {"status": "deleted"}
 
@@ -564,12 +597,26 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                     events=record.bus,
                     run_id=record.run_id,
                 )
+            except asyncio.CancelledError:
+                # The dataset was deleted, replaced or expired. Mark it and
+                # end the stream, so a browser waiting on SSE is told rather
+                # than left hanging -- then re-raise, or the task is never
+                # actually cancelled and `cancel_session` waits for a run
+                # that has decided to continue.
+                record.cancelled = True
+                record.error = record.error or "the dataset was closed"
+                record.bus.emit(EventType.RUN_CANCELLED, reason=record.error)
+                record.bus.close()
+                raise
             except Exception as exc:
                 log.exception("analysis_failed", run_id=record.run_id)
                 record.error = f"the analysis failed ({type(exc).__name__})"
                 record.bus.emit(EventType.RUN_FAILED, reason=record.error)
                 record.bus.close()
             finally:
+                # Runs on every path, cancellation included: the provider is
+                # closed and the capacity slot returned, or one visitor
+                # deleting a dataset mid-run costs the demo a slot forever.
                 await provider.aclose()
                 analysis_capacity.release()
 

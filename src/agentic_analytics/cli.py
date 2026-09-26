@@ -117,6 +117,91 @@ def evaluate(
         raise typer.Exit(code=1)
 
 
+@app.command("evaluate-real-model")
+def evaluate_real_model(
+    out: Annotated[Path | None, typer.Option(help="Where to write the report")] = None,
+    datasets: Annotated[
+        str | None, typer.Option(help="Comma-separated dataset ids; default is all")
+    ] = None,
+    questions: Annotated[
+        int | None, typer.Option(help="Cap questions per dataset, for a quick pass")
+    ] = None,
+    skip_warehouse: Annotated[bool, typer.Option(help="Skip the demo warehouse")] = False,
+    data_dir: Annotated[
+        Path | None, typer.Option(help="Where to generate the evaluation datasets")
+    ] = None,
+) -> None:
+    """Evaluate a *real* model against varied datasets. Opt-in; never in CI.
+
+    Uses whatever `AAE_PROVIDER_MODE` selects, so `local` talks to Ollama and
+    `cloud` spends money. This is not the deterministic benchmark: it has no
+    answer key and no pass mark, and it reports what a model did rather than
+    whether it was right.
+    """
+    from agentic_analytics.evaluation.real_model import (
+        run_real_model_evaluation,
+        write_report,
+    )
+
+    configure_logging("WARNING", json_output=False)
+    cfg = get_settings()
+    if cfg.provider_mode == "fake":
+        console.print(
+            "[red]AAE_PROVIDER_MODE=fake.[/red] This command evaluates a real "
+            "model; set `local` for Ollama or `cloud` for a hosted API."
+        )
+        raise typer.Exit(code=2)
+
+    target = data_dir or (cfg.data_dir.parent / "evaluation-datasets")
+    report = asyncio.run(
+        run_real_model_evaluation(
+            cfg,
+            target,
+            dataset_ids=[d.strip() for d in datasets.split(",")] if datasets else None,
+            include_warehouse=not skip_warehouse,
+            max_questions=questions,
+        )
+    )
+
+    table = Table(title=f"Real-model evaluation ({report['provider_mode']}: {report['model']})")
+    for column, justify in (
+        ("dataset", "left"),
+        ("kind", "left"),
+        ("question", "left"),
+        ("done", "center"),
+        ("tools", "right"),
+        ("pub", "right"),
+        ("held", "right"),
+        ("calls", "right"),
+        ("secs", "right"),
+    ):
+        table.add_column(column, justify=justify)  # type: ignore[arg-type]
+    for outcome in report["outcomes"]:
+        if outcome["error"]:
+            status = "[red]crash[/red]"
+        elif outcome["completed"]:
+            status = "[green]yes[/green]"
+        else:
+            status = "[yellow]stop[/yellow]"
+        table.add_row(
+            outcome["dataset"],
+            outcome["kind"],
+            outcome["question"][:44],
+            status,
+            str(outcome["tool_calls"]),
+            str(outcome["published_findings"]),
+            str(outcome["withheld_findings"]),
+            str(outcome["provider_calls"]),
+            f"{outcome['runtime_seconds']:.0f}",
+        )
+    console.print(table)
+    console.print(json.dumps({k: v for k, v in report.items() if k != "outcomes"}, indent=2))
+
+    if out:
+        write_report(report, out)
+        console.print(f"wrote {out}")
+
+
 @app.command()
 def serve(
     host: Annotated[str, typer.Option()] = "127.0.0.1",

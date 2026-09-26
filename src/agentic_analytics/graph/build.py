@@ -191,6 +191,8 @@ def build_graph(ctx: RunContext) -> Any:
             toolset=ctx.toolset,
             events=ctx.events,
             max_tool_calls=ctx.budgets.max_tool_calls_per_task,
+            tables=sorted(ctx.session.table_names),
+            has_metrics=ctx.session.has_metrics,
         )
         return {"task_outcomes": [outcome]}
 

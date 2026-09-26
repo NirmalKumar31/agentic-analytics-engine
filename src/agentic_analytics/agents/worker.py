@@ -83,6 +83,8 @@ async def run_task(
     toolset: AnalyticsToolset,
     events: EventBus | None = None,
     max_tool_calls: int = 6,
+    tables: list[str] | None = None,
+    has_metrics: bool = True,
 ) -> TaskOutcome:
     """Execute one analysis task. Never raises for an ordinary failure."""
     if events:
@@ -107,7 +109,9 @@ async def run_task(
                 provider,
                 role="worker_next_tool",
                 system=WORKER_TOOL_CHOICE,
-                user=_tool_choice_prompt(task, payloads, calls, max_tool_calls, toolset),
+                user=_tool_choice_prompt(
+                    task, payloads, calls, max_tool_calls, toolset, tables, has_metrics
+                ),
                 schema=schema_of(ToolChoice),
                 context={
                     "task": task_json,
@@ -226,7 +230,37 @@ def _tool_choice_prompt(
     calls: int,
     max_calls: int,
     toolset: AnalyticsToolset,
+    tables: list[str] | None = None,
+    has_metrics: bool = True,
 ) -> str:
+    """Tell the worker what it is allowed to name.
+
+    The table names and the metric-layer flag are here because a real model
+    otherwise invents them: asked about `sales.csv` it called
+    `profile_table(table="sales")` when the only table is `uploaded_data`,
+    and reached for `compute_metric` on a dataset with no metric layer.
+    Both are refusals the guard handles correctly and neither produces an
+    answer, so the run burns its whole tool budget on failed calls. Naming
+    the real tables costs nothing and removes the guess.
+    """
+    known_tables = ", ".join(tables or []) or "(none reported)"
+    if has_metrics:
+        guidance = (
+            "Prefer `compute_metric`, `compare_segments` and `analyze_timeseries`: "
+            "the metric layer defines these correctly. Use `run_readonly_sql` only "
+            "for a shape it cannot express."
+        )
+    else:
+        guidance = (
+            "This dataset has NO metric layer, so `compute_metric`, "
+            "`compare_segments`, `analyze_timeseries`, `decompose_change`, "
+            "`compare_periods` and `rank_contributors` will all fail. Use "
+            "`aggregate_for_question` (pass `table` and `question`) to answer "
+            "the question, `profile_table` to describe the columns, "
+            "`statistical_test` to compare two groups, or `run_readonly_sql` "
+            "for a shape none of those express."
+        )
+    question = str(task.variables.get("question", "")) if task.variables else ""
     return f"""\
 TASK
 objective: {task.objective}
@@ -235,9 +269,16 @@ required_metrics: {", ".join(task.required_metrics) or "(none)"}
 dimensions: {", ".join(task.dimensions) or "(none)"}
 filters: {json.dumps(task.filters)}
 preferred_tool: {task.preferred_tool}
+table: {task.table or "(not set)"}
+{f"original question: {question}" if question else ""}
+
+TABLES IN THIS DATASET (use these names exactly; no others exist)
+{known_tables}
 
 TOOLS AVAILABLE
 {", ".join(toolset.available_tools)}
+
+{guidance}
 
 TOOL CALLS USED
 {calls} of {max_calls}

@@ -160,9 +160,22 @@ Emit at most {max_tasks} tasks."""
     # dimensions the metric does not support. A task that cannot run is worse
     # than one fewer task.
     known = {m["name"] for m in metrics}
+    # A dataset with no metric layer -- any upload -- cannot run the
+    # metric-based tools at all. Dropping those tasks silently is what a real
+    # model's first plan hits: `preferred_tool` defaults to `compute_metric`
+    # when a model omits it, every task is then unexecutable, and the run
+    # stops having done nothing. The objective and columns are still good, so
+    # the task is redirected to the tool that *can* serve it rather than
+    # discarded. Nothing about verification changes; this only decides which
+    # governed tool a task reaches.
+    metric_free_dataset = not known
     cleaned: list[AnalysisTask] = []
     for task in plan.tasks:
         task.required_metrics = [m for m in task.required_metrics if m in known]
+        if metric_free_dataset and task.preferred_tool not in METRIC_FREE_TOOLS:
+            task.preferred_tool = "aggregate_for_question"
+            task.table = task.table or (tables[0]["name"] if tables else None)
+            task.variables = {**task.variables, "question": question}
         if not task.required_metrics and task.preferred_tool not in METRIC_FREE_TOOLS:
             continue
         primary = task.required_metrics[0] if task.required_metrics else None
@@ -186,4 +199,38 @@ Emit at most {max_tasks} tasks."""
         cleaned.append(task)
         if len(cleaned) >= max_tasks:
             break
+
+    if not cleaned and metric_free_dataset and tables:
+        # The engine's own plan, used when a provider returned nothing this
+        # dataset can execute. Bounded, deterministic, and the same two tasks
+        # the scripted provider would have chosen -- owned here so that every
+        # provider gets the fallback rather than each having to implement it.
+        cleaned = _fallback_plan(question, str(tables[0]["name"]), max_tasks)
     return cleaned
+
+
+def _fallback_plan(question: str, table: str, max_tasks: int) -> list[AnalysisTask]:
+    """Answer the question if the rules can map it; describe the table either way."""
+    tasks = [
+        AnalysisTask(
+            task_id="task_01",
+            objective=f"Answer the question from {table} if it maps to the columns",
+            analysis_type="profiling",
+            preferred_tool="aggregate_for_question",
+            priority=1,
+            table=table,
+            variables={"question": question},
+        )
+    ]
+    if max_tasks > 1:
+        tasks.append(
+            AnalysisTask(
+                task_id="task_02",
+                objective=f"Describe the shape of {table}",
+                analysis_type="profiling",
+                preferred_tool="profile_table",
+                priority=2,
+                table=table,
+            )
+        )
+    return tasks

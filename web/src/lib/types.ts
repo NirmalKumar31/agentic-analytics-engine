@@ -185,6 +185,7 @@ export type EventType =
   | 'budget_exceeded'
   | 'run_completed'
   | 'run_failed'
+  | 'run_cancelled'
 
 export interface RunEvent {
   event_id: string

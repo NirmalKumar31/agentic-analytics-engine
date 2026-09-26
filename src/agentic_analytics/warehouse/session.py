@@ -410,6 +410,38 @@ class SessionManager:
                 self._drop_locked(sid)
             return len(doomed)
 
+    # --- inspection, for the teardown contract ------------------------
+    #
+    # A session may not be closed while an analysis can still use its DuckDB
+    # connection, so whoever tears one down has to stop the runs first. The
+    # manager deliberately knows nothing about runs -- making it depend on
+    # the run registry, which already depends on sessions, would be a cycle.
+    # Instead it answers "which sessions are you about to close?", and the
+    # application layer cancels those sessions' runs before asking it to
+    # close them. See `api/app.py`.
+
+    def stale_session_ids(self) -> list[str]:
+        """Sessions past their TTL, without closing anything."""
+        cutoff = time.time() - self._ttl
+        with self._lock:
+            return [sid for sid, s in self._sessions.items() if s.last_used_at < cutoff]
+
+    def session_ids_for_key(self, session_key: str | None) -> list[str]:
+        """Sessions this capability opens, without closing anything."""
+        if not session_key:
+            return []
+        with self._lock:
+            return [sid for sid, s in self._sessions.items() if s.authorises(session_key)]
+
+    def next_eviction_candidate(self) -> str | None:
+        """Which session `add` would evict to make room, if it is full."""
+        with self._lock:
+            if len(self._sessions) < self._max:
+                return None
+            if not self._sessions:
+                return None
+            return min(self._sessions.values(), key=lambda s: s.last_used_at).session_id
+
     def expire_stale(self) -> int:
         """Close every session past its TTL. Returns how many were closed.
 

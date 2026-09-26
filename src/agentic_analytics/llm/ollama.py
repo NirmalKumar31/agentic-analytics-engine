@@ -35,10 +35,24 @@ class OllamaProvider(LLMProvider):
         model: str,
         max_calls: int = 40,
         timeout_seconds: float = 180.0,
+        think: bool = False,
     ) -> None:
         super().__init__(max_calls=max_calls)
         self.base_url = base_url.rstrip("/")
         self.model = model
+        #: Whether a reasoning-capable model may emit its thinking.
+        #:
+        #: Off by default, and this is not a preference. Every role here asks
+        #: for a JSON object against a schema and has a bounded output
+        #: budget. A thinking model spends that budget on reasoning first:
+        #: qwen3:4b answered a trivial question in 91 seconds, used all 512
+        #: permitted tokens, and returned JSON that was cut off mid-value --
+        #: an unparseable answer, not a slow one. The same call with
+        #: thinking off took 2.2 seconds and returned clean JSON.
+        #:
+        #: Ollama accepts the field for models without the capability and
+        #: ignores it, so this is safe to send unconditionally.
+        self.think = think
         self._client = httpx.AsyncClient(
             base_url=self.base_url, timeout=httpx.Timeout(timeout_seconds)
         )
@@ -59,6 +73,7 @@ class OllamaProvider(LLMProvider):
         }
         if request.schema_:
             payload["format"] = request.schema_
+        payload["think"] = self.think
 
         try:
             response = await self._client.post("/api/chat", json=payload)

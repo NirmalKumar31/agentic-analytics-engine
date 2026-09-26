@@ -81,12 +81,18 @@ class NumericVerdict:
     ok: bool
     reason: str = ""
     checks: list[NumericCheck] = field(default_factory=list)
+    #: True when the finding carried a `claimed_change` that could not be
+    #: read at all. The change asserts nothing in that state, so it is
+    #: discarded rather than counted against the finding -- but the caller
+    #: must clear it, so no unverified calculation is shown to a reader.
+    claimed_change_discarded: bool = False
 
     def as_dict(self) -> dict[str, Any]:
         return {
             "ok": self.ok,
             "reason": self.reason,
             "checks": [c.as_dict() for c in self.checks],
+            "claimed_change_discarded": self.claimed_change_discarded,
         }
 
 
@@ -198,10 +204,22 @@ def verify_numbers(
             value, label = match
             checks.append(NumericCheck(stated=stated, matched=True, source=label, computed=value))
 
+    discarded = False
     if claimed_change:
         verdict = _check_claimed_change(claimed_change, checks)
         if verdict is not None:
-            return verdict
+            if verdict.reason == _MALFORMED_CHANGE:
+                # An unreadable change is not a false claim, it is no claim.
+                # Rejecting the finding for it discards one whose every
+                # stated number checked out -- which is what a real model
+                # produced: correct figures, and a `claimed_change` missing
+                # its `from`/`to`. The numbers in the text are verified
+                # against the cited cells either way, so the guarantee is
+                # unchanged; the change itself is dropped so nothing
+                # unverified is displayed as a calculation.
+                discarded = True
+            else:
+                return verdict
 
     if unmatched:
         formatted = ", ".join(f"{n:g}" for n in unmatched[:3])
@@ -214,8 +232,24 @@ def verify_numbers(
             checks=checks,
         )
     return NumericVerdict(
-        ok=True, reason="Every stated number traces to a cited result.", checks=checks
+        ok=True,
+        reason=(
+            "Every stated number traces to a cited result."
+            + (
+                " A malformed change declaration was discarded and is not shown."
+                if discarded
+                else ""
+            )
+        ),
+        checks=checks,
+        claimed_change_discarded=discarded,
     )
+
+
+#: Distinguishes "this change is wrong" from "this change is unreadable".
+#: The first is a false claim and fails the finding; the second asserts
+#: nothing and is dropped.
+_MALFORMED_CHANGE = "The stated change is malformed and cannot be checked."
 
 
 def _check_claimed_change(
@@ -228,11 +262,7 @@ def _check_claimed_change(
         end = float(claimed["to"])
         stated = float(claimed["stated"])
     except (KeyError, TypeError, ValueError):
-        return NumericVerdict(
-            ok=False,
-            reason="The stated change is malformed and cannot be checked.",
-            checks=checks,
-        )
+        return NumericVerdict(ok=False, reason=_MALFORMED_CHANGE, checks=checks)
 
     if kind == "percent_change":
         if start == 0:

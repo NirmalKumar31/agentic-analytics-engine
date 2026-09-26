@@ -167,7 +167,15 @@ def publish(finding: CandidateFinding, verdict: Verdict) -> PublishedFinding:
         verification_status=verdict.status,
         verifier_reason=verdict.reason,
         numeric_check=verdict.numeric_check,
-        claimed_change=finding.claimed_change,
+        # Dropped when the verifier could not read it. An unreadable change
+        # asserts nothing, so it does not fail the finding -- but it must
+        # not be displayed as a calculation either, because nothing checked
+        # it. The provenance drawer shows what was verified or nothing.
+        claimed_change=(
+            None
+            if (verdict.numeric_check or {}).get("claimed_change_discarded")
+            else finding.claimed_change
+        ),
     )
 
 

@@ -42,6 +42,20 @@ Prefer breadth over depth: a trend, a breakdown by the most likely driver, a
 composition check and a statistical comparison tell you more than four
 variations of one aggregate.
 
+Always set `preferred_tool` explicitly. If you omit it the task defaults to
+`compute_metric`, which only works when the dataset has a governed metric
+layer.
+
+When METRICS AVAILABLE is "(none)" the dataset is a single uploaded table
+with no metric layer, and only these tools can run:
+
+  aggregate_for_question  answer the question from the table's own columns;
+                          set `table`, and the engine maps the wording
+  profile_table           describe the table's columns and their shapes
+  run_readonly_sql        a shape none of the above can express
+  statistical_test        compare two groups, when the question asks that
+  correlation_matrix      relationships between numeric columns
+
 Do not write prose about strategy. Emit tasks.
 
 {DATA_IS_NOT_INSTRUCTIONS}"""

@@ -34,13 +34,26 @@ class RunRecord:
     result: RunResult | None = None
     error: str | None = None
 
+    #: Set when a run was stopped because its dataset went away -- deleted,
+    #: replaced, or expired. Distinct from `failed`: nothing went wrong with
+    #: the analysis, the thing it was analysing was withdrawn, and a reader
+    #: should not be told the engine broke.
+    cancelled: bool = False
+
     @property
     def status(self) -> str:
+        if self.cancelled:
+            return "cancelled"
         if self.error:
             return "failed"
         if self.result is not None:
             return "completed"
         return "running"
+
+    @property
+    def is_terminal(self) -> bool:
+        """True once this run can no longer touch its session."""
+        return self.status != "running"
 
     def public(self) -> dict[str, Any]:
         payload: dict[str, Any] = {
@@ -66,7 +79,6 @@ class RunRegistry:
         self._ttl = ttl_seconds
 
     def create(self, session_id: str, question: str) -> RunRecord:
-        self._evict()
         record = RunRecord(
             run_id=f"run_{uuid.uuid4().hex[:12]}",
             session_id=session_id,
@@ -74,6 +86,11 @@ class RunRegistry:
             bus=EventBus(),
         )
         self._runs[record.run_id] = record
+        # After the insert, not before: evicting first leaves the registry
+        # holding `max_runs + 1` the moment the new record lands, so the
+        # ceiling was never quite what it claimed. The new record is both
+        # the newest and still running, so it is never its own victim.
+        self._evict()
         return record
 
     def get(self, run_id: str) -> RunRecord:
@@ -91,15 +108,88 @@ class RunRegistry:
         return sum(1 for r in self._runs.values() if r.session_id == session_id)
 
     def _evict(self) -> None:
+        """Drop expired runs, then trim to the ceiling. Never a running run.
+
+        The ceiling used to be advisory. The loop picked the globally oldest
+        record and stopped if it was still running -- so one long analysis at
+        the front of the queue blocked eviction of every finished run behind
+        it, and the registry grew past `max_runs` without bound while that
+        analysis lived. A class that calls itself bounded should be.
+
+        The fix is to choose the victim from removable records only. A
+        running run is never evicted, because its task holds a session and
+        dropping the record would lose the handle needed to cancel it.
+        """
         cutoff = time.time() - self._ttl
         for run_id, record in list(self._runs.items()):
-            if record.created_at < cutoff and record.status != "running":
+            if record.created_at < cutoff and record.is_terminal:
                 self._runs.pop(run_id, None)
+
         while len(self._runs) > self._max:
-            oldest = min(self._runs.values(), key=lambda r: r.created_at)
-            if oldest.status == "running":
+            removable = [r for r in self._runs.values() if r.is_terminal]
+            if not removable:
+                # Every remaining run is still executing. Killing one to
+                # satisfy a count would be worse than exceeding it, so the
+                # ceiling yields and says so; `max_concurrent_analyses`
+                # is what actually bounds this case.
+                log.warning(
+                    "run_registry_over_capacity",
+                    runs=len(self._runs),
+                    max_runs=self._max,
+                    reason="every run is still active; none may be evicted",
+                )
                 break
+            oldest = min(removable, key=lambda r: r.created_at)
             self._runs.pop(oldest.run_id, None)
+
+    def active_for_session(self, session_id: str) -> list[RunRecord]:
+        return [r for r in self._runs.values() if r.session_id == session_id and not r.is_terminal]
+
+    async def cancel_session(
+        self, session_id: str, *, reason: str = "the dataset was closed", grace_seconds: float = 5.0
+    ) -> int:
+        """Stop every run using this session, and wait for it to unwind.
+
+        This is the first half of the session teardown contract. A run holds
+        the `AnalysisSession` object and therefore its DuckDB connection; if
+        the session is closed underneath it, the next tool call reaches a
+        closed connection and surfaces as an internal error to whoever is
+        watching the stream. Guarding the connection with a lock does not
+        help -- that serialises one query, and the analysis goes on to make
+        another call afterwards.
+
+        So a run is stopped before its session is, and stopped *properly*:
+        cancelled, then awaited. Awaiting is the part that matters. A
+        cancelled task has not finished unwinding, so its `finally` blocks --
+        which close the provider and release the capacity slot -- have not
+        run yet. Returning before they do is how a slot leaks.
+
+        Returns how many runs were stopped.
+        """
+        records = self.active_for_session(session_id)
+        if not records:
+            return 0
+
+        for record in records:
+            record.cancelled = True
+            record.error = reason
+            if record.task and not record.task.done():
+                record.task.cancel()
+
+        tasks = [r.task for r in records if r.task and not r.task.done()]
+        if tasks:
+            with contextlib.suppress(TimeoutError):
+                async with asyncio.timeout(grace_seconds):
+                    await asyncio.gather(*tasks, return_exceptions=True)
+
+        for record in records:
+            # The bus may already be closed by the run's own teardown;
+            # closing twice is harmless and closing never is a hung stream.
+            with contextlib.suppress(Exception):
+                record.bus.close()
+
+        log.info("runs_cancelled_for_session", session_id=session_id, count=len(records))
+        return len(records)
 
     async def shutdown(self, grace_seconds: float = 5.0) -> None:
         """Cancel in-flight runs and wait for them to unwind.

@@ -24,7 +24,10 @@ def build_provider(settings: Settings | None = None) -> LLMProvider:
         from agentic_analytics.llm.ollama import OllamaProvider
 
         return OllamaProvider(
-            base_url=cfg.ollama_base_url, model=cfg.ollama_model, max_calls=max_calls
+            base_url=cfg.ollama_base_url,
+            model=cfg.ollama_model,
+            max_calls=max_calls,
+            think=cfg.ollama_think,
         )
 
     if cfg.provider_mode == "cloud":
