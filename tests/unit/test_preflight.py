@@ -35,6 +35,7 @@ from agentic_analytics.agents.preflight import (
     UNKNOWN_METRIC,
     UNKNOWN_TABLE,
     UNKNOWN_TOOL,
+    UPLOAD_TOOL_ON_GOVERNED_DATASET,
     preflight,
 )
 
@@ -398,3 +399,46 @@ def test_filters_are_not_checked_against_a_metric_that_does_not_exist() -> None:
     )
     assert rejection is not None
     assert rejection.category == UNKNOWN_METRIC
+
+
+# ----------------------------------- the metric layer is not optional
+def test_an_upload_tool_is_refused_on_a_governed_dataset() -> None:
+    """The mirror of the metric-tool rule, and the one a real run needed.
+
+    On the demo warehouse the planner kept choosing
+    `aggregate_for_question`, which maps a question onto one table's raw
+    columns. Every call was refused by the server -- correctly, since
+    `revenue` is a metric-layer definition and not a column -- but only
+    after a round trip, and with a message about ambiguous columns rather
+    than about the layer being bypassed.
+    """
+    rejection = preflight(
+        "aggregate_for_question",
+        {"table": "orders", "question": "revenue by acquisition channel"},
+        _contract(),
+    )
+    assert rejection is not None
+    assert rejection.category == UPLOAD_TOOL_ON_GOVERNED_DATASET
+    assert "compute_metric" in rejection.message
+    assert "revenue" in rejection.message
+
+
+def test_the_same_tool_is_fine_where_there_is_no_metric_layer() -> None:
+    """An upload is exactly what it is for."""
+    contract = ExecutionContract(
+        metrics=[],
+        tables=[ORDERS],
+        tools=[AGGREGATE],
+        grains=[],
+        has_metrics=False,
+        available_tools=["aggregate_for_question"],
+    )
+    assert (
+        preflight("aggregate_for_question", {"table": "orders", "question": "total"}, contract)
+        is None
+    )
+
+
+def test_a_physical_tool_that_is_not_an_upload_mapper_still_works() -> None:
+    """Profiling a table is legitimate on any dataset."""
+    assert preflight("profile_table", {"table": "orders"}, _contract()) is None

@@ -216,3 +216,94 @@ def test_the_worker_prompt_recommends_metric_tools_when_they_exist() -> None:
     assert "compute_metric" in prompt
     assert "NO metric layer" not in prompt
     assert "orders" in prompt
+
+
+# ------------------------------------ the mirror redirect, on a warehouse
+WAREHOUSE_METRICS = [
+    {
+        "name": "revenue",
+        "format": "currency",
+        "description": "net revenue",
+        "valid_dimensions": ["acquisition_channel", "category"],
+        "time_field": "order_date",
+    }
+]
+
+
+async def test_an_upload_tool_naming_a_metric_is_redirected_to_the_metric_layer() -> None:
+    """Found on the demo warehouse: the planner chose an upload tool.
+
+    Redirecting is honest here only because the task already names the
+    metric. Choosing one for it would be the engine deciding what the model
+    meant, which is the line this layer does not cross.
+    """
+    telemetry: dict[str, Any] = {}
+    tasks = await analyst.plan_analysis(
+        ScriptedPlanner(
+            {
+                "tasks": [
+                    {
+                        "objective": "Revenue by acquisition channel",
+                        "preferred_tool": "aggregate_for_question",
+                        "required_metrics": ["revenue"],
+                        "dimensions": ["acquisition_channel"],
+                        "table": "orders",
+                    }
+                ]
+            }
+        ),
+        QUESTION,
+        QuestionAnalysis(intent=QUESTION, analysis_type="segmentation"),
+        WAREHOUSE_METRICS,
+        [],
+        max_tasks=5,
+        tables=[{"name": "orders", "row_count": 10}],
+        telemetry=telemetry,
+    )
+    assert len(tasks) == 1
+    assert tasks[0].preferred_tool == "compute_metric"
+    assert tasks[0].required_metrics == ["revenue"]
+    assert telemetry["tasks_redirected_by_engine"] == 1
+    assert "metric layer" in telemetry["redirect_reasons"][0]
+
+
+async def test_an_upload_tool_naming_no_metric_is_not_redirected_by_guessing() -> None:
+    """There is no unambiguous metric to redirect to, so the engine does not.
+
+    Preflight refuses the call with the metric names beside it and the
+    model chooses. An engine that picked one would put its own authority
+    behind a guess.
+    """
+    telemetry: dict[str, Any] = {}
+    tasks = await analyst.plan_analysis(
+        ScriptedPlanner(
+            {
+                "tasks": [
+                    {
+                        "objective": "How did things go?",
+                        "preferred_tool": "aggregate_for_question",
+                        "required_metrics": [],
+                        "table": "orders",
+                    }
+                ]
+            }
+        ),
+        QUESTION,
+        QuestionAnalysis(intent=QUESTION, analysis_type="segmentation"),
+        WAREHOUSE_METRICS,
+        [],
+        max_tasks=5,
+        tables=[{"name": "orders", "row_count": 10}],
+        telemetry=telemetry,
+    )
+    assert [t.preferred_tool for t in tasks] == ["aggregate_for_question"]
+    assert telemetry["tasks_redirected_by_engine"] == 0
+
+
+def test_the_planner_prompt_states_the_metric_layer_branch() -> None:
+    """It documented the metric-free case and not its mirror."""
+    from agentic_analytics.agents.prompts import PLANNER
+
+    assert "compare_segments" in PLANNER
+    assert "governed metric\nlayer" in PLANNER
+    assert "aggregate_for_question` is for datasets that have no metric layer" in PLANNER

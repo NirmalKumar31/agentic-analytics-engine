@@ -208,6 +208,25 @@ Emit at most {max_tasks} tasks."""
             task.preferred_tool = "aggregate_for_question"
             task.table = task.table or (tables[0]["name"] if tables else None)
             task.variables = {**task.variables, "question": question}
+        # The mirror of the redirect above. A governed dataset asked for
+        # with an upload tool cannot work -- `aggregate_for_question` maps a
+        # question onto one table's raw columns, and on a warehouse that is
+        # both ambiguous and outside the metric layer. Redirecting is only
+        # honest when the task already names the metric to use: choosing one
+        # for it would be the engine deciding what the model meant.
+        if (
+            not metric_free_dataset
+            and task.preferred_tool == "aggregate_for_question"
+            and task.required_metrics
+        ):
+            if telemetry is not None:
+                telemetry["tasks_redirected_by_engine"] += 1
+                telemetry["redirect_reasons"].append(
+                    "aggregate_for_question does not use the metric layer; the task "
+                    f"already names {task.required_metrics[0]!r}"
+                )
+            task.preferred_tool = "compute_metric"
+
         if not task.required_metrics and task.preferred_tool not in METRIC_FREE_TOOLS:
             continue
         primary = task.required_metrics[0] if task.required_metrics else None

@@ -46,6 +46,22 @@ Always set `preferred_tool` explicitly. If you omit it the task defaults to
 `compute_metric`, which only works when the dataset has a governed metric
 layer.
 
+When METRICS AVAILABLE lists metrics, the dataset has a governed metric
+layer and you must go through it. Name a metric from that list and one of
+its own dimensions:
+
+  compute_metric      one metric, optionally by dimensions and a time grain
+  compare_segments    one metric across the values of one dimension
+  analyze_timeseries  one metric over time
+  decompose_change    which segments drove a change in one metric
+  rank_contributors   the segments contributing most to a change
+  compare_periods     one metric between two windows
+
+`aggregate_for_question` is for datasets that have no metric layer. On a
+dataset that has one it will be refused, because the metric layer is where
+"revenue" is defined and a question mapped around it would mean something
+different.
+
 When METRICS AVAILABLE is "(none)" the dataset is a single uploaded table
 with no metric layer, and only these tools can run:
 

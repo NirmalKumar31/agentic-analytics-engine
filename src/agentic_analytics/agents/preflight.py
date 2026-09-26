@@ -41,6 +41,7 @@ UNKNOWN_TABLE = "unknown_table"
 UNKNOWN_COLUMN = "unknown_column"
 UNKNOWN_GRAIN = "unknown_grain"
 METRIC_TOOL_WITHOUT_METRICS = "metric_tool_without_metric_layer"
+UPLOAD_TOOL_ON_GOVERNED_DATASET = "upload_tool_on_governed_dataset"
 MALFORMED_FILTER = "malformed_filter"
 UNFILTERABLE_COLUMN = "unfilterable_column"
 
@@ -121,6 +122,22 @@ def preflight(
             METRIC_TOOL_WITHOUT_METRICS,
             f"{tool} needs a metric layer and this dataset has none. Use "
             "aggregate_for_question or profile_table against a table instead.",
+        )
+
+    # The mirror of the rule above, and the one a real run needed. On the
+    # demo warehouse the planner kept reaching for `aggregate_for_question`,
+    # which maps a question onto one table's raw columns. The server refused
+    # every call -- correctly, since "revenue" is a metric-layer definition
+    # and not a column -- but only after a round trip, with a message about
+    # ambiguous columns rather than about the layer being bypassed.
+    if tool == "aggregate_for_question" and contract.has_metrics:
+        return PreflightRejection(
+            UPLOAD_TOOL_ON_GOVERNED_DATASET,
+            "aggregate_for_question maps a question onto one table's raw "
+            "columns and this dataset has a governed metric layer, where the "
+            "measures are defined. Use compute_metric, compare_segments or "
+            "analyze_timeseries with one of: "
+            f"{', '.join(contract.metric_names[:12])}",
         )
 
     metric_names = _metric_arguments(arguments)
