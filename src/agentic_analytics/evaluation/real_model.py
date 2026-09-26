@@ -110,6 +110,10 @@ class QuestionOutcome:
     #: the worker has the catalogue -- but worth counting, because it is the
     #: planner leaving a field the schema asks for.
     tasks_without_a_named_metric: int = 0
+    #: Verified claims suppressed because an identical sentence was already
+    #: published. Not a verification rejection -- these passed every gate --
+    #: so they are counted apart from `withheld_findings`.
+    duplicate_published_findings_removed: int = 0
     redirect_reasons: list[str] = field(default_factory=list)
     fallback_plan_used: bool = False
     model_plan_directly_executable: bool = False
@@ -182,6 +186,9 @@ def _observe(
     outcome.redirect_reasons = list(telemetry.get("redirect_reasons", []))
     outcome.fallback_plan_used = bool(telemetry.get("fallback_plan_used", False))
     outcome.tasks_without_a_named_metric = int(telemetry.get("tasks_without_a_named_metric", 0))
+    outcome.duplicate_published_findings_removed = int(
+        telemetry.get("duplicate_published_findings_removed", 0)
+    )
     outcome.model_plan_directly_executable = bool(
         telemetry.get("model_plan_directly_executable", False)
     )
@@ -492,6 +499,17 @@ def environment_fingerprint(cfg: Settings) -> dict[str, Any]:
         "max_analysis_tasks": cfg.budgets.max_analysis_tasks,
         "max_tool_calls_per_task": cfg.budgets.max_tool_calls_per_task,
         "max_runtime_seconds": cfg.budgets.max_runtime_seconds,
+        # Recorded because a Stage-2 run must be reproducible from this file
+        # alone. These four were readable only from the command line, so an
+        # artifact could not say what ceiling produced it.
+        "max_total_tool_calls": cfg.budgets.max_total_tool_calls,
+        "max_followup_rounds": cfg.budgets.max_followup_rounds,
+        "ollama_timeout_seconds": (
+            cfg.ollama_timeout_seconds if cfg.provider_mode == "local" else None
+        ),
+        "cloud_timeout_seconds": (
+            cfg.cloud_timeout_seconds if cfg.provider_mode == "cloud" else None
+        ),
     }
     with contextlib.suppress(Exception):
         info["git_sha"] = (
@@ -650,6 +668,11 @@ async def run_real_model_evaluation(
         d for d in DATASETS if dataset_ids is None or d.dataset_id in dataset_ids
     ]
     fingerprint = environment_fingerprint(cfg)
+    # The harness ceiling belongs in the fingerprint too: it is part of what
+    # produced the numbers, and a reader should not have to reconstruct the
+    # command line to know what bounded a question.
+    fingerprint["question_timeout_seconds"] = question_timeout_seconds
+    fingerprint["selection"] = selection or "all"
 
     checkpoint_dir = checkpoint_dir or (data_dir.parent / "real-model-checkpoint")
     outcomes_path = checkpoint_dir / "outcomes.jsonl"
@@ -830,6 +853,9 @@ def _summarise(cfg: Settings, outcomes: list[QuestionOutcome], wall_clock: float
         "runs_requiring_task_redirect": count(lambda o: o.tasks_redirected_by_engine > 0),
         "runs_requiring_engine_fallback": count(lambda o: o.fallback_plan_used),
         "tasks_without_a_named_metric": sum(o.tasks_without_a_named_metric for o in outcomes),
+        "duplicate_published_findings_removed": sum(
+            o.duplicate_published_findings_removed for o in outcomes
+        ),
         "runs_safely_refusing": count(lambda o: "safe_refusal" in o.outcome_flags),
         "outcome_flag_counts": _merge_counts(dict.fromkeys(o.outcome_flags, 1) for o in outcomes),
         "runs_with_a_failed_tool_call": count(lambda o: o.tool_call_failures > 0),

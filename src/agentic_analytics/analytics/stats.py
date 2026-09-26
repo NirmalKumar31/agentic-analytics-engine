@@ -38,6 +38,27 @@ TEST_TYPES: tuple[str, ...] = (
     "spearman_correlation",
 )
 
+#: What each test needs inside `variables`, beyond the relation. Declared
+#: here, next to the handlers that enforce it, so the MCP description, the
+#: worker's contract and the preflight check all read the same source
+#: instead of three descriptions drifting apart.
+#:
+#: The Stage-1 run spent six `statistical_test` calls discovering this the
+#: expensive way -- `group_column is required`, `row_column is required`,
+#: `model (or table) is required`, and one `test_type` that does not exist.
+#: Every one of those facts was already known here.
+TEST_VARIABLES: dict[str, tuple[str, ...]] = {
+    "two_proportion_z": ("group_column", "value_column"),
+    "welch_t_test": ("group_column", "value_column"),
+    "one_way_anova": ("group_column", "value_column"),
+    "chi_square": ("row_column", "column_column"),
+    "pearson_correlation": ("x_column", "y_column"),
+    "spearman_correlation": ("x_column", "y_column"),
+}
+
+#: Variables every test needs: one of these names the relation to test on.
+TEST_RELATION_KEYS: tuple[str, ...] = ("model", "table")
+
 # Tests that need row-level values are capped. Beyond this a seeded reservoir
 # sample is drawn, and the snapshot records that it happened along with the
 # seed, so the same request against the same data reproduces exactly.
@@ -727,7 +748,14 @@ def correlation_matrix(
             f"between 2 and {MAX_CORRELATION_COLUMNS} columns are required, got {len(columns)}"
         )
     relation_sql, filterable, column_map = _relation(session, table)
-    resolved = [_check_column(c, relation_sql, session) for c in columns]
+    # `_require_numeric`, not `_check_column`. Existence is not enough: the
+    # SQL below casts every column to DOUBLE, so a text column reached
+    # DuckDB and came back as `Conversion Error: Could not convert string
+    # 'North' to DOUBLE` -- a database error where a governed refusal
+    # belongs. The function two hundred lines above says it plainly: a
+    # correlation between two text columns is not a weaker result, it is a
+    # meaningless one, and refusing is the only honest outcome.
+    resolved = [_require_numeric(session, relation_sql, c) for c in columns]
 
     where, params = build_where(filters, filterable, column_map)
     from agentic_analytics.analytics.compute import _inline_params

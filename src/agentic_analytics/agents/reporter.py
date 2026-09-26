@@ -68,6 +68,26 @@ KIND_HEADINGS: dict[str, str] = {
 FALLBACK_HEADING = "Findings"
 
 
+def assemble_without_model(
+    question: str,
+    findings: list[PublishedFinding],
+    limitations: list[str],
+) -> AnalysisReport:
+    """The report the engine can write with no model at all.
+
+    Used when the run has spent its time or call budget before reaching the
+    reporter. The alternative was a stub saying the report could not be
+    written, which throws away findings that passed every gate because the
+    *presentation* step ran out of budget. Organising is the only thing the
+    model does here, and the engine can group by evidence kind without it.
+
+    Every factual sentence is still a `PublishedFinding.text`, unchanged.
+    """
+    if not findings:
+        return _empty_report(question, limitations)
+    return _assemble(question, findings, _default_plan(findings), limitations)
+
+
 async def write_report(
     question: str,
     findings: list[PublishedFinding],

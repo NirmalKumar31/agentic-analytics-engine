@@ -27,6 +27,8 @@ from agentic_analytics.agents.preflight import (
     MALFORMED_FILTER,
     METRIC_TOOL_WITHOUT_METRICS,
     MISSING_REQUIRED_ARGUMENT,
+    MISSING_TEST_VARIABLE,
+    NON_NUMERIC_COLUMN,
     UNFILTERABLE_COLUMN,
     UNKNOWN_ARGUMENT,
     UNKNOWN_COLUMN,
@@ -34,6 +36,7 @@ from agentic_analytics.agents.preflight import (
     UNKNOWN_GRAIN,
     UNKNOWN_METRIC,
     UNKNOWN_TABLE,
+    UNKNOWN_TEST_TYPE,
     UNKNOWN_TOOL,
     UPLOAD_TOOL_ON_GOVERNED_DATASET,
     preflight,
@@ -442,3 +445,143 @@ def test_the_same_tool_is_fine_where_there_is_no_metric_layer() -> None:
 def test_a_physical_tool_that_is_not_an_upload_mapper_still_works() -> None:
     """Profiling a table is legitimate on any dataset."""
     assert preflight("profile_table", {"table": "orders"}, _contract()) is None
+
+
+# ------------------------------------------- statistical_test variables
+STATS = ToolContract(
+    name="statistical_test",
+    description="Run a statistical test.",
+    required={"test_type": "string", "variables": "object"},
+    optional={"filters": "list[object]"},
+)
+TRIALS = TableContract(
+    name="trials",
+    row_count=100,
+    columns=[("plan", "VARCHAR"), ("days", "DOUBLE"), ("converted", "INTEGER")],
+)
+
+
+def _stats_contract() -> ExecutionContract:
+    return ExecutionContract(
+        metrics=[],
+        tables=[TRIALS],
+        tools=[STATS],
+        grains=[],
+        has_metrics=False,
+        available_tools=["statistical_test"],
+    )
+
+
+def test_a_test_type_that_does_not_exist_is_refused_with_the_real_list() -> None:
+    """Stage 1 spent a call discovering `independent_t_test` is not a test."""
+    rejection = preflight(
+        "statistical_test",
+        {"test_type": "independent_t_test", "variables": {"table": "trials"}},
+        _stats_contract(),
+    )
+    assert rejection is not None
+    assert rejection.category == UNKNOWN_TEST_TYPE
+    assert "welch_t_test" in rejection.message
+
+
+def test_a_missing_relation_is_refused_with_the_table_names() -> None:
+    rejection = preflight(
+        "statistical_test",
+        {"test_type": "welch_t_test", "variables": {"group_column": "plan"}},
+        _stats_contract(),
+    )
+    assert rejection is not None
+    assert rejection.category == MISSING_TEST_VARIABLE
+    assert "trials" in rejection.message
+
+
+def test_a_missing_test_variable_is_refused_with_what_the_test_needs() -> None:
+    """`variables` is typed `object`, so the schema alone says nothing."""
+    rejection = preflight(
+        "statistical_test",
+        {"test_type": "welch_t_test", "variables": {"table": "trials", "group_column": "plan"}},
+        _stats_contract(),
+    )
+    assert rejection is not None
+    assert rejection.category == MISSING_TEST_VARIABLE
+    assert "value_column" in rejection.message
+
+
+def test_chi_square_asks_for_its_own_variables_not_another_tests() -> None:
+    rejection = preflight(
+        "statistical_test",
+        {"test_type": "chi_square", "variables": {"table": "trials", "group_column": "plan"}},
+        _stats_contract(),
+    )
+    assert rejection is not None
+    assert "row_column" in rejection.message
+    assert "value_column" not in rejection.message
+
+
+def test_a_non_numeric_value_column_is_refused() -> None:
+    """A t-test on a category label is meaningless, not merely weaker."""
+    rejection = preflight(
+        "statistical_test",
+        {
+            "test_type": "welch_t_test",
+            "variables": {"table": "trials", "group_column": "days", "value_column": "plan"},
+        },
+        _stats_contract(),
+    )
+    assert rejection is not None
+    assert rejection.category == NON_NUMERIC_COLUMN
+    assert "days" in rejection.message
+
+
+def test_a_text_group_column_is_fine() -> None:
+    """Grouping is what a label is for; only the measured value must be numeric."""
+    assert (
+        preflight(
+            "statistical_test",
+            {
+                "test_type": "welch_t_test",
+                "variables": {"table": "trials", "group_column": "plan", "value_column": "days"},
+            },
+            _stats_contract(),
+        )
+        is None
+    )
+
+
+def test_a_column_that_does_not_exist_is_refused() -> None:
+    rejection = preflight(
+        "statistical_test",
+        {
+            "test_type": "welch_t_test",
+            "variables": {"table": "trials", "group_column": "plan", "value_column": "nope"},
+        },
+        _stats_contract(),
+    )
+    assert rejection is not None
+    assert rejection.category == UNKNOWN_COLUMN
+
+
+def test_a_metric_model_relation_is_left_to_the_server() -> None:
+    """A semantic model is not in the table catalogue, so no verdict is possible."""
+    assert (
+        preflight(
+            "statistical_test",
+            {
+                "test_type": "welch_t_test",
+                "variables": {
+                    "model": "customer_lifecycle",
+                    "group_column": "x",
+                    "value_column": "y",
+                },
+            },
+            _stats_contract(),
+        )
+        is None
+    )
+
+
+def test_the_preflight_contract_matches_the_engines_own_table() -> None:
+    """Two descriptions of one contract drift; this asserts they are one."""
+    from agentic_analytics.analytics.stats import TEST_TYPES, TEST_VARIABLES
+
+    assert set(TEST_VARIABLES) == set(TEST_TYPES)

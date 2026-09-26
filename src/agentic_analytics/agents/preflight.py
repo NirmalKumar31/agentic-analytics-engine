@@ -42,6 +42,9 @@ UNKNOWN_COLUMN = "unknown_column"
 UNKNOWN_GRAIN = "unknown_grain"
 METRIC_TOOL_WITHOUT_METRICS = "metric_tool_without_metric_layer"
 UPLOAD_TOOL_ON_GOVERNED_DATASET = "upload_tool_on_governed_dataset"
+UNKNOWN_TEST_TYPE = "unknown_test_type"
+MISSING_TEST_VARIABLE = "missing_test_variable"
+NON_NUMERIC_COLUMN = "non_numeric_column"
 MALFORMED_FILTER = "malformed_filter"
 UNFILTERABLE_COLUMN = "unfilterable_column"
 
@@ -156,6 +159,11 @@ def preflight(
     rejection = _check_filters(arguments, metric_names, contract)
     if rejection is not None:
         return rejection
+
+    if tool == "statistical_test":
+        rejection = _check_statistical_test(arguments, contract)
+        if rejection is not None:
+            return rejection
 
     for argument in sorted(set(arguments) & _TABLE_ARGUMENTS):
         value = arguments[argument]
@@ -285,6 +293,111 @@ def _check_filters(
                     f"Filterable: {', '.join(n for n in allowed if n)}",
                 )
     return None
+
+
+def _check_statistical_test(
+    arguments: dict[str, Any],
+    contract: ExecutionContract,
+) -> PreflightRejection | None:
+    """The `variables` contract, which the tool schema cannot express.
+
+    `variables` is typed `object` in the MCP schema, so the argument list a
+    worker is shown says nothing about what belongs inside it. The engine
+    has always known -- `stats.TEST_VARIABLES` is the same table the
+    handlers enforce -- and a real run spent six calls rediscovering it one
+    error at a time.
+
+    Column *types* are checked too. A correlation between two text columns
+    is not a weaker result, it is a meaningless one, and the contract
+    already carries every column's type.
+    """
+    from agentic_analytics.analytics.stats import TEST_RELATION_KEYS, TEST_VARIABLES
+
+    test_type = arguments.get("test_type")
+    if not isinstance(test_type, str) or test_type not in TEST_VARIABLES:
+        return PreflightRejection(
+            UNKNOWN_TEST_TYPE,
+            f"test_type {test_type!r} does not exist. Valid: {', '.join(sorted(TEST_VARIABLES))}",
+        )
+
+    variables = arguments.get("variables")
+    if not isinstance(variables, dict):
+        return PreflightRejection(
+            MISSING_TEST_VARIABLE,
+            "variables must be an object naming the relation and the columns "
+            f"this test needs: {', '.join(TEST_VARIABLES[test_type])}",
+        )
+
+    if not any(isinstance(variables.get(k), str) for k in TEST_RELATION_KEYS):
+        return PreflightRejection(
+            MISSING_TEST_VARIABLE,
+            "variables must name the relation to test on, as "
+            f"{' or '.join(TEST_RELATION_KEYS)}. Tables: "
+            f"{', '.join(contract.table_names) or '(none)'}",
+        )
+
+    for key in TEST_VARIABLES[test_type]:
+        if not isinstance(variables.get(key), str) or not variables[key]:
+            return PreflightRejection(
+                MISSING_TEST_VARIABLE,
+                f"{test_type} needs variables.{key}. It needs: "
+                f"{', '.join(TEST_VARIABLES[test_type])}, plus the relation.",
+            )
+
+    table_name = next(
+        (variables[k] for k in TEST_RELATION_KEYS if isinstance(variables.get(k), str)), None
+    )
+    table = contract.table(str(table_name))
+    if table is None or table.truncated_columns:
+        # A relation this contract does not fully describe -- a metric model,
+        # or a table whose columns were trimmed -- cannot support a "no such
+        # column" verdict.
+        return None
+
+    known = dict(table.columns)
+    for key in TEST_VARIABLES[test_type]:
+        column = variables[key]
+        if column not in known:
+            return PreflightRejection(
+                UNKNOWN_COLUMN,
+                f"table {table_name!r} has no column {column!r}. Columns: "
+                f"{', '.join(sorted(known))}",
+            )
+        if key in _NUMERIC_TEST_VARIABLES and not _is_numeric(known[column]):
+            return PreflightRejection(
+                NON_NUMERIC_COLUMN,
+                f"{test_type} needs a numeric {key}, and {column!r} is "
+                f"{known[column]}. Numeric columns: "
+                f"{', '.join(sorted(c for c, k in known.items() if _is_numeric(k))) or '(none)'}",
+            )
+    return None
+
+
+#: Variables that must name a numeric column. A group label may be text; the
+#: value being tested may not.
+_NUMERIC_TEST_VARIABLES = frozenset({"value_column", "x_column", "y_column"})
+
+#: DuckDB type names that a statistical test can use.
+_NUMERIC_TYPES = (
+    "TINYINT",
+    "SMALLINT",
+    "INTEGER",
+    "BIGINT",
+    "HUGEINT",
+    "UTINYINT",
+    "USMALLINT",
+    "UINTEGER",
+    "UBIGINT",
+    "FLOAT",
+    "DOUBLE",
+    "REAL",
+    "DECIMAL",
+    "NUMERIC",
+)
+
+
+def _is_numeric(duck_type: str) -> bool:
+    return duck_type.upper().startswith(_NUMERIC_TYPES)
 
 
 def _check_columns(

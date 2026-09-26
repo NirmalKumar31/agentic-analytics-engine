@@ -27,7 +27,6 @@ from agentic_analytics.agents.execution import (
 )
 from agentic_analytics.agents.schemas import (
     AnalysisPlan,
-    AnalysisReport,
     AnalysisTask,
     PublishedFinding,
     TaskOutcome,
@@ -42,6 +41,7 @@ from agentic_analytics.graph.state import AnalysisState, WorkerInput
 from agentic_analytics.llm.base import BudgetError, LLMError, LLMProvider
 from agentic_analytics.logging import get_logger
 from agentic_analytics.mcp_layer.client import AnalyticsToolset
+from agentic_analytics.verification.claims import collapse_exact_duplicates
 from agentic_analytics.warehouse.metrics import VALID_GRAINS
 from agentic_analytics.warehouse.session import AnalysisSession
 
@@ -270,9 +270,9 @@ def build_graph(ctx: RunContext) -> Any:
                 by_task.setdefault(snapshot.task_id, []).append(snapshot.statistical_result)
         for family in by_task.values():
             apply_family_correction(family)
-        published: list[PublishedFinding] = []
         rejected: list[Verdict] = []
         verdicts: list[Verdict] = []
+        supported: list[PublishedFinding] = []
 
         for outcome in state.get("task_outcomes", []):
             for finding in outcome.findings:
@@ -309,9 +309,39 @@ def build_graph(ctx: RunContext) -> Any:
                 # Only `supported` is published. `partially_supported` is
                 # retained for the audit metrics but kept out of the report.
                 if verdict.status == "supported":
-                    published.append(critic.publish(finding, verdict))
+                    supported.append(critic.publish(finding, verdict))
                 else:
                     rejected.append(verdict)
+
+        # Exact duplicates, collapsed after verification rather than before.
+        # A real run published "The product family 'Home' has the highest
+        # total net value of 40189.25." twice, from two tasks that had found
+        # it independently. Both were true and both passed every gate;
+        # printing the same sentence twice still inflates the finding count,
+        # the report length and the apparent breadth of the analysis.
+        #
+        # After the verdicts, because letting an unverified candidate decide
+        # which verified one survives would put the collapse upstream of the
+        # thing that makes publication safe.
+        published, duplicate_records = collapse_exact_duplicates(
+            supported,
+            text_of=lambda f: f.text,
+            id_of=lambda f: f.finding_id,
+            task_of=lambda f: f.task_id or "",
+            results_of=lambda f: list(f.result_ids),
+        )
+        duplicates = [d.as_dict() for d in duplicate_records]
+        for record in duplicate_records:
+            ctx.events.emit(
+                EventType.FINDING_REJECTED,
+                finding_id=record.finding_id,
+                reason="an identical finding was already published",
+                duplicate_of=record.duplicate_of,
+            )
+
+        if duplicates and ctx.telemetry is not None:
+            ctx.telemetry["duplicate_published_findings_removed"] = len(duplicates)
+            ctx.telemetry["duplicate_published_findings"] = duplicates
 
         limitations: list[str] = []
         if rejected:
@@ -380,6 +410,14 @@ def build_graph(ctx: RunContext) -> Any:
         published = state.get("published", [])
         if not published:
             return {"charts": []}
+        if ctx.out_of_time():
+            # A chart is decoration. Spending a model call on one after the
+            # analytical deadline is the clearest case of presentation work
+            # competing with the budget, and nothing is lost by skipping it.
+            return {
+                "charts": [],
+                "limitations": ["Charts were skipped: the run reached its time budget."],
+            }
         try:
             charts = await visualizer.build_charts(
                 published,
@@ -401,6 +439,19 @@ def build_graph(ctx: RunContext) -> Any:
         limitations = list(dict.fromkeys(state.get("limitations", [])))
         if state.get("stopped_reason"):
             limitations.append(f"The run stopped early: {state['stopped_reason']}.")
+        if ctx.out_of_time():
+            # Organising is the only thing the model does here, so a run
+            # that is out of time still gets its report -- written by the
+            # engine from the findings that passed verification. Losing
+            # verified findings because the *presentation* step had no
+            # budget left would be the wrong trade in both directions: it
+            # discards real work and reports a failure that did not happen.
+            report = reporter.assemble_without_model(
+                state["question"],
+                state.get("published", []),
+                [*limitations, "The run reached its time budget before the report was organised."],
+            )
+            return {"report": report}
         try:
             report = await reporter.write_report(
                 state["question"],
@@ -409,11 +460,13 @@ def build_graph(ctx: RunContext) -> Any:
                 limitations,
                 ctx.provider,
             )
-        except (LLMError, BudgetError) as exc:
-            report = AnalysisReport(
-                question=state["question"],
-                executive_summary="The report could not be written.",
-                limitations=[*limitations, str(exc)],
+        except LLMError as exc:
+            # Includes `BudgetError`. Same reasoning as above: fall back to
+            # the deterministic organisation rather than to a stub.
+            report = reporter.assemble_without_model(
+                state["question"],
+                state.get("published", []),
+                [*limitations, str(exc)],
             )
         return {"report": report}
 

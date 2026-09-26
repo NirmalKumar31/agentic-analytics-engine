@@ -13,6 +13,7 @@ model is actually good at, and means these rejections are reproducible.
 from __future__ import annotations
 
 import re
+from collections.abc import Callable
 from dataclasses import dataclass
 
 from agentic_analytics.analytics.results import ResultSnapshot
@@ -111,3 +112,75 @@ def check_claim(
 def is_causal(text: str) -> bool:
     """True when the text asserts cause without hedging."""
     return bool(_CAUSAL.search(text)) and not bool(_HEDGED.search(text))
+
+
+def normalise_claim_text(text: str) -> str:
+    """The key two claims must share to count as the same sentence.
+
+    Deliberately conservative. Whitespace, case and a trailing full stop are
+    presentation; everything that could change what the sentence *asserts*
+    is left alone -- numbers, units, negation, modality, entity names and
+    time scope all survive verbatim, so "rose by 5%" and "rose by 6%",
+    "did" and "did not", "may be" and "is", "Q3" and "Q4" are all different
+    claims and all stay.
+
+    No similarity, no stemming, no synonyms. Two claims collapse only when
+    they are the same sentence written the same way.
+    """
+    collapsed = " ".join(text.split())
+    return collapsed.rstrip(".").casefold()
+
+
+@dataclass
+class SuppressedDuplicate:
+    """A verified claim that repeats one already published."""
+
+    finding_id: str
+    duplicate_of: str
+    task_id: str
+    result_ids: list[str]
+
+    def as_dict(self) -> dict[str, object]:
+        return {
+            "finding_id": self.finding_id,
+            "duplicate_of": self.duplicate_of,
+            "task_id": self.task_id,
+            "result_ids": list(self.result_ids),
+        }
+
+
+def collapse_exact_duplicates[T](
+    items: list[T],
+    *,
+    text_of: Callable[[T], str],
+    id_of: Callable[[T], str],
+    task_of: Callable[[T], str],
+    results_of: Callable[[T], list[str]],
+) -> tuple[list[T], list[SuppressedDuplicate]]:
+    """Keep the first of each identical sentence; report the rest.
+
+    The first *verified* occurrence survives, exactly as it was verified.
+    Nothing is merged onto it: attaching a later duplicate's result ids to
+    the survivor would put evidence behind a sentence that was not checked
+    against that evidence, which is a worse citation than the one it
+    replaces.
+    """
+    seen: dict[str, str] = {}
+    kept: list[T] = []
+    duplicates: list[SuppressedDuplicate] = []
+    for item in items:
+        key = normalise_claim_text(text_of(item))
+        first = seen.get(key)
+        if first is not None:
+            duplicates.append(
+                SuppressedDuplicate(
+                    finding_id=id_of(item),
+                    duplicate_of=first,
+                    task_id=task_of(item),
+                    result_ids=results_of(item),
+                )
+            )
+            continue
+        seen[key] = id_of(item)
+        kept.append(item)
+    return kept, duplicates
