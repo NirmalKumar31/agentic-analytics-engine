@@ -216,3 +216,62 @@ async def test_every_semantic_tool_named_in_the_prompt_actually_exists(
     ) as ts:
         unknown = SEMANTIC_TOOLS - set(ts.available_tools)
         assert not unknown, f"SEMANTIC_TOOLS names tools the server does not expose: {unknown}"
+
+
+async def test_a_real_failed_call_never_echoes_the_capability(
+    demo: tuple[SessionManager, str, str],
+) -> None:
+    """End to end, against the real server, with the real key.
+
+    The reproduction that found this made the exact call below thirty-six
+    times: `aggregate_for_question` with the required `table` omitted. The
+    server's validation error echoed the arguments, and the arguments always
+    contain the capability.
+    """
+    manager, session_id, session_key = demo
+    from agentic_analytics.mcp_layer.client import ToolCallFailed
+
+    async with AnalyticsToolset(
+        build_server(manager), session_id=session_id, session_key=session_key
+    ) as ts:
+        with pytest.raises(ToolCallFailed) as raised:
+            await ts.call("aggregate_for_question", {"question": "revenue by channel"})
+
+        message = str(raised.value)
+        assert session_key not in message
+        assert session_id not in message
+        # Even a fragment: the key is random, so check a slice of it.
+        assert session_key[8:24] not in message
+        # And the actionable part is still there.
+        assert "table" in message.lower()
+
+        # The trace entry, which the UI renders, is sanitised too.
+        entry = ts.public_trace()[-1]
+        assert entry["ok"] is False
+        assert session_key not in str(entry)
+        assert session_key[8:24] not in str(entry)
+
+
+async def test_the_preflight_now_catches_that_call_before_it_is_made(
+    demo: tuple[SessionManager, str, str],
+) -> None:
+    """The same call, refused with the argument list the model needed."""
+    manager, session_id, session_key = demo
+    async with AnalyticsToolset(
+        build_server(manager), session_id=session_id, session_key=session_key
+    ) as ts:
+        session = manager.get(session_id, session_key)
+        contract = build_execution_contract(
+            catalog=session.catalog(),
+            registry=session.registry,
+            tool_contracts=ts.tool_contracts,
+            grains=sorted(VALID_GRAINS),
+            available_tools=list(ts.available_tools),
+        )
+        rejection = preflight(
+            "aggregate_for_question", {"question": "revenue by channel"}, contract
+        )
+        assert rejection is not None
+        assert rejection.category == "missing_required_argument"
+        assert "table" in rejection.message
+        assert session_key not in rejection.message

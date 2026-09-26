@@ -36,6 +36,17 @@ _SDK_ERROR_PREFIX = re.compile(r"^Error executing tool [A-Za-z0-9_]+:\s*")
 # secret; the handle is not secret but is noise in a trace.
 _REDACT_KEYS = frozenset({"session_id", "session_key"})
 
+#: Pydantic reports a validation failure with the offending input echoed
+#: back: `input_value={'question': '...', 'session_key': '...'}`. Every tool
+#: call carries the capability, so that clause is a copy of the secret in a
+#: string that is stored in evaluation artifacts, shown in the run trace and
+#: -- now that failures are fed back -- put into the next prompt. Observed
+#: for real: a warehouse run produced 36 of these, each ending in a fragment
+#: of the session key. The useful half of the message is the part before it.
+_INPUT_VALUE = re.compile(r"input_value=.*?(?=,\s*input_type=|\]|$)", re.DOTALL)
+#: Tool errors are written for a model to act on, not to carry a stack.
+MAX_TOOL_ERROR_CHARS = 400
+
 
 class BudgetExceeded(RuntimeError):
     """A tool-call ceiling was reached."""
@@ -214,7 +225,11 @@ class AnalyticsToolset:
             result = await self._client.call_tool(tool_name, args)
         except Exception as exc:
             record.ok = False
-            record.error = f"{type(exc).__name__}: {exc}"
+            record.error = _sanitize_tool_error(
+                f"{type(exc).__name__}: {exc}",
+                session_id=self.session_id,
+                session_key=self._session_key,
+            )
             record.duration_ms = (time.perf_counter() - started) * 1000
             self.trace.append(record)
             if self.events:
@@ -224,7 +239,11 @@ class AnalyticsToolset:
         record.duration_ms = (time.perf_counter() - started) * 1000
 
         if result.is_error:
-            message = _strip_sdk_prefix(_first_text(result)) or "tool returned an error"
+            message = _sanitize_tool_error(
+                _strip_sdk_prefix(_first_text(result)) or "tool returned an error",
+                session_id=self.session_id,
+                session_key=self._session_key,
+            )
             record.ok = False
             record.error = message
             self.trace.append(record)
@@ -267,6 +286,22 @@ _TASK_AWARE_TOOLS = frozenset(
         "statistical_test",
     }
 )
+
+
+def _sanitize_tool_error(message: str, *, session_id: str, session_key: str) -> str:
+    """A tool failure a model may read and an artifact may keep.
+
+    Removing the echoed input is what actually closes the leak: the key
+    appears inside it, and often only as a fragment, so replacing the exact
+    value would miss it. The literal values are replaced as well, for the
+    case where some other layer spells one out in full.
+    """
+    text = _INPUT_VALUE.sub("input_value=[omitted]", message)
+    for secret in (session_key, session_id):
+        if secret:
+            text = text.replace(secret, "[redacted]")
+    text = " ".join(text.split())
+    return text[:MAX_TOOL_ERROR_CHARS]
 
 
 def _first_text(result: Any) -> str | None:
