@@ -227,8 +227,25 @@ Emit at most {max_tasks} tasks."""
                 )
             task.preferred_tool = "compute_metric"
 
+        # A metric task that names no metric used to be dropped here, and
+        # that rule is now wrong. It was written when the worker had no idea
+        # which metrics existed, so a task saying "compare gross margin
+        # across channels" with an empty `required_metrics` really was
+        # unexecutable. The worker is given the metric catalogue now, and
+        # preflight checks whatever it names, so the task is executable and
+        # dropping it throws away a perfectly good objective.
+        #
+        # It cost a whole run to find: the planner returned six sensible
+        # metric tasks, every one with `required_metrics: []`, and the
+        # engine discarded all six without a word. The drop survives only
+        # where there is genuinely nothing to name.
         if not task.required_metrics and task.preferred_tool not in METRIC_FREE_TOOLS:
-            continue
+            if metric_free_dataset:
+                continue
+            if telemetry is not None:
+                telemetry["tasks_without_a_named_metric"] = (
+                    telemetry.get("tasks_without_a_named_metric", 0) + 1
+                )
         primary = task.required_metrics[0] if task.required_metrics else None
         if primary:
             allowed = set(metric_dimensions.get(primary, []))

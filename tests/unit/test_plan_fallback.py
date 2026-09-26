@@ -129,11 +129,15 @@ async def test_the_fallback_respects_the_task_ceiling() -> None:
     assert len(tasks) == 1
 
 
-async def test_no_fallback_when_the_dataset_has_a_metric_layer() -> None:
-    """A governed dataset with an unexecutable plan is a different problem.
+async def test_no_upload_fallback_when_the_dataset_has_a_metric_layer() -> None:
+    """A governed dataset never gets the upload-shaped fallback plan.
 
-    There, a task naming a metric that does not exist genuinely cannot run,
-    and inventing an upload-shaped fallback would be wrong.
+    The task itself survives. It used to be dropped, on the reasoning that a
+    task naming a metric that does not exist cannot run -- true when the
+    worker had no way to learn the real names, and false now that it is
+    given the catalogue. What must not happen is the *upload* fallback:
+    pointing a governed dataset at `aggregate_for_question` would route
+    around the metric layer entirely.
     """
     metrics = [
         {
@@ -152,7 +156,9 @@ async def test_no_fallback_when_the_dataset_has_a_metric_layer() -> None:
         },
         metrics=metrics,
     )
-    assert tasks == []
+    assert [t.preferred_tool for t in tasks] == ["compute_metric"]
+    assert tasks[0].required_metrics == [], "the metric that does not exist is filtered out"
+    assert not any(t.preferred_tool == "aggregate_for_question" for t in tasks)
 
 
 async def test_no_fallback_without_a_table_to_point_at() -> None:
@@ -307,3 +313,86 @@ def test_the_planner_prompt_states_the_metric_layer_branch() -> None:
     assert "compare_segments" in PLANNER
     assert "governed metric\nlayer" in PLANNER
     assert "aggregate_for_question` is for datasets that have no metric layer" in PLANNER
+
+
+async def test_a_metric_task_that_names_no_metric_is_kept_on_a_governed_dataset() -> None:
+    """The drop rule predates the execution contract and outlived its reason.
+
+    It cost a whole run: the planner returned six sensible metric tasks --
+    "compare gross margin across acquisition channels", `compare_segments`,
+    `decompose_change` -- every one with `required_metrics: []`, and the
+    cleaner discarded all six without a word. The worker is given the metric
+    catalogue now and preflight checks whatever it names, so the objective
+    is executable; throwing it away is the loss.
+    """
+    telemetry: dict[str, Any] = {}
+    tasks = await analyst.plan_analysis(
+        ScriptedPlanner(
+            {
+                "tasks": [
+                    {
+                        "objective": "Compare gross margin across acquisition channels",
+                        "preferred_tool": "compare_segments",
+                        "required_metrics": [],
+                    },
+                    {
+                        "objective": "Identify the segments driving revenue growth",
+                        "preferred_tool": "decompose_change",
+                        "required_metrics": [],
+                    },
+                ]
+            }
+        ),
+        QUESTION,
+        QuestionAnalysis(intent=QUESTION, analysis_type="segmentation"),
+        WAREHOUSE_METRICS,
+        [],
+        max_tasks=5,
+        tables=[{"name": "orders", "row_count": 10}],
+        telemetry=telemetry,
+    )
+    assert [t.preferred_tool for t in tasks] == ["compare_segments", "decompose_change"]
+    # Kept, but counted: this is the planner leaving out a field it was asked for.
+    assert telemetry["tasks_without_a_named_metric"] == 2
+
+
+async def test_a_metric_task_with_no_metric_is_still_dropped_without_a_metric_layer() -> None:
+    """There, the drop is right: there is nothing for the worker to name."""
+    tasks = await analyst.plan_analysis(
+        ScriptedPlanner(
+            {
+                "tasks": [
+                    {
+                        "objective": "x",
+                        "preferred_tool": "compute_metric",
+                        "required_metrics": ["nope"],
+                    }
+                ]
+            }
+        ),
+        QUESTION,
+        QuestionAnalysis(intent=QUESTION, analysis_type="segmentation"),
+        [
+            {
+                "name": "revenue",
+                "format": "currency",
+                "description": "r",
+                "valid_dimensions": ["category"],
+                "time_field": "d",
+            }
+        ],
+        [],
+        max_tasks=5,
+        tables=[{"name": "orders", "row_count": 10}],
+    )
+    # `nope` is filtered out, the task keeps its metric tool, and the worker
+    # names a real metric from the catalogue.
+    assert [t.preferred_tool for t in tasks] == ["compute_metric"]
+    assert tasks[0].required_metrics == []
+
+
+def test_the_planner_prompt_asks_for_the_metric_name() -> None:
+    from agentic_analytics.agents.prompts import PLANNER
+
+    assert "required_metrics" in PLANNER
+    assert "exactly as METRICS AVAILABLE" in PLANNER

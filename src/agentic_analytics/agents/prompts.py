@@ -46,6 +46,11 @@ Always set `preferred_tool` explicitly. If you omit it the task defaults to
 `compute_metric`, which only works when the dataset has a governed metric
 layer.
 
+Set `required_metrics` too, naming metrics exactly as METRICS AVAILABLE
+spells them. A task that says "compare gross margin across channels"
+without naming the metric leaves the worker to pick one, and you know which
+one you meant.
+
 When METRICS AVAILABLE lists metrics, the dataset has a governed metric
 layer and you must go through it. Name a metric from that list and one of
 its own dimensions:

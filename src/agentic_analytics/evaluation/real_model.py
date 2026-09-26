@@ -106,6 +106,10 @@ class QuestionOutcome:
     cleaned_tasks: list[dict[str, Any]] = field(default_factory=list)
     planner_tasks_after_cleanup: int = 0
     tasks_redirected_by_engine: int = 0
+    #: Metric tasks the planner left without a metric name. Executable --
+    #: the worker has the catalogue -- but worth counting, because it is the
+    #: planner leaving a field the schema asks for.
+    tasks_without_a_named_metric: int = 0
     redirect_reasons: list[str] = field(default_factory=list)
     fallback_plan_used: bool = False
     model_plan_directly_executable: bool = False
@@ -177,6 +181,7 @@ def _observe(
     outcome.tasks_redirected_by_engine = int(telemetry.get("tasks_redirected_by_engine", 0))
     outcome.redirect_reasons = list(telemetry.get("redirect_reasons", []))
     outcome.fallback_plan_used = bool(telemetry.get("fallback_plan_used", False))
+    outcome.tasks_without_a_named_metric = int(telemetry.get("tasks_without_a_named_metric", 0))
     outcome.model_plan_directly_executable = bool(
         telemetry.get("model_plan_directly_executable", False)
     )
@@ -824,6 +829,7 @@ def _summarise(cfg: Settings, outcomes: list[QuestionOutcome], wall_clock: float
         "runs_with_direct_model_plan": count(lambda o: o.model_plan_directly_executable),
         "runs_requiring_task_redirect": count(lambda o: o.tasks_redirected_by_engine > 0),
         "runs_requiring_engine_fallback": count(lambda o: o.fallback_plan_used),
+        "tasks_without_a_named_metric": sum(o.tasks_without_a_named_metric for o in outcomes),
         "runs_safely_refusing": count(lambda o: "safe_refusal" in o.outcome_flags),
         "outcome_flag_counts": _merge_counts(dict.fromkeys(o.outcome_flags, 1) for o in outcomes),
         "runs_with_a_failed_tool_call": count(lambda o: o.tool_call_failures > 0),
