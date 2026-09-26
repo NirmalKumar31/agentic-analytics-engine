@@ -366,3 +366,35 @@ async def test_a_run_with_time_to_spare_is_unaffected() -> None:
     )
     assert outcome.tool_telemetry["tool_calls_succeeded"] == 1
     assert "run_time_budget_reached" not in outcome.tool_telemetry["failures_by_category"]
+
+
+async def test_no_new_claim_is_written_once_the_run_is_out_of_time() -> None:
+    """The tool loop stopped at the budget; the findings call did not.
+
+    One findings request per task is six more model calls on the demo
+    warehouse, and that tail is most of what pushed a question past its
+    ceiling after the tools had already stopped. Stopping here costs claims,
+    never correctness.
+    """
+    state = {"n": 0}
+
+    def out_of_time() -> bool:
+        state["n"] += 1
+        # False for the first loop check, true afterwards.
+        return state["n"] > 1
+
+    provider = ScriptedWorker([{"tool": "profile_table", "arguments": {"table": "orders"}}])
+    outcome = await run_task(
+        AnalysisTask(task_id="t", objective="o", preferred_tool="profile_table"),
+        provider=provider,
+        toolset=FakeToolset(),  # type: ignore[arg-type]
+        max_tool_calls=6,
+        contract=CONTRACT,
+        out_of_time=out_of_time,
+    )
+
+    assert outcome.findings == []
+    assert outcome.result_ids, "the results it did obtain are still reported"
+    assert any("time budget" in note for note in outcome.notes)
+    assert "findings_skipped_out_of_time" in outcome.tool_telemetry["failures_by_category"]
+    assert "worker_findings" not in provider.usage.by_role

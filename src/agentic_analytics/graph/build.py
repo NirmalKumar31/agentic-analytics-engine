@@ -276,6 +276,25 @@ def build_graph(ctx: RunContext) -> Any:
 
         for outcome in state.get("task_outcomes", []):
             for finding in outcome.findings:
+                if ctx.out_of_time():
+                    # Verification costs a model call per claim, and that
+                    # tail is how a run overruns its budget after the tool
+                    # loop has already stopped. A claim that cannot be
+                    # checked is withheld -- never waved through, which is
+                    # the one outcome that would make the budget matter
+                    # more than the invariant.
+                    verdict = Verdict(
+                        finding_id=finding.finding_id,
+                        status="unsupported",
+                        reason=(
+                            "The run reached its time budget before this claim "
+                            "could be verified, so it was not published."
+                        ),
+                        rule="verification_budget_exhausted",
+                    )
+                    verdicts.append(verdict)
+                    rejected.append(verdict)
+                    continue
                 try:
                     verdict, _ = await critic.verify_finding(
                         finding, results, ctx.provider, ctx.events

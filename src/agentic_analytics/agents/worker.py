@@ -339,6 +339,23 @@ async def run_task(
             "Holm-corrected for multiple comparisons"
         )
 
+    if out_of_time is not None and out_of_time():
+        # The tool loop stops at the budget but this call did not, so a run
+        # could overrun by one findings request per task -- six of them on
+        # the demo warehouse, which is most of the overrun that pushed a
+        # question past its ceiling. Stopping here costs claims, never
+        # correctness: nothing is published that was not verified.
+        notes.append("the run reached its time budget before findings were written")
+        telemetry.record_category("findings_skipped_out_of_time")
+        return TaskOutcome(
+            task_id=task.task_id,
+            status="warning",
+            result_ids=[p["result_id"] for p in payloads],
+            tool_calls=calls,
+            notes=notes,
+            tool_telemetry=telemetry.as_dict(),
+        )
+
     try:
         findings_payload = await ask_into(
             provider,
