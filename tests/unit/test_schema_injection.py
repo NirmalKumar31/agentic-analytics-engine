@@ -160,7 +160,7 @@ def test_the_schema_block_carries_no_cell_values() -> None:
     contract = build_execution_contract(catalog=catalog, registry=None, tool_contracts=[])
     rendered = render_contract(contract, AnalysisTask(objective="o"))
 
-    assert "salary: DOUBLE" in rendered
+    assert "salary DOUBLE" in rendered
     assert "987654.32" not in rendered
     assert "sample_rows" not in rendered
     # The row *count* is not a cell, and is what makes the schema readable.

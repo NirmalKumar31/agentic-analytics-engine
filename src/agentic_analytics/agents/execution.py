@@ -50,6 +50,24 @@ from agentic_analytics.agents.schemas import AnalysisTask
 ENGINE_OWNED_ARGUMENTS = frozenset({"session_id", "session_key", "task_id"})
 
 #: Tools whose arguments are metric-layer names rather than column names.
+#: Tools that address physical tables and columns. The physical schema is
+#: rendered only when one of these is on offer: for a purely semantic task
+#: it is 1,400 characters the worker cannot act on, paid again on every
+#: decision.
+PHYSICAL_TOOLS = frozenset(
+    {
+        "profile_table",
+        "profile_dataset",
+        "describe_table",
+        "sample_rows",
+        "run_readonly_sql",
+        "statistical_test",
+        "correlation_matrix",
+        "aggregate_for_question",
+        "list_tables",
+    }
+)
+
 SEMANTIC_TOOLS = frozenset(
     {
         "compute_metric",
@@ -355,28 +373,42 @@ def render_contract(contract: ExecutionContract, task: AnalysisTask) -> str:
             "or dimensions. Work from the physical schema below."
         )
 
-    blocks.append(_render_schema(contract))
+    # The schema is 1,400 characters that a purely semantic task cannot act
+    # on, and it is paid again on every decision the worker makes.
+    if _needs_physical_schema(contract, task):
+        blocks.append(_render_schema(contract))
     blocks.append(_render_tools(contract, task))
     return "\n\n".join(blocks)
+
+
+def _needs_physical_schema(contract: ExecutionContract, task: AnalysisTask) -> bool:
+    """True when some tool on offer actually addresses tables and columns."""
+    if not contract.has_metrics:
+        return True
+    if task.preferred_tool in PHYSICAL_TOOLS:
+        return True
+    return any(tool.name in PHYSICAL_TOOLS for tool in contract.tools)
 
 
 def _render_metrics(contract: ExecutionContract) -> str:
     lines = [
         "SEMANTIC ANALYTICS INTERFACE",
-        "These are metric definitions, not columns. `revenue` is computed by the",
-        "metric layer from whatever relations it needs; it is not a column you",
-        "can select. Name a metric and a dimension exactly as they appear here.",
+        "Metric definitions, not columns. `revenue` is computed by the metric",
+        "layer from whatever relations it needs; you cannot select it. Name a",
+        "metric and a dimension exactly as written here.",
         "",
     ]
     described = contract.described_metrics
     for metric in described:
-        lines.append(f"{metric.name}  ({metric.format})")
-        if metric.description:
-            lines.append(f"  {metric.description}")
-        lines.append(f"  valid_dimensions: {', '.join(metric.valid_dimensions) or '(none)'}")
-        lines.append(f"  time_field: {metric.time_field or '(none)'}")
-        if metric.decomposable:
-            lines.append("  supports decompose_change")
+        # One line each. The prose description was the largest single cost
+        # in this block and the worker acts on the name and the dimensions,
+        # not on the sentence next to them.
+        dimensions = ", ".join(metric.valid_dimensions) or "(none)"
+        suffix = "  [decomposable]" if metric.decomposable else ""
+        lines.append(
+            f"{metric.name} ({metric.format}) by: {dimensions} | time: "
+            f"{metric.time_field or '(none)'}{suffix}"
+        )
 
     remaining = [m.name for m in contract.metrics if m not in described]
     if remaining:
@@ -395,39 +427,30 @@ def _render_metrics(contract: ExecutionContract) -> str:
 def _render_schema(contract: ExecutionContract) -> str:
     lines = [
         SCHEMA_BANNER,
-        "Physical tables. These matter for profile_table, run_readonly_sql and",
-        "statistical_test. Do not substitute a column name for a metric name.",
+        "Physical tables. Do not substitute a column name for a metric name.",
         "",
     ]
     if not contract.tables:
         lines.append("(no tables reported)")
         return "\n".join(lines)
     for table in contract.tables:
-        lines.append(f"{table.name}  ({table.row_count} rows)")
-        for column, column_type in table.columns:
-            lines.append(f"  {column}: {column_type}")
+        columns = ", ".join(f"{name} {kind}" for name, kind in table.columns)
         if table.truncated_columns:
-            lines.append(f"  ... and {table.truncated_columns} further columns")
+            columns += f", ... {table.truncated_columns} more"
+        lines.append(f"{table.name} ({table.row_count} rows): {columns}")
     return "\n".join(lines)
 
 
 def _render_tools(contract: ExecutionContract, task: AnalysisTask) -> str:
     lines = ["TOOL ARGUMENTS", ""]
     for tool in contract.tools:
-        marker = "  <- preferred for this task" if tool.name == task.preferred_tool else ""
-        lines.append(f"{tool.name}{marker}")
-        if tool.description:
-            lines.append(f"  {tool.description}")
-        if tool.required:
-            lines.append(
-                "  required: " + ", ".join(f"{k}: {v}" for k, v in sorted(tool.required.items()))
-            )
-        if tool.optional:
-            lines.append(
-                "  optional: " + ", ".join(f"{k}: {v}" for k, v in sorted(tool.optional.items()))
-            )
-        if not tool.required and not tool.optional:
-            lines.append("  (no arguments)")
+        marker = "   <- preferred here" if tool.name == task.preferred_tool else ""
+        required = ", ".join(f"{k}: {v}" for k, v in sorted(tool.required.items()))
+        optional = ", ".join(f"{k}: {v}" for k, v in sorted(tool.optional.items()))
+        signature = required or "(no required arguments)"
+        if optional:
+            signature += f" [optional: {optional}]"
+        lines.append(f"{tool.name}({signature}){marker}")
     lines.append("")
     lines.append(
         "session_id, session_key and task_id are supplied by the engine. Never "

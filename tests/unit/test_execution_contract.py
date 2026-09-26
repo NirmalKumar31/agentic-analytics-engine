@@ -100,11 +100,17 @@ class _Registry:
         return _Metric(decomposable=name == "revenue")
 
 
+PROFILE = ToolContract(
+    name="profile_table", description="Describe a table.", required={"table": "string"}
+)
+
+
 def _contract(registry: Any = None, tools: list[ToolContract] | None = None) -> Any:
+    """A contract that includes a physical tool, so the schema block renders."""
     return build_execution_contract(
         catalog=CATALOG,
         registry=registry,
-        tool_contracts=tools or [],
+        tool_contracts=tools if tools is not None else [PROFILE],
         grains=["day", "month", "quarter", "year"],
     )
 
@@ -148,13 +154,11 @@ def test_engine_owned_arguments_never_reach_the_model() -> None:
     # model not to set them. They must never appear as an argument it is
     # invited to fill, and no capability *value* appears anywhere.
     rendered = render_contract(_contract(tools=contracts), AnalysisTask(objective="o"))
-    argument_lines = [
-        line
-        for line in rendered.splitlines()
-        if line.strip().startswith(("required:", "optional:"))
+    signature_lines = [
+        line for line in rendered.splitlines() if line.startswith("compare_segments(")
     ]
-    assert argument_lines
-    for line in argument_lines:
+    assert signature_lines
+    for line in signature_lines:
         for owned in ENGINE_OWNED_ARGUMENTS:
             assert owned not in line, line
     assert "supplied by the engine" in rendered
@@ -219,8 +223,8 @@ def test_a_metric_is_presented_as_a_metric_and_not_as_a_column() -> None:
 
     section = rendered[semantic:physical]
     assert "revenue" in section
-    assert "valid_dimensions: acquisition_channel, region" in section
-    assert "time_field: order_date" in section
+    assert "by: acquisition_channel, region" in section
+    assert "time: order_date" in section
     assert "not columns" in section
 
 
@@ -244,8 +248,8 @@ def test_the_physical_schema_carries_columns_and_types() -> None:
     rendered = render_contract(_contract(registry=_Registry()), AnalysisTask(objective="o"))
     physical = rendered[rendered.index(SCHEMA_BANNER) :]
     assert "orders" in physical
-    assert "order_date: DATE" in physical
-    assert "acquisition_channel: VARCHAR" in physical
+    assert "order_date DATE" in physical
+    assert "acquisition_channel VARCHAR" in physical
     assert "12000 rows" in physical
 
 
@@ -257,7 +261,7 @@ def test_a_dataset_with_no_metric_layer_says_so_plainly() -> None:
 
 def test_a_decomposable_metric_is_marked() -> None:
     rendered = render_contract(_contract(registry=_Registry()), AnalysisTask(objective="o"))
-    assert "supports decompose_change" in rendered
+    assert "[decomposable]" in rendered
 
 
 # ------------------------------------------------------------- bounding
@@ -275,13 +279,13 @@ def test_the_schema_is_bounded_in_tables_and_columns() -> None:
             for i in range(40)
         ]
     }
-    contract = build_execution_contract(catalog=catalog, registry=None, tool_contracts=[])
+    contract = build_execution_contract(catalog=catalog, registry=None, tool_contracts=[PROFILE])
     assert len(contract.tables) == MAX_TABLES
     assert len(contract.tables[0].columns) == MAX_COLUMNS_PER_TABLE
     assert contract.tables[0].truncated_columns == 80 - MAX_COLUMNS_PER_TABLE
 
     rendered = render_contract(contract, AnalysisTask(objective="o"))
-    assert f"and {80 - MAX_COLUMNS_PER_TABLE} further columns" in rendered
+    assert f"... {80 - MAX_COLUMNS_PER_TABLE} more" in rendered
 
 
 def test_only_a_handful_of_tool_schemas_are_shown() -> None:
@@ -387,3 +391,102 @@ def test_contract_pieces_are_immutable(contract_type: Any, kwargs: dict[str, Any
     instance = contract_type(**kwargs)
     with pytest.raises(dataclasses.FrozenInstanceError):
         instance.name = "changed"  # type: ignore[misc]
+
+
+# -------------------------------------------------- what is left out, and why
+def test_a_purely_semantic_task_is_not_shown_the_physical_schema() -> None:
+    """1,400 characters the worker cannot act on, paid on every decision.
+
+    Measured, not assumed: the full contract against the demo warehouse was
+    6,502 characters and pushed one worker decision from about ten seconds
+    to about forty-six, which timed the warehouse question out twice.
+    """
+    semantic_only = [
+        ToolContract(
+            name="compare_segments",
+            description="",
+            required={"metric": "string", "dimension": "string"},
+        )
+    ]
+    contract = _contract(registry=_Registry(), tools=semantic_only)
+    rendered = render_contract(
+        contract, AnalysisTask(objective="o", preferred_tool="compare_segments")
+    )
+    assert SCHEMA_BANNER not in rendered
+    assert "order_id" not in rendered
+    # The semantic interface, which is what the task can act on, is there.
+    assert "revenue" in rendered
+    assert "compare_segments(" in rendered
+
+
+def test_the_schema_appears_as_soon_as_a_tool_can_use_it() -> None:
+    contract = _contract(registry=_Registry(), tools=[PROFILE])
+    rendered = render_contract(
+        contract, AnalysisTask(objective="o", preferred_tool="profile_table")
+    )
+    assert SCHEMA_BANNER in rendered
+    assert "order_id VARCHAR" in rendered
+
+
+def test_a_dataset_without_metrics_always_gets_the_schema() -> None:
+    """There is nothing else for it to work from."""
+    rendered = render_contract(_contract(registry=None, tools=[]), AnalysisTask(objective="o"))
+    assert SCHEMA_BANNER in rendered
+
+
+def test_the_semantic_contract_is_small_enough_to_pay_for_repeatedly() -> None:
+    contract = _contract(registry=_Registry(), tools=[PROFILE])
+    rendered = render_contract(contract, AnalysisTask(objective="o"))
+    assert len(rendered) < 3000, f"contract grew to {len(rendered)} characters"
+
+
+def test_the_metric_the_task_names_is_the_one_described_in_full() -> None:
+    """Twenty metrics do not fit; the ones the task is about must be there."""
+    from agentic_analytics.agents.execution import MAX_DETAILED_METRICS, select_metrics
+
+    metrics = [
+        MetricContract(name=name, description="", valid_dimensions=[], time_field="", format="")
+        for name in [f"metric_{i}" for i in range(20)] + ["revenue", "gross_margin_pct"]
+    ]
+    chosen = select_metrics(
+        metrics, AnalysisTask(objective="Why did revenue rise but gross margin pct fall?")
+    )
+    assert "revenue" in chosen
+    assert "gross_margin_pct" in chosen
+    assert len(chosen) == MAX_DETAILED_METRICS
+
+
+def test_a_metric_the_planner_asked_for_is_described_even_if_unmentioned() -> None:
+    from agentic_analytics.agents.execution import select_metrics
+
+    metrics = [
+        MetricContract(name=name, description="", valid_dimensions=[], time_field="", format="")
+        for name in [f"metric_{i}" for i in range(20)] + ["roas"]
+    ]
+    chosen = select_metrics(metrics, AnalysisTask(objective="unrelated", required_metrics=["roas"]))
+    assert chosen[0] == "roas"
+
+
+def test_every_metric_stays_callable_even_when_only_some_are_described() -> None:
+    """Narrowing the description must never narrow the permission."""
+    from agentic_analytics.agents.preflight import preflight
+
+    contract = build_execution_contract(
+        catalog=CATALOG,
+        registry=_Registry(),
+        tool_contracts=[PROFILE],
+        # `compare_segments` exists on the server but is not described here.
+        available_tools=["profile_table", "compare_segments"],
+    )
+    object.__setattr__(contract, "detailed_metrics", ["revenue"])
+    rendered = render_contract(contract, AnalysisTask(objective="o"))
+
+    assert "gross_margin_pct" in rendered, "an undescribed metric must still be named"
+    assert (
+        preflight(
+            "compare_segments",
+            {"metric": "gross_margin_pct", "dimension": "category"},
+            contract,
+        )
+        is None
+    )
