@@ -20,6 +20,11 @@ from langgraph.graph import END, START, StateGraph
 from langgraph.types import Send
 
 from agentic_analytics.agents import analyst, critic, reporter, visualizer
+from agentic_analytics.agents.execution import (
+    ExecutionContract,
+    build_execution_contract,
+    select_tools,
+)
 from agentic_analytics.agents.schemas import (
     AnalysisPlan,
     AnalysisReport,
@@ -37,6 +42,7 @@ from agentic_analytics.graph.state import AnalysisState, WorkerInput
 from agentic_analytics.llm.base import BudgetError, LLMError, LLMProvider
 from agentic_analytics.logging import get_logger
 from agentic_analytics.mcp_layer.client import AnalyticsToolset
+from agentic_analytics.warehouse.metrics import VALID_GRAINS
 from agentic_analytics.warehouse.session import AnalysisSession
 
 log = get_logger(__name__)
@@ -199,8 +205,32 @@ def build_graph(ctx: RunContext) -> Any:
             max_tool_calls=ctx.budgets.max_tool_calls_per_task,
             tables=sorted(ctx.session.table_names),
             has_metrics=ctx.session.has_metrics,
+            contract=_execution_contract(ctx, task),
         )
         return {"task_outcomes": [outcome]}
+
+    def _execution_contract(ctx: RunContext, task: AnalysisTask) -> ExecutionContract:
+        """What this worker may name, from what the session already knows.
+
+        Assembled per task rather than per run so the tool schemas shown can
+        be narrowed to the ones this task could plausibly use. Everything in
+        it is read from the session catalog, the metric registry and the MCP
+        listing; none of it is written down a second time here.
+        """
+        catalog = ctx.session.catalog()
+        wanted = select_tools(
+            ctx.toolset.available_tools,
+            task,
+            has_metrics=ctx.session.has_metrics,
+        )
+        return build_execution_contract(
+            catalog=catalog,
+            registry=ctx.session.registry,
+            tool_contracts=[c for c in ctx.toolset.tool_contracts if c.name in wanted],
+            grains=sorted(VALID_GRAINS),
+            available_tools=list(ctx.toolset.available_tools),
+            task=task,
+        )
 
     # ----------------------------------------------------- aggregate_results
     async def aggregate_results(state: AnalysisState) -> dict[str, Any]:

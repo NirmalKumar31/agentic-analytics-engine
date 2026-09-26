@@ -122,6 +122,15 @@ class QuestionOutcome:
     #: was discarding it.
     tool_failures_by_tool: dict[str, int] = field(default_factory=dict)
     tool_failure_reasons: dict[str, int] = field(default_factory=dict)
+    #: From the worker's own loop, which sees calls the MCP trace never does:
+    #: one refused before dispatch and one suppressed as a repeat both leave
+    #: no trace entry, because neither reached the server.
+    tool_calls_succeeded: int = 0
+    preflight_rejections: int = 0
+    duplicate_failed_calls_suppressed: int = 0
+    mcp_failures: int = 0
+    tool_failure_categories: dict[str, int] = field(default_factory=dict)
+    execution_contract_characters: int = 0
     generated_sql_calls: int = 0
     statistical_tests: int = 0
 
@@ -186,6 +195,23 @@ def _observe(
             _record_failure_reason(outcome, str(call.get("error") or "(no message)"))
         if name == "run_readonly_sql":
             outcome.generated_sql_calls += 1
+    for task_outcome in result.tasks:
+        loop = task_outcome.tool_telemetry or {}
+        outcome.tool_calls_succeeded += int(loop.get("tool_calls_succeeded", 0))
+        outcome.preflight_rejections += int(loop.get("preflight_rejections", 0))
+        outcome.duplicate_failed_calls_suppressed += int(
+            loop.get("duplicate_failed_calls_suppressed", 0)
+        )
+        outcome.mcp_failures += int(loop.get("mcp_failures", 0))
+        for category, count_ in (loop.get("failures_by_category") or {}).items():
+            outcome.tool_failure_categories[str(category)] = outcome.tool_failure_categories.get(
+                str(category), 0
+            ) + int(count_)
+        outcome.execution_contract_characters = max(
+            outcome.execution_contract_characters,
+            int(loop.get("execution_contract_characters", 0)),
+        )
+
     outcome.statistical_tests = sum(
         1 for s in result.results.values() if s.statistical_result is not None
     )
@@ -732,6 +758,16 @@ def _summarise(cfg: Settings, outcomes: list[QuestionOutcome], wall_clock: float
         "runs_safely_refusing": count(lambda o: "safe_refusal" in o.outcome_flags),
         "outcome_flag_counts": _merge_counts(dict.fromkeys(o.outcome_flags, 1) for o in outcomes),
         "runs_with_a_failed_tool_call": count(lambda o: o.tool_call_failures > 0),
+        "tool_calls_succeeded": sum(o.tool_calls_succeeded for o in outcomes),
+        "preflight_rejections": sum(o.preflight_rejections for o in outcomes),
+        "duplicate_failed_calls_suppressed": sum(
+            o.duplicate_failed_calls_suppressed for o in outcomes
+        ),
+        "mcp_failures": sum(o.mcp_failures for o in outcomes),
+        "tool_failure_categories": _merge_counts(o.tool_failure_categories for o in outcomes),
+        "max_execution_contract_characters": max(
+            (o.execution_contract_characters for o in outcomes), default=0
+        ),
         "tool_failures_by_tool": _merge_counts(o.tool_failures_by_tool for o in outcomes),
         "tool_failure_reasons": _merge_counts(o.tool_failure_reasons for o in outcomes),
         # Three different things, previously one. An agent call is an

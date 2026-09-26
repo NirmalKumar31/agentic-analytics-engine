@@ -9,11 +9,19 @@ and the run continues with whatever other tasks succeeded.
 from __future__ import annotations
 
 import json
+from dataclasses import dataclass
+from dataclasses import field as dc_field
 from typing import Any
 
 from pydantic import BaseModel, Field
 
 from agentic_analytics.agents.base import ask_into
+from agentic_analytics.agents.execution import (
+    ExecutionContract,
+    render_contract,
+    signature,
+)
+from agentic_analytics.agents.preflight import preflight
 from agentic_analytics.agents.prompts import (
     FINDINGS_FIELD_GUIDE,
     WORKER_FINDINGS,
@@ -50,6 +58,57 @@ class ToolChoice(BaseModel):
 
 class FindingList(BaseModel):
     findings: list[CandidateFinding] = Field(default_factory=list)
+
+
+#: How many previous failed attempts a worker is shown. Enough to stop it
+#: repeating itself, small enough that the feedback does not crowd out the
+#: contract it is supposed to be reading.
+MAX_FEEDBACK_SHOWN = 4
+
+
+@dataclass
+class FailedAttempt:
+    """One rejected or failed call, in the form the worker is shown next."""
+
+    tool: str
+    arguments: dict[str, Any]
+    category: str
+    message: str
+    #: True when the engine refused it without calling MCP.
+    preflight: bool = False
+
+    def render(self) -> str:
+        arguments = ", ".join(f"{k}={v!r}" for k, v in sorted(self.arguments.items())) or "(none)"
+        return f"tool: {self.tool}\narguments: {arguments}\nerror: {self.message}"
+
+
+@dataclass
+class ToolLoopTelemetry:
+    """What happened in one task's tool loop, for the evaluation harness."""
+
+    attempted: int = 0
+    succeeded: int = 0
+    failed: int = 0
+    preflight_rejections: int = 0
+    duplicates_suppressed: int = 0
+    mcp_failures: int = 0
+    by_category: dict[str, int] = dc_field(default_factory=dict)
+    contract_characters: int = 0
+
+    def record_category(self, category: str) -> None:
+        self.by_category[category] = self.by_category.get(category, 0) + 1
+
+    def as_dict(self) -> dict[str, Any]:
+        return {
+            "tool_calls_attempted": self.attempted,
+            "tool_calls_succeeded": self.succeeded,
+            "tool_calls_failed": self.failed,
+            "preflight_rejections": self.preflight_rejections,
+            "duplicate_failed_calls_suppressed": self.duplicates_suppressed,
+            "mcp_failures": self.mcp_failures,
+            "failures_by_category": dict(sorted(self.by_category.items())),
+            "execution_contract_characters": self.contract_characters,
+        }
 
 
 def _results_digest(payloads: list[dict[str, Any]]) -> str:
@@ -89,6 +148,7 @@ async def run_task(
     max_tool_calls: int = 6,
     tables: list[str] | None = None,
     has_metrics: bool = True,
+    contract: ExecutionContract | None = None,
 ) -> TaskOutcome:
     """Execute one analysis task. Never raises for an ordinary failure."""
     if events:
@@ -106,8 +166,17 @@ async def run_task(
     notes: list[str] = []
     calls = 0
     task_json = json.loads(task.model_dump_json())
+    telemetry = ToolLoopTelemetry()
+    # Every failed attempt, and the signatures of the calls already known to
+    # be bad. Without the second, a worker that cannot see why its call
+    # failed proposes the same one until its budget is gone -- which is
+    # exactly how one real run spent 36 attempts on 36 failures.
+    attempts: list[FailedAttempt] = []
+    failed_signatures: dict[str, FailedAttempt] = {}
 
     while calls < max_tool_calls:
+        rendered_contract = render_contract(contract, task) if contract is not None else ""
+        telemetry.contract_characters = len(rendered_contract)
         try:
             choice_payload = await ask_into(
                 provider,
@@ -115,7 +184,15 @@ async def run_task(
                 role="worker_next_tool",
                 system=WORKER_TOOL_CHOICE,
                 user=_tool_choice_prompt(
-                    task, payloads, calls, max_tool_calls, toolset, tables, has_metrics
+                    task,
+                    payloads,
+                    calls,
+                    max_tool_calls,
+                    toolset,
+                    tables,
+                    has_metrics,
+                    execution_contract=rendered_contract,
+                    attempts=attempts,
                 ),
                 context={
                     "task": task_json,
@@ -133,19 +210,89 @@ async def run_task(
         if choice.done or not choice.tool:
             break
 
+        arguments = dict(choice.arguments)
+        # Each branch below consumes one decision, so a worker that keeps
+        # proposing bad calls still terminates.
+        calls += 1
+        telemetry.attempted += 1
+
+        proposed = signature(choice.tool, arguments)
+        known_bad = failed_signatures.get(proposed)
+        if known_bad is not None:
+            telemetry.duplicates_suppressed += 1
+            telemetry.record_category("duplicate_failed_call_suppressed")
+            notes.append(
+                f"{choice.tool} was proposed again unchanged after failing; "
+                "not dispatched a second time"
+            )
+            _remember(attempts, known_bad)
+            if events:
+                events.emit(
+                    EventType.MCP_TOOL_FAILED,
+                    tool_name=choice.tool,
+                    task_id=task.task_id,
+                    ok=False,
+                    error=known_bad.message,
+                    suppressed=True,
+                )
+            continue
+
+        if contract is not None:
+            rejection = preflight(choice.tool, arguments, contract)
+            if rejection is not None:
+                telemetry.failed += 1
+                telemetry.preflight_rejections += 1
+                telemetry.record_category(rejection.category)
+                attempt = FailedAttempt(
+                    tool=choice.tool,
+                    arguments=arguments,
+                    category=rejection.category,
+                    message=rejection.message,
+                    preflight=True,
+                )
+                failed_signatures[proposed] = attempt
+                _remember(attempts, attempt)
+                notes.append(f"{choice.tool} was not run: {rejection.message}")
+                log.info(
+                    "tool_call_rejected_before_dispatch",
+                    task_id=task.task_id,
+                    tool=choice.tool,
+                    category=rejection.category,
+                )
+                if events:
+                    events.emit(
+                        EventType.MCP_TOOL_FAILED,
+                        tool_name=choice.tool,
+                        task_id=task.task_id,
+                        ok=False,
+                        error=rejection.message,
+                        preflight=True,
+                    )
+                continue
+
         try:
             payload = await toolset.call(
-                choice.tool, choice.arguments, task_id=task.task_id, agent="analysis_worker"
+                choice.tool, arguments, task_id=task.task_id, agent="analysis_worker"
             )
             payloads.append(payload)
-            calls += 1
+            telemetry.succeeded += 1
         except BudgetExceeded as exc:
             notes.append(str(exc))
             if events:
                 events.emit(EventType.BUDGET_EXCEEDED, task_id=task.task_id, detail=str(exc))
             break
         except ToolCallFailed as exc:
-            calls += 1
+            telemetry.failed += 1
+            telemetry.mcp_failures += 1
+            telemetry.record_category("mcp_tool_failed")
+            attempt = FailedAttempt(
+                tool=choice.tool,
+                arguments=arguments,
+                category="mcp_tool_failed",
+                message=str(exc),
+            )
+            failed_signatures[proposed] = attempt
+            _remember(attempts, attempt)
             notes.append(f"{choice.tool} failed: {exc}")
             # One failed call is recoverable: the loop continues so the
             # worker can try a different tool within its budget.
@@ -158,6 +305,7 @@ async def run_task(
             tool_calls=calls,
             error=notes[-1] if notes else "the task produced no results",
             notes=notes,
+            tool_telemetry=telemetry.as_dict(),
         )
         if events:
             events.emit(
@@ -214,6 +362,7 @@ async def run_task(
         result_ids=[p["result_id"] for p in payloads],
         tool_calls=calls,
         notes=notes,
+        tool_telemetry=telemetry.as_dict(),
     )
     if events:
         events.emit(
@@ -228,6 +377,12 @@ async def run_task(
     return outcome
 
 
+def _remember(attempts: list[FailedAttempt], attempt: FailedAttempt) -> None:
+    """Keep the most recent failures, newest last, without unbounded growth."""
+    attempts.append(attempt)
+    del attempts[:-MAX_FEEDBACK_SHOWN]
+
+
 def _tool_choice_prompt(
     task: AnalysisTask,
     payloads: list[dict[str, Any]],
@@ -236,6 +391,8 @@ def _tool_choice_prompt(
     toolset: AnalyticsToolset,
     tables: list[str] | None = None,
     has_metrics: bool = True,
+    execution_contract: str = "",
+    attempts: list[FailedAttempt] | None = None,
 ) -> str:
     """Tell the worker what it is allowed to name.
 
@@ -284,13 +441,36 @@ TOOLS AVAILABLE
 
 {guidance}
 
+{execution_contract}
+
 TOOL CALLS USED
 {calls} of {max_calls}
-
+{_render_attempts(attempts)}
 RESULTS SO FAR
 {_results_digest(payloads)}
 
 Choose the next tool call, or set done to true if the objective is met."""
+
+
+def _render_attempts(attempts: list[FailedAttempt] | None) -> str:
+    """Show the worker what it already tried and why it did not work.
+
+    The loop used to put a failure in `notes` -- read by the report, never
+    by the model -- so the next decision was made with no knowledge that the
+    previous one had failed, let alone why. A worker with a wrong assumption
+    about the schema therefore made the same wrong call until its budget ran
+    out. The error message is the only thing that can change its mind.
+    """
+    if not attempts:
+        return ""
+    blocks = [a.render() for a in attempts[-MAX_FEEDBACK_SHOWN:]]
+    return (
+        "\nPREVIOUS ATTEMPTS THAT FAILED\n"
+        + "\n\n".join(blocks)
+        + "\n\nDo not repeat a failed call unchanged. Use the error and the "
+        "contract above to choose a different call, or set done to true if "
+        "nothing here can be answered.\n"
+    )
 
 
 def _findings_prompt(

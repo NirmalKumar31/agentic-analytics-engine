@@ -180,6 +180,12 @@ class TaskOutcome(BaseModel):
     tool_calls: int = 0
     error: str | None = None
     notes: list[str] = Field(default_factory=list)
+    #: How the tool loop spent its attempts: dispatched, refused before
+    #: dispatch, or suppressed as a repeat of a call already known to fail.
+    #: Separate counts because "the model chose an invalid call" and "a
+    #: valid call reached MCP and the tool failed" are different failures
+    #: with different fixes, and one number cannot tell them apart.
+    tool_telemetry: dict[str, Any] = Field(default_factory=dict)
 
 
 class ChartSpec(BaseModel):

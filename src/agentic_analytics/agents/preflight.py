@@ -1,0 +1,252 @@
+"""Check a proposed tool call before it crosses MCP.
+
+Every rule here could be left to the server, which refuses all of these
+anyway. The reason to check first is that the server's refusal costs a round
+trip and, more importantly, arrives as an exception rather than as something
+the worker can act on. A worker told "metric 'sales' does not exist; valid
+metrics are revenue, gross_margin_pct, ..." can choose again. A worker told
+"tool returned an error" cannot, and will spend its remaining five attempts
+on variations of the same wrong assumption.
+
+The hard rule is that this layer **refuses; it does not repair**. There is a
+real difference between the engine supplying what it owns -- the session
+handle, the capability, the task id -- and the engine deciding what a model
+meant. Mapping `sales` to `revenue` or `channel` to `acquisition_channel`
+would be a guess dressed as a correction, and when it guessed wrong the
+resulting number would carry the engine's authority rather than the model's.
+So a near-miss is reported with the valid names beside it, and the model
+chooses. No fuzzy matching anywhere in this module.
+"""
+
+from __future__ import annotations
+
+from dataclasses import dataclass
+from typing import Any
+
+from agentic_analytics.agents.execution import (
+    ENGINE_OWNED_ARGUMENTS,
+    SEMANTIC_TOOLS,
+    ExecutionContract,
+)
+
+#: Failure categories, kept as stable identifiers so telemetry can count
+#: them without matching on wording written for a model to read.
+UNKNOWN_TOOL = "unknown_tool"
+ENGINE_OWNED_ARGUMENT = "engine_owned_argument"
+UNKNOWN_ARGUMENT = "unknown_argument"
+MISSING_REQUIRED_ARGUMENT = "missing_required_argument"
+UNKNOWN_METRIC = "unknown_metric"
+UNKNOWN_DIMENSION = "unknown_dimension"
+UNKNOWN_TABLE = "unknown_table"
+UNKNOWN_COLUMN = "unknown_column"
+UNKNOWN_GRAIN = "unknown_grain"
+METRIC_TOOL_WITHOUT_METRICS = "metric_tool_without_metric_layer"
+
+#: Arguments that name a physical table, by the tools that take one.
+_TABLE_ARGUMENTS = frozenset({"table"})
+#: Arguments that name a time grain.
+_GRAIN_ARGUMENTS = frozenset({"grain", "time_grain"})
+
+
+@dataclass(frozen=True)
+class PreflightRejection:
+    """Why a proposed call was not dispatched."""
+
+    category: str
+    message: str
+
+    def as_dict(self) -> dict[str, str]:
+        return {"category": self.category, "message": self.message}
+
+
+def preflight(
+    tool: str,
+    arguments: dict[str, Any],
+    contract: ExecutionContract,
+) -> PreflightRejection | None:
+    """Return why this call cannot work, or `None` if it may be dispatched.
+
+    The first failure wins: a call naming an unknown metric *and* an unknown
+    dimension is one mistake to the worker, and reporting both invites it to
+    fix the second while leaving the first.
+    """
+    if not contract.knows_tool(tool):
+        available = contract.available_tools or sorted(t.name for t in contract.tools)
+        return PreflightRejection(
+            UNKNOWN_TOOL,
+            f"tool {tool!r} does not exist. Available tools: {', '.join(available)}",
+        )
+
+    for argument in sorted(arguments):
+        if argument in ENGINE_OWNED_ARGUMENTS:
+            return PreflightRejection(
+                ENGINE_OWNED_ARGUMENT,
+                f"{argument!r} is supplied by the engine and must not be set by a "
+                "tool call. Remove it and call the tool again.",
+            )
+
+    # A tool the server exposes but whose arguments were not described in
+    # this prompt is still legal to call. Checking it against a contract we
+    # do not hold would refuse a valid call, so the argument rules below are
+    # skipped and MCP decides. Narrowing what is *described* must never
+    # narrow what is *permitted*.
+    known = contract.tool(tool)
+    if known is not None:
+        unknown = sorted(set(arguments) - known.argument_names)
+        if unknown:
+            return PreflightRejection(
+                UNKNOWN_ARGUMENT,
+                f"{tool} does not accept {', '.join(repr(a) for a in unknown)}. "
+                f"It accepts: {', '.join(sorted(known.argument_names)) or '(no arguments)'}",
+            )
+
+        missing = sorted(set(known.required) - set(arguments))
+        if missing:
+            spelled = ", ".join(f"{k}: {v}" for k, v in sorted(known.required.items()))
+            return PreflightRejection(
+                MISSING_REQUIRED_ARGUMENT,
+                f"{tool} requires {', '.join(repr(a) for a in missing)}. "
+                f"Required arguments: {spelled}",
+            )
+
+    if tool in SEMANTIC_TOOLS and not contract.has_metrics:
+        return PreflightRejection(
+            METRIC_TOOL_WITHOUT_METRICS,
+            f"{tool} needs a metric layer and this dataset has none. Use "
+            "aggregate_for_question or profile_table against a table instead.",
+        )
+
+    metric_names = _metric_arguments(arguments)
+    for value in metric_names:
+        if contract.metric(value) is None:
+            return PreflightRejection(
+                UNKNOWN_METRIC,
+                f"metric {value!r} is not defined. Defined metrics: "
+                f"{', '.join(contract.metric_names) or '(none)'}",
+            )
+
+    rejection = _check_dimensions(arguments, metric_names, contract)
+    if rejection is not None:
+        return rejection
+
+    for argument in sorted(set(arguments) & _TABLE_ARGUMENTS):
+        value = arguments[argument]
+        if isinstance(value, str) and contract.table(value) is None:
+            return PreflightRejection(
+                UNKNOWN_TABLE,
+                f"table {value!r} does not exist. Tables in this dataset: "
+                f"{', '.join(contract.table_names) or '(none)'}",
+            )
+
+    rejection = _check_columns(tool, arguments, contract)
+    if rejection is not None:
+        return rejection
+
+    for argument in sorted(set(arguments) & _GRAIN_ARGUMENTS):
+        value = arguments[argument]
+        if isinstance(value, str) and contract.grains and value not in contract.grains:
+            return PreflightRejection(
+                UNKNOWN_GRAIN,
+                f"{argument} {value!r} is not a valid time grain. Valid grains: "
+                f"{', '.join(contract.grains)}",
+            )
+
+    return None
+
+
+def _metric_arguments(arguments: dict[str, Any]) -> list[str]:
+    """Metric names this call references, from the arguments that hold them."""
+    found: list[str] = []
+    for key in ("metric",):
+        value = arguments.get(key)
+        if isinstance(value, str) and value:
+            found.append(value)
+    for key in ("metrics", "required_metrics"):
+        value = arguments.get(key)
+        if isinstance(value, list):
+            found.extend(v for v in value if isinstance(v, str) and v)
+    return found
+
+
+def _check_dimensions(
+    arguments: dict[str, Any],
+    metric_names: list[str],
+    contract: ExecutionContract,
+) -> PreflightRejection | None:
+    """A dimension is only meaningful relative to a metric.
+
+    Checked against the metric this call names rather than against the union
+    of every metric's dimensions, because `revenue by carrier` is wrong in a
+    way that "carrier is a dimension somewhere" would hide.
+    """
+    named: list[str] = []
+    for key in ("dimension",):
+        value = arguments.get(key)
+        if isinstance(value, str) and value:
+            named.append(value)
+    for key in ("dimensions", "group_by"):
+        value = arguments.get(key)
+        if isinstance(value, list):
+            named.extend(v for v in value if isinstance(v, str) and v)
+    if not named:
+        return None
+
+    for metric_name in metric_names:
+        metric = contract.metric(metric_name)
+        if metric is None:  # pragma: no cover - already rejected above
+            continue
+        for dimension in named:
+            if dimension not in metric.valid_dimensions:
+                return PreflightRejection(
+                    UNKNOWN_DIMENSION,
+                    f"metric {metric_name!r} does not support dimension "
+                    f"{dimension!r}. Valid dimensions for {metric_name}: "
+                    f"{', '.join(metric.valid_dimensions) or '(none)'}",
+                )
+    return None
+
+
+def _check_columns(
+    tool: str,
+    arguments: dict[str, Any],
+    contract: ExecutionContract,
+) -> PreflightRejection | None:
+    """Column references, but only where a column is what is meant.
+
+    Restricted to calls that already name a real table. A `columns` argument
+    on a metric tool is a different thing, and checking it against physical
+    columns would reject the semantic interface for using semantic names.
+    """
+    if tool in SEMANTIC_TOOLS:
+        return None
+    table_name = arguments.get("table")
+    if not isinstance(table_name, str):
+        return None
+    table = contract.table(table_name)
+    if table is None:  # pragma: no cover - already rejected above
+        return None
+
+    known = {name for name, _ in table.columns}
+    if not known or table.truncated_columns:
+        # An incompletely described table cannot support a "does not exist"
+        # verdict: the column may be one of the ones not shown.
+        return None
+
+    named: list[str] = []
+    for key in ("columns", "group_by", "dimensions"):
+        value = arguments.get(key)
+        if isinstance(value, list):
+            named.extend(v for v in value if isinstance(v, str) and v)
+    for key in ("column", "value_column", "group_column"):
+        value = arguments.get(key)
+        if isinstance(value, str) and value:
+            named.append(value)
+
+    for column in named:
+        if column not in known:
+            return PreflightRejection(
+                UNKNOWN_COLUMN,
+                f"table {table_name!r} has no column {column!r}. Columns of "
+                f"{table_name}: {', '.join(sorted(known))}",
+            )
+    return None

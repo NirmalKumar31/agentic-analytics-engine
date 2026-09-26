@@ -22,6 +22,7 @@ from typing import Any
 from mcp import Client
 from mcp.server import MCPServer
 
+from agentic_analytics.agents.execution import ToolContract, build_tool_contracts
 from agentic_analytics.events import EventBus, EventType
 from agentic_analytics.logging import get_logger
 
@@ -140,6 +141,11 @@ class AnalyticsToolset:
         self._stack: AsyncExitStack | None = None
         self.trace: list[ToolCall] = []
         self.available_tools: list[str] = []
+        #: Public argument contracts, derived from the server's own listing.
+        #: Held so a worker can be told what a tool takes without anyone
+        #: transcribing the signature into a prompt, where the copy would
+        #: drift from the server the moment a tool changed.
+        self.tool_contracts: list[ToolContract] = []
 
     @property
     def transport(self) -> str:
@@ -151,6 +157,7 @@ class AnalyticsToolset:
         self._client = await self._stack.enter_async_context(client)
         listing = await self._client.list_tools()
         self.available_tools = sorted(t.name for t in listing.tools)
+        self.tool_contracts = build_tool_contracts(listing)
         log.info(
             "mcp_connected",
             transport=self.transport,
