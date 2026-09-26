@@ -9,6 +9,7 @@ and the run continues with whatever other tasks succeeded.
 from __future__ import annotations
 
 import json
+from collections.abc import Callable
 from dataclasses import dataclass
 from dataclasses import field as dc_field
 from typing import Any
@@ -149,6 +150,7 @@ async def run_task(
     tables: list[str] | None = None,
     has_metrics: bool = True,
     contract: ExecutionContract | None = None,
+    out_of_time: Callable[[], bool] | None = None,
 ) -> TaskOutcome:
     """Execute one analysis task. Never raises for an ordinary failure."""
     if events:
@@ -175,6 +177,17 @@ async def run_task(
     failed_signatures: dict[str, FailedAttempt] = {}
 
     while calls < max_tool_calls:
+        # The run-level time budget used to be read once, when the task
+        # started, and never again. Six tasks each taking six model-latency
+        # decisions could therefore overrun it by the whole length of a tool
+        # loop -- observed as a 554-second question under a 300-second
+        # budget. Checking here stops the run at its own limit instead of at
+        # whatever outer timeout the caller happens to impose.
+        if out_of_time is not None and out_of_time():
+            notes.append("the run reached its time budget before this task finished")
+            telemetry.record_category("run_time_budget_reached")
+            break
+
         rendered_contract = render_contract(contract, task) if contract is not None else ""
         telemetry.contract_characters = len(rendered_contract)
         try:

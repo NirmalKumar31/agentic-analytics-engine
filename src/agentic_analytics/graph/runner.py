@@ -108,6 +108,14 @@ async def run_analysis(
             events=bus,
         ) as toolset:
             ctx = RunContext(session, toolset, llm, bus, cfg.budgets, telemetry)
+            if telemetry is not None:
+                # A live handle, not a copy. If the caller abandons this run
+                # on a timeout, the trace is the only record of what the
+                # tool loop actually did, and it is thrown away with the
+                # coroutine otherwise -- a timed-out question then reports
+                # zero tool calls, which is precisely the case where knowing
+                # them matters most.
+                telemetry["toolset"] = toolset
             graph = build_graph(ctx)
             state = await graph.ainvoke(
                 {"question": question, "session_id": session.session_id},

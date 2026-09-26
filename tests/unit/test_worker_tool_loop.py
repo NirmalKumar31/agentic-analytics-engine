@@ -302,3 +302,67 @@ def test_a_failed_attempt_renders_its_arguments() -> None:
 
 def test_a_failed_attempt_with_no_arguments_renders() -> None:
     assert "(none)" in FailedAttempt("t", {}, "c", "m").render()
+
+
+# ------------------------------------------------------- the time budget
+async def test_the_tool_loop_stops_when_the_run_is_out_of_time() -> None:
+    """The run budget used to be read once, at task start, and never again.
+
+    Six tasks each taking six model-latency decisions could then overrun it
+    by a whole tool loop. A 300-second budget produced a 554-second question
+    on the demo warehouse, and what actually ended it was the harness's
+    outer timeout -- so the engine's own limit meant nothing.
+    """
+    calls = {"n": 0}
+
+    def out_of_time() -> bool:
+        calls["n"] += 1
+        return calls["n"] > 2
+
+    provider = ScriptedWorker(
+        [{"tool": "profile_table", "arguments": {"table": "orders"}} for _ in range(6)]
+    )
+    toolset = FakeToolset()
+    outcome = await run_task(
+        AnalysisTask(task_id="t", objective="o", preferred_tool="profile_table"),
+        provider=provider,
+        toolset=toolset,  # type: ignore[arg-type]
+        max_tool_calls=6,
+        contract=CONTRACT,
+        out_of_time=out_of_time,
+    )
+
+    assert len(toolset.dispatched) == 2, "the loop ran past the budget"
+    assert any("time budget" in note for note in outcome.notes)
+    assert outcome.tool_telemetry["failures_by_category"].get("run_time_budget_reached") == 1
+
+
+async def test_a_task_already_out_of_time_makes_no_model_call() -> None:
+    provider = ScriptedWorker([{"tool": "profile_table", "arguments": {"table": "orders"}}])
+    toolset = FakeToolset()
+    outcome = await run_task(
+        AnalysisTask(task_id="t", objective="o"),
+        provider=provider,
+        toolset=toolset,  # type: ignore[arg-type]
+        max_tool_calls=6,
+        contract=CONTRACT,
+        out_of_time=lambda: True,
+    )
+    assert provider.prompts == []
+    assert toolset.dispatched == []
+    assert outcome.status == "failed"
+
+
+async def test_a_run_with_time_to_spare_is_unaffected() -> None:
+    provider = ScriptedWorker([{"tool": "profile_table", "arguments": {"table": "orders"}}])
+    toolset = FakeToolset()
+    outcome = await run_task(
+        AnalysisTask(task_id="t", objective="o"),
+        provider=provider,
+        toolset=toolset,  # type: ignore[arg-type]
+        max_tool_calls=6,
+        contract=CONTRACT,
+        out_of_time=lambda: False,
+    )
+    assert outcome.tool_telemetry["tool_calls_succeeded"] == 1
+    assert "run_time_budget_reached" not in outcome.tool_telemetry["failures_by_category"]

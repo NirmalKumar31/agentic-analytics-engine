@@ -832,3 +832,170 @@ def test_an_unknown_selection_is_refused() -> None:
 
     with pytest.raises(ValueError, match="unknown selection"):
         apply_selection([], "stage9")
+
+
+# ------------------------------------------------ cell values for review
+async def test_a_claims_cited_cells_are_resolved_for_review() -> None:
+    """Reviewing a claim means checking it against the numbers it cites.
+
+    `EvidenceCell.value` is optional and a model rarely fills it, so an
+    artifact that stores only the model's own view of a cell leaves a
+    reviewer with the claim and no way to check it short of re-running the
+    entire evaluation.
+    """
+    from agentic_analytics.agents.schemas import (
+        CandidateFinding,
+        EvidenceCell,
+        TaskOutcome,
+        Verdict,
+    )
+    from agentic_analytics.analytics.results import ResultSnapshot
+    from agentic_analytics.evaluation.real_model import QuestionOutcome, _observe
+    from agentic_analytics.graph.runner import RunResult
+
+    snapshot = ResultSnapshot(
+        result_id="res_1",
+        tool_name="compare_segments",
+        columns=["region", "revenue"],
+        rows=[["North", 52100.0], ["South", 38200.5]],
+        row_count=2,
+    )
+    candidate = CandidateFinding(
+        text="The South region earned 38200.5.",
+        kind="calculated_fact",
+        task_id="task_1",
+        result_ids=["res_1"],
+        evidence_cells=[
+            EvidenceCell(result_id="res_1", row=1, column="revenue"),
+            EvidenceCell(result_id="res_1", row=9, column="revenue"),
+            EvidenceCell(result_id="res_missing", row=0, column="revenue"),
+        ],
+    )
+    result = RunResult(
+        run_id="r",
+        question="q",
+        session_id="s",
+        dataset={},
+        report=None,
+        results={"res_1": snapshot},
+        tasks=[TaskOutcome(task_id="task_1", findings=[candidate])],
+        rejected=[
+            Verdict(
+                finding_id=candidate.finding_id,
+                status="unsupported",
+                reason="overstated",
+                rule="critic",
+            )
+        ],
+    )
+    outcome = _observe(
+        QuestionOutcome(dataset="d", question="q", kind="grouped", expectation=""),
+        result,
+        [],
+        {},
+    )
+
+    cells = outcome.claims[0]["resolved_cells"]
+    assert len(cells) == 3
+    assert cells[0]["actual_value"] == 38200.5
+    assert cells[0]["resolved"] is True
+    assert cells[0]["stated_value"] is None
+    # A reference that points at nothing says so rather than reading as zero.
+    assert cells[1]["resolved"] is False
+    assert cells[1]["note"] == "no such cell in that result"
+    assert cells[2]["resolved"] is False
+    assert cells[2]["note"] == "the cited result is not available"
+
+
+async def test_a_withheld_upload_cell_stays_withheld_in_the_artifact() -> None:
+    """The artifact must not become the place the redaction does not apply."""
+    from agentic_analytics.agents.schemas import (
+        CandidateFinding,
+        EvidenceCell,
+        TaskOutcome,
+        Verdict,
+    )
+    from agentic_analytics.analytics.results import RAW_CELL_COLUMNS, ResultSnapshot
+    from agentic_analytics.evaluation.real_model import QuestionOutcome, _observe
+    from agentic_analytics.graph.runner import RunResult
+
+    column = sorted(RAW_CELL_COLUMNS)[0]
+    snapshot = ResultSnapshot(
+        result_id="res_1",
+        tool_name="profile_table",
+        columns=["column_name", column],
+        rows=[["salary", 987654.32]],
+        row_count=1,
+        withhold_cells=True,
+    )
+    candidate = CandidateFinding(
+        text="A value is present.",
+        task_id="task_1",
+        result_ids=["res_1"],
+        evidence_cells=[EvidenceCell(result_id="res_1", row=0, column=column)],
+    )
+    result = RunResult(
+        run_id="r",
+        question="q",
+        session_id="s",
+        dataset={},
+        report=None,
+        results={"res_1": snapshot},
+        tasks=[TaskOutcome(task_id="task_1", findings=[candidate])],
+        rejected=[
+            Verdict(finding_id=candidate.finding_id, status="unsupported", reason="x", rule="y")
+        ],
+    )
+    outcome = _observe(
+        QuestionOutcome(dataset="d", question="q", kind="grouped", expectation=""),
+        result,
+        [],
+        {},
+    )
+    assert "987654.32" not in json.dumps(outcome.claims)
+    assert outcome.claims[0]["resolved_cells"][0]["actual_value"] is None
+
+
+# --------------------------------------------- telemetry from a dead run
+def test_a_timed_out_question_still_reports_the_calls_it_made() -> None:
+    """Zero tool calls after ten minutes of making them is not a measurement.
+
+    The clean Stage-1 warehouse question hit its ceiling and recorded
+    `tools=0`, because a killed run produces no `RunResult` and the trace
+    died with the coroutine. That is the one case where knowing what the
+    tool loop did matters most.
+    """
+    from agentic_analytics.evaluation.real_model import (
+        QuestionOutcome,
+        _record_partial_tools,
+    )
+
+    class Toolset:
+        def public_trace(self) -> list[dict[str, Any]]:
+            return [
+                {"tool_name": "aggregate_for_question", "ok": False, "error": "table required"},
+                {"tool_name": "aggregate_for_question", "ok": False, "error": "table required"},
+                {"tool_name": "profile_table", "ok": True},
+            ]
+
+    outcome = QuestionOutcome(dataset="d", question="q", kind="grouped", expectation="")
+    _record_partial_tools(outcome, {"toolset": Toolset()})
+
+    assert outcome.tool_calls == 3
+    assert outcome.tool_call_failures == 2
+    assert outcome.tool_calls_succeeded == 1
+    assert outcome.tool_failures_by_tool == {"aggregate_for_question": 2}
+    assert outcome.tool_failure_reasons == {"table required": 2}
+    assert set(outcome.tools_selected) == {"aggregate_for_question", "profile_table"}
+
+
+def test_salvaging_is_a_no_op_when_there_is_nothing_to_salvage() -> None:
+    from agentic_analytics.evaluation.real_model import (
+        QuestionOutcome,
+        _record_partial_tools,
+    )
+
+    outcome = QuestionOutcome(dataset="d", question="q", kind="grouped", expectation="")
+    _record_partial_tools(outcome, {})
+    _record_partial_tools(outcome, {"toolset": object()})
+    assert outcome.tool_calls == 0

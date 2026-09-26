@@ -206,6 +206,7 @@ def build_graph(ctx: RunContext) -> Any:
             tables=sorted(ctx.session.table_names),
             has_metrics=ctx.session.has_metrics,
             contract=_execution_contract(ctx, task),
+            out_of_time=ctx.out_of_time,
         )
         return {"task_outcomes": [outcome]}
 

@@ -269,6 +269,18 @@ def _observe(
             "status": status,
             "rule": rule,
             "reason": reason[:300],
+            # What the cited cells actually hold, resolved by the engine.
+            # Reviewing a claim means comparing its wording to the numbers
+            # it rests on, and `EvidenceCell.value` is usually unset because
+            # a model rarely echoes it -- so without this a reviewer has the
+            # claim and no way to check it short of re-running the whole
+            # evaluation.
+            "resolved_cells": _resolve_cells(
+                evidence_cells
+                if evidence_cells is not None
+                else ([c.model_dump() for c in source.evidence_cells] if source else []),
+                result.results,
+            ),
         }
 
     for finding in result.published:
@@ -424,6 +436,7 @@ async def evaluate_question(
             seconds=question_timeout_seconds,
         )
         _record_calls(outcome, calls)
+        _record_partial_tools(outcome, telemetry)
         outcome.outcome_flags = _flags(outcome)
     except Exception as exc:
         # A crash is a result too, and finding them is the point.
@@ -431,6 +444,7 @@ async def evaluate_question(
         log.warning("real_model_run_crashed", dataset=dataset_id, error=outcome.error)
         log.debug("real_model_traceback", trace=traceback.format_exc()[:2000])
         _record_calls(outcome, calls)
+        _record_partial_tools(outcome, telemetry)
         outcome.outcome_flags = _flags(outcome)
     finally:
         outcome.runtime_seconds = round(time.monotonic() - started, 2)
@@ -867,6 +881,64 @@ def _record_failure_reason(outcome: QuestionOutcome, message: str) -> None:
     else:
         key = "(further distinct failures not recorded)"
         outcome.tool_failure_reasons[key] = outcome.tool_failure_reasons.get(key, 0) + 1
+
+
+def _record_partial_tools(outcome: QuestionOutcome, telemetry: dict[str, Any]) -> None:
+    """Salvage the tool trace from a run that did not return one.
+
+    A question killed by its own ceiling never produces a `RunResult`, so
+    everything the tool loop did went unrecorded -- the warehouse question
+    reported zero tool calls after ten minutes of making them. The toolset
+    outlives the coroutine, and its trace is already sanitised.
+    """
+    toolset = telemetry.get("toolset")
+    trace = getattr(toolset, "public_trace", None)
+    if trace is None:
+        return
+    for call in trace():
+        name = str(call.get("tool_name", "")) or "(unnamed)"
+        if name not in outcome.tools_selected:
+            outcome.tools_selected.append(name)
+        outcome.tool_calls += 1
+        if call.get("ok"):
+            outcome.tool_calls_succeeded += 1
+            continue
+        outcome.tool_call_failures += 1
+        outcome.tool_failures_by_tool[name] = outcome.tool_failures_by_tool.get(name, 0) + 1
+        _record_failure_reason(outcome, str(call.get("error") or "(no message)"))
+
+
+def _resolve_cells(cells: list[dict[str, Any]], results: dict[str, Any]) -> list[dict[str, Any]]:
+    """Look each cited cell up in the result it names.
+
+    Through `agent_cell`, so an uploaded dataset's withheld cell stays
+    withheld in the artifact exactly as it does in a prompt.
+    """
+    resolved: list[dict[str, Any]] = []
+    for cell in cells:
+        reference = {
+            "result_id": cell.get("result_id"),
+            "row": cell.get("row"),
+            "column": cell.get("column"),
+            "stated_value": cell.get("value"),
+        }
+        snapshot = results.get(str(cell.get("result_id")))
+        if snapshot is None:
+            reference["actual_value"] = None
+            reference["resolved"] = False
+            reference["note"] = "the cited result is not available"
+        else:
+            try:
+                reference["actual_value"] = snapshot.agent_cell(
+                    int(cell.get("row", -1)), str(cell.get("column", ""))
+                )
+                reference["resolved"] = True
+            except (KeyError, IndexError, TypeError, ValueError):
+                reference["actual_value"] = None
+                reference["resolved"] = False
+                reference["note"] = "no such cell in that result"
+        resolved.append(reference)
+    return resolved
 
 
 def _merge_counts(dicts: Any) -> dict[str, int]:
