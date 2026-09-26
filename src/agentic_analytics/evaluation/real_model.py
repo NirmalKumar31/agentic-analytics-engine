@@ -114,6 +114,14 @@ class QuestionOutcome:
     tools_selected: list[str] = field(default_factory=list)
     tool_calls: int = 0
     tool_call_failures: int = 0
+    #: Why the failed calls failed, by tool and by message. The first sweep
+    #: recorded "36 of 36 tool calls failed" and nothing else, which is a
+    #: fact about the run rather than a reason for it: it cannot distinguish
+    #: a model naming a column that does not exist from a guard refusing a
+    #: legitimate call. The trace already carried the message; the harness
+    #: was discarding it.
+    tool_failures_by_tool: dict[str, int] = field(default_factory=dict)
+    tool_failure_reasons: dict[str, int] = field(default_factory=dict)
     generated_sql_calls: int = 0
     statistical_tests: int = 0
 
@@ -172,6 +180,10 @@ def _observe(
         outcome.tool_calls += 1
         if not call.get("ok"):
             outcome.tool_call_failures += 1
+            outcome.tool_failures_by_tool[name or "(unnamed)"] = (
+                outcome.tool_failures_by_tool.get(name or "(unnamed)", 0) + 1
+            )
+            _record_failure_reason(outcome, str(call.get("error") or "(no message)"))
         if name == "run_readonly_sql":
             outcome.generated_sql_calls += 1
     outcome.statistical_tests = sum(
@@ -720,6 +732,8 @@ def _summarise(cfg: Settings, outcomes: list[QuestionOutcome], wall_clock: float
         "runs_safely_refusing": count(lambda o: "safe_refusal" in o.outcome_flags),
         "outcome_flag_counts": _merge_counts(dict.fromkeys(o.outcome_flags, 1) for o in outcomes),
         "runs_with_a_failed_tool_call": count(lambda o: o.tool_call_failures > 0),
+        "tool_failures_by_tool": _merge_counts(o.tool_failures_by_tool for o in outcomes),
+        "tool_failure_reasons": _merge_counts(o.tool_failure_reasons for o in outcomes),
         # Three different things, previously one. An agent call is an
         # ask-and-validate; an attempt is a request that left the process
         # whether or not it came back; a success is one that answered.
@@ -743,6 +757,25 @@ def _summarise(cfg: Settings, outcomes: list[QuestionOutcome], wall_clock: float
         "wall_clock_seconds": wall_clock,
         "outcomes": [asdict(o) for o in outcomes],
     }
+
+
+#: How many distinct failure messages one question keeps. A worker retrying
+#: the same broken call six times produces six identical messages; a worker
+#: failing six different ways is a different problem, and the cap has to be
+#: loose enough to show that.
+MAX_FAILURE_REASONS = 12
+
+
+def _record_failure_reason(outcome: QuestionOutcome, message: str) -> None:
+    """Count one failure message, bounded in both length and variety."""
+    text = " ".join(message.split())[:200]
+    if text in outcome.tool_failure_reasons:
+        outcome.tool_failure_reasons[text] += 1
+    elif len(outcome.tool_failure_reasons) < MAX_FAILURE_REASONS:
+        outcome.tool_failure_reasons[text] = 1
+    else:
+        key = "(further distinct failures not recorded)"
+        outcome.tool_failure_reasons[key] = outcome.tool_failure_reasons.get(key, 0) + 1
 
 
 def _merge_counts(dicts: Any) -> dict[str, int]:

@@ -626,3 +626,139 @@ def test_a_publishable_evaluation_must_not_mix_git_shas() -> None:
     source = inspect.getsource(run_real_model_evaluation)
     assert "git_sha" in source, "the SHA is not part of checkpoint compatibility"
     assert "harness_schema" in source
+
+
+# -------------------------------------------------- tool failure reasons
+def test_a_failed_tool_call_records_why_it_failed() -> None:
+    """ "36 of 36 tool calls failed" is a fact, not a reason.
+
+    The first clean Stage-1 run produced exactly that line for the warehouse
+    question and nothing else, so it could not distinguish a model naming a
+    column that does not exist from a guard refusing a legitimate call --
+    opposite problems with opposite fixes. The trace carried the message the
+    whole time.
+    """
+    from agentic_analytics.evaluation.real_model import QuestionOutcome, _observe
+    from agentic_analytics.graph.runner import RunResult
+
+    result = RunResult(
+        run_id="r",
+        question="q",
+        session_id="s",
+        dataset={},
+        report=None,
+        mcp_trace=[
+            {
+                "tool_name": "aggregate_for_question",
+                "ok": False,
+                "error": "column 'acquisition_channel' does not exist in table 'orders'",
+            },
+            {
+                "tool_name": "aggregate_for_question",
+                "ok": False,
+                "error": "column 'acquisition_channel' does not exist in table 'orders'",
+            },
+            {"tool_name": "profile_table", "ok": False, "error": "no such table 'sales'"},
+            {"tool_name": "profile_table", "ok": True},
+        ],
+    )
+    outcome = _observe(
+        QuestionOutcome(dataset="d", question="q", kind="grouped", expectation=""),
+        result,
+        [],
+        {},
+    )
+
+    assert outcome.tool_calls == 4
+    assert outcome.tool_call_failures == 3
+    assert outcome.tool_failures_by_tool == {"aggregate_for_question": 2, "profile_table": 1}
+    reasons = outcome.tool_failure_reasons
+    assert reasons["column 'acquisition_channel' does not exist in table 'orders'"] == 2
+    assert reasons["no such table 'sales'"] == 1
+
+
+def test_a_failure_with_no_message_is_still_counted() -> None:
+    from agentic_analytics.evaluation.real_model import QuestionOutcome, _observe
+    from agentic_analytics.graph.runner import RunResult
+
+    result = RunResult(
+        run_id="r",
+        question="q",
+        session_id="s",
+        dataset={},
+        report=None,
+        mcp_trace=[{"tool_name": "profile_table", "ok": False, "error": None}],
+    )
+    outcome = _observe(
+        QuestionOutcome(dataset="d", question="q", kind="grouped", expectation=""),
+        result,
+        [],
+        {},
+    )
+    assert outcome.tool_failure_reasons == {"(no message)": 1}
+
+
+def test_the_variety_of_failure_messages_is_bounded() -> None:
+    """A worker failing a new way every call must not grow the artifact."""
+    from agentic_analytics.evaluation.real_model import (
+        MAX_FAILURE_REASONS,
+        QuestionOutcome,
+        _observe,
+    )
+    from agentic_analytics.graph.runner import RunResult
+
+    result = RunResult(
+        run_id="r",
+        question="q",
+        session_id="s",
+        dataset={},
+        report=None,
+        mcp_trace=[
+            {"tool_name": "t", "ok": False, "error": f"distinct failure {i}"} for i in range(40)
+        ],
+    )
+    outcome = _observe(
+        QuestionOutcome(dataset="d", question="q", kind="grouped", expectation=""),
+        result,
+        [],
+        {},
+    )
+    assert len(outcome.tool_failure_reasons) == MAX_FAILURE_REASONS + 1
+    overflow = outcome.tool_failure_reasons["(further distinct failures not recorded)"]
+    assert overflow == 40 - MAX_FAILURE_REASONS
+    # The total still adds up, so the count is not quietly lossy.
+    assert sum(outcome.tool_failure_reasons.values()) == 40
+
+
+def test_a_long_failure_message_is_truncated() -> None:
+    from agentic_analytics.evaluation.real_model import QuestionOutcome, _observe
+    from agentic_analytics.graph.runner import RunResult
+
+    result = RunResult(
+        run_id="r",
+        question="q",
+        session_id="s",
+        dataset={},
+        report=None,
+        mcp_trace=[{"tool_name": "t", "ok": False, "error": "x" * 900}],
+    )
+    outcome = _observe(
+        QuestionOutcome(dataset="d", question="q", kind="grouped", expectation=""),
+        result,
+        [],
+        {},
+    )
+    assert max(len(k) for k in outcome.tool_failure_reasons) == 200
+
+
+def test_the_summary_totals_failure_reasons_across_questions() -> None:
+    a = _outcome(tool_call_failures=2, tool_failure_reasons={"no such column": 2})
+    b = _outcome(
+        tool_call_failures=3,
+        tool_failure_reasons={"no such column": 1, "no such table": 2},
+        tool_failures_by_tool={"profile_table": 3},
+    )
+    summary = _summarise(Settings(), [a, b], 1.0)
+
+    assert summary["tool_failure_reasons"] == {"no such column": 3, "no such table": 2}
+    assert summary["tool_failures_by_tool"] == {"profile_table": 3}
