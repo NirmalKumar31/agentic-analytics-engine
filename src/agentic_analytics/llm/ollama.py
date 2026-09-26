@@ -7,6 +7,7 @@ credential is involved; the only requirement is a reachable server.
 
 from __future__ import annotations
 
+import asyncio
 from typing import Any
 
 import httpx
@@ -53,6 +54,9 @@ class OllamaProvider(LLMProvider):
         #: Ollama accepts the field for models without the capability and
         #: ignores it, so this is safe to send unconditionally.
         self.think = think
+        #: Hard ceiling on one call, enforced by us. The httpx timeout is
+        #: kept as well; this is the backstop for when it does not fire.
+        self.call_timeout_seconds = timeout_seconds
         self._client = httpx.AsyncClient(
             base_url=self.base_url, timeout=httpx.Timeout(timeout_seconds)
         )
@@ -76,11 +80,27 @@ class OllamaProvider(LLMProvider):
         payload["think"] = self.think
 
         try:
-            response = await self._client.post("/api/chat", json=payload)
-            response.raise_for_status()
-            body = response.json()
+            # Bounded here rather than trusted to the HTTP client. A run of
+            # this evaluation wedged for twenty minutes on a single call:
+            # the socket to Ollama stayed ESTABLISHED with no bytes moving,
+            # the server was idle, and httpx's read timeout never fired. An
+            # agent loop that can block forever is worse than one that
+            # fails, because nothing downstream gets a chance to react.
+            async with asyncio.timeout(self.call_timeout_seconds):
+                response = await self._client.post("/api/chat", json=payload)
+                response.raise_for_status()
+                body = response.json()
         except Exception as exc:
-            log.warning("ollama_call_failed", role=request.role, error=str(exc))
+            # The type matters as much as the message: `httpx.ReadTimeout`
+            # stringifies to the empty string, so logging `str(exc)` alone
+            # produced `error=` and told an operator nothing at all.
+            log.warning(
+                "ollama_call_failed",
+                role=request.role,
+                error_type=type(exc).__name__,
+                error=str(exc) or "(no message)",
+                model=self.model,
+            )
             raise LLMError(sanitize_provider_error(exc)) from None
 
         content = (body.get("message") or {}).get("content", "")
