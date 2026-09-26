@@ -19,7 +19,7 @@ from __future__ import annotations
 import json
 from typing import Any
 
-from agentic_analytics.agents.base import ask, parse_into, schema_of
+from agentic_analytics.agents.base import ask_into
 from agentic_analytics.agents.prompts import CRITIC
 from agentic_analytics.agents.schemas import (
     CandidateFinding,
@@ -105,18 +105,18 @@ async def verify_finding(
         return verdict, numeric.as_dict()
 
     try:
-        payload = await ask(
+        payload = await ask_into(
             provider,
+            CriticVerdict,
             role="critic",
             system=CRITIC,
             user=_critic_prompt(finding, cited),
-            schema=schema_of(CriticVerdict),
             context={
                 "finding": json.loads(finding.model_dump_json()),
                 "results": [s.compact() for s in cited],
             },
         )
-        critic = parse_into(CriticVerdict, payload, "critic")
+        critic = payload
         status = critic.status
         reason = critic.reason
     except LLMError as exc:

@@ -76,6 +76,7 @@ async def run_analysis(
     provider: LLMProvider | None = None,
     events: EventBus | None = None,
     run_id: str | None = None,
+    telemetry: dict[str, Any] | None = None,
 ) -> RunResult:
     """Execute one analysis end to end."""
     cfg = settings or get_settings()
@@ -106,7 +107,7 @@ async def run_analysis(
             budget=budget,
             events=bus,
         ) as toolset:
-            ctx = RunContext(session, toolset, llm, bus, cfg.budgets)
+            ctx = RunContext(session, toolset, llm, bus, cfg.budgets, telemetry)
             graph = build_graph(ctx)
             state = await graph.ainvoke(
                 {"question": question, "session_id": session.session_id},

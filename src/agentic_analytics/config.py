@@ -88,6 +88,11 @@ class Settings(BaseSettings):
     #: producing truncated, unparseable JSON rather than a slower reply.
     #: See `llm/ollama.py`.
     ollama_think: bool = False
+    #: Ceiling on one local model call. The default is generous because a
+    #: cold load of a 7B model can take minutes before a single token is
+    #: produced, and a first call that times out looks like a model failure
+    #: when it is a startup cost.
+    ollama_timeout_seconds: float = Field(default=300.0, gt=0)
     cloud_model: str = "claude-sonnet-5"
     cloud_api_key: str | None = None
     cloud_base_url: str = "https://api.anthropic.com"

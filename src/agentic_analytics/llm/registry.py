@@ -28,6 +28,7 @@ def build_provider(settings: Settings | None = None) -> LLMProvider:
             model=cfg.ollama_model,
             max_calls=max_calls,
             think=cfg.ollama_think,
+            timeout_seconds=cfg.ollama_timeout_seconds,
         )
 
     if cfg.provider_mode == "cloud":

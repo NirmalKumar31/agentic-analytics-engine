@@ -15,6 +15,7 @@ from typing import Any
 import httpx
 
 from agentic_analytics.llm.base import (
+    FailureKind,
     LLMError,
     LLMProvider,
     LLMRequest,
@@ -44,7 +45,10 @@ class CloudProvider(LLMProvider):
     ) -> None:
         super().__init__(max_calls=max_calls)
         if not api_key:
-            raise LLMError("cloud provider selected but no API key is configured")
+            raise LLMError(
+                "cloud provider selected but no API key is configured",
+                kind="transport_error",
+            )
         self.model = model
         self._client = httpx.AsyncClient(
             base_url=base_url.rstrip("/"),
@@ -80,7 +84,12 @@ class CloudProvider(LLMProvider):
             body = response.json()
         except Exception as exc:
             log.warning("cloud_call_failed", role=request.role, error=type(exc).__name__)
-            raise LLMError(sanitize_provider_error(exc)) from None
+            kind: FailureKind = (
+                "timeout"
+                if isinstance(exc, TimeoutError | httpx.TimeoutException)
+                else "transport_error"
+            )
+            raise LLMError(sanitize_provider_error(exc), kind=kind) from None
 
         usage = body.get("usage") or {}
         self.usage.record(
@@ -93,7 +102,10 @@ class CloudProvider(LLMProvider):
                 result = block.get("input")
                 if isinstance(result, dict):
                     return result
-        raise LLMError("cloud provider did not return a structured answer")
+        raise LLMError(
+            "cloud provider did not return a structured answer",
+            kind="json_parse_error",
+        )
 
     async def aclose(self) -> None:
         await self._client.aclose()

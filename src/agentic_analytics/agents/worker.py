@@ -13,7 +13,7 @@ from typing import Any
 
 from pydantic import BaseModel, Field
 
-from agentic_analytics.agents.base import ask, parse_into, schema_of
+from agentic_analytics.agents.base import ask_into
 from agentic_analytics.agents.prompts import WORKER_FINDINGS, WORKER_TOOL_CHOICE
 from agentic_analytics.agents.schemas import (
     AnalysisTask,
@@ -105,14 +105,14 @@ async def run_task(
 
     while calls < max_tool_calls:
         try:
-            choice_payload = await ask(
+            choice_payload = await ask_into(
                 provider,
+                ToolChoice,
                 role="worker_next_tool",
                 system=WORKER_TOOL_CHOICE,
                 user=_tool_choice_prompt(
                     task, payloads, calls, max_tool_calls, toolset, tables, has_metrics
                 ),
-                schema=schema_of(ToolChoice),
                 context={
                     "task": task_json,
                     "calls_made": calls,
@@ -121,7 +121,7 @@ async def run_task(
                     "results": payloads,
                 },
             )
-            choice = parse_into(ToolChoice, choice_payload, "worker_next_tool")
+            choice = choice_payload
         except LLMError as exc:
             notes.append(str(exc))
             break
@@ -175,15 +175,15 @@ async def run_task(
         )
 
     try:
-        findings_payload = await ask(
+        findings_payload = await ask_into(
             provider,
+            FindingList,
             role="worker_findings",
             system=WORKER_FINDINGS,
             user=_findings_prompt(task, payloads),
-            schema=schema_of(FindingList),
             context={"task": task_json, "results": payloads},
         )
-        findings = parse_into(FindingList, findings_payload, "worker_findings").findings
+        findings = findings_payload.findings
     except LLMError as exc:
         notes.append(str(exc))
         findings = []

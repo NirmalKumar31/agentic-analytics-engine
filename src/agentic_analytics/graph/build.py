@@ -56,12 +56,17 @@ class RunContext:
         provider: LLMProvider,
         events: EventBus,
         budgets: Budgets,
+        telemetry: dict[str, Any] | None = None,
     ) -> None:
         self.session = session
         self.toolset = toolset
         self.provider = provider
         self.events = events
         self.budgets = budgets
+        #: Optional dict the real-model evaluation passes in to record where
+        #: the engine intervened. `None` in production, and every write is
+        #: guarded, so a normal run does none of this work.
+        self.telemetry = telemetry
         self.started_at = time.monotonic()
 
     @property
@@ -136,6 +141,7 @@ def build_graph(ctx: RunContext) -> Any:
                 state.get("model_names", []),
                 max_tasks=ctx.budgets.max_analysis_tasks,
                 tables=state["dataset_catalog"].get("tables", []),
+                telemetry=ctx.telemetry,
             )
         except (LLMError, BudgetError) as exc:
             return _abort("no analysis plan could be produced", exc, ctx)

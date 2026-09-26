@@ -31,22 +31,28 @@ exactly the property the architecture exists to provide.
 
 from __future__ import annotations
 
+import asyncio
+import contextlib
+import hashlib
 import json
+import os
+import subprocess
 import time
 import traceback
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any
 
+from agentic_analytics.agents.base import StructuredCall, observe_structured_calls
 from agentic_analytics.config import Settings
 from agentic_analytics.evaluation.datasets import (
     DATASETS,
+    SEED,
     WAREHOUSE_QUESTIONS,
     EvalDataset,
     EvalQuestion,
 )
 from agentic_analytics.graph.runner import RunResult, run_analysis
-from agentic_analytics.llm.base import LLMProvider, LLMRequest
 from agentic_analytics.llm.registry import build_provider
 from agentic_analytics.logging import get_logger
 from agentic_analytics.mcp_layer.server import build_server
@@ -58,53 +64,9 @@ from agentic_analytics.warehouse.session import (
 
 log = get_logger(__name__)
 
-
-class RecordingProvider(LLMProvider):
-    """Wraps a real provider and records every exchange's *shape*.
-
-    Only shapes: the role, whether the reply parsed, how long it took, and
-    token counts. Prompt and response bodies are not stored -- the report is
-    an artifact that may be committed or shared, and it should not carry a
-    dataset's contents.
-    """
-
-    requires_credentials = False
-
-    def __init__(self, inner: LLMProvider) -> None:
-        super().__init__(max_calls=inner.max_calls)
-        self.inner = inner
-        self.name = inner.name
-        self.exchanges: list[dict[str, Any]] = []
-
-    async def complete_json(self, request: LLMRequest) -> dict[str, Any]:
-        started = time.monotonic()
-        record: dict[str, Any] = {"role": request.role, "ok": False}
-        try:
-            payload = await self.inner.complete_json(request)
-        except Exception as exc:
-            record["error_type"] = type(exc).__name__
-            record["error"] = str(exc)[:200]
-            record["seconds"] = round(time.monotonic() - started, 2)
-            self.exchanges.append(record)
-            raise
-        record["ok"] = True
-        record["seconds"] = round(time.monotonic() - started, 2)
-        record["keys"] = sorted(payload)[:12]
-        self.exchanges.append(record)
-        return payload
-
-    @property
-    def usage(self) -> Any:
-        return self.inner.usage
-
-    @usage.setter
-    def usage(self, value: Any) -> None:
-        # `LLMProvider.__init__` assigns this; the inner provider owns the
-        # real counter, so the assignment on the wrapper is discarded.
-        return
-
-    async def aclose(self) -> None:
-        await self.inner.aclose()
+#: Bumped when the outcome schema changes, so a checkpoint from an older
+#: harness is not silently merged into a newer report.
+HARNESS_SCHEMA_VERSION = 2
 
 
 @dataclass
@@ -119,11 +81,34 @@ class QuestionOutcome:
     completed: bool = False
     stopped_reason: str = ""
     error: str = ""
+    #: Cut off by the harness rather than by the engine. A per-call timeout
+    #: does not bound a question: forty calls at three minutes each is two
+    #: hours for one answer.
+    question_timeout: bool = False
 
-    # Where a run broke down, by role.
+    # Where a run broke down, by role and by *stage*. Watching only the
+    # provider call cannot distinguish "returned a dict the schema rejected"
+    # from "the HTTP request timed out", and those say opposite things about
+    # a model.
     roles_called: dict[str, int] = field(default_factory=dict)
     roles_failed: dict[str, int] = field(default_factory=dict)
-    provider_format_failures: int = 0
+    failures_by_stage: dict[str, int] = field(default_factory=dict)
+    schema_validation_failures: int = 0
+    json_parse_failures: int = 0
+    transport_failures: int = 0
+    timeout_failures: int = 0
+    budget_failures: int = 0
+
+    # What the model planned, and what the engine had to do about it.
+    raw_model_tasks_returned: int = 0
+    raw_model_tools_requested: list[str] = field(default_factory=list)
+    raw_model_tasks: list[dict[str, Any]] = field(default_factory=list)
+    cleaned_tasks: list[dict[str, Any]] = field(default_factory=list)
+    planner_tasks_after_cleanup: int = 0
+    tasks_redirected_by_engine: int = 0
+    redirect_reasons: list[str] = field(default_factory=list)
+    fallback_plan_used: bool = False
+    model_plan_directly_executable: bool = False
 
     planned_tasks: int = 0
     tools_selected: list[str] = field(default_factory=list)
@@ -139,6 +124,14 @@ class QuestionOutcome:
 
     report_written: bool = False
     report_sections: int = 0
+    #: Every candidate finding with its verdict, for human review. Counts
+    #: alone cannot tell you whether a published finding answered the
+    #: question or was merely true and useless.
+    claims: list[dict[str, Any]] = field(default_factory=list)
+
+    #: Orthogonal descriptive flags rather than one winner/loser enum.
+    #: A refusal on an unanswerable question is the desired behaviour.
+    outcome_flags: list[str] = field(default_factory=list)
 
     provider_calls: int = 0
     input_tokens: int = 0
@@ -147,11 +140,27 @@ class QuestionOutcome:
 
 
 def _observe(
-    outcome: QuestionOutcome, result: RunResult, provider: RecordingProvider
+    outcome: QuestionOutcome,
+    result: RunResult,
+    calls: list[StructuredCall],
+    telemetry: dict[str, Any],
 ) -> QuestionOutcome:
     """Fill an outcome from a completed run."""
     outcome.stopped_reason = result.stopped_reason
     outcome.completed = not result.stopped_reason
+
+    # --- what the model planned, and what the engine did about it
+    outcome.raw_model_tasks_returned = int(telemetry.get("raw_model_tasks_returned", 0))
+    outcome.raw_model_tools_requested = list(telemetry.get("raw_model_tools_requested", []))
+    outcome.raw_model_tasks = list(telemetry.get("raw_model_tasks", []))
+    outcome.cleaned_tasks = list(telemetry.get("cleaned_tasks", []))
+    outcome.planner_tasks_after_cleanup = int(telemetry.get("planner_tasks_after_cleanup", 0))
+    outcome.tasks_redirected_by_engine = int(telemetry.get("tasks_redirected_by_engine", 0))
+    outcome.redirect_reasons = list(telemetry.get("redirect_reasons", []))
+    outcome.fallback_plan_used = bool(telemetry.get("fallback_plan_used", False))
+    outcome.model_plan_directly_executable = bool(
+        telemetry.get("model_plan_directly_executable", False)
+    )
 
     outcome.planned_tasks = len(result.tasks)
     for call in result.mcp_trace:
@@ -174,23 +183,91 @@ def _observe(
         rule = verdict.rule or "unspecified"
         outcome.withheld_rules[rule] = outcome.withheld_rules.get(rule, 0) + 1
 
+    # --- every claim, for human review. Synthetic data, so the finding text
+    # is safe to keep; raw rows and prompts are not stored anywhere.
+    for finding in result.published:
+        outcome.claims.append(
+            {
+                "finding_id": finding.finding_id,
+                "text": finding.text,
+                "kind": finding.kind,
+                "result_ids": list(finding.result_ids),
+                "published": True,
+                "status": finding.verification_status,
+                "rule": "",
+                "reason": finding.verifier_reason[:300],
+            }
+        )
+    for verdict in result.rejected:
+        outcome.claims.append(
+            {
+                "finding_id": verdict.finding_id,
+                "text": "",
+                "kind": "",
+                "result_ids": [],
+                "published": False,
+                "status": verdict.status,
+                "rule": verdict.rule,
+                "reason": verdict.reason[:300],
+            }
+        )
+
     report = result.report
     outcome.report_written = report is not None and bool(report.key_findings)
     outcome.report_sections = len(report.sections) if report else 0
 
-    for exchange in provider.exchanges:
-        role = exchange["role"]
-        outcome.roles_called[role] = outcome.roles_called.get(role, 0) + 1
-        if not exchange["ok"]:
-            outcome.roles_failed[role] = outcome.roles_failed.get(role, 0) + 1
-            # A reply the schema could not accept is the failure mode that
-            # matters most: it means the model cannot hold the contract.
-            if exchange.get("error_type") in {"LLMError", "ValidationError"}:
-                outcome.provider_format_failures += 1
-    outcome.provider_calls = len(provider.exchanges)
-    outcome.input_tokens = int(getattr(provider.usage, "input_tokens", 0))
-    outcome.output_tokens = int(getattr(provider.usage, "output_tokens", 0))
+    _record_calls(outcome, calls)
+    outcome.outcome_flags = _flags(outcome)
     return outcome
+
+
+def _record_calls(outcome: QuestionOutcome, calls: list[StructuredCall]) -> None:
+    """Attribute each agent call to a role and a failure stage."""
+    for call in calls:
+        outcome.roles_called[call.role] = outcome.roles_called.get(call.role, 0) + 1
+        if call.stage == "success":
+            continue
+        outcome.roles_failed[call.role] = outcome.roles_failed.get(call.role, 0) + 1
+        outcome.failures_by_stage[call.stage] = outcome.failures_by_stage.get(call.stage, 0) + 1
+    outcome.schema_validation_failures = outcome.failures_by_stage.get("schema_validation_error", 0)
+    outcome.json_parse_failures = outcome.failures_by_stage.get("json_parse_error", 0)
+    outcome.transport_failures = outcome.failures_by_stage.get("transport_error", 0)
+    outcome.timeout_failures = outcome.failures_by_stage.get("timeout", 0)
+    outcome.budget_failures = outcome.failures_by_stage.get("budget_exhausted", 0)
+    outcome.provider_calls = len(calls)
+
+
+def _flags(outcome: QuestionOutcome) -> list[str]:
+    """Descriptive, orthogonal, and deliberately not a score.
+
+    A refusal on a question the data cannot answer is the behaviour we want,
+    so it gets its own flag rather than being folded into "failed".
+    """
+    flags: list[str] = []
+    if outcome.question_timeout:
+        flags.append("question_timeout")
+    if outcome.error:
+        flags.append("harness_error")
+    if outcome.timeout_failures or outcome.transport_failures:
+        flags.append("provider_failure")
+    if outcome.schema_validation_failures or outcome.json_parse_failures:
+        flags.append("schema_failure")
+    if outcome.tool_call_failures:
+        flags.append("tool_failure")
+    if outcome.completed and outcome.published_findings:
+        flags.append("completed_with_published_findings")
+    if outcome.completed and not outcome.candidate_findings:
+        flags.append("completed_no_candidate_findings")
+    if outcome.completed and outcome.candidate_findings and not outcome.published_findings:
+        flags.append("completed_all_findings_withheld")
+    if outcome.kind in {"ambiguous", "unsupported"} and not outcome.published_findings:
+        # The desired behaviour for a question the data cannot answer.
+        flags.append("safe_refusal")
+    if outcome.fallback_plan_used or outcome.tasks_redirected_by_engine:
+        flags.append("engine_rescued")
+    if outcome.model_plan_directly_executable:
+        flags.append("direct_model_plan")
+    return flags
 
 
 async def evaluate_question(
@@ -198,6 +275,8 @@ async def evaluate_question(
     dataset_id: str,
     session_factory: Any,
     cfg: Settings,
+    *,
+    question_timeout_seconds: float = 600.0,
 ) -> QuestionOutcome:
     """Run one question and record what happened. Never raises."""
     outcome = QuestionOutcome(
@@ -207,31 +286,166 @@ async def evaluate_question(
         expectation=question.expectation,
     )
     manager = SessionManager(max_sessions=4)
-    provider = RecordingProvider(build_provider(cfg))
+    provider = build_provider(cfg)
+    calls: list[StructuredCall] = []
+    telemetry: dict[str, Any] = {}
     started = time.monotonic()
     try:
         session = manager.add(session_factory())
         server = build_server(manager, cfg)
-        result = await run_analysis(question.text, session, server, settings=cfg, provider=provider)
-        _observe(outcome, result, provider)
+        with observe_structured_calls(calls.append):
+            # A whole-question ceiling. The per-call timeout bounds one
+            # request; nothing bounded the question, and a sweep lost two
+            # hours to that.
+            async with asyncio.timeout(question_timeout_seconds):
+                result = await run_analysis(
+                    question.text,
+                    session,
+                    server,
+                    settings=cfg,
+                    provider=provider,
+                    telemetry=telemetry,
+                )
+        _observe(outcome, result, calls, telemetry)
+    except TimeoutError:
+        outcome.question_timeout = True
+        log.warning(
+            "real_model_question_timeout",
+            dataset=dataset_id,
+            seconds=question_timeout_seconds,
+        )
+        _record_calls(outcome, calls)
+        outcome.outcome_flags = _flags(outcome)
     except Exception as exc:
-        # A crash is a result too, and the point of the exercise is to find
-        # them, so it is recorded rather than propagated.
+        # A crash is a result too, and finding them is the point.
         outcome.error = f"{type(exc).__name__}: {exc}"[:300]
         log.warning("real_model_run_crashed", dataset=dataset_id, error=outcome.error)
         log.debug("real_model_traceback", trace=traceback.format_exc()[:2000])
-        outcome.provider_calls = len(provider.exchanges)
-        for exchange in provider.exchanges:
-            role = exchange["role"]
-            outcome.roles_called[role] = outcome.roles_called.get(role, 0) + 1
-            if not exchange["ok"]:
-                outcome.roles_failed[role] = outcome.roles_failed.get(role, 0) + 1
-                outcome.provider_format_failures += 1
+        _record_calls(outcome, calls)
+        outcome.outcome_flags = _flags(outcome)
     finally:
         outcome.runtime_seconds = round(time.monotonic() - started, 2)
+        outcome.input_tokens = int(getattr(provider.usage, "input_tokens", 0))
+        outcome.output_tokens = int(getattr(provider.usage, "output_tokens", 0))
         await provider.aclose()
         manager.close_all()
     return outcome
+
+
+def question_key(dataset_id: str, index: int, text: str) -> str:
+    """A stable identity for one question, for checkpointing.
+
+    Includes a hash of the text so that editing a question invalidates its
+    checkpoint rather than silently resuming past a different question.
+    """
+    digest = hashlib.sha256(text.encode()).hexdigest()[:8]
+    return f"{dataset_id}:{index:02d}:{digest}"
+
+
+def environment_fingerprint(cfg: Settings) -> dict[str, Any]:
+    """Enough provenance to know what was actually evaluated.
+
+    A report saying only `model = qwen3:4b` cannot be reproduced or trusted;
+    quantization and digest change what a "model" is. Every field is
+    best-effort: a missing one is recorded as unknown rather than failing
+    the evaluation.
+    """
+    model = cfg.ollama_model if cfg.provider_mode == "local" else cfg.cloud_model
+    info: dict[str, Any] = {
+        "harness_schema": HARNESS_SCHEMA_VERSION,
+        "provider_mode": cfg.provider_mode,
+        "model": model,
+        "think": cfg.ollama_think if cfg.provider_mode == "local" else None,
+        "temperature": 0.0,
+        "dataset_seed": SEED,
+        "max_llm_calls": cfg.budgets.max_llm_calls,
+        "max_analysis_tasks": cfg.budgets.max_analysis_tasks,
+        "max_tool_calls_per_task": cfg.budgets.max_tool_calls_per_task,
+        "max_runtime_seconds": cfg.budgets.max_runtime_seconds,
+    }
+    with contextlib.suppress(Exception):
+        info["git_sha"] = (
+            subprocess.run(
+                ["git", "rev-parse", "HEAD"],
+                capture_output=True,
+                text=True,
+                timeout=10,
+                check=False,
+            ).stdout.strip()
+            or "unknown"
+        )
+    if cfg.provider_mode == "local":
+        with contextlib.suppress(Exception):
+            import httpx
+
+            tags = httpx.get(f"{cfg.ollama_base_url}/api/tags", timeout=10).json()
+            for entry in tags.get("models", []):
+                if entry.get("name") == model:
+                    details = entry.get("details", {})
+                    info["model_digest"] = str(entry.get("digest", ""))[:16]
+                    info["quantization"] = details.get("quantization_level")
+                    info["parameter_size"] = details.get("parameter_size")
+                    info["model_bytes"] = entry.get("size")
+        with contextlib.suppress(Exception):
+            info["ollama_version"] = (
+                subprocess.run(
+                    ["ollama", "--version"],
+                    capture_output=True,
+                    text=True,
+                    timeout=10,
+                    check=False,
+                ).stdout.strip()
+                or "unknown"
+            )
+    return info
+
+
+def _atomic_write(path: Path, text: str) -> None:
+    """Write completely or not at all.
+
+    A sweep that dies mid-write must not leave a half-parsed checkpoint
+    behind; the next run would refuse to resume from it.
+    """
+    path.parent.mkdir(parents=True, exist_ok=True)
+    temporary = path.with_suffix(path.suffix + ".tmp")
+    with temporary.open("w") as handle:
+        handle.write(text)
+        handle.flush()
+        os.fsync(handle.fileno())
+    os.replace(temporary, path)
+
+
+def _append_outcome(path: Path, key: str, outcome: QuestionOutcome) -> None:
+    """Persist one completed question immediately, durably.
+
+    The first sweep wrote its report only at the end and lost nearly two
+    hours of finished work when it had to be killed.
+    """
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("a") as handle:
+        handle.write(json.dumps({"key": key, "outcome": asdict(outcome)}) + "\n")
+        handle.flush()
+        os.fsync(handle.fileno())
+
+
+def _load_checkpoint(path: Path) -> dict[str, QuestionOutcome]:
+    """Completed outcomes from a previous run, keyed by question."""
+    if not path.exists():
+        return {}
+    done: dict[str, QuestionOutcome] = {}
+    for line in path.read_text().splitlines():
+        if not line.strip():
+            continue
+        with contextlib.suppress(Exception):
+            record = json.loads(line)
+            done[record["key"]] = QuestionOutcome(**record["outcome"])
+    return done
+
+
+def _write_status(path: Path, status: dict[str, Any]) -> None:
+    """A stalled run must be diagnosable while it is still running."""
+    with contextlib.suppress(OSError):
+        _atomic_write(path, json.dumps(status, indent=2, default=str))
 
 
 async def run_real_model_evaluation(
@@ -241,6 +455,10 @@ async def run_real_model_evaluation(
     dataset_ids: list[str] | None = None,
     include_warehouse: bool = True,
     max_questions: int | None = None,
+    question_timeout_seconds: float = 600.0,
+    checkpoint_dir: Path | None = None,
+    resume: bool = True,
+    resume_incompatible_ok: bool = False,
 ) -> dict[str, Any]:
     """Evaluate a real provider across the datasets. Returns a report."""
     from agentic_analytics.evaluation.datasets import build_all
@@ -249,40 +467,123 @@ async def run_real_model_evaluation(
     selected: list[EvalDataset] = [
         d for d in DATASETS if dataset_ids is None or d.dataset_id in dataset_ids
     ]
+    fingerprint = environment_fingerprint(cfg)
 
-    outcomes: list[QuestionOutcome] = []
-    started = time.monotonic()
+    checkpoint_dir = checkpoint_dir or (data_dir.parent / "real-model-checkpoint")
+    outcomes_path = checkpoint_dir / "outcomes.jsonl"
+    status_path = checkpoint_dir / "status.json"
+    meta_path = checkpoint_dir / "meta.json"
 
+    done: dict[str, QuestionOutcome] = {}
+    if resume and meta_path.exists():
+        previous = json.loads(meta_path.read_text())
+        differing = {
+            k
+            for k in ("model", "provider_mode", "git_sha", "harness_schema", "think")
+            if previous.get("environment", {}).get(k) != fingerprint.get(k)
+        }
+        if differing and not resume_incompatible_ok:
+            # Mixing runs from different models or builds silently would
+            # produce a report about nothing in particular.
+            log.warning("real_model_checkpoint_incompatible", differing=sorted(differing))
+            raise RuntimeError(
+                "the checkpoint was written by a different configuration "
+                f"({', '.join(sorted(differing))}); pass --no-resume to start "
+                "fresh or --resume-incompatible to continue anyway"
+            )
+        done = _load_checkpoint(outcomes_path)
+        if done:
+            log.info("real_model_resuming", completed=len(done))
+    elif not resume:
+        with contextlib.suppress(OSError):
+            outcomes_path.unlink()
+
+    _atomic_write(
+        meta_path,
+        json.dumps({"environment": fingerprint, "started_at": time.time()}, indent=2),
+    )
+
+    # Build the work list first, so it can be reported and resumed against.
+    work: list[tuple[str, str, EvalQuestion, Any]] = []
     if include_warehouse and (dataset_ids is None or "warehouse" in dataset_ids):
-        questions = list(WAREHOUSE_QUESTIONS)[: max_questions or len(WAREHOUSE_QUESTIONS)]
-        for question in questions:
-            log.info("real_model_question", dataset="warehouse", question=question.text[:60])
-            outcomes.append(
-                await evaluate_question(
-                    question,
+        for index, question in enumerate(
+            list(WAREHOUSE_QUESTIONS)[: max_questions or len(WAREHOUSE_QUESTIONS)]
+        ):
+            work.append(
+                (
+                    question_key("warehouse", index, question.text),
                     "warehouse",
+                    question,
                     lambda: open_demo_session(cfg.demo_warehouse_dir),
-                    cfg,
                 )
             )
-
     for dataset in selected:
         path = built[dataset.dataset_id]
-        questions = list(dataset.questions)[: max_questions or len(dataset.questions)]
-        for question in questions:
-            log.info("real_model_question", dataset=dataset.dataset_id, question=question.text[:60])
-            outcomes.append(
-                await evaluate_question(
-                    question,
+        for index, question in enumerate(
+            list(dataset.questions)[: max_questions or len(dataset.questions)]
+        ):
+            work.append(
+                (
+                    question_key(dataset.dataset_id, index, question.text),
                     dataset.dataset_id,
+                    question,
                     lambda p=path, f=dataset.file_format: open_upload_session(
                         p, p.name, f, max_rows=cfg.budgets.max_upload_rows
                     ),
-                    cfg,
                 )
             )
 
-    return _summarise(cfg, outcomes, round(time.monotonic() - started, 1))
+    outcomes: list[QuestionOutcome] = []
+    started = time.monotonic()
+    started_wall = time.time()
+
+    for position, (key, dataset_id, question, factory) in enumerate(work, start=1):
+        if key in done:
+            outcomes.append(done[key])
+            continue
+        _write_status(
+            status_path,
+            {
+                "environment": fingerprint,
+                "evaluation_started_at": started_wall,
+                "question_started_at": time.time(),
+                "current_question": {"key": key, "dataset": dataset_id, "text": question.text},
+                "completed": len(outcomes),
+                "total": len(work),
+                "last_completed": outcomes[-1].question if outcomes else None,
+            },
+        )
+        log.info(
+            "real_model_question",
+            dataset=dataset_id,
+            position=f"{position}/{len(work)}",
+            question=question.text[:60],
+        )
+        outcome = await evaluate_question(
+            question,
+            dataset_id,
+            factory,
+            cfg,
+            question_timeout_seconds=question_timeout_seconds,
+        )
+        _append_outcome(outcomes_path, key, outcome)
+        outcomes.append(outcome)
+
+    _write_status(
+        status_path,
+        {
+            "environment": fingerprint,
+            "evaluation_started_at": started_wall,
+            "completed": len(outcomes),
+            "total": len(work),
+            "finished": True,
+        },
+    )
+    report = _summarise(cfg, outcomes, round(time.monotonic() - started, 1))
+    report["environment"] = fingerprint
+    report["question_timeout_seconds"] = question_timeout_seconds
+    report["checkpoint_dir"] = str(checkpoint_dir)
+    return report
 
 
 def _summarise(cfg: Settings, outcomes: list[QuestionOutcome], wall_clock: float) -> dict[str, Any]:
@@ -329,7 +630,22 @@ def _summarise(cfg: Settings, outcomes: list[QuestionOutcome], wall_clock: float
         "runs_stopped_early": count(lambda o: not o.completed and not o.error),
         "runs_crashed": count(lambda o: bool(o.error)),
         "runs_publishing_at_least_one_finding": count(lambda o: o.published_findings > 0),
-        "runs_with_a_provider_format_failure": count(lambda o: o.provider_format_failures > 0),
+        # Split by stage, because "the schema rejected it" and "the request
+        # timed out" say opposite things about a model and were previously
+        # the same number.
+        "runs_with_a_schema_validation_failure": count(lambda o: o.schema_validation_failures > 0),
+        "runs_with_a_json_parse_failure": count(lambda o: o.json_parse_failures > 0),
+        "runs_with_a_transport_failure": count(lambda o: o.transport_failures > 0),
+        "runs_with_a_provider_timeout": count(lambda o: o.timeout_failures > 0),
+        "runs_hitting_the_question_timeout": count(lambda o: o.question_timeout),
+        "failures_by_stage": _merge_counts(o.failures_by_stage for o in outcomes),
+        # Engine intervention, so a rescued run is not read as a planning
+        # success. This is the distinction the evaluation exists to make.
+        "runs_with_direct_model_plan": count(lambda o: o.model_plan_directly_executable),
+        "runs_requiring_task_redirect": count(lambda o: o.tasks_redirected_by_engine > 0),
+        "runs_requiring_engine_fallback": count(lambda o: o.fallback_plan_used),
+        "runs_safely_refusing": count(lambda o: "safe_refusal" in o.outcome_flags),
+        "outcome_flag_counts": _merge_counts(dict.fromkeys(o.outcome_flags, 1) for o in outcomes),
         "runs_with_a_failed_tool_call": count(lambda o: o.tool_call_failures > 0),
         "total_provider_calls": sum(o.provider_calls for o in outcomes),
         "total_input_tokens": sum(o.input_tokens for o in outcomes),
@@ -346,6 +662,14 @@ def _summarise(cfg: Settings, outcomes: list[QuestionOutcome], wall_clock: float
         "wall_clock_seconds": wall_clock,
         "outcomes": [asdict(o) for o in outcomes],
     }
+
+
+def _merge_counts(dicts: Any) -> dict[str, int]:
+    merged: dict[str, int] = {}
+    for item in dicts:
+        for key, value in item.items():
+            merged[key] = merged.get(key, 0) + int(value)
+    return dict(sorted(merged.items()))
 
 
 def _median(values: list[float]) -> float:

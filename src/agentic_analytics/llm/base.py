@@ -19,17 +19,40 @@ import json
 import re
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field
+
+#: Why a structured call failed, as a stable identifier.
+#:
+#: The distinction is load-bearing for evaluation. "The model returned
+#: something the schema rejected" and "the HTTP request timed out" are
+#: completely different statements about a model, and collapsing both into
+#: one error type -- which is what happened -- makes a report that cannot
+#: answer the question it claims to answer.
+FailureKind = Literal[
+    "transport_error",
+    "timeout",
+    "json_parse_error",
+    "schema_validation_error",
+    "budget_exhausted",
+    "unknown",
+]
 
 
 class LLMError(RuntimeError):
     """A provider failed. Messages are sanitised before they reach a user."""
 
+    def __init__(self, message: str, kind: FailureKind = "unknown") -> None:
+        super().__init__(message)
+        self.kind: FailureKind = kind
+
 
 class BudgetError(LLMError):
     """The run reached its LLM call ceiling."""
+
+    def __init__(self, message: str) -> None:
+        super().__init__(message, kind="budget_exhausted")
 
 
 class LLMRequest(BaseModel):
@@ -122,7 +145,7 @@ def extract_json(text: str) -> dict[str, Any]:
             continue
         if isinstance(parsed, dict):
             return parsed
-    raise LLMError("provider did not return a JSON object")
+    raise LLMError("provider did not return a JSON object", kind="json_parse_error")
 
 
 def sanitize_provider_error(exc: BaseException) -> str:
@@ -134,6 +157,12 @@ def sanitize_provider_error(exc: BaseException) -> str:
     """
     name = type(exc).__name__
     text = str(exc).lower()
+    # By type first, then by message. `asyncio.TimeoutError` and
+    # `httpx.ReadTimeout` both stringify to the empty string, so a
+    # message-only test classified them as a generic failure -- which is how
+    # a run that hung for twenty minutes got reported as "call failed".
+    if isinstance(exc, TimeoutError) or "timeout" in name.lower():
+        return "the language model did not respond in time"
     if "timeout" in text or "timed out" in text:
         return f"the language model did not respond in time ({name})"
     if "connect" in text or "refused" in text:

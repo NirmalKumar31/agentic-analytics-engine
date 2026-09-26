@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from pydantic import BaseModel
 
-from agentic_analytics.agents.base import ask, parse_into, schema_of
+from agentic_analytics.agents.base import ask_into
 from agentic_analytics.agents.prompts import VISUALIZER
 from agentic_analytics.agents.schemas import ChartSpec, PublishedFinding
 from agentic_analytics.analytics.results import ResultSnapshot
@@ -56,19 +56,19 @@ async def build_charts(
 
             supporting = [f.finding_id for f in findings if result_id in f.result_ids]
             try:
-                payload = await ask(
+                payload = await ask_into(
                     provider,
+                    ChartChoice,
                     role="visualizer",
                     system=VISUALIZER,
                     user=_prompt(snapshot, finding.text),
-                    schema=schema_of(ChartChoice),
                     context={
                         "result": snapshot.compact(),
                         "title": _default_title(snapshot),
                         "finding_text": finding.text,
                     },
                 )
-                choice = parse_into(ChartChoice, payload, "visualizer")
+                choice = payload
             except LLMError as exc:
                 log.warning("chart_choice_failed", result_id=result_id, error=str(exc))
                 continue

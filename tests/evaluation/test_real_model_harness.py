@@ -24,14 +24,11 @@ from agentic_analytics.evaluation.datasets import (
 )
 from agentic_analytics.evaluation.real_model import (
     QuestionOutcome,
-    RecordingProvider,
     _median,
     _summarise,
     evaluate_question,
     write_report,
 )
-from agentic_analytics.llm.base import LLMRequest
-from agentic_analytics.llm.fake import FakeProvider
 from agentic_analytics.warehouse.session import open_upload_session
 
 
@@ -111,51 +108,11 @@ def test_the_messy_dataset_is_actually_messy(tmp_path: Path) -> None:
     assert " " in header and "#" in header, header
 
 
-# ----------------------------------------------------- recording provider
-async def test_the_recording_provider_records_shape_not_content() -> None:
-    """The report may be committed or shared; it must not carry the data."""
-    inner = FakeProvider()
-    provider = RecordingProvider(inner)
-    await provider.complete_json(
-        LLMRequest(
-            role="question_analyst",
-            system="s",
-            user="a secret value 8675309 appears here",
-            context={"question": "q", "metrics": [], "dimensions": []},
-        )
-    )
-    await provider.aclose()
-
-    blob = json.dumps(provider.exchanges)
-    assert "8675309" not in blob
-    assert provider.exchanges[0]["role"] == "question_analyst"
-    assert provider.exchanges[0]["ok"] is True
-    assert "seconds" in provider.exchanges[0]
-
-
-async def test_a_provider_failure_is_recorded_and_re_raised() -> None:
-    from agentic_analytics.llm.base import LLMError, LLMProvider
-
-    class Broken(LLMProvider):
-        name = "broken"
-        requires_credentials = False
-
-        async def complete_json(self, request: LLMRequest) -> dict[str, Any]:
-            raise LLMError("nope")
-
-    provider = RecordingProvider(Broken())
-    with pytest.raises(LLMError):
-        await provider.complete_json(LLMRequest(role="planner", system="s", user="u"))
-    await provider.aclose()
-
-    assert provider.exchanges[0]["ok"] is False
-    assert provider.exchanges[0]["error_type"] == "LLMError"
-
-
-def test_the_wrapper_reports_the_inner_providers_usage() -> None:
-    inner = FakeProvider()
-    provider = RecordingProvider(inner)
-    assert provider.usage is inner.usage
+# ----------------------------------------------------- call observation
+# The provider-wrapping RecordingProvider is gone: it could only see whether
+# the provider returned a dict, which is the measurement that made the first
+# report untrue. Stage-accurate observation lives in `agents/base.py` and is
+# tested in `tests/unit/test_structured_call_stages.py`.
 
 
 # ------------------------------------------------------------ end to end
@@ -216,7 +173,7 @@ def test_the_summary_counts_each_outcome_once() -> None:
         _outcome(completed=True, published_findings=2, provider_calls=5),
         _outcome(completed=False, stopped_reason="stopped", provider_calls=3),
         _outcome(error="Boom: x", provider_calls=1),
-        _outcome(completed=True, provider_format_failures=1, tool_call_failures=2),
+        _outcome(completed=True, schema_validation_failures=1, tool_call_failures=2),
     ]
     summary = _summarise(Settings(provider_mode="local"), outcomes, 12.5)
 
@@ -225,10 +182,46 @@ def test_the_summary_counts_each_outcome_once() -> None:
     assert summary["runs_stopped_early"] == 1
     assert summary["runs_crashed"] == 1
     assert summary["runs_publishing_at_least_one_finding"] == 1
-    assert summary["runs_with_a_provider_format_failure"] == 1
+    assert summary["runs_with_a_schema_validation_failure"] == 1
     assert summary["runs_with_a_failed_tool_call"] == 1
     assert summary["total_provider_calls"] == 9
     assert summary["is_deterministic"] is False
+
+
+def test_the_summary_separates_failure_stages() -> None:
+    """A timeout is not a schema failure, and the report must not say it is."""
+    outcomes = [
+        _outcome(timeout_failures=2, failures_by_stage={"timeout": 2}),
+        _outcome(schema_validation_failures=1, failures_by_stage={"schema_validation_error": 1}),
+        _outcome(transport_failures=1, failures_by_stage={"transport_error": 1}),
+        _outcome(question_timeout=True),
+    ]
+    summary = _summarise(Settings(), outcomes, 1.0)
+    assert summary["runs_with_a_provider_timeout"] == 1
+    assert summary["runs_with_a_schema_validation_failure"] == 1
+    assert summary["runs_with_a_transport_failure"] == 1
+    assert summary["runs_hitting_the_question_timeout"] == 1
+    assert summary["failures_by_stage"] == {
+        "schema_validation_error": 1,
+        "timeout": 2,
+        "transport_error": 1,
+    }
+
+
+def test_the_summary_separates_model_plans_from_engine_rescues() -> None:
+    """A run the engine rescued is not evidence the model planned it."""
+    outcomes = [
+        _outcome(model_plan_directly_executable=True, outcome_flags=["direct_model_plan"]),
+        _outcome(tasks_redirected_by_engine=2, outcome_flags=["engine_rescued"]),
+        _outcome(fallback_plan_used=True, outcome_flags=["engine_rescued"]),
+        _outcome(kind="unsupported", outcome_flags=["safe_refusal"]),
+    ]
+    summary = _summarise(Settings(), outcomes, 1.0)
+    assert summary["runs_with_direct_model_plan"] == 1
+    assert summary["runs_requiring_task_redirect"] == 1
+    assert summary["runs_requiring_engine_fallback"] == 1
+    assert summary["runs_safely_refusing"] == 1
+    assert summary["outcome_flag_counts"]["engine_rescued"] == 2
 
 
 def test_the_summary_reports_which_rule_withheld_what() -> None:
@@ -289,3 +282,192 @@ def test_the_report_writes_and_round_trips(tmp_path: Path) -> None:
     path = write_report(summary, tmp_path / "nested" / "report.json")
     assert path.exists()
     assert json.loads(path.read_text())["questions_asked"] == 1
+
+
+# ---------------------------------------------- checkpointing and resume
+def test_a_question_key_changes_when_the_question_changes() -> None:
+    """Editing a question must invalidate its checkpoint.
+
+    Resuming past a question whose text has changed would report a result
+    for a question nobody asked.
+    """
+    from agentic_analytics.evaluation.real_model import question_key
+
+    first = question_key("sales", 0, "What is the total?")
+    assert first == question_key("sales", 0, "What is the total?")
+    assert first != question_key("sales", 0, "What is the average?")
+    assert first != question_key("sales", 1, "What is the total?")
+    assert first != question_key("marketing", 0, "What is the total?")
+
+
+def test_each_outcome_is_persisted_as_it_completes(tmp_path: Path) -> None:
+    """The first sweep lost two hours because it wrote only at the end."""
+    from agentic_analytics.evaluation.real_model import _append_outcome, _load_checkpoint
+
+    path = tmp_path / "outcomes.jsonl"
+    _append_outcome(path, "sales:00:abcd1234", _outcome(published_findings=3))
+    assert path.exists(), "nothing was written after the first question"
+
+    _append_outcome(path, "sales:01:beef5678", _outcome(withheld_findings=1))
+    loaded = _load_checkpoint(path)
+    assert set(loaded) == {"sales:00:abcd1234", "sales:01:beef5678"}
+    assert loaded["sales:00:abcd1234"].published_findings == 3
+
+
+def test_a_truncated_checkpoint_line_does_not_lose_the_rest(tmp_path: Path) -> None:
+    """A process killed mid-write must not poison the resume."""
+    from agentic_analytics.evaluation.real_model import _append_outcome, _load_checkpoint
+
+    path = tmp_path / "outcomes.jsonl"
+    _append_outcome(path, "a:00:1111", _outcome(published_findings=1))
+    with path.open("a") as handle:
+        handle.write('{"key": "b:00:2222", "outcome": {"dataset"\n')  # truncated
+    _append_outcome(path, "c:00:3333", _outcome(published_findings=2))
+
+    loaded = _load_checkpoint(path)
+    assert set(loaded) == {"a:00:1111", "c:00:3333"}
+
+
+def test_an_atomic_write_leaves_no_half_file(tmp_path: Path) -> None:
+    from agentic_analytics.evaluation.real_model import _atomic_write
+
+    path = tmp_path / "nested" / "meta.json"
+    _atomic_write(path, '{"a": 1}')
+    assert json.loads(path.read_text()) == {"a": 1}
+    assert not list(path.parent.glob("*.tmp")), "a temp file was left behind"
+
+
+async def test_resume_skips_completed_questions(tmp_path: Path) -> None:
+    from agentic_analytics.evaluation.real_model import run_real_model_evaluation
+
+    cfg = Settings(provider_mode="fake", live_analytics_enabled=True)
+    checkpoint = tmp_path / "ckpt"
+
+    first = await run_real_model_evaluation(
+        cfg,
+        tmp_path / "data",
+        dataset_ids=["sales"],
+        include_warehouse=False,
+        max_questions=2,
+        checkpoint_dir=checkpoint,
+    )
+    assert first["questions_asked"] == 2
+    lines_after_first = (checkpoint / "outcomes.jsonl").read_text().splitlines()
+
+    second = await run_real_model_evaluation(
+        cfg,
+        tmp_path / "data",
+        dataset_ids=["sales"],
+        include_warehouse=False,
+        max_questions=2,
+        checkpoint_dir=checkpoint,
+    )
+    assert second["questions_asked"] == 2
+    # Nothing was re-run, so nothing new was appended.
+    assert (checkpoint / "outcomes.jsonl").read_text().splitlines() == lines_after_first
+
+
+async def test_resume_refuses_a_checkpoint_from_a_different_model(
+    tmp_path: Path,
+) -> None:
+    """Silently mixing two models would produce a report about neither."""
+    from agentic_analytics.evaluation.real_model import run_real_model_evaluation
+
+    checkpoint = tmp_path / "ckpt"
+    await run_real_model_evaluation(
+        Settings(provider_mode="fake", live_analytics_enabled=True),
+        tmp_path / "data",
+        dataset_ids=["sales"],
+        include_warehouse=False,
+        max_questions=1,
+        checkpoint_dir=checkpoint,
+    )
+
+    with pytest.raises(RuntimeError, match="different configuration"):
+        await run_real_model_evaluation(
+            Settings(provider_mode="local", ollama_model="other:1b"),
+            tmp_path / "data",
+            dataset_ids=["sales"],
+            include_warehouse=False,
+            max_questions=1,
+            checkpoint_dir=checkpoint,
+        )
+
+
+async def test_a_status_file_makes_a_stalled_run_diagnosable(tmp_path: Path) -> None:
+    from agentic_analytics.evaluation.real_model import run_real_model_evaluation
+
+    checkpoint = tmp_path / "ckpt"
+    await run_real_model_evaluation(
+        Settings(provider_mode="fake", live_analytics_enabled=True),
+        tmp_path / "data",
+        dataset_ids=["sales"],
+        include_warehouse=False,
+        max_questions=1,
+        checkpoint_dir=checkpoint,
+    )
+    status = json.loads((checkpoint / "status.json").read_text())
+    assert status["finished"] is True
+    assert status["total"] == 1
+    assert "environment" in status
+
+
+# ------------------------------------------------------ question timeout
+async def test_a_question_that_runs_long_is_cut_off(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A per-call timeout does not bound a question.
+
+    Forty calls at three minutes each is two hours for one answer, which is
+    exactly how the first sweep became unreadable.
+    """
+    import asyncio
+
+    from agentic_analytics.evaluation.datasets import EvalQuestion
+
+    async def hang(*args: Any, **kwargs: Any) -> Any:
+        await asyncio.sleep(30)
+
+    monkeypatch.setattr("agentic_analytics.evaluation.real_model.run_analysis", hang)
+    built = build_all(tmp_path)
+    path = built["sales"]
+
+    outcome = await evaluate_question(
+        EvalQuestion("q", "aggregate"),
+        "sales",
+        lambda: open_upload_session(path, path.name, "csv"),
+        Settings(provider_mode="fake", live_analytics_enabled=True),
+        question_timeout_seconds=0.3,
+    )
+
+    assert outcome.question_timeout is True
+    assert "question_timeout" in outcome.outcome_flags
+    assert outcome.error == "", "a timeout is not a crash"
+    assert outcome.runtime_seconds < 10
+
+
+# ------------------------------------------------------------ provenance
+def test_the_environment_fingerprint_records_what_was_evaluated() -> None:
+    """`model = qwen3:4b` alone cannot be reproduced or trusted."""
+    from agentic_analytics.evaluation.real_model import environment_fingerprint
+
+    info = environment_fingerprint(
+        Settings(provider_mode="local", ollama_model="qwen3:4b", ollama_think=False)
+    )
+    assert info["provider_mode"] == "local"
+    assert info["model"] == "qwen3:4b"
+    assert info["think"] is False
+    assert info["dataset_seed"] == SEED
+    assert info["harness_schema"] >= 2
+    # Budgets are part of what was evaluated.
+    assert "max_llm_calls" in info and "max_tool_calls_per_task" in info
+
+
+def test_a_missing_optional_provenance_field_does_not_fail_the_run() -> None:
+    """Best effort: no metadata lookup may abort an evaluation."""
+    from agentic_analytics.evaluation.real_model import environment_fingerprint
+
+    info = environment_fingerprint(Settings(provider_mode="cloud", cloud_model="m"))
+    assert info["model"] == "m"
+    # Ollama-only fields are simply absent rather than raising.
+    assert "quantization" not in info or info["quantization"] is None

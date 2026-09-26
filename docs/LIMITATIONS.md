@@ -308,7 +308,44 @@ is up and the acceptance run has passed against it.
 
 ---
 
-## 11. Deliberately out of scope
+## 11. Real-model evaluation, and what it has and has not shown
+
+The deterministic benchmark measures the engine, not a model. A separate
+opt-in evaluation (`make`-less: `evaluate-real-model`) drives an actual model
+over seven datasets with deliberately unrelated vocabularies. It has no
+answer key and no pass mark; it records what a model *did*, including which
+gate withheld what.
+
+**The qwen3:4b run is a pre-fix, incomplete diagnostic — not a model
+evaluation.** It published nothing and withheld 17 of 17 findings, but the
+run was contaminated by five defects it exposed, and it deadlocked before
+finishing. It should not be cited as evidence about that model. What it
+established is that the engine had: a thinking model exhausting its output
+budget before answering, a planner whose output was silently discarded on
+metric-free datasets, a worker prompt that named no tables, a verifier that
+rejected findings whose numbers were correct, and a provider that could hang
+indefinitely. All five are fixed.
+
+**What the evaluation can now distinguish**, and previously could not:
+
+- *transport failure* from *JSON failure* from *schema failure*. Watching
+  only the provider call recorded "returned a dict" as success, so a model
+  breaking its contract looked identical to one honouring it, and a timeout
+  was counted as a format error.
+- *the model planned this* from *the engine rescued it*. A fallback plan is
+  good for the product and hides weak planning, so redirects and fallbacks
+  are counted separately and a rescued run is never reported as a planning
+  success.
+- *failure* from *safe refusal*. An unanswerable question that produces no
+  finding is the desired behaviour, and is flagged as such.
+
+Runs are checkpointed per question and resumable, with a status file so a
+stalled sweep is diagnosable while it runs. There is a whole-question
+timeout as well as a per-call one.
+
+---
+
+## 12. Deliberately out of scope
 
 No authentication, billing, multi-tenant persistence or scheduled jobs. No
 arbitrary Python or notebook execution by the model. No vector database, RAG

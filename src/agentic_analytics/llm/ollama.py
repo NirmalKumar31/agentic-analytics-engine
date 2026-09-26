@@ -13,6 +13,7 @@ from typing import Any
 import httpx
 
 from agentic_analytics.llm.base import (
+    FailureKind,
     LLMError,
     LLMProvider,
     LLMRequest,
@@ -101,7 +102,12 @@ class OllamaProvider(LLMProvider):
                 error=str(exc) or "(no message)",
                 model=self.model,
             )
-            raise LLMError(sanitize_provider_error(exc)) from None
+            kind: FailureKind = (
+                "timeout"
+                if isinstance(exc, TimeoutError | httpx.TimeoutException)
+                else "transport_error"
+            )
+            raise LLMError(sanitize_provider_error(exc), kind=kind) from None
 
         content = (body.get("message") or {}).get("content", "")
         self.usage.record(

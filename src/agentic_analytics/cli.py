@@ -130,6 +130,18 @@ def evaluate_real_model(
     data_dir: Annotated[
         Path | None, typer.Option(help="Where to generate the evaluation datasets")
     ] = None,
+    question_timeout_seconds: Annotated[
+        float, typer.Option(help="Hard ceiling on one question, in seconds")
+    ] = 600.0,
+    resume: Annotated[
+        bool, typer.Option(help="Skip questions a previous run already completed")
+    ] = True,
+    resume_incompatible: Annotated[
+        bool, typer.Option(help="Resume even if the model or build differs")
+    ] = False,
+    checkpoint_dir: Annotated[
+        Path | None, typer.Option(help="Where to keep the resumable checkpoint")
+    ] = None,
 ) -> None:
     """Evaluate a *real* model against varied datasets. Opt-in; never in CI.
 
@@ -160,10 +172,20 @@ def evaluate_real_model(
             dataset_ids=[d.strip() for d in datasets.split(",")] if datasets else None,
             include_warehouse=not skip_warehouse,
             max_questions=questions,
+            question_timeout_seconds=question_timeout_seconds,
+            checkpoint_dir=checkpoint_dir,
+            resume=resume,
+            resume_incompatible_ok=resume_incompatible,
         )
     )
 
-    table = Table(title=f"Real-model evaluation ({report['provider_mode']}: {report['model']})")
+    env = report["environment"]
+    table = Table(
+        title=(
+            f"Real-model evaluation -- {env['provider_mode']}: {env['model']} "
+            f"({env.get('quantization', '?')}, {env.get('parameter_size', '?')})"
+        )
+    )
     for column, justify in (
         ("dataset", "left"),
         ("kind", "left"),
@@ -172,6 +194,7 @@ def evaluate_real_model(
         ("tools", "right"),
         ("pub", "right"),
         ("held", "right"),
+        ("plan", "left"),
         ("calls", "right"),
         ("secs", "right"),
     ):
@@ -179,18 +202,30 @@ def evaluate_real_model(
     for outcome in report["outcomes"]:
         if outcome["error"]:
             status = "[red]crash[/red]"
+        elif outcome["question_timeout"]:
+            status = "[red]t/o[/red]"
         elif outcome["completed"]:
             status = "[green]yes[/green]"
         else:
             status = "[yellow]stop[/yellow]"
+        # Whether the model planned this itself, or the engine rescued it.
+        if outcome["fallback_plan_used"]:
+            plan = "[yellow]fallback[/yellow]"
+        elif outcome["tasks_redirected_by_engine"]:
+            plan = "[yellow]redirect[/yellow]"
+        elif outcome["model_plan_directly_executable"]:
+            plan = "[green]direct[/green]"
+        else:
+            plan = "-"
         table.add_row(
             outcome["dataset"],
             outcome["kind"],
-            outcome["question"][:44],
+            outcome["question"][:40],
             status,
             str(outcome["tool_calls"]),
             str(outcome["published_findings"]),
             str(outcome["withheld_findings"]),
+            plan,
             str(outcome["provider_calls"]),
             f"{outcome['runtime_seconds']:.0f}",
         )

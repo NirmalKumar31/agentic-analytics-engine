@@ -33,7 +33,7 @@ from __future__ import annotations
 
 import json
 
-from agentic_analytics.agents.base import ask, bullet_list, parse_into, schema_of
+from agentic_analytics.agents.base import ask_into, bullet_list
 from agentic_analytics.agents.prompts import REPORTER
 from agentic_analytics.agents.schemas import (
     AnalysisReport,
@@ -80,12 +80,12 @@ async def write_report(
         return _empty_report(question, limitations)
 
     try:
-        payload = await ask(
+        payload = await ask_into(
             provider,
+            ReportPlan,
             role="reporter",
             system=REPORTER,
             user=_prompt(question, findings, limitations),
-            schema=schema_of(ReportPlan),
             context={
                 "question": question,
                 "findings": [json.loads(f.model_dump_json()) for f in findings],
@@ -93,7 +93,7 @@ async def write_report(
             },
             max_tokens=1024,
         )
-        plan = parse_into(ReportPlan, payload, "reporter")
+        plan = payload
     except LLMError as exc:
         log.warning("report_plan_failed", error=str(exc))
         return _assemble(question, findings, _default_plan(findings), [*limitations, str(exc)])
