@@ -135,7 +135,7 @@ async def test_a_question_runs_end_to_end_with_the_scripted_provider(
 
     assert outcome.dataset == "sales"
     assert outcome.error == "", outcome.error
-    assert outcome.provider_calls > 0
+    assert outcome.structured_agent_calls > 0
     assert outcome.tool_calls > 0
     assert outcome.runtime_seconds >= 0
 
@@ -170,9 +170,9 @@ def _outcome(**kwargs: Any) -> QuestionOutcome:
 
 def test_the_summary_counts_each_outcome_once() -> None:
     outcomes = [
-        _outcome(completed=True, published_findings=2, provider_calls=5),
-        _outcome(completed=False, stopped_reason="stopped", provider_calls=3),
-        _outcome(error="Boom: x", provider_calls=1),
+        _outcome(completed=True, published_findings=2, structured_agent_calls=5),
+        _outcome(completed=False, stopped_reason="stopped", structured_agent_calls=3),
+        _outcome(error="Boom: x", structured_agent_calls=1),
         _outcome(completed=True, schema_validation_failures=1, tool_call_failures=2),
     ]
     summary = _summarise(Settings(provider_mode="local"), outcomes, 12.5)
@@ -184,7 +184,7 @@ def test_the_summary_counts_each_outcome_once() -> None:
     assert summary["runs_publishing_at_least_one_finding"] == 1
     assert summary["runs_with_a_schema_validation_failure"] == 1
     assert summary["runs_with_a_failed_tool_call"] == 1
-    assert summary["total_provider_calls"] == 9
+    assert summary["total_structured_agent_calls"] == 9
     assert summary["is_deterministic"] is False
 
 
@@ -471,3 +471,158 @@ def test_a_missing_optional_provenance_field_does_not_fail_the_run() -> None:
     assert info["model"] == "m"
     # Ollama-only fields are simply absent rather than raising.
     assert "quantization" not in info or info["quantization"] is None
+
+
+# ------------------------------------------ honest refusal classification
+@pytest.mark.parametrize(
+    ("failure", "value"),
+    [
+        ("question_timeout", True),
+        ("error", "RuntimeError: boom"),
+        ("timeout_failures", 1),
+        ("transport_failures", 1),
+        ("schema_validation_failures", 1),
+        ("json_parse_failures", 1),
+        ("tool_call_failures", 1),
+    ],
+)
+def test_a_broken_run_is_not_called_a_refusal(failure: str, value: Any) -> None:
+    """Zero findings is not an intention if something failed.
+
+    A timeout, a schema failure and a failed tool call all produce no
+    published finding. Labelling those a "safe refusal" describes a
+    breakage as a decision, which is the most flattering possible reading
+    of a model that did not work.
+    """
+    from agentic_analytics.evaluation.real_model import _flags
+
+    outcome = _outcome(kind="unsupported", completed=True, **{failure: value})
+    flags = _flags(outcome)
+    assert "no_published_finding_on_unanswerable_question" not in flags, flags
+
+
+def test_a_clean_empty_run_on_an_unanswerable_question_is_recorded_as_such() -> None:
+    from agentic_analytics.evaluation.real_model import _flags
+
+    flags = _flags(_outcome(kind="unsupported", completed=True))
+    assert "no_published_finding_on_unanswerable_question" in flags
+    # Cautiously worded: there is no explicit "I decline" signal to read.
+    assert "safe_refusal" not in flags
+
+
+def test_an_answerable_question_with_no_findings_is_not_a_refusal() -> None:
+    from agentic_analytics.evaluation.real_model import _flags
+
+    flags = _flags(_outcome(kind="grouped", completed=True))
+    assert "no_published_finding_on_unanswerable_question" not in flags
+    assert "completed_no_candidate_findings" in flags
+
+
+# ------------------------------------------------- claim preservation
+async def test_a_withheld_claim_keeps_its_text_and_evidence(tmp_path: Path) -> None:
+    """The most interesting artifact in a run is the claim that was refused.
+
+    It used to be stored with an empty text, so the thing a model said that
+    the evidence did not support could not be reviewed at all.
+    """
+    from agentic_analytics.agents.schemas import (
+        CandidateFinding,
+        EvidenceCell,
+        TaskOutcome,
+        Verdict,
+    )
+    from agentic_analytics.evaluation.real_model import QuestionOutcome, _observe
+    from agentic_analytics.graph.runner import RunResult
+
+    candidate = CandidateFinding(
+        text="Revenue in the North doubled, which proves the campaign worked.",
+        kind="calculated_fact",
+        task_id="task_01",
+        result_ids=["res_1"],
+        evidence_cells=[
+            EvidenceCell(result_id="res_1", row=0, column="total", value=12.5, label="total")
+        ],
+        metric_ids=["revenue"],
+        claimed_change={"type": "difference", "from": 5.0, "to": 12.5, "stated": 7.5},
+    )
+    result = RunResult(
+        run_id="r",
+        question="q",
+        session_id="s",
+        dataset={},
+        report=None,
+        tasks=[TaskOutcome(task_id="task_01", findings=[candidate])],
+        rejected=[
+            Verdict(
+                finding_id=candidate.finding_id,
+                status="unsupported",
+                reason="The claim asserts causation from observational data.",
+                rule="causal_from_observational",
+            )
+        ],
+    )
+    outcome = _observe(
+        QuestionOutcome(dataset="d", question="q", kind="grouped", expectation=""),
+        result,
+        [],
+        {},
+    )
+
+    assert len(outcome.claims) == 1
+    claim = outcome.claims[0]
+    assert claim["published"] is False
+    assert claim["rule"] == "causal_from_observational"
+    assert "proves the campaign worked" in claim["text"], "the refused claim was lost"
+    assert claim["kind"] == "calculated_fact"
+    assert claim["task_id"] == "task_01"
+    assert claim["result_ids"] == ["res_1"]
+    assert claim["evidence_cells"][0]["column"] == "total"
+    assert claim["metric_ids"] == ["revenue"]
+    assert claim["claimed_change"]["stated"] == 7.5
+
+
+def test_a_published_claim_records_the_rule_that_accepted_it() -> None:
+    """`status=supported` without a rule says nothing about how."""
+    from agentic_analytics.agents.critic import publish
+    from agentic_analytics.agents.schemas import CandidateFinding, Verdict
+
+    candidate = CandidateFinding(
+        text="Revenue was 12.5.",
+        kind="calculated_fact",
+        task_id="t",
+        result_ids=["res_1"],
+        evidence_cells=[],
+        metric_ids=[],
+    )
+    published = publish(
+        candidate,
+        Verdict(
+            finding_id=candidate.finding_id,
+            status="supported",
+            reason="The wording matches the values in the cited result.",
+            rule="critic",
+        ),
+    )
+    assert published.verifier_rule == "critic"
+
+
+# --------------------------------------------- checkpoint SHA discipline
+def test_a_publishable_evaluation_must_not_mix_git_shas() -> None:
+    """`--resume-incompatible` is a debugging tool, not a reporting one.
+
+    Resuming across engine builds puts outcomes from two different systems
+    in one report and destroys the attribution the evaluation exists for.
+    The flag stays, because interrupted debugging runs are real, but the
+    default refuses and the docstring says why.
+    """
+    import inspect
+
+    from agentic_analytics.evaluation.real_model import run_real_model_evaluation
+
+    signature = inspect.signature(run_real_model_evaluation)
+    assert signature.parameters["resume_incompatible_ok"].default is False
+    assert signature.parameters["resume"].default is True
+
+    source = inspect.getsource(run_real_model_evaluation)
+    assert "git_sha" in source, "the SHA is not part of checkpoint compatibility"
+    assert "harness_schema" in source

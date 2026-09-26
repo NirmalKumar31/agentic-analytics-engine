@@ -166,6 +166,7 @@ def publish(finding: CandidateFinding, verdict: Verdict) -> PublishedFinding:
         metric_ids=finding.metric_ids,
         verification_status=verdict.status,
         verifier_reason=verdict.reason,
+        verifier_rule=verdict.rule,
         numeric_check=verdict.numeric_check,
         # Dropped when the verifier could not read it. An unreadable change
         # asserts nothing, so it does not fail the finding -- but it must
@@ -177,6 +178,49 @@ def publish(finding: CandidateFinding, verdict: Verdict) -> PublishedFinding:
             else finding.claimed_change
         ),
     )
+
+
+def _render_cells(finding: CandidateFinding, by_id: dict[str, ResultSnapshot]) -> str:
+    """Show the critic what is *in* each cited cell, not what was claimed.
+
+    `EvidenceCell.value` is optional and a proposer often leaves it unset.
+    This line used to render it directly, so every unset value reached the
+    critic as `= None` -- and the critic, reading exactly what it was shown,
+    rejected correct findings on the grounds that the cited cell was empty.
+    A real local model lost four true claims that way in one probe: the
+    engine held the right value the whole time and never looked it up.
+
+    Resolution goes through `agent_cell`, so a withheld upload cell is still
+    withheld here. A claimed value that disagrees with the result is shown
+    alongside rather than silently replaced, because a miscopied cell is
+    something the critic should see.
+    """
+    lines: list[str] = []
+    for cell in finding.evidence_cells:
+        reference = f"{cell.result_id}[{cell.row}].{cell.column}"
+        label = f" ({cell.label})" if cell.label else ""
+        snapshot = by_id.get(cell.result_id)
+        if snapshot is None:
+            lines.append(f"- {reference} = (this result was not cited or is unavailable)")
+            continue
+        try:
+            value = snapshot.agent_cell(cell.row, cell.column)
+        except (KeyError, IndexError):
+            lines.append(f"- {reference} = (no such cell in that result)")
+            continue
+        line = f"- {reference} = {value}{label}"
+        if cell.value is not None and not _same_scalar(cell.value, value):
+            line += f"  [the finding states {cell.value} for this cell]"
+        lines.append(line)
+    return "\n".join(lines)
+
+
+def _same_scalar(claimed: Any, actual: Any) -> bool:
+    if isinstance(claimed, bool) or isinstance(actual, bool):
+        return claimed is actual
+    if isinstance(claimed, int | float) and isinstance(actual, int | float):
+        return abs(float(claimed) - float(actual)) <= max(0.005, abs(float(actual)) * 1e-6)
+    return str(claimed).strip() == str(actual).strip()
 
 
 def _critic_prompt(finding: CandidateFinding, cited: list[ResultSnapshot]) -> str:
@@ -196,10 +240,7 @@ def _critic_prompt(finding: CandidateFinding, cited: list[ResultSnapshot]) -> st
             )
         blocks.append("\n".join(lines))
 
-    cells = "\n".join(
-        f"- {c.result_id}[{c.row}].{c.column} = {c.value} ({c.label})"
-        for c in finding.evidence_cells
-    )
+    cells = _render_cells(finding, {s.result_id: s for s in cited})
     return f"""\
 PROPOSED FINDING
 text: {finding.text}

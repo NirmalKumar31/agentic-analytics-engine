@@ -133,7 +133,9 @@ class QuestionOutcome:
     #: A refusal on an unanswerable question is the desired behaviour.
     outcome_flags: list[str] = field(default_factory=list)
 
-    provider_calls: int = 0
+    structured_agent_calls: int = 0
+    provider_request_attempts: int = 0
+    provider_successful_responses: int = 0
     input_tokens: int = 0
     output_tokens: int = 0
     runtime_seconds: float = 0.0
@@ -183,33 +185,80 @@ def _observe(
         rule = verdict.rule or "unspecified"
         outcome.withheld_rules[rule] = outcome.withheld_rules.get(rule, 0) + 1
 
-    # --- every claim, for human review. Synthetic data, so the finding text
-    # is safe to keep; raw rows and prompts are not stored anywhere.
+    # --- every claim, published or withheld, for human review.
+    #
+    # A withheld claim used to be stored with an empty text, which made the
+    # most interesting artifact in the run -- the thing a model said that
+    # the evidence did not support -- impossible to review. The candidate
+    # is recovered from the task outcomes by id. Synthetic data, so finding
+    # text is safe to keep; raw rows and prompts are not stored anywhere.
+    candidates = {finding.finding_id: finding for task in result.tasks for finding in task.findings}
+
+    def claim(
+        finding_id: str,
+        *,
+        published: bool,
+        status: str,
+        rule: str,
+        reason: str,
+        text: str = "",
+        kind: str = "",
+        task_id: str | None = None,
+        result_ids: list[str] | None = None,
+        evidence_cells: list[dict[str, Any]] | None = None,
+        metric_ids: list[str] | None = None,
+        claimed_change: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        source = candidates.get(finding_id)
+        return {
+            "finding_id": finding_id,
+            "text": text or (source.text if source else ""),
+            "kind": kind or (source.kind if source else ""),
+            "task_id": task_id or (source.task_id if source else None),
+            "result_ids": result_ids
+            if result_ids is not None
+            else (list(source.result_ids) if source else []),
+            "evidence_cells": evidence_cells
+            if evidence_cells is not None
+            else ([c.model_dump() for c in source.evidence_cells] if source else []),
+            "metric_ids": metric_ids
+            if metric_ids is not None
+            else (list(source.metric_ids) if source else []),
+            "claimed_change": claimed_change
+            if claimed_change is not None
+            else (source.claimed_change if source else None),
+            "published": published,
+            "status": status,
+            "rule": rule,
+            "reason": reason[:300],
+        }
+
     for finding in result.published:
         outcome.claims.append(
-            {
-                "finding_id": finding.finding_id,
-                "text": finding.text,
-                "kind": finding.kind,
-                "result_ids": list(finding.result_ids),
-                "published": True,
-                "status": finding.verification_status,
-                "rule": "",
-                "reason": finding.verifier_reason[:300],
-            }
+            claim(
+                finding.finding_id,
+                published=True,
+                status=finding.verification_status,
+                rule=finding.verifier_rule,
+                reason=finding.verifier_reason,
+                text=finding.text,
+                kind=finding.kind,
+                task_id=finding.task_id,
+                result_ids=list(finding.result_ids),
+                evidence_cells=[c.model_dump() for c in finding.evidence_cells],
+                metric_ids=list(finding.metric_ids),
+                claimed_change=finding.claimed_change,
+            )
         )
     for verdict in result.rejected:
         outcome.claims.append(
-            {
-                "finding_id": verdict.finding_id,
-                "text": "",
-                "kind": "",
-                "result_ids": [],
-                "published": False,
-                "status": verdict.status,
-                "rule": verdict.rule,
-                "reason": verdict.reason[:300],
-            }
+            claim(
+                verdict.finding_id,
+                published=False,
+                status=verdict.status,
+                rule=verdict.rule,
+                reason=verdict.reason,
+            )
         )
 
     report = result.report
@@ -234,7 +283,11 @@ def _record_calls(outcome: QuestionOutcome, calls: list[StructuredCall]) -> None
     outcome.transport_failures = outcome.failures_by_stage.get("transport_error", 0)
     outcome.timeout_failures = outcome.failures_by_stage.get("timeout", 0)
     outcome.budget_failures = outcome.failures_by_stage.get("budget_exhausted", 0)
-    outcome.provider_calls = len(calls)
+    # Structured *agent* calls, which is not the same thing as network
+    # requests to a provider: one agent call is one ask-and-validate, and a
+    # request that never returned is still a request. Cloud cost accounting
+    # needs the attempt count, not this one.
+    outcome.structured_agent_calls = len(calls)
 
 
 def _flags(outcome: QuestionOutcome) -> list[str]:
@@ -260,9 +313,27 @@ def _flags(outcome: QuestionOutcome) -> list[str]:
         flags.append("completed_no_candidate_findings")
     if outcome.completed and outcome.candidate_findings and not outcome.published_findings:
         flags.append("completed_all_findings_withheld")
-    if outcome.kind in {"ambiguous", "unsupported"} and not outcome.published_findings:
-        # The desired behaviour for a question the data cannot answer.
-        flags.append("safe_refusal")
+    # Publishing nothing is only a *refusal* when the run got there cleanly.
+    # A timeout, a schema failure or a failed tool call also produce zero
+    # findings, and calling those a refusal would describe a breakage as an
+    # intention. The wording is deliberately cautious too: the architecture
+    # has no explicit "I decline" signal, so this says what was observed.
+    clean_path = (
+        outcome.completed
+        and not outcome.question_timeout
+        and not outcome.error
+        and not outcome.transport_failures
+        and not outcome.timeout_failures
+        and not outcome.json_parse_failures
+        and not outcome.schema_validation_failures
+        and not outcome.tool_call_failures
+    )
+    if (
+        outcome.kind in {"ambiguous", "unsupported"}
+        and clean_path
+        and not outcome.published_findings
+    ):
+        flags.append("no_published_finding_on_unanswerable_question")
     if outcome.fallback_plan_used or outcome.tasks_redirected_by_engine:
         flags.append("engine_rescued")
     if outcome.model_plan_directly_executable:
@@ -327,6 +398,8 @@ async def evaluate_question(
         outcome.runtime_seconds = round(time.monotonic() - started, 2)
         outcome.input_tokens = int(getattr(provider.usage, "input_tokens", 0))
         outcome.output_tokens = int(getattr(provider.usage, "output_tokens", 0))
+        outcome.provider_request_attempts = int(getattr(provider.usage, "attempts", 0))
+        outcome.provider_successful_responses = int(getattr(provider.usage, "successes", 0))
         await provider.aclose()
         manager.close_all()
     return outcome
@@ -647,7 +720,15 @@ def _summarise(cfg: Settings, outcomes: list[QuestionOutcome], wall_clock: float
         "runs_safely_refusing": count(lambda o: "safe_refusal" in o.outcome_flags),
         "outcome_flag_counts": _merge_counts(dict.fromkeys(o.outcome_flags, 1) for o in outcomes),
         "runs_with_a_failed_tool_call": count(lambda o: o.tool_call_failures > 0),
-        "total_provider_calls": sum(o.provider_calls for o in outcomes),
+        # Three different things, previously one. An agent call is an
+        # ask-and-validate; an attempt is a request that left the process
+        # whether or not it came back; a success is one that answered.
+        # Cloud cost follows attempts.
+        "total_structured_agent_calls": sum(o.structured_agent_calls for o in outcomes),
+        "total_provider_request_attempts": sum(o.provider_request_attempts for o in outcomes),
+        "total_provider_successful_responses": sum(
+            o.provider_successful_responses for o in outcomes
+        ),
         "total_input_tokens": sum(o.input_tokens for o in outcomes),
         "total_output_tokens": sum(o.output_tokens for o in outcomes),
         "total_candidate_findings": sum(o.candidate_findings for o in outcomes),

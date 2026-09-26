@@ -33,6 +33,7 @@ from agentic_analytics.api.app import create_app
 from agentic_analytics.api.runs import RunRecord, RunRegistry
 from agentic_analytics.config import Settings
 from agentic_analytics.events import EventBus
+from agentic_analytics.warehouse.session import SessionManager, open_demo_session
 
 REPO = Path(__file__).resolve().parents[2]
 
@@ -387,3 +388,182 @@ def test_a_normal_run_is_unaffected_by_any_of_this(warehouse_dir: Path, tmp_path
             time.sleep(0.2)
 
     assert status == "completed", status
+
+
+# ------------------------------- a task that will not stop when asked
+async def test_cancellation_reports_work_that_did_not_finish() -> None:
+    """Requesting cancellation is not achieving it.
+
+    The previous version suppressed the grace-period `TimeoutError` and
+    returned a count, so a caller proceeded to close a session whose task
+    was still running. The result now says so.
+    """
+    registry = RunRegistry()
+    record = registry.create("ses_stubborn", "q")
+    release = asyncio.Event()
+
+    async def ignores_cancellation() -> None:
+        # Genuinely uncooperative: it swallows every cancellation until it
+        # is ready. A task mid-`finally`, or blocked in an uninterruptible
+        # call, behaves the same way from the outside.
+        deadline = time.time() + 15
+        while not release.is_set() and time.time() < deadline:
+            try:
+                await asyncio.sleep(0.02)
+            except asyncio.CancelledError:
+                continue
+
+    record.task = asyncio.create_task(ignores_cancellation())
+    await asyncio.sleep(0)
+
+    result = await registry.cancel_session_detailed("ses_stubborn", grace_seconds=0.2)
+
+    assert result.requested == 1
+    assert result.terminal == 0
+    assert result.timed_out == 1
+    assert result.all_terminal is False
+    assert result.active_run_ids == [record.run_id]
+
+    # And once it does let go, a retry finds everything terminal.
+    release.set()
+    async with asyncio.timeout(5):
+        await asyncio.gather(record.task, return_exceptions=True)
+    again = await registry.cancel_session_detailed("ses_stubborn", grace_seconds=0.5)
+    assert again.requested == 0, "the run is still reported as active"
+
+
+def test_a_session_is_not_closed_while_a_run_still_holds_it(
+    warehouse_dir: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The whole invariant, end to end through the API.
+
+    A task that refuses to finish within the grace period must leave its
+    session open, closing, and refusing new work -- and the DELETE must not
+    claim the data is gone.
+    """
+    started = threading.Event()
+    release = threading.Event()
+
+    async def stubborn(*args: Any, **kwargs: Any) -> Any:
+        started.set()
+        # Swallows cancellation until released, so the grace period really
+        # does expire with work still live.
+        # Swallows cancellation until released or the deadline passes, so
+        # the grace period really expires with work still live -- but it
+        # always exits, or it would hang the test client's shutdown.
+        deadline = time.time() + 15
+        while not release.is_set() and time.time() < deadline:
+            try:
+                await asyncio.sleep(0.05)
+            except asyncio.CancelledError:
+                continue
+        raise asyncio.CancelledError
+
+    monkeypatch.setattr("agentic_analytics.api.app.run_analysis", stubborn)
+    cfg = _settings(
+        warehouse_dir, tmp_path, max_concurrent_analyses=2, session_cancel_grace_seconds=0.3
+    )
+
+    with TestClient(create_app(cfg)) as client:
+        session_id = client.post("/api/datasets/demo").json()["session_id"]
+        client.post("/api/analyses", json={"session_id": session_id, "question": "one"})
+        assert started.wait(10), "the analysis never started"
+
+        deleted = client.delete(f"/api/datasets/{session_id}")
+
+        # Honest: cleanup is pending, so it does not say "deleted".
+        assert deleted.status_code == 202, deleted.text[:200]
+        assert deleted.json()["status"] == "closing"
+
+        # It refuses new analyses while closing.
+        refused = client.post("/api/analyses", json={"session_id": session_id, "question": "two"})
+        assert refused.status_code in (409, 404), refused.status_code
+
+        # Letting the task finish allows the deferred close to complete.
+        release.set()
+        deadline = time.time() + 20
+        while time.time() < deadline:
+            if client.get(f"/api/datasets/{session_id}").status_code == 404:
+                break
+            time.sleep(0.2)
+
+        assert client.get(f"/api/datasets/{session_id}").status_code == 404
+
+
+def test_a_deferred_close_does_not_affect_another_session(
+    warehouse_dir: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """One stuck teardown must not take the service with it."""
+    started = threading.Event()
+    release = threading.Event()
+
+    async def stubborn(*args: Any, **kwargs: Any) -> Any:
+        started.set()
+        # Swallows cancellation until released or the deadline passes, so
+        # the grace period really expires with work still live -- but it
+        # always exits, or it would hang the test client's shutdown.
+        deadline = time.time() + 15
+        while not release.is_set() and time.time() < deadline:
+            try:
+                await asyncio.sleep(0.05)
+            except asyncio.CancelledError:
+                continue
+        raise asyncio.CancelledError
+
+    monkeypatch.setattr("agentic_analytics.api.app.run_analysis", stubborn)
+    cfg = _settings(
+        warehouse_dir, tmp_path, max_concurrent_analyses=3, session_cancel_grace_seconds=0.3
+    )
+
+    with TestClient(create_app(cfg)) as client:
+        stuck = client.post("/api/datasets/demo").json()["session_id"]
+        client.post("/api/analyses", json={"session_id": stuck, "question": "one"})
+        assert started.wait(10)
+        assert client.delete(f"/api/datasets/{stuck}").status_code == 202
+
+        # A different browser opens its own dataset and is unaffected.
+        client.cookies.clear()
+        other = client.post("/api/datasets/demo")
+        assert other.status_code == 200
+        other_id = other.json()["session_id"]
+        assert client.get(f"/api/datasets/{other_id}").status_code == 200
+
+        release.set()
+
+
+def test_a_closing_session_is_not_evicted_by_ttl(warehouse_dir: Path) -> None:
+    """The janitor owns expiry, but not sessions the app is tearing down."""
+    manager = SessionManager(ttl_seconds=0.01)
+    session = manager.add(open_demo_session(warehouse_dir))
+    manager.begin_closing(session.session_id)
+    time.sleep(0.05)
+
+    assert manager.expire_stale() == 0, "a closing session was expired underneath a run"
+    assert manager.closing_session_ids() == [session.session_id]
+    assert session.state == "closing"
+    assert session.accepts_new_work is False
+    manager.close_all()
+
+
+def test_a_closing_session_is_not_evicted_for_capacity(warehouse_dir: Path) -> None:
+    manager = SessionManager(max_sessions=1, ttl_seconds=600)
+    first = manager.add(open_demo_session(warehouse_dir))
+    manager.begin_closing(first.session_id)
+
+    second = manager.add(open_demo_session(warehouse_dir))
+    # The closing session survives: something is still using it.
+    assert first.state == "closing"
+    assert first.session_id in manager.closing_session_ids()
+    assert manager.get(second.session_id, second.session_key) is second
+    manager.close_all()
+
+
+def test_a_closing_session_is_not_retired_by_a_replacement(warehouse_dir: Path) -> None:
+    """Opening another dataset must not force-close one mid-teardown."""
+    manager = SessionManager()
+    session = manager.add(open_demo_session(warehouse_dir))
+    manager.begin_closing(session.session_id)
+
+    assert manager.drop_by_key(session.session_key) == 0
+    assert session.state == "closing"
+    manager.close_all()

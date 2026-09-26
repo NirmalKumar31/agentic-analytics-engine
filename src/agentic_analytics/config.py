@@ -96,6 +96,11 @@ class Settings(BaseSettings):
     cloud_model: str = "claude-sonnet-5"
     cloud_api_key: str | None = None
     cloud_base_url: str = "https://api.anthropic.com"
+    #: Ceiling on one cloud model call, enforced by us and not only by the
+    #: HTTP client. Lower than the local default because there is no cold
+    #: model load to wait through: a hosted endpoint that has sent nothing
+    #: in two minutes is not about to start.
+    cloud_timeout_seconds: float = Field(default=120.0, gt=0)
 
     # When false the API refuses to start new live analyses and serves
     # recordings only. This is the safe public-demo posture.
@@ -128,6 +133,11 @@ class Settings(BaseSettings):
     #: session keeps its DuckDB connection and its uploaded bytes until
     #: somebody else happens to arrive.
     session_sweep_seconds: float = Field(default=45.0, gt=0)
+    #: How long a teardown waits for a cancelled analysis to unwind before
+    #: giving up and leaving the session in `closing` for the janitor to
+    #: retry. Short enough that a delete feels responsive, long enough that
+    #: an ordinary run finishes inside it.
+    session_cancel_grace_seconds: float = Field(default=5.0, gt=0)
 
     # Per-session DuckDB resource envelope. These belong in settings, not in
     # the warehouse module: the right values follow from the instance size

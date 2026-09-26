@@ -10,6 +10,7 @@ supported way to constrain the Messages API to a JSON schema.
 
 from __future__ import annotations
 
+import asyncio
 from typing import Any
 
 import httpx
@@ -50,6 +51,14 @@ class CloudProvider(LLMProvider):
                 kind="transport_error",
             )
         self.model = model
+        #: Hard ceiling on one call, enforced by us. The httpx timeout below
+        #: is kept as well; this is the backstop for when it does not fire.
+        #: Not hypothetical: an evaluation run against a local model wedged
+        #: for twenty minutes on one call with the socket ESTABLISHED, no
+        #: bytes moving and the client's read timeout never firing. The
+        #: failure mode is a property of "connection open, nothing arrives",
+        #: not of any one vendor, so the bound belongs on both providers.
+        self.call_timeout_seconds = timeout_seconds
         self._client = httpx.AsyncClient(
             base_url=base_url.rstrip("/"),
             timeout=httpx.Timeout(timeout_seconds),
@@ -61,7 +70,7 @@ class CloudProvider(LLMProvider):
         )
 
     async def complete_json(self, request: LLMRequest) -> dict[str, Any]:
-        self._check_budget()
+        self._check_budget(request.role)
         schema = request.schema_ or {"type": "object"}
         payload: dict[str, Any] = {
             "model": self.model,
@@ -79,11 +88,23 @@ class CloudProvider(LLMProvider):
             "tool_choice": {"type": "tool", "name": RESPONSE_TOOL},
         }
         try:
-            response = await self._client.post("/v1/messages", json=payload)
-            response.raise_for_status()
-            body = response.json()
+            async with asyncio.timeout(self.call_timeout_seconds):
+                response = await self._client.post("/v1/messages", json=payload)
+                response.raise_for_status()
+                body = response.json()
         except Exception as exc:
-            log.warning("cloud_call_failed", role=request.role, error=type(exc).__name__)
+            # The exception type carries more than the message does:
+            # `httpx.ReadTimeout` stringifies to the empty string, so a log
+            # line built from `str(exc)` alone reads `error=` and tells an
+            # operator nothing. Never log the response body or the headers:
+            # one of them is the API key.
+            log.warning(
+                "cloud_call_failed",
+                role=request.role,
+                error_type=type(exc).__name__,
+                error=str(exc) or "(no message)",
+                model=self.model,
+            )
             kind: FailureKind = (
                 "timeout"
                 if isinstance(exc, TimeoutError | httpx.TimeoutException)

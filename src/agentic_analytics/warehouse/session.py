@@ -54,6 +54,7 @@ from agentic_analytics.warehouse.metrics import MetricRegistry, load_registry
 log = get_logger(__name__)
 
 DatasetKind = Literal["demo", "upload"]
+SessionState = Literal["active", "closing", "closed"]
 
 # The single table an uploaded file becomes. The name is fixed by the server;
 # a user-supplied filename never reaches SQL.
@@ -168,6 +169,15 @@ class AnalysisSession:
         #: session itself only carries it so that every snapshot it produces
         #: inherits the same answer.
         self.withhold_raw_cells = False
+        #: ACTIVE -> CLOSING -> CLOSED.
+        #:
+        #: A session enters CLOSING the moment teardown is requested, which
+        #: is *before* its runs have stopped. While closing it refuses new
+        #: analyses but keeps its DuckDB connection open, because a run that
+        #: has not finished can still reach for it. Only when every run is
+        #: terminal does the connection actually close. Closing on a timer
+        #: instead is the use-after-close this state exists to prevent.
+        self.state: SessionState = "active"
         self.results = ResultStore()
         self.created_at = time.time()
         self.last_used_at = self.created_at
@@ -186,7 +196,18 @@ class AnalysisSession:
     def touch(self) -> None:
         self.last_used_at = time.time()
 
+    @property
+    def accepts_new_work(self) -> bool:
+        """False once teardown has been requested."""
+        return self.state == "active"
+
+    def begin_closing(self) -> None:
+        """Refuse new work. The connection stays open until runs finish."""
+        if self.state == "active":
+            self.state = "closing"
+
     def close(self) -> None:
+        self.state = "closed"
         with contextlib.suppress(Exception):  # close is best effort
             self.con.close()
         # Uploaded bytes are ephemeral: the scratch directory goes with the
@@ -344,8 +365,22 @@ class SessionManager:
         with self._lock:
             self._evict_locked()
             if len(self._sessions) >= self._max:
-                oldest = min(self._sessions.values(), key=lambda s: s.last_used_at)
-                self._drop_locked(oldest.session_id)
+                # Same rule as TTL eviction: a closing session is still in
+                # use by a run that has not finished, so it is not a
+                # candidate. If every session is closing the map exceeds its
+                # ceiling briefly and says so, which is better than handing
+                # a live analysis a closed connection to satisfy a count.
+                evictable = [s for s in self._sessions.values() if s.state != "closing"]
+                if evictable:
+                    oldest = min(evictable, key=lambda s: s.last_used_at)
+                    self._drop_locked(oldest.session_id)
+                else:
+                    log.warning(
+                        "session_manager_over_capacity",
+                        sessions=len(self._sessions),
+                        max_sessions=self._max,
+                        reason="every session is closing; none may be evicted",
+                    )
             self._sessions[session.session_id] = session
         log.info(
             "session_opened",
@@ -404,7 +439,9 @@ class SessionManager:
             return 0
         with self._lock:
             doomed = [
-                sid for sid, session in self._sessions.items() if session.authorises(session_key)
+                sid
+                for sid, session in self._sessions.items()
+                if session.authorises(session_key) and session.state != "closing"
             ]
             for sid in doomed:
                 self._drop_locked(sid)
@@ -441,6 +478,20 @@ class SessionManager:
             if not self._sessions:
                 return None
             return min(self._sessions.values(), key=lambda s: s.last_used_at).session_id
+
+    def begin_closing(self, session_id: str) -> bool:
+        """Mark a session as closing without touching its connection."""
+        with self._lock:
+            session = self._sessions.get(session_id)
+            if session is None:
+                return False
+            session.begin_closing()
+            return True
+
+    def closing_session_ids(self) -> list[str]:
+        """Sessions awaiting cleanup, for the janitor to retry."""
+        with self._lock:
+            return [sid for sid, s in self._sessions.items() if s.state == "closing"]
 
     def expire_stale(self) -> int:
         """Close every session past its TTL. Returns how many were closed.
@@ -487,8 +538,17 @@ class SessionManager:
             return len(self._sessions)
 
     def _evict_locked(self) -> None:
+        """Expire by TTL, but never a session the app is still tearing down.
+
+        A session in `closing` has had its runs cancelled but at least one
+        has not finished letting go of the connection. The application layer
+        owns that case and retries it; closing here on a timer would be
+        exactly the use-after-close the closing state exists to prevent.
+        """
         cutoff = time.time() - self._ttl
         for sid, session in list(self._sessions.items()):
+            if session.state == "closing":
+                continue
             if session.last_used_at < cutoff:
                 self._drop_locked(sid)
 

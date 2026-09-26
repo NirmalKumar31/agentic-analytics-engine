@@ -63,7 +63,7 @@ class OllamaProvider(LLMProvider):
         )
 
     async def complete_json(self, request: LLMRequest) -> dict[str, Any]:
-        self._check_budget()
+        self._check_budget(request.role)
         payload: dict[str, Any] = {
             "model": self.model,
             "stream": False,

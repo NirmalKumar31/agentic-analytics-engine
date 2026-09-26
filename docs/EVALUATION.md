@@ -212,3 +212,52 @@ Needs a running Ollama server and no credential. Expect lower task completion
 and candidate support, and much longer runtimes. The interesting numbers there
 are the verification ones: they measure how often the engine catches a real
 model overstating its results.
+
+### Resuming, and the one rule that matters
+
+The real-model harness checkpoints after every question, so an interrupted
+sweep continues rather than restarting. A checkpoint is only reused when the
+model, the provider, the harness schema and the **git SHA** all match what
+produced it.
+
+`--resume-incompatible` overrides that check. It exists because interrupted
+*debugging* runs are real and re-running twenty minutes of questions to reach
+the one that crashed is wasted time. It must never produce a number anyone
+reports.
+
+The reason is not bookkeeping fussiness. The engine is the thing under
+evaluation. Resuming across SHAs puts questions answered by two different
+builds into one report and silently attributes all of them to the second, so
+a fix that improved question 30 appears to have improved questions 1 through
+29 as well. A sweep whose outcomes came from more than one build measures
+nothing, and nothing in the report would show it.
+
+A publishable evaluation therefore starts from zero in a fresh checkpoint
+directory on a single SHA. `tests/evaluation/test_real_model_harness.py`
+pins the defaults that enforce this.
+
+## Probing one agent role
+
+The full sweep tells you a run published nothing. It does not tell you which
+layer failed, and the layers fail for opposite reasons: a model that cannot
+meet the evidence contract needs a different schema, a model obstructed by
+the request needs a different prompt, and tool results that deserved no
+conclusion need neither.
+
+```bash
+AAE_PROVIDER_MODE=local AAE_OLLAMA_MODEL=qwen2.5:7b-instruct \
+  aae probe-worker-findings --out probe.json
+```
+
+The probe hands the `worker_findings` role five fixed results built in
+`evaluation/worker_probe.py` -- a simple aggregate, a grouped ranking, a
+trend, a real statistical test, and one thin result that supports no
+conclusion at all. Because the results are known-good, anything that goes
+wrong afterwards belongs to the role. For every claim it records reference
+integrity (does the result exist, the row exist, the column exist, and does
+a copied value match), then runs the three real gates unmodified.
+
+`--schema-variant` and `--prompt-variant` vary one thing at a time, so
+"the model cannot do this" and "we asked badly" can be told apart rather
+than guessed between. It is a diagnostic: no pass mark, no score, and never
+part of CI.

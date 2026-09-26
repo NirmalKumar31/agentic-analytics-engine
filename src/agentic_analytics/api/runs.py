@@ -21,6 +21,26 @@ from agentic_analytics.logging import get_logger
 log = get_logger(__name__)
 
 
+@dataclass(frozen=True)
+class CancellationResult:
+    """What a cancellation actually achieved.
+
+    `requested` is how many runs were asked to stop; `terminal` is how many
+    genuinely finished within the grace period. When they differ, work is
+    still live and the session it holds must not be closed.
+    """
+
+    requested: int
+    terminal: int
+    timed_out: int
+    active_run_ids: list[str] = field(default_factory=list)
+
+    @property
+    def all_terminal(self) -> bool:
+        """True only when nothing can still touch the session."""
+        return self.timed_out == 0
+
+
 @dataclass
 class RunRecord:
     """One analysis run, live or finished."""
@@ -145,9 +165,9 @@ class RunRegistry:
     def active_for_session(self, session_id: str) -> list[RunRecord]:
         return [r for r in self._runs.values() if r.session_id == session_id and not r.is_terminal]
 
-    async def cancel_session(
+    async def cancel_session_detailed(
         self, session_id: str, *, reason: str = "the dataset was closed", grace_seconds: float = 5.0
-    ) -> int:
+    ) -> CancellationResult:
         """Stop every run using this session, and wait for it to unwind.
 
         This is the first half of the session teardown contract. A run holds
@@ -164,11 +184,16 @@ class RunRegistry:
         which close the provider and release the capacity slot -- have not
         run yet. Returning before they do is how a slot leaks.
 
-        Returns how many runs were stopped.
+        Returns what actually happened, not what was asked for. Requesting
+        cancellation and achieving it are different events, and the previous
+        version could not tell them apart: it suppressed the grace-period
+        `TimeoutError` and returned a count, so a caller proceeded to close a
+        session whose task was still running. The result below reports
+        terminality, and the caller is expected to act on it.
         """
         records = self.active_for_session(session_id)
         if not records:
-            return 0
+            return CancellationResult(requested=0, terminal=0, timed_out=0)
 
         for record in records:
             record.cancelled = True
@@ -178,18 +203,59 @@ class RunRegistry:
 
         tasks = [r.task for r in records if r.task and not r.task.done()]
         if tasks:
-            with contextlib.suppress(TimeoutError):
-                async with asyncio.timeout(grace_seconds):
-                    await asyncio.gather(*tasks, return_exceptions=True)
+            # `asyncio.wait`, not `gather` under a timeout. `gather` waits
+            # for its children even after cancelling them, so a task that
+            # swallows CancelledError defeats the timeout completely: the
+            # wait returned only when the task chose to finish, and the
+            # caller had no idea it had been held up. `wait` returns when
+            # the deadline passes and reports what is still pending.
+            await asyncio.wait(tasks, timeout=grace_seconds)
 
+        still_active = [r.run_id for r in records if r.task is not None and not r.task.done()]
         for record in records:
+            if record.run_id in still_active:
+                # Leaving the bus open: the task may yet emit, and closing a
+                # stream out from under a live run is the same class of
+                # mistake as closing its connection.
+                continue
             # The bus may already be closed by the run's own teardown;
             # closing twice is harmless and closing never is a hung stream.
             with contextlib.suppress(Exception):
                 record.bus.close()
 
-        log.info("runs_cancelled_for_session", session_id=session_id, count=len(records))
-        return len(records)
+        result = CancellationResult(
+            requested=len(records),
+            terminal=len(records) - len(still_active),
+            timed_out=len(still_active),
+            active_run_ids=still_active,
+        )
+        log.info(
+            "runs_cancelled_for_session",
+            session_id=session_id,
+            requested=result.requested,
+            terminal=result.terminal,
+            timed_out=result.timed_out,
+            active_run_ids=still_active,
+        )
+        return result
+
+    async def cancel_session(
+        self,
+        session_id: str,
+        *,
+        reason: str = "the dataset was closed",
+        grace_seconds: float = 5.0,
+    ) -> int:
+        """How many runs were stopped. Prefer `cancel_session_detailed`.
+
+        Kept because a count is all some callers need, but a count cannot
+        distinguish "stopped" from "asked to stop", so anything deciding
+        whether to close a session must use the detailed form.
+        """
+        result = await self.cancel_session_detailed(
+            session_id, reason=reason, grace_seconds=grace_seconds
+        )
+        return result.requested
 
     async def shutdown(self, grace_seconds: float = 5.0) -> None:
         """Cancel in-flight runs and wait for them to unwind.

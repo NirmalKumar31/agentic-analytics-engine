@@ -90,6 +90,25 @@ Rules, in order of importance:
 
 {DATA_IS_NOT_INSTRUCTIONS}"""
 
+#: Appended to the findings request. Names the fields and, more importantly,
+#: says that stating something is the expected outcome. A schema whose
+#: cheapest valid completion is `{"findings": []}`, under a system prompt
+#: that is four prohibitions and one instruction, gives a small model every
+#: reason to answer with nothing; a probe on fixed, known-good results found
+#: exactly that on the two cases where the right answer was most obvious.
+FINDINGS_FIELD_GUIDE = """\
+Return one finding for each thing these results establish. For each:
+
+- `text`: one sentence, with every number copied exactly from a cell above.
+- `kind`: `calculated_fact`, `statistical_result` or `interpretation`.
+- `result_ids`: the result_id lines the claim depends on.
+- `evidence_cells`: every cell the claim reads, as result_id, row number
+  (counting from 0) and column name.
+
+If these results genuinely establish nothing -- too few rows, no difference
+worth stating, nothing the objective asked about -- return an empty list.
+That is a real answer. Do not invent one to fill the space."""
+
 CRITIC = f"""\
 You check whether a proposed finding is supported by the results it cites.
 

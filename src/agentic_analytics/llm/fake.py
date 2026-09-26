@@ -60,7 +60,7 @@ class FakeProvider(LLMProvider):
     requires_credentials = False
 
     async def complete_json(self, request: LLMRequest) -> dict[str, Any]:
-        self._check_budget()
+        self._check_budget(request.role)
         handler = getattr(self, f"_role_{request.role}", None)
         if handler is None:
             raise KeyError(f"scripted provider has no handler for role {request.role!r}")

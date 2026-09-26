@@ -5,7 +5,7 @@ from __future__ import annotations
 import asyncio
 import json
 from pathlib import Path
-from typing import Annotated
+from typing import Annotated, Any
 
 import typer
 from rich.console import Console
@@ -195,7 +195,7 @@ def evaluate_real_model(
         ("pub", "right"),
         ("held", "right"),
         ("plan", "left"),
-        ("calls", "right"),
+        ("agent/req", "right"),
         ("secs", "right"),
     ):
         table.add_column(column, justify=justify)  # type: ignore[arg-type]
@@ -226,7 +226,7 @@ def evaluate_real_model(
             str(outcome["published_findings"]),
             str(outcome["withheld_findings"]),
             plan,
-            str(outcome["provider_calls"]),
+            f"{outcome['structured_agent_calls']}/{outcome['provider_request_attempts']}",
             f"{outcome['runtime_seconds']:.0f}",
         )
     console.print(table)
@@ -235,6 +235,124 @@ def evaluate_real_model(
     if out:
         write_report(report, out)
         console.print(f"wrote {out}")
+
+
+@app.command("probe-worker-findings")
+def probe_worker_findings(
+    out: Annotated[Path | None, typer.Option(help="Where to write the probe report")] = None,
+    cases: Annotated[
+        str | None, typer.Option(help="Comma-separated case ids, e.g. A,B. Default is all")
+    ] = None,
+    schema_variant: Annotated[
+        str, typer.Option(help="full (the domain object) or slim (ProposedFinding)")
+    ] = "full",
+    prompt_variant: Annotated[
+        str, typer.Option(help="terse (the original request) or guided (with the field guide)")
+    ] = "guided",
+) -> None:
+    """Probe the `worker_findings` role against fixed, known-good results.
+
+    A diagnostic, not a benchmark. It exists to separate three causes of an
+    empty run that look identical from the outside: a role that cannot meet
+    the evidence contract, a prompt that obstructs one that could, and
+    upstream tool results that deserved no conclusion. Supplying the results
+    here removes the third, so what is left is this layer.
+
+    Opt-in and never part of CI: it calls a real model.
+    """
+    from agentic_analytics.evaluation.worker_probe import (
+        probe_cases,
+        run_probe,
+        write_probe_report,
+    )
+    from agentic_analytics.llm.registry import build_provider
+
+    configure_logging("WARNING", json_output=False)
+    cfg = get_settings()
+    if cfg.provider_mode == "fake":
+        console.print(
+            "[red]AAE_PROVIDER_MODE=fake.[/red] This probe measures a real "
+            "model; set `local` for Ollama or `cloud` for a hosted API."
+        )
+        raise typer.Exit(code=2)
+
+    selected = probe_cases()
+    if cases:
+        wanted = {c.strip().upper() for c in cases.split(",")}
+        selected = [c for c in selected if c.case_id in wanted]
+        if not selected:
+            console.print(f"[red]no probe case matches {cases!r}[/red]")
+            raise typer.Exit(code=2)
+
+    provider = build_provider(cfg)
+
+    async def _run() -> dict[str, Any]:
+        try:
+            return await run_probe(provider, selected, schema_variant, prompt_variant)
+        finally:
+            await provider.aclose()
+
+    report = asyncio.run(_run())
+
+    table = Table(
+        title=(
+            f"worker_findings probe -- {report['provider']}: {report['model']} "
+            f"[schema={report['schema_variant']} prompt={report['prompt_variant']}]"
+        )
+    )
+    for column, justify in (
+        ("case", "left"),
+        ("situation", "left"),
+        ("stage", "left"),
+        ("emitted", "right"),
+        ("cells", "right"),
+        ("refs ok", "center"),
+        ("values ok", "center"),
+        ("shape", "center"),
+        ("numeric", "center"),
+        ("published", "right"),
+        ("secs", "right"),
+    ):
+        table.add_column(column, justify=justify)  # type: ignore[arg-type]
+
+    def _mark(value: bool | None) -> str:
+        if value is None:
+            return "-"
+        return "[green]yes[/green]" if value else "[red]no[/red]"
+
+    for case in report["case_reports"]:
+        claims = case["claims"]
+        published = sum(1 for c in claims if c["published"])
+        table.add_row(
+            case["case_id"],
+            case["title"][:34],
+            case["stage"] if case["schema_valid"] else f"[red]{case['stage']}[/red]",
+            str(case["findings_emitted"]),
+            str(sum(c["evidence_cell_count"] for c in claims)),
+            _mark(all(c["result_ids_valid"] for c in claims) if claims else None),
+            _mark(
+                all(c["evidence_values_copied"] == c["evidence_values_correct"] for c in claims)
+                if claims
+                else None
+            ),
+            _mark(all(c["claim_shape_ok"] for c in claims) if claims else None),
+            _mark(all(c["numeric_ok"] for c in claims if c["claim_shape_ok"]) if claims else None),
+            str(published),
+            f"{case['seconds']:.0f}",
+        )
+    console.print(table)
+    console.print(json.dumps(report["diagnosis"], indent=2))
+
+    # The text itself is the point of the probe: counts say a claim failed,
+    # only the wording says why.
+    for case in report["case_reports"]:
+        for claim in case["claims"]:
+            verdict = "published" if claim["published"] else f"withheld/{claim['verdict_rule']}"
+            console.print(f"\n[bold]{case['case_id']}[/bold] ({verdict}) {claim['text']}")
+
+    if out:
+        write_probe_report(report, out)
+        console.print(f"\nwrote {out}")
 
 
 @app.command()

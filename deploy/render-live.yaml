@@ -130,3 +130,9 @@ services:
         sync: false
       - key: AAE_CLOUD_MODEL
         value: claude-sonnet-5
+      # A call that is accepted and then never answered does not trip the
+      # HTTP client's read timeout. This bound is enforced by the
+      # application, and is what stops one stuck call from holding an
+      # analysis slot for the lifetime of the instance.
+      - key: AAE_CLOUD_TIMEOUT_SECONDS
+        value: "120"

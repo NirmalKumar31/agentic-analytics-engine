@@ -161,6 +161,11 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 # Ask which sessions are due, cancel their runs, and only
                 # then close them. Expiring a session out from under a live
                 # analysis is the same use-after-close as deleting one.
+                # Sessions whose close was deferred because a run was
+                # still alive. Retried first, so a stuck teardown finishes
+                # as soon as its work does rather than waiting for a TTL.
+                for session_id in sessions.closing_session_ids():
+                    await _close_session(session_id, "the dataset was closed")
                 for session_id in sessions.stale_session_ids():
                     await _close_session(session_id, "the dataset session expired")
                 closed = sessions.expire_stale()
@@ -371,19 +376,37 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             secure=cfg.session_cookie_secure,
         )
 
-    async def _close_session(session_id: str, reason: str) -> None:
+    async def _close_session(session_id: str, reason: str) -> bool:
         """Stop the session's runs, then close it. Never the other way round.
 
-        This is the teardown contract in one place. An analysis holds the
-        `AnalysisSession` and therefore its DuckDB connection; closing the
-        session while a run can still make a tool call gives that run a
-        closed connection, which surfaces to the visitor as an internal
-        error. `cancel_session` cancels *and awaits*, so by the time it
-        returns each task has run its `finally` -- provider closed, capacity
-        slot released -- and nothing is left that could touch the session.
+        Returns True when the session was actually destroyed.
+
+        This is the teardown contract in one place, and the ordering is the
+        contract. An analysis holds the `AnalysisSession` and therefore its
+        DuckDB connection; closing the session while a run can still make a
+        tool call hands that run a closed connection.
+
+        The session is marked *closing* first, so it stops accepting new
+        analyses while cancellation is in flight. Then every run is
+        cancelled and awaited. If any run is still alive when the grace
+        period expires, the session stays open and stays closing: the
+        janitor retries. Closing anyway -- which is what suppressing the
+        timeout amounted to -- is the use-after-close this exists to stop.
         """
-        await runs.cancel_session(session_id, reason=reason)
+        sessions.begin_closing(session_id)
+        result = await runs.cancel_session_detailed(
+            session_id, reason=reason, grace_seconds=cfg.session_cancel_grace_seconds
+        )
+        if not result.all_terminal:
+            log.warning(
+                "session_close_deferred",
+                session_id=session_id,
+                active_run_ids=result.active_run_ids,
+                timed_out=result.timed_out,
+            )
+            return False
         sessions.drop(session_id)
+        return True
 
     async def _retire_previous(request: Request) -> None:
         """End whatever session this browser already holds.
@@ -549,9 +572,22 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         session by guessing a handle.
         """
         _session_or_404(session_id, request)
-        await _close_session(session_id, "the dataset was deleted")
+        destroyed = await _close_session(session_id, "the dataset was deleted")
         _clear(response)
-        return {"status": "deleted"}
+        if destroyed:
+            return {"status": "deleted"}
+        # Honest about what happened. The analysis is cancelled and the
+        # session accepts nothing new, but its rows are still resident
+        # because a run has not finished letting go of them. Saying
+        # "deleted" here would be a claim about data that still exists.
+        response.status_code = 202
+        return {
+            "status": "closing",
+            "detail": (
+                "the dataset is closing: its analysis was cancelled and no new "
+                "work is accepted, and the data is removed once that finishes"
+            ),
+        }
 
     # ------------------------------------------------------------ analyses
     @app.post("/api/analyses", response_model=AnalysisStarted, status_code=202)
@@ -573,6 +609,13 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 headers={"Retry-After": str(int(retry_after) + 1)},
             )
         session = _session_or_404(request.session_id, http_request)
+        if not session.accepts_new_work:
+            # Closing or closed. Starting an analysis here would attach a
+            # new run to a connection that is on its way out.
+            raise HTTPException(
+                status_code=409,
+                detail="this dataset is closing and cannot accept new analyses",
+            )
         if runs.session_run_count(session.session_id) >= cfg.analyses_per_session:
             raise HTTPException(
                 status_code=429,

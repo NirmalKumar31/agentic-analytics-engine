@@ -14,7 +14,11 @@ from typing import Any
 from pydantic import BaseModel, Field
 
 from agentic_analytics.agents.base import ask_into
-from agentic_analytics.agents.prompts import WORKER_FINDINGS, WORKER_TOOL_CHOICE
+from agentic_analytics.agents.prompts import (
+    FINDINGS_FIELD_GUIDE,
+    WORKER_FINDINGS,
+    WORKER_TOOL_CHOICE,
+)
 from agentic_analytics.agents.schemas import (
     AnalysisTask,
     CandidateFinding,
@@ -289,7 +293,14 @@ RESULTS SO FAR
 Choose the next tool call, or set done to true if the objective is met."""
 
 
-def _findings_prompt(task: AnalysisTask, payloads: list[dict[str, Any]]) -> str:
+def _findings_prompt(
+    task: AnalysisTask,
+    payloads: list[dict[str, Any]],
+    field_guide: str = FINDINGS_FIELD_GUIDE,
+) -> str:
+    """The findings request. `field_guide` is a parameter so the diagnostic
+    probe can compare wordings against the one production runs, rather than
+    against a copy of it that has since drifted."""
     return f"""\
 TASK
 objective: {task.objective}
@@ -299,4 +310,6 @@ RESULTS
 {_results_digest(payloads)}
 
 State what these results show. Cite result_id and the specific cells for every
-claim. Do not state a number that is not in the results above."""
+claim. Do not state a number that is not in the results above.
+
+{field_guide}"""

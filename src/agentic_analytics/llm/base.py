@@ -72,22 +72,47 @@ class LLMRequest(BaseModel):
 
 @dataclass
 class LLMUsage:
-    """Call and token accounting for one run."""
+    """Request accounting for one run.
 
-    calls: int = 0
+    Attempts and successes are counted separately, and the ceiling is
+    enforced on **attempts**. It used to be enforced on successes, which
+    meant a failing provider consumed no budget at all: a run could time out
+    against a paid endpoint indefinitely and never reach its limit. For an
+    anonymous cloud deployment that is the difference between a budget and a
+    suggestion.
+
+    Tokens are recorded from what the provider actually reported, so they
+    follow successes and stay zero for an attempt that returned nothing.
+    """
+
+    attempts: int = 0
+    successes: int = 0
     input_tokens: int = 0
     output_tokens: int = 0
     by_role: dict[str, int] = field(default_factory=dict)
 
+    @property
+    def calls(self) -> int:
+        """Successful responses. Kept for readers that predate `successes`."""
+        return self.successes
+
+    def start(self, role: str) -> None:
+        """Reserve one attempt, before the request is dispatched."""
+        self.attempts += 1
+        self.by_role[role] = self.by_role.get(role, 0) + 1
+
     def record(self, role: str, input_tokens: int = 0, output_tokens: int = 0) -> None:
-        self.calls += 1
+        """A provider answered. Tokens are whatever it reported."""
+        self.successes += 1
         self.input_tokens += input_tokens
         self.output_tokens += output_tokens
-        self.by_role[role] = self.by_role.get(role, 0) + 1
 
     def as_dict(self) -> dict[str, Any]:
         return {
-            "llm_calls": self.calls,
+            "provider_request_attempts": self.attempts,
+            "provider_successful_responses": self.successes,
+            # Retained so existing readers and recordings keep working.
+            "llm_calls": self.successes,
             "input_tokens": self.input_tokens,
             "output_tokens": self.output_tokens,
             "by_role": dict(self.by_role),
@@ -105,9 +130,16 @@ class LLMProvider(ABC):
         self.usage = LLMUsage()
         self.max_calls = max_calls
 
-    def _check_budget(self) -> None:
-        if self.usage.calls >= self.max_calls:
-            raise BudgetError(f"run reached its ceiling of {self.max_calls} LLM calls")
+    def _check_budget(self, role: str = "unknown") -> None:
+        """Reserve one attempt, or refuse before anything is dispatched.
+
+        Counting the attempt here rather than on success is the whole point:
+        a request that times out has still been made, has still cost the
+        provider's time and possibly money, and must still consume budget.
+        """
+        if self.usage.attempts >= self.max_calls:
+            raise BudgetError(f"run reached its ceiling of {self.max_calls} model request attempts")
+        self.usage.start(role)
 
     @abstractmethod
     async def complete_json(self, request: LLMRequest) -> dict[str, Any]:

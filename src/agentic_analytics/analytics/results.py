@@ -135,6 +135,21 @@ class ResultSnapshot(BaseModel):
             [None if i in hidden else value for i, value in enumerate(row)] for row in self.rows
         ]
 
+    def agent_cell(self, row: int, column: str) -> Scalar:
+        """The value at a cell *as an agent may be shown it*.
+
+        `cell` returns the truth and is what numeric verification checks
+        against. This one goes through `agent_rows`, so a withheld cell
+        stays withheld. Any prompt that renders a single value wants this
+        method; nothing else should reach into `rows`.
+        """
+        if column not in self.columns:
+            raise KeyError(f"column {column!r} not in result {self.result_id}")
+        rows = self.agent_rows()
+        if not 0 <= row < len(rows):
+            raise IndexError(f"row {row} out of range for result {self.result_id}")
+        return rows[row][self.columns.index(column)]
+
     def compact(self) -> dict[str, Any]:
         """The representation handed to an agent.
 

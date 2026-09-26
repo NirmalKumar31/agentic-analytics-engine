@@ -160,6 +160,10 @@ class PublishedFinding(BaseModel):
     metric_ids: list[str]
     verification_status: VerificationStatus
     verifier_reason: str
+    #: Which gate accepted this, as a stable identifier. Reading the rule
+    #: out of `verifier_reason` would mean parsing prose written for a
+    #: person, which changes whenever the wording is improved.
+    verifier_rule: str = ""
     numeric_check: dict[str, Any] | None = None
     # The arithmetic the worker stated, kept so the provenance drawer can
     # show the calculation next to the cells it was computed from.
