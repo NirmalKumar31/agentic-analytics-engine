@@ -170,7 +170,7 @@ def test_the_schema_block_carries_no_cell_values() -> None:
 def test_the_contract_never_reads_rows_from_a_catalog() -> None:
     from agentic_analytics.agents.execution import TableContract
 
-    fields = {f for f in TableContract.__dataclass_fields__}
+    fields = set(TableContract.__dataclass_fields__)
     assert "rows" not in fields
     assert "sample" not in fields
     assert fields == {"name", "row_count", "columns", "truncated_columns"}

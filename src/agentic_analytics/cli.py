@@ -142,6 +142,10 @@ def evaluate_real_model(
     checkpoint_dir: Annotated[
         Path | None, typer.Option(help="Where to keep the resumable checkpoint")
     ] = None,
+    selection: Annotated[
+        str | None,
+        typer.Option(help="A named question mix, e.g. `stage1`. Overrides --questions"),
+    ] = None,
 ) -> None:
     """Evaluate a *real* model against varied datasets. Opt-in; never in CI.
 
@@ -164,6 +168,10 @@ def evaluate_real_model(
         )
         raise typer.Exit(code=2)
 
+    if selection and questions is not None:
+        console.print("[red]--selection and --questions cannot be combined.[/red]")
+        raise typer.Exit(code=2)
+
     target = data_dir or (cfg.data_dir.parent / "evaluation-datasets")
     report = asyncio.run(
         run_real_model_evaluation(
@@ -176,6 +184,7 @@ def evaluate_real_model(
             checkpoint_dir=checkpoint_dir,
             resume=resume,
             resume_incompatible_ok=resume_incompatible,
+            selection=selection,
         )
     )
 

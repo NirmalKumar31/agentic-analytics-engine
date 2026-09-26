@@ -14,6 +14,7 @@ semantic interface and the physical schema that makes it legible.
 
 from __future__ import annotations
 
+import dataclasses
 from typing import Any
 
 import pytest
@@ -384,5 +385,5 @@ def test_contract_lookups_return_none_for_unknown_names() -> None:
 def test_contract_pieces_are_immutable(contract_type: Any, kwargs: dict[str, Any]) -> None:
     """Frozen: nothing downstream should be able to widen what was granted."""
     instance = contract_type(**kwargs)
-    with pytest.raises(Exception):
+    with pytest.raises(dataclasses.FrozenInstanceError):
         instance.name = "changed"  # type: ignore[misc]

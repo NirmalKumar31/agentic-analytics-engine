@@ -559,6 +559,50 @@ def _write_status(path: Path, status: dict[str, Any]) -> None:
         _atomic_write(path, json.dumps(status, indent=2, default=str))
 
 
+#: The Stage-1 mix: one question per capability the engine claims, rather
+#: than the first question of each dataset. The first-of-each default gave
+#: six grouped questions and one aggregate, which says nothing about
+#: ranking, trends, statistics or how the engine behaves when the honest
+#: answer is "that cannot be answered from this data".
+STAGE1_SELECTION: tuple[tuple[str, str], ...] = (
+    ("warehouse", "grouped"),  # metric layer and segmentation
+    ("sales", "aggregate"),  # upload, single number
+    ("marketing", "grouped"),  # upload, comparison across a dimension
+    ("sales", "ranking"),  # ordering, where "highest" must be right
+    ("marketing", "trend"),  # a time series
+    ("retention", "statistical"),  # a test the engine runs, not the model
+    ("sales", "unsupported"),  # no such column; refusing is the right answer
+)
+
+
+def apply_selection(work: list[Any], selection: str) -> list[Any]:
+    """Narrow the work list to a named selection, in its stated order."""
+    if selection != "stage1":
+        raise ValueError(f"unknown selection {selection!r}; known selections: stage1")
+
+    by_pair: dict[tuple[str, str], list[Any]] = {}
+    for item in work:
+        _, dataset_id, question, _ = item
+        by_pair.setdefault((dataset_id, question.kind), []).append(item)
+
+    chosen: list[Any] = []
+    missing: list[tuple[str, str]] = []
+    for pair in STAGE1_SELECTION:
+        candidates = by_pair.get(pair) or []
+        if not candidates:
+            missing.append(pair)
+            continue
+        chosen.append(candidates[0])
+    if missing:
+        # Silently running six questions when seven were asked for would
+        # make the report quietly unrepresentative.
+        raise ValueError(
+            "the stage1 selection names questions this build does not have: "
+            + ", ".join(f"{d}/{k}" for d, k in missing)
+        )
+    return chosen
+
+
 async def run_real_model_evaluation(
     cfg: Settings,
     data_dir: Path,
@@ -570,8 +614,16 @@ async def run_real_model_evaluation(
     checkpoint_dir: Path | None = None,
     resume: bool = True,
     resume_incompatible_ok: bool = False,
+    selection: str | None = None,
 ) -> dict[str, Any]:
-    """Evaluate a real provider across the datasets. Returns a report."""
+    """Evaluate a real provider across the datasets. Returns a report.
+
+    `selection` names a fixed subset -- currently only `"stage1"`. A named
+    selection rather than a hand-assembled command line because a
+    representative run has to be the *same* representative run each time:
+    one whose question mix somebody chose on purpose, and which a later
+    reader can reproduce without reconstructing which flags were passed.
+    """
     from agentic_analytics.evaluation.datasets import build_all
 
     built = build_all(data_dir)
@@ -643,6 +695,9 @@ async def run_real_model_evaluation(
                     ),
                 )
             )
+
+    if selection:
+        work = apply_selection(work, selection)
 
     outcomes: list[QuestionOutcome] = []
     started = time.monotonic()

@@ -762,3 +762,73 @@ def test_the_summary_totals_failure_reasons_across_questions() -> None:
 
     assert summary["tool_failure_reasons"] == {"no such column": 3, "no such table": 2}
     assert summary["tool_failures_by_tool"] == {"profile_table": 3}
+
+
+# ------------------------------------------------------ the stage 1 mix
+def test_the_stage1_selection_covers_every_capability_claimed() -> None:
+    """Seven questions chosen on purpose, not the first of each dataset.
+
+    Taking the first question of every dataset produced six `grouped`
+    questions and one `aggregate`, which says nothing about ranking, trends,
+    statistics, or what the engine does when the honest answer is that the
+    data cannot support one.
+    """
+    from agentic_analytics.evaluation.real_model import STAGE1_SELECTION
+
+    kinds = {kind for _, kind in STAGE1_SELECTION}
+    assert kinds == {"grouped", "aggregate", "ranking", "trend", "statistical", "unsupported"}
+    assert len(STAGE1_SELECTION) == 7
+    # The warehouse is the only dataset with a metric layer, so it has to be
+    # in any run that claims to exercise one.
+    assert any(dataset == "warehouse" for dataset, _ in STAGE1_SELECTION)
+    # And uploads, which have no metric layer, must be represented too.
+    assert {d for d, _ in STAGE1_SELECTION} - {"warehouse"}
+
+
+def test_the_stage1_selection_names_questions_that_exist() -> None:
+    """A selection naming a question no dataset has would run short."""
+    from agentic_analytics.evaluation.datasets import DATASETS, WAREHOUSE_QUESTIONS
+    from agentic_analytics.evaluation.real_model import STAGE1_SELECTION
+
+    available = {("warehouse", q.kind) for q in WAREHOUSE_QUESTIONS}
+    for dataset in DATASETS:
+        available |= {(dataset.dataset_id, q.kind) for q in dataset.questions}
+
+    missing = [pair for pair in STAGE1_SELECTION if pair not in available]
+    assert not missing, f"selection names questions that do not exist: {missing}"
+
+
+def test_applying_the_selection_picks_one_question_per_pair() -> None:
+    from agentic_analytics.evaluation.datasets import EvalQuestion
+    from agentic_analytics.evaluation.real_model import STAGE1_SELECTION, apply_selection
+
+    work = []
+    for dataset, kind in STAGE1_SELECTION:
+        for n in range(3):
+            work.append(
+                (f"{dataset}:{kind}:{n}", dataset, EvalQuestion(f"q{n}", kind, ""), lambda: None)
+            )
+    work.append(("extra", "sales", EvalQuestion("noise", "ambiguous", ""), lambda: None))
+
+    chosen = apply_selection(work, "stage1")
+    assert len(chosen) == 7
+    assert [(d, q.kind) for _, d, q, _ in chosen] == list(STAGE1_SELECTION)
+    # One per pair: the first, deterministically.
+    assert all(key.endswith(":0") for key, _, _, _ in chosen)
+
+
+def test_a_selection_that_cannot_be_filled_fails_loudly() -> None:
+    """Running six of seven questions quietly would misreport coverage."""
+    from agentic_analytics.evaluation.datasets import EvalQuestion
+    from agentic_analytics.evaluation.real_model import apply_selection
+
+    work = [("k", "warehouse", EvalQuestion("q", "grouped", ""), lambda: None)]
+    with pytest.raises(ValueError, match="does not have"):
+        apply_selection(work, "stage1")
+
+
+def test_an_unknown_selection_is_refused() -> None:
+    from agentic_analytics.evaluation.real_model import apply_selection
+
+    with pytest.raises(ValueError, match="unknown selection"):
+        apply_selection([], "stage9")
