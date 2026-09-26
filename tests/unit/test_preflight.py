@@ -24,8 +24,10 @@ from agentic_analytics.agents.execution import (
 )
 from agentic_analytics.agents.preflight import (
     ENGINE_OWNED_ARGUMENT,
+    MALFORMED_FILTER,
     METRIC_TOOL_WITHOUT_METRICS,
     MISSING_REQUIRED_ARGUMENT,
+    UNFILTERABLE_COLUMN,
     UNKNOWN_ARGUMENT,
     UNKNOWN_COLUMN,
     UNKNOWN_DIMENSION,
@@ -71,7 +73,11 @@ COMPUTE = ToolContract(
     name="compute_metric",
     description="Compute a metric.",
     required={"metric": "string"},
-    optional={"dimensions": "list[string]", "grain": "string"},
+    optional={
+        "dimensions": "list[string]",
+        "grain": "string",
+        "filters": "list[object]",
+    },
 )
 PROFILE = ToolContract(
     name="profile_table",
@@ -316,3 +322,79 @@ def test_a_non_string_argument_does_not_crash_the_check() -> None:
     """Model output is untrusted: a number where a name belongs is normal."""
     for value in (7, None, {"a": 1}, [1, 2]):
         preflight("profile_table", {"table": value}, _contract())  # type: ignore[dict-item]
+
+
+# ------------------------------------------------------------- filters
+def test_a_filter_in_the_wrong_shape_is_refused_with_the_right_one() -> None:
+    """Observed: a model wrote `field`/`operator` for `column`/`op`.
+
+    The server answered with a three-line Pydantic validation error. Naming
+    the shape is shorter and is something the model can act on.
+    """
+    rejection = preflight(
+        "compute_metric",
+        {"metric": "revenue", "filters": [{"field": "order_date", "operator": ">=", "value": "x"}]},
+        _contract(),
+    )
+    assert rejection is not None
+    assert rejection.category == MALFORMED_FILTER
+    assert '"column"' in rejection.message and '"op"' in rejection.message
+
+
+def test_filters_that_are_not_a_list_are_refused() -> None:
+    rejection = preflight(
+        "compute_metric",
+        {"metric": "revenue", "filters": "order_date >= '2025-07-01'"},
+        _contract(),
+    )
+    assert rejection is not None
+    assert rejection.category == MALFORMED_FILTER
+    assert "list" in rejection.message
+
+
+def test_a_filter_item_that_is_not_an_object_is_refused() -> None:
+    rejection = preflight(
+        "compute_metric", {"metric": "revenue", "filters": ["order_date"]}, _contract()
+    )
+    assert rejection is not None
+    assert rejection.category == MALFORMED_FILTER
+
+
+def test_a_filter_on_a_column_the_metric_cannot_use_is_refused() -> None:
+    """Silently dropping a filter changes what the number means."""
+    rejection = preflight(
+        "compute_metric",
+        {"metric": "revenue", "filters": [{"column": "quarter", "op": "=", "value": "Q3 2025"}]},
+        _contract(),
+    )
+    assert rejection is not None
+    assert rejection.category == UNFILTERABLE_COLUMN
+    assert "acquisition_channel" in rejection.message
+    assert "order_date" in rejection.message
+
+
+def test_a_filter_on_a_dimension_or_the_time_field_is_allowed() -> None:
+    for column in ("acquisition_channel", "region", "order_date"):
+        assert (
+            preflight(
+                "compute_metric",
+                {"metric": "revenue", "filters": [{"column": column, "op": "=", "value": "x"}]},
+                _contract(),
+            )
+            is None
+        ), column
+
+
+def test_an_empty_filter_list_is_fine() -> None:
+    assert preflight("compute_metric", {"metric": "revenue", "filters": []}, _contract()) is None
+
+
+def test_filters_are_not_checked_against_a_metric_that_does_not_exist() -> None:
+    """The unknown metric is the mistake to report, not a knock-on effect."""
+    rejection = preflight(
+        "compute_metric",
+        {"metric": "sales", "filters": [{"column": "nope", "op": "=", "value": 1}]},
+        _contract(),
+    )
+    assert rejection is not None
+    assert rejection.category == UNKNOWN_METRIC

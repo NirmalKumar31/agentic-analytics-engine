@@ -226,6 +226,8 @@ def build_server(manager: SessionManager, settings: Settings | None = None) -> M
         """
         try:
             return fn(*args, **kwargs)
+        except ToolError:
+            raise
         except (
             QueryError,
             FilterError,
@@ -237,6 +239,27 @@ def build_server(manager: SessionManager, settings: Settings | None = None) -> M
         ) as exc:
             message = exc.args[0] if exc.args else str(exc)
             raise ToolError(str(message)) from None
+        except Exception as exc:
+            # Anything else is a defect in the engine rather than a bad call,
+            # but the model still has to be told something it can act on. Left
+            # to escape, the SDK replaces it with "Error executing tool X",
+            # which is what a real run saw eight times in one question: the
+            # worker could not tell a broken argument from a broken tool, and
+            # neither could the operator reading the artifact afterwards.
+            log.exception("tool_failed_unexpectedly", tool=getattr(fn, "__name__", "?"))
+            raise ToolError(f"the tool failed internally ({type(exc).__name__})") from None
+
+    def _filters(raw: Any) -> Any:
+        """Coerce filters *inside* the guard.
+
+        Every tool called `_filters(filters)` in its argument list, so
+        the `FilterError` it raises happened before `_guarded` was entered
+        and escaped it -- in all eight tools that take filters. A model
+        writing `{"field": ..., "operator": ...}` instead of
+        `{"column": ..., "op": ...}` therefore got the SDK's generic message
+        rather than the one naming the shape it should have used.
+        """
+        return _guarded(coerce_filters, raw)
 
     # ---------------------------------------------------------------- tools
 
@@ -367,7 +390,7 @@ def build_server(manager: SessionManager, settings: Settings | None = None) -> M
             session,
             metric,
             dimensions or [],
-            coerce_filters(filters),
+            _filters(filters),
             time_grain,
             task_id=task_id,
             max_rows=budgets.max_result_rows,
@@ -398,7 +421,7 @@ def build_server(manager: SessionManager, settings: Settings | None = None) -> M
             metric,
             dimension,
             segments,
-            coerce_filters(filters),
+            _filters(filters),
             task_id=task_id,
             max_rows=budgets.max_result_rows,
             timeout_seconds=budgets.query_timeout_seconds,
@@ -428,7 +451,7 @@ def build_server(manager: SessionManager, settings: Settings | None = None) -> M
             metric,
             grain,
             time_column,
-            coerce_filters(filters),
+            _filters(filters),
             task_id=task_id,
             max_rows=budgets.max_result_rows,
             timeout_seconds=budgets.query_timeout_seconds,
@@ -460,7 +483,7 @@ def build_server(manager: SessionManager, settings: Settings | None = None) -> M
             metric,
             (baseline_start, baseline_end),
             (current_start, current_end),
-            coerce_filters(filters),
+            _filters(filters),
             task_id=task_id,
             timeout_seconds=budgets.query_timeout_seconds,
         )
@@ -498,7 +521,7 @@ def build_server(manager: SessionManager, settings: Settings | None = None) -> M
             dimension,
             (baseline_start, baseline_end),
             (current_start, current_end),
-            coerce_filters(filters),
+            _filters(filters),
             task_id=task_id,
             max_rows=budgets.max_result_rows,
             timeout_seconds=budgets.query_timeout_seconds,
@@ -533,7 +556,7 @@ def build_server(manager: SessionManager, settings: Settings | None = None) -> M
             (baseline_start, baseline_end),
             (current_start, current_end),
             top_n,
-            coerce_filters(filters),
+            _filters(filters),
             task_id=task_id,
             timeout_seconds=budgets.query_timeout_seconds,
         )
@@ -620,7 +643,7 @@ def build_server(manager: SessionManager, settings: Settings | None = None) -> M
             session,
             table,
             columns,
-            coerce_filters(filters),
+            _filters(filters),
             task_id=task_id,
             timeout_seconds=budgets.query_timeout_seconds,
         )
@@ -653,7 +676,7 @@ def build_server(manager: SessionManager, settings: Settings | None = None) -> M
             session,
             test_type,
             variables,
-            coerce_filters(filters),
+            _filters(filters),
             task_id=task_id,
             timeout_seconds=budgets.query_timeout_seconds,
         )

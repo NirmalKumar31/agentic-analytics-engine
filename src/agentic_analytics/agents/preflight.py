@@ -41,6 +41,13 @@ UNKNOWN_TABLE = "unknown_table"
 UNKNOWN_COLUMN = "unknown_column"
 UNKNOWN_GRAIN = "unknown_grain"
 METRIC_TOOL_WITHOUT_METRICS = "metric_tool_without_metric_layer"
+MALFORMED_FILTER = "malformed_filter"
+UNFILTERABLE_COLUMN = "unfilterable_column"
+
+#: The filter shape the engine accepts. A model writing `field`/`operator`
+#: instead of `column`/`op` produced a Pydantic validation error three lines
+#: long; naming the shape here is both shorter and something it can act on.
+FILTER_KEYS = frozenset({"column", "op", "value"})
 
 #: Arguments that name a physical table, by the tools that take one.
 _TABLE_ARGUMENTS = frozenset({"table"})
@@ -129,6 +136,10 @@ def preflight(
     if rejection is not None:
         return rejection
 
+    rejection = _check_filters(arguments, metric_names, contract)
+    if rejection is not None:
+        return rejection
+
     for argument in sorted(set(arguments) & _TABLE_ARGUMENTS):
         value = arguments[argument]
         if isinstance(value, str) and contract.table(value) is None:
@@ -202,6 +213,59 @@ def _check_dimensions(
                     f"metric {metric_name!r} does not support dimension "
                     f"{dimension!r}. Valid dimensions for {metric_name}: "
                     f"{', '.join(metric.valid_dimensions) or '(none)'}",
+                )
+    return None
+
+
+def _check_filters(
+    arguments: dict[str, Any],
+    metric_names: list[str],
+    contract: ExecutionContract,
+) -> PreflightRejection | None:
+    """Filter shape, and the columns a metric may be filtered on.
+
+    A filter that does not apply is not a small mistake: silently dropping
+    one changes what the returned number means, so the engine refuses. The
+    filterable set is the metric's own dimensions plus its time field --
+    deliberately narrow, because filters arrive from a model and a wider
+    surface is a wider surface for `SQLGuard` to defend.
+    """
+    raw = arguments.get("filters")
+    if raw is None:
+        return None
+    if not isinstance(raw, list):
+        return PreflightRejection(
+            MALFORMED_FILTER,
+            f"filters must be a list of {{column, op, value}} objects, not {type(raw).__name__}",
+        )
+
+    for item in raw:
+        if not isinstance(item, dict):
+            return PreflightRejection(
+                MALFORMED_FILTER,
+                f"each filter must be a {{column, op, value}} object; got {item!r}",
+            )
+        unknown = sorted(set(item) - FILTER_KEYS)
+        if unknown or "column" not in item:
+            return PreflightRejection(
+                MALFORMED_FILTER,
+                f"filter {item!r} is not the right shape. Use "
+                '{"column": <name>, "op": <operator>, "value": <value>}',
+            )
+
+        column = item.get("column")
+        if not isinstance(column, str):
+            continue
+        for metric_name in metric_names:
+            metric = contract.metric(metric_name)
+            if metric is None:  # pragma: no cover - rejected earlier
+                continue
+            allowed = [*metric.valid_dimensions, metric.time_field]
+            if column not in allowed:
+                return PreflightRejection(
+                    UNFILTERABLE_COLUMN,
+                    f"metric {metric_name!r} cannot be filtered on {column!r}. "
+                    f"Filterable: {', '.join(n for n in allowed if n)}",
                 )
     return None
 
