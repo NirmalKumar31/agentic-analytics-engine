@@ -106,6 +106,10 @@ async def run_analysis(
             session_key=session.session_key,
             budget=budget,
             events=bus,
+            # The provider this run holds, not the process default. A run
+            # driven by a cloud model may not see an uploaded file's raw
+            # cells even when the run beside it, driven locally, may.
+            remote_inference=llm.remote_inference,
         ) as toolset:
             ctx = RunContext(session, toolset, llm, bus, cfg.budgets, telemetry)
             if telemetry is not None:
@@ -124,6 +128,14 @@ async def run_analysis(
                 {"recursion_limit": 40},
             )
             trace = toolset.public_trace()
+            # Captured here, while the toolset is still open: the results
+            # belonging to *this* run, not every result on a session that a
+            # sibling comparison run is writing to at the same time.
+            run_results = {
+                rid: session.results.get(rid)
+                for rid in toolset.result_ids
+                if session.results.has(rid)
+            }
     except Exception as exc:
         log.exception("run_failed", run_id=rid)
         bus.emit(EventType.RUN_FAILED, run_id=rid, reason=f"{type(exc).__name__}")
@@ -156,7 +168,7 @@ async def run_analysis(
         rejected=rejected,
         charts=charts,
         tasks=tasks,
-        results={s.result_id: s for s in session.results.all()},
+        results=run_results,
         mcp_trace=trace,
         metrics={
             "runtime_seconds": round(duration, 3),

@@ -83,7 +83,16 @@ class RunContext:
         return self.elapsed > self.budgets.max_runtime_seconds
 
     def results(self) -> dict[str, ResultSnapshot]:
-        return {s.result_id: s for s in self.session.results.all()}
+        """The snapshots this run may read.
+
+        Scoped to the run's own toolset, not to the session. The session
+        store is shared by every run on the connection, so reading it whole
+        would let one half of a comparison cite the other half's numbers --
+        and would hand a cloud run the cells a local run was allowed to
+        compute. A dropped id is skipped: the store is bounded.
+        """
+        store = self.session.results
+        return {rid: store.get(rid) for rid in self.toolset.result_ids if store.has(rid)}
 
 
 def build_graph(ctx: RunContext) -> Any:

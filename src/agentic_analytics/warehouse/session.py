@@ -81,6 +81,46 @@ class DatasetError(RuntimeError):
     """The dataset could not be loaded. Message is safe to show a user."""
 
 
+@dataclass(frozen=True)
+class DisclosurePolicy:
+    """What one run may show the model driving it.
+
+    Attached to a run, not to a session. A session is shared -- Compare Both
+    puts a deterministic run and an AI run on the same connection -- so a
+    policy stored on the session is a policy two runs race to set, and the
+    AI side can inherit the local one.
+
+    `remote_inference` is the fact that decides everything else: whether the
+    text of a prompt leaves this machine.
+    """
+
+    remote_inference: bool = False
+    dataset_kind: str = "demo"
+    allow_upload_row_disclosure: bool = False
+
+    @property
+    def withhold_raw_cells(self) -> bool:
+        """Raw cells of an uploaded file, going to a third party.
+
+        Generated demo data is not private, so the rule is about uploads.
+        """
+        if self.dataset_kind != "upload":
+            return False
+        return self.remote_inference and not self.allow_upload_row_disclosure
+
+    @property
+    def allow_row_returning_sql(self) -> bool:
+        """Whether arbitrary row-returning SQL may run.
+
+        `run_readonly_sql` can select unaggregated columns, and the SQL
+        guard permits ordinary read-only selection. For an uploaded file
+        under remote inference that is a disclosure path, so it is refused
+        rather than filtered: a validator that proves a query is
+        aggregation-only is a larger thing than this needs today.
+        """
+        return not self.withhold_raw_cells
+
+
 @dataclass
 class TableInfo:
     """What a session knows about one of its tables."""
