@@ -26,22 +26,32 @@ from mcp.server.transport_security import TransportSecuritySettings
 
 from agentic_analytics import __version__
 from agentic_analytics.analytics.semantic import infer_schema
+from agentic_analytics.api.ledger import open_ledger
 from agentic_analytics.api.limits import Capacity, RateLimit, client_key
 from agentic_analytics.api.models import (
+    AILimits,
     AnalysisRequest,
     AnalysisStarted,
+    Capabilities,
     ErrorResponse,
     HealthResponse,
+    ModeCapability,
     ReadinessResponse,
     ServerConfig,
     SessionResponse,
     execution_mode,
 )
+from agentic_analytics.api.modes import (
+    ModeUnavailable,
+    RunMode,
+    ai_availability,
+    build_provider_for_mode,
+    provider_kind,
+)
 from agentic_analytics.api.runs import RunRegistry
 from agentic_analytics.config import Settings, get_settings
 from agentic_analytics.events import EventType
 from agentic_analytics.graph.runner import run_analysis
-from agentic_analytics.llm.registry import build_provider
 from agentic_analytics.logging import configure_logging, get_logger
 from agentic_analytics.mcp_layer.server import build_server
 from agentic_analytics.recordings.store import RecordingStore
@@ -98,6 +108,11 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     upload_limiter = RateLimit(cfg.uploads_per_ip_per_hour, 3600.0)
     analysis_limiter = RateLimit(cfg.analyses_per_ip_per_hour, 3600.0)
     analysis_capacity = Capacity(cfg.max_concurrent_analyses)
+    # Opened once. `None` means AI is not offered -- there is deliberately no
+    # in-memory fallback, because process-local counters are exactly the
+    # control the durable ledger exists to replace.
+    ledger = open_ledger(cfg.ai_quota_redis_url) if cfg.ai_analytics_enabled else None
+    ai_capacity = Capacity(cfg.ai_concurrent_runs)
     # Uploaded bytes live here, never in the repository or the working
     # directory, and every session's directory is removed when it ends.
     upload_root = cfg.upload_dir
@@ -334,6 +349,57 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             budgets=cfg.budgets.model_dump(),
             demo_questions=DEMO_QUESTIONS,
             recordings=recordings.index(),
+            capabilities=_capabilities(),
+        )
+
+    def _capabilities() -> Capabilities:
+        """What the mode selector may offer, recomputed per request.
+
+        Cheap and side-effect free. Whether the *model* resolves is a
+        separate cached preflight; this says whether the deployment is
+        configured to try.
+        """
+        availability = ai_availability(cfg, ledger_ready=ledger is not None)
+        deterministic = ModeCapability(
+            mode=str(RunMode.DETERMINISTIC),
+            available=cfg.live_analytics_enabled,
+            label="Deterministic Analytics",
+            description=(
+                "Agent decisions come from a scripted provider, so the same "
+                "question produces the same plan every time. No external "
+                "language model is used and nothing leaves this server."
+            ),
+            reason="" if cfg.live_analytics_enabled else "live_analytics_disabled",
+            message=(
+                ""
+                if cfg.live_analytics_enabled
+                else "Live analysis is disabled on this server; open a recorded run."
+            ),
+        )
+        ai = ModeCapability(
+            mode=str(RunMode.AI),
+            available=availability.available and cfg.live_analytics_enabled,
+            label="AI Analytics",
+            description=(
+                "A cloud language model interprets the question and chooses "
+                "which analyses to run. The computation, the verification and "
+                "the publication checks stay deterministic."
+            ),
+            reason=availability.reason,
+            message=availability.message,
+        )
+        return Capabilities(
+            modes=[deterministic, ai],
+            compare_available=deterministic.available and ai.available,
+            ai_limits=(
+                AILimits(
+                    runs_per_session=cfg.ai_runs_per_session,
+                    max_model_calls_per_run=cfg.ai_max_llm_calls,
+                    max_runtime_seconds=cfg.ai_max_runtime_seconds,
+                )
+                if ai.available
+                else None
+            ),
         )
 
     # ------------------------------------------------------- session cookie
@@ -608,6 +674,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 detail="too many analyses from this address; try again shortly",
                 headers={"Retry-After": str(int(retry_after) + 1)},
             )
+        mode = request.mode
         session = _session_or_404(request.session_id, http_request)
         if not session.accepts_new_work:
             # Closing or closed. Starting an analysis here would attach a
@@ -626,10 +693,44 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 status_code=429,
                 detail="the demo is currently at capacity; please try again shortly",
             )
-        record = runs.create(session.session_id, request.question)
+        if mode is RunMode.AI and not ai_capacity.acquire():
+            analysis_capacity.release()
+            raise HTTPException(
+                status_code=429,
+                detail="AI Analytics is at capacity; please try again shortly",
+                headers={"X-AAE-Reason": "ai_concurrent_limit_reached"},
+            )
+        if mode is RunMode.AI:
+            availability = ai_availability(cfg, ledger_ready=ledger is not None)
+            if not availability.available:
+                raise HTTPException(
+                    status_code=503,
+                    detail=availability.message,
+                    headers={"X-AAE-Reason": availability.reason},
+                )
+
+        record = runs.create(
+            session.session_id,
+            request.question,
+            mode=str(mode),
+            provider_kind=provider_kind(mode),
+        )
+        record.engine_version = __version__
+        record.dataset_fingerprint = session.dataset_fingerprint
+        if mode is RunMode.AI:
+            record.requested_model = cfg.cloud_model
 
         async def execute() -> None:
-            provider = build_provider(cfg)
+            try:
+                provider = build_provider_for_mode(cfg, mode, ledger_ready=ledger is not None)
+            except ModeUnavailable as exc:
+                record.error = str(exc)
+                record.bus.emit(EventType.RUN_FAILED, reason=record.error)
+                record.bus.close()
+                analysis_capacity.release()
+                if mode is RunMode.AI:
+                    ai_capacity.release()
+                return
             try:
                 record.result = await run_analysis(
                     request.question,
@@ -660,8 +761,18 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 # Runs on every path, cancellation included: the provider is
                 # closed and the capacity slot returned, or one visitor
                 # deleting a dataset mid-run costs the demo a slot forever.
+                record.input_tokens = int(getattr(provider.usage, "input_tokens", 0))
+                record.output_tokens = int(getattr(provider.usage, "output_tokens", 0))
+                record.provider_attempts = int(getattr(provider.usage, "attempts", 0))
+                resolved = getattr(provider, "resolved_model", None)
+                if isinstance(resolved, dict):
+                    record.resolved_model = str(resolved.get("id", "")) or None
+                if record.provider_kind == "cloud" and ledger is not None:
+                    record.cost_microdollars = ledger.spent_microdollars(record.run_id)
                 await provider.aclose()
                 analysis_capacity.release()
+                if mode is RunMode.AI:
+                    ai_capacity.release()
 
         record.task = asyncio.create_task(execute())
         return AnalysisStarted(

@@ -58,6 +58,10 @@ dev = [
     "mypy>=1.15,<3",
     "types-pyyaml>=6,<7",
     "pip-audit>=2.9,<3",
+    # Exercises the AI cost ledger's Lua against a real Redis command set.
+    # The `lua` extra matters: without it `EVAL` is unsupported and the
+    # atomicity the ledger depends on would go untested.
+    "fakeredis[lua]>=2.38,<3",
 ]
 
 [project.scripts]

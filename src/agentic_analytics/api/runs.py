@@ -60,6 +60,27 @@ class RunRecord:
     #: should not be told the engine broke.
     cancelled: bool = False
 
+    # --- how this run was executed, recorded on the run itself.
+    #
+    # Never inferred from the server's current configuration: a deployment
+    # that changes mode, or serves both at once, would otherwise relabel
+    # finished runs retroactively.
+    mode: str = "deterministic"
+    provider_kind: str = "scripted"
+    #: The model asked for, and the identity the provider resolved. Both,
+    #: because they can differ and the artifact should say which answered.
+    requested_model: str | None = None
+    resolved_model: str | None = None
+    engine_version: str | None = None
+    dataset_fingerprint: str | None = None
+    #: Usage, for the comparison view. Cost is integer microdollars.
+    input_tokens: int = 0
+    output_tokens: int = 0
+    provider_attempts: int = 0
+    cost_microdollars: int = 0
+    #: Set when the run belongs to a Compare Both operation.
+    comparison_id: str | None = None
+
     @property
     def status(self) -> str:
         if self.cancelled:
@@ -83,6 +104,21 @@ class RunRecord:
             "status": self.status,
             "created_at": self.created_at,
         }
+        payload["mode"] = self.mode
+        payload["provider_kind"] = self.provider_kind
+        if self.comparison_id:
+            payload["comparison_id"] = self.comparison_id
+        for key in ("requested_model", "resolved_model", "engine_version", "dataset_fingerprint"):
+            value = getattr(self, key)
+            if value:
+                payload[key] = value
+        if self.provider_kind == "cloud" or self.input_tokens or self.output_tokens:
+            payload["usage"] = {
+                "input_tokens": self.input_tokens,
+                "output_tokens": self.output_tokens,
+                "provider_attempts": self.provider_attempts,
+                "estimated_cost_microdollars": self.cost_microdollars,
+            }
         if self.result is not None:
             payload.update(self.result.to_public_dict())
         if self.error:
@@ -98,12 +134,23 @@ class RunRegistry:
         self._max = max_runs
         self._ttl = ttl_seconds
 
-    def create(self, session_id: str, question: str) -> RunRecord:
+    def create(
+        self,
+        session_id: str,
+        question: str,
+        *,
+        mode: str = "deterministic",
+        provider_kind: str = "scripted",
+        comparison_id: str | None = None,
+    ) -> RunRecord:
         record = RunRecord(
             run_id=f"run_{uuid.uuid4().hex[:12]}",
             session_id=session_id,
             question=question,
             bus=EventBus(),
+            mode=mode,
+            provider_kind=provider_kind,
+            comparison_id=comparison_id,
         )
         self._runs[record.run_id] = record
         # After the insert, not before: evicting first leaves the registry

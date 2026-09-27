@@ -107,6 +107,30 @@ class Settings(BaseSettings):
     #: it on only for a model whose documentation permits the exact value.
     cloud_send_temperature: bool = False
 
+    # ------------------------------------------------------------ AI mode
+    #: Whether this deployment offers AI Analytics at all. Off by default:
+    #: an anonymous endpoint that spends money must be turned on
+    #: deliberately, with its ceilings and its durable accounting in place.
+    ai_analytics_enabled: bool = False
+    #: Ceilings that apply to an AI run only. Deterministic runs keep the
+    #: ordinary budgets; these bound what a single visitor can spend.
+    ai_max_llm_calls: int = Field(default=24, ge=1, le=200)
+    ai_max_input_tokens: int = Field(default=120_000, ge=1_000)
+    ai_max_output_tokens: int = Field(default=16_000, ge=256)
+    ai_max_runtime_seconds: float = Field(default=180.0, gt=0)
+    ai_max_cost_microdollars: int = Field(default=250_000, ge=1)
+    #: Public-demo ceilings, enforced in durable storage so a restart or a
+    #: second instance cannot reset them.
+    ai_runs_per_session: int = Field(default=3, ge=1, le=50)
+    ai_runs_per_ip_per_hour: int = Field(default=5, ge=1, le=100)
+    ai_concurrent_runs: int = Field(default=2, ge=1, le=20)
+    ai_daily_cost_microdollars: int = Field(default=2_000_000, ge=1)
+    ai_total_cost_microdollars: int = Field(default=20_000_000, ge=1)
+    #: Redis-compatible URL for the durable ledger. Without it AI stays off:
+    #: process-local counters reset on every cold start, and Render runs
+    #: more than one instance.
+    ai_quota_redis_url: str | None = None
+
     # When false the API refuses to start new live analyses and serves
     # recordings only. This is the safe public-demo posture.
     live_analytics_enabled: bool = False

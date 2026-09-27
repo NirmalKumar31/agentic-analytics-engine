@@ -6,6 +6,8 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, Field, field_validator
 
+from agentic_analytics.api.modes import RunMode
+
 MAX_QUESTION_LENGTH = 500
 
 
@@ -83,6 +85,42 @@ class ServerConfig(BaseModel):
     budgets: dict[str, Any]
     demo_questions: list[dict[str, str]]
     recordings: list[dict[str, Any]]
+    #: What the mode selector should offer. Replaces inferring availability
+    #: from `provider_mode`, which described the process rather than the
+    #: choices a visitor has.
+    capabilities: Capabilities
+
+
+class ModeCapability(BaseModel):
+    """Whether one execution mode can be offered, and why not if it cannot.
+
+    `reason` is a stable identifier and `message` is the sentence a visitor
+    reads. Neither ever carries a credential, a URL, an exception string or
+    any deployment detail.
+    """
+
+    mode: str
+    available: bool
+    label: str
+    description: str
+    reason: str = ""
+    message: str = ""
+
+
+class AILimits(BaseModel):
+    """The public ceilings on AI Analytics, safe to disclose."""
+
+    runs_per_session: int
+    max_model_calls_per_run: int
+    max_runtime_seconds: float
+
+
+class Capabilities(BaseModel):
+    """What this deployment can actually do, for the mode selector."""
+
+    modes: list[ModeCapability]
+    compare_available: bool
+    ai_limits: AILimits | None = None
 
 
 class SessionResponse(BaseModel):
@@ -104,6 +142,11 @@ class SessionResponse(BaseModel):
 class AnalysisRequest(BaseModel):
     session_id: str
     question: str
+    #: Which decision-maker drives this run. A closed set of two public
+    #: names: the browser cannot name a provider class, a model, an endpoint
+    #: or any provider configuration, because a request that could would be
+    #: a request that could aim the server's credential somewhere else.
+    mode: RunMode = RunMode.DETERMINISTIC
 
     @field_validator("question")
     @classmethod
