@@ -1,6 +1,12 @@
 /** Thin fetch wrapper. Every error surfaces as a readable message. */
 
-import type { RunPayload, ServerConfig, SessionPayload } from './types'
+import type {
+  ComparisonStarted,
+  RunMode,
+  RunPayload,
+  ServerConfig,
+  SessionPayload,
+} from './types'
 
 export class ApiError extends Error {
   readonly status: number
@@ -45,8 +51,14 @@ export const api = {
     body.append('file', file)
     return request<SessionPayload>('/api/datasets/upload', { method: 'POST', body })
   },
-  startAnalysis: (sessionId: string, question: string) =>
+  startAnalysis: (sessionId: string, question: string, mode: RunMode = 'deterministic') =>
     request<{ run_id: string }>('/api/analyses', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ session_id: sessionId, question, mode }),
+    }),
+  startComparison: (sessionId: string, question: string) =>
+    request<ComparisonStarted>('/api/comparisons', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ session_id: sessionId, question }),

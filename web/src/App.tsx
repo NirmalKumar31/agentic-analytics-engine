@@ -1,20 +1,24 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import { ActivityLog } from './components/ActivityLog'
+import { ComparisonView } from './components/ComparisonView'
 import { DatasetSummary } from './components/DatasetSummary'
 import { ExecutionFlow } from './components/ExecutionFlow'
 import { ModeBadge } from './components/ModeBadge'
+import { ModeSelector } from './components/ModeSelector'
 import { ProvenanceDrawer } from './components/ProvenanceDrawer'
 import { ReportView } from './components/ReportView'
 import { RightRail } from './components/RightRail'
 import { ApiError, api } from './lib/api'
 import type {
+  ComparisonStarted,
   MetricInfo,
   RecordingSummary,
   RunEvent,
   RunPayload,
   ServerConfig,
   SessionPayload,
+  UiMode,
 } from './lib/types'
 import { useRunEvents } from './lib/useRunEvents'
 
@@ -32,6 +36,11 @@ export function App() {
   const [showTrace, setShowTrace] = useState(false)
   const [openFinding, setOpenFinding] = useState<string | null>(null)
   const [replay, setReplay] = useState<RecordingSummary | null>(null)
+  // Deterministic by default. The server decides what else is on offer.
+  const [uiMode, setUiMode] = useState<UiMode>('deterministic')
+  const [comparison, setComparison] = useState<ComparisonStarted | null>(null)
+  const [aiRun, setAiRun] = useState<RunPayload | null>(null)
+  const [aiError, setAiError] = useState<string | null>(null)
   const fileInput = useRef<HTMLInputElement>(null)
 
   const { events, finished } = useRunEvents(runId)
@@ -121,21 +130,57 @@ export function App() {
     setBusy(true)
     setError(null)
     setRun(null)
+    setAiRun(null)
+    setAiError(null)
+    setComparison(null)
     try {
-      const { run_id } = await api.startAnalysis(session.session_id, question.trim())
-      setRunId(run_id)
+      if (uiMode === 'compare') {
+        const started = await api.startComparison(session.session_id, question.trim())
+        setComparison(started)
+        setRunId(started.deterministic_run_id)
+      } else {
+        const { run_id } = await api.startAnalysis(session.session_id, question.trim(), uiMode)
+        setRunId(run_id)
+      }
     } catch (e) {
       setError(e instanceof ApiError ? e.message : 'The analysis could not be started.')
     } finally {
       setBusy(false)
     }
-  }, [session, question])
+  }, [session, question, uiMode])
+
+  // The AI side of a comparison is polled separately, so one side failing
+  // never removes the other.
+  useEffect(() => {
+    if (!comparison) return
+    let cancelled = false
+    const poll = async () => {
+      try {
+        const payload = await api.run(comparison.ai_run_id)
+        if (cancelled) return
+        setAiRun(payload)
+        if (payload.status === 'failed' && payload.error) setAiError(payload.error)
+        if (payload.status === 'running') window.setTimeout(poll, 1200)
+      } catch (e) {
+        if (!cancelled) {
+          setAiError(e instanceof ApiError ? e.message : 'The AI run could not be read.')
+        }
+      }
+    }
+    void poll()
+    return () => {
+      cancelled = true
+    }
+  }, [comparison])
 
   const reset = useCallback(() => {
     setRun(null)
     setRunId(null)
     setReplay(null)
     setOpenFinding(null)
+    setComparison(null)
+    setAiRun(null)
+    setAiError(null)
   }, [])
 
   const endSession = useCallback(async () => {
@@ -254,6 +299,8 @@ export function App() {
               setQuestion={setQuestion}
               onAsk={ask}
               busy={busy}
+              uiMode={uiMode}
+              setUiMode={setUiMode}
             />
           )}
 
@@ -282,16 +329,59 @@ export function App() {
             <div className="notice warn">The run stopped early: {run.stopped_reason}</div>
           )}
 
-          {run && (
-            <ReportView
-              question={run.question}
-              report={run.report}
-              findings={run.findings}
-              rejected={run.rejected}
-              charts={run.charts}
-              results={run.results}
-              onShowWork={setOpenFinding}
+          {comparison ? (
+            <ComparisonView
+              question={comparison.question}
+              deterministic={{
+                title: 'Deterministic Analytics',
+                subtitle: 'Rule-based planning over the governed analytics engine.',
+                run,
+                error: null,
+                pending: Boolean(runId) && !finished,
+                children: run ? (
+                  <ReportView
+                    question={run.question}
+                    report={run.report}
+                    findings={run.findings}
+                    rejected={run.rejected}
+                    charts={run.charts}
+                    results={run.results}
+                    onShowWork={setOpenFinding}
+                  />
+                ) : null,
+              }}
+              ai={{
+                title: 'AI Analytics',
+                subtitle: 'A cloud model plans and interprets; the engine computes and verifies.',
+                run: aiRun,
+                error: aiError,
+                pending: Boolean(aiRun && aiRun.status === 'running'),
+                usage: aiRun?.usage,
+                children: aiRun && aiRun.status === 'completed' ? (
+                  <ReportView
+                    question={aiRun.question}
+                    report={aiRun.report}
+                    findings={aiRun.findings}
+                    rejected={aiRun.rejected}
+                    charts={aiRun.charts}
+                    results={aiRun.results}
+                    onShowWork={setOpenFinding}
+                  />
+                ) : null,
+              }}
             />
+          ) : (
+            run && (
+              <ReportView
+                question={run.question}
+                report={run.report}
+                findings={run.findings}
+                rejected={run.rejected}
+                charts={run.charts}
+                results={run.results}
+                onShowWork={setOpenFinding}
+              />
+            )
           )}
         </div>
 
@@ -444,12 +534,16 @@ function AskPanel({
   setQuestion,
   onAsk,
   busy,
+  uiMode,
+  setUiMode,
 }: {
   config: ServerConfig | null
   question: string
   setQuestion: (q: string) => void
   onAsk: () => void
   busy: boolean
+  uiMode: UiMode
+  setUiMode: (m: UiMode) => void
 }) {
   return (
     <section className="panel">
@@ -457,7 +551,15 @@ function AskPanel({
         <h2>Ask</h2>
       </div>
       <div className="panel-body stack">
-        {config?.execution_mode === 'deterministic_live' && (
+        {config?.capabilities && (
+          <ModeSelector
+            capabilities={config.capabilities}
+            value={uiMode}
+            onChange={setUiMode}
+            disabled={busy}
+          />
+        )}
+        {uiMode === 'deterministic' && (
           <p className="notice info small" data-testid="interpretation-notice" style={{ margin: 0 }}>
             Question interpretation is rule-based in this public demo: a scripted
             provider maps your wording onto the dataset, and says so when it cannot.
@@ -479,7 +581,13 @@ function AskPanel({
         />
         <div className="row">
           <button className="btn primary" onClick={onAsk} disabled={busy || !question.trim()}>
-            {busy ? 'Starting…' : 'Run analysis'}
+            {busy
+              ? 'Starting…'
+              : uiMode === 'compare'
+                ? 'Run both'
+                : uiMode === 'ai'
+                  ? 'Run with AI'
+                  : 'Run analysis'}
           </button>
           <span className="small dim">{question.length}/500 · ⌘↵ to run</span>
         </div>
