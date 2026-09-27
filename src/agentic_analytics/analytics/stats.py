@@ -15,7 +15,7 @@ from typing import Any, Literal
 import numpy as np
 from scipy import stats as sps
 
-from agentic_analytics.analytics.execute import fetch_rows, run_query
+from agentic_analytics.analytics.execute import fetch_rows, held_connection, run_query
 from agentic_analytics.analytics.filters import Filter, build_where
 from agentic_analytics.analytics.results import ResultSnapshot, StatisticalResult
 from agentic_analytics.warehouse.session import AnalysisSession
@@ -128,7 +128,7 @@ def _relation_columns(session: AnalysisSession, relation_sql: str) -> dict[str, 
     of an unrelated result.
     """
     try:
-        with session.lock:
+        with held_connection(session):
             cursor = session.con.execute(f"SELECT * FROM (\n{relation_sql}\n) AS r LIMIT 0")
             description = cursor.description or []
             return {str(d[0]): str(d[1]).split("(")[0].upper() for d in description}
