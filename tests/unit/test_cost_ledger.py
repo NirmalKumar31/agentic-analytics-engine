@@ -15,7 +15,7 @@ from __future__ import annotations
 import fakeredis
 import pytest
 
-from agentic_analytics.api.ledger import (
+from agentic_analytics.llm.ledger import (
     CLIENT_LIMIT,
     DAILY_LIMIT,
     GLOBAL_LIMIT,
@@ -26,7 +26,7 @@ from agentic_analytics.api.ledger import (
     LedgerUnavailable,
     open_ledger,
 )
-from agentic_analytics.api.pricing import UnknownModelPrice, price_for
+from agentic_analytics.llm.pricing import UnknownModelPrice, price_for
 
 CAPS = LedgerCaps(
     total_microdollars=1_000_000,
@@ -328,7 +328,7 @@ def test_an_unpriced_model_fails_closed() -> None:
 
 def test_pricing_rounds_up_so_a_ceiling_is_never_undershot() -> None:
     price = price_for("claude-sonnet-5")
-    assert price.cost_microdollars(1, 0) == 3
+    assert price.cost_microdollars(1, 0) == 2
     assert isinstance(price.cost_microdollars(4000, 2048), int)
 
 

@@ -189,7 +189,7 @@ async def test_a_failure_logs_the_type_without_the_credential() -> None:
         await provider.aclose()
 
     records = [e for e in captured if e.get("event") == "cloud_call_failed"]
-    assert records
+    assert records, f"no cloud_call_failed record was emitted; saw {captured}"
     assert records[0]["status"] == 500
     blob = repr(records)
     assert KEY not in blob

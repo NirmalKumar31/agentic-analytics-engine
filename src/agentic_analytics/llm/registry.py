@@ -32,17 +32,16 @@ def build_provider(settings: Settings | None = None) -> LLMProvider:
         )
 
     if cfg.provider_mode == "cloud":
-        if not cfg.cloud_api_key:
-            raise LLMError("AAE_PROVIDER_MODE=cloud requires AAE_CLOUD_API_KEY to be set")
-        from agentic_analytics.llm.cloud import CloudProvider
-
-        return CloudProvider(
-            api_key=cfg.cloud_api_key,
-            model=cfg.cloud_model,
-            base_url=cfg.cloud_base_url,
-            max_calls=max_calls,
-            timeout_seconds=cfg.cloud_timeout_seconds,
-            send_temperature=cfg.cloud_send_temperature,
+        # No unmetered shortcut. A bare `CloudProvider` spends without
+        # reserving, so the only way to a paid endpoint is
+        # `llm.governed.open_governed_cloud_provider`, which preflights the
+        # model and charges each call against the durable ledger. The web
+        # application and the evaluation CLI both go through it.
+        raise LLMError(
+            "a cloud provider cannot be built here: paid runs go through "
+            "agentic_analytics.llm.governed.open_governed_cloud_provider, "
+            "which requires AAE_AI_ANALYTICS_ENABLED, AAE_AI_QUOTA_REDIS_URL, "
+            "a verified model and a reviewed pricing entry"
         )
 
     raise LLMError(f"unknown provider mode {cfg.provider_mode!r}")

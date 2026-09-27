@@ -184,7 +184,7 @@ def test_every_ai_ceiling_is_declared_and_positive() -> None:
 
 def test_the_configured_model_has_a_pricing_entry() -> None:
     """An unpriced model is refused at runtime; catch it at review time."""
-    from agentic_analytics.api.pricing import is_priced
+    from agentic_analytics.llm.pricing import is_priced
 
     service = _blueprint("render.yaml")
     by_key = {e["key"]: e for e in service["envVars"]}  # type: ignore[index]

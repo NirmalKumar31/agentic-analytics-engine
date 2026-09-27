@@ -364,6 +364,94 @@ def probe_worker_findings(
         console.print(f"\nwrote {out}")
 
 
+@app.command("cloud-preflight")
+def cloud_preflight() -> None:
+    """Check that a paid run could start, without creating a Message.
+
+    Verifies the credential, resolves the model, requires a reviewed
+    pricing entry and confirms the durable ledger answers. Costs nothing:
+    the Models endpoint is not a completion, and no Message is created.
+
+    Prints sanitized configuration only. No credential, connection string
+    or provider response body is shown.
+    """
+    from agentic_analytics.llm.cloud import CloudProvider
+    from agentic_analytics.llm.governed import PreflightFailed, preflight
+    from agentic_analytics.llm.ledger import open_ledger
+
+    configure_logging("WARNING", json_output=False)
+    cfg = get_settings()
+
+    problems: list[str] = []
+    if not cfg.ai_analytics_enabled:
+        problems.append("AAE_AI_ANALYTICS_ENABLED is not true")
+    if not cfg.cloud_api_key:
+        problems.append("AAE_CLOUD_API_KEY is not set")
+    if not cfg.cloud_model:
+        problems.append("AAE_CLOUD_MODEL is not set")
+    if not cfg.ai_quota_redis_url:
+        problems.append("AAE_AI_QUOTA_REDIS_URL is not set")
+    if problems:
+        for problem in problems:
+            console.print(f"[red]x[/red] {problem}")
+        raise typer.Exit(code=2)
+
+    ledger = open_ledger(cfg.ai_quota_redis_url)
+    if ledger is None:
+        console.print("[red]x[/red] the usage ledger is not reachable")
+        raise typer.Exit(code=2)
+    console.print("[green]ok[/green] usage ledger reachable")
+
+    async def _check() -> Any:
+        provider = CloudProvider(
+            api_key=cfg.cloud_api_key or "",
+            model=cfg.cloud_model,
+            base_url=cfg.cloud_base_url,
+            max_calls=cfg.ai_max_llm_calls,
+            timeout_seconds=cfg.cloud_timeout_seconds,
+            send_temperature=cfg.cloud_send_temperature,
+        )
+        try:
+            return await preflight(provider, ledger)
+        finally:
+            await provider.aclose()
+
+    try:
+        result = asyncio.run(_check())
+    except PreflightFailed as exc:
+        console.print(f"[red]x[/red] {exc} ({exc.reason})")
+        raise typer.Exit(code=2) from None
+    except Exception as exc:
+        console.print(f"[red]x[/red] preflight failed ({type(exc).__name__})")
+        raise typer.Exit(code=2) from None
+
+    console.print("[green]ok[/green] credential accepted, model resolved")
+
+    table = Table(title="Cloud preflight")
+    table.add_column("setting")
+    table.add_column("value")
+    table.add_row("requested model", result.requested_model)
+    table.add_row("resolved model", result.resolved_model)
+    table.add_row("pricing source", result.price.source)
+    table.add_row("pricing reviewed", result.price.reviewed)
+    table.add_row("input per Mtok", f"{result.price.input_per_mtok / 1_000_000:.2f} USD")
+    table.add_row("output per Mtok", f"{result.price.output_per_mtok / 1_000_000:.2f} USD")
+    table.add_row("max model calls per run", str(cfg.ai_max_llm_calls))
+    table.add_row("max input tokens per run", str(cfg.ai_max_input_tokens))
+    table.add_row("max output tokens per run", str(cfg.ai_max_output_tokens))
+    table.add_row("max runtime per run", f"{cfg.ai_max_runtime_seconds:.0f}s")
+    table.add_row("max cost per run", f"{cfg.ai_max_cost_microdollars / 1_000_000:.2f} USD")
+    table.add_row("daily ceiling", f"{cfg.ai_daily_cost_microdollars / 1_000_000:.2f} USD")
+    table.add_row("lifetime ceiling", f"{cfg.ai_total_cost_microdollars / 1_000_000:.2f} USD")
+    table.add_row("runs per session", str(cfg.ai_runs_per_session))
+    table.add_row("runs per address per hour", str(cfg.ai_runs_per_ip_per_hour))
+    console.print(table)
+    console.print(
+        "No Message was created. Application ceilings are not a billing "
+        "guarantee: set a hard spend cap on the provider account as well."
+    )
+
+
 @app.command()
 def serve(
     host: Annotated[str, typer.Option()] = "127.0.0.1",

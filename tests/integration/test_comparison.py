@@ -36,7 +36,7 @@ def ai_client(demo_data_dir: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[
     import fakeredis
 
     import agentic_analytics.api.app as app_module
-    from agentic_analytics.api.ledger import CostLedger
+    from agentic_analytics.llm.ledger import CostLedger
 
     monkeypatch.setattr(
         app_module, "open_ledger", lambda url, *a, **k: CostLedger(fakeredis.FakeRedis())
@@ -184,7 +184,7 @@ def test_the_session_ceiling_counts_both_children(
     import fakeredis
 
     import agentic_analytics.api.app as app_module
-    from agentic_analytics.api.ledger import CostLedger
+    from agentic_analytics.llm.ledger import CostLedger
 
     monkeypatch.setattr(
         app_module, "open_ledger", lambda url, *a, **k: CostLedger(fakeredis.FakeRedis())

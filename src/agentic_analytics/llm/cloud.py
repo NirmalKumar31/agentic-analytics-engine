@@ -1,8 +1,11 @@
 """Cloud provider adapter (Anthropic Messages API).
 
-Configured only through the environment. This module is never imported unless
-``AAE_PROVIDER_MODE=cloud``, and the default configuration never selects it, so
-no test, CI job or demo can reach a paid endpoint by accident.
+Configured only through the environment. Nothing here is reachable without
+an explicit AI run: the web application builds a provider per run from a
+validated mode, and every production path wraps this class in
+:mod:`agentic_analytics.llm.governed`, which admits and charges each call
+against a durable ledger. Constructing this class directly is a test-only
+affordance.
 
 Structured output is obtained with a single-tool forced tool call, which is the
 supported way to constrain the Messages API to a JSON schema.
@@ -60,6 +63,7 @@ class CloudProvider(LLMProvider):
 
     name = "cloud"
     requires_credentials = True
+    remote_inference = True
 
     def __init__(
         self,
@@ -99,8 +103,14 @@ class CloudProvider(LLMProvider):
             },
         )
 
-    async def complete_json(self, request: LLMRequest) -> dict[str, Any]:
-        self._check_budget(request.role)
+    def build_payload(self, request: LLMRequest) -> dict[str, Any]:
+        """The exact body that will be sent.
+
+        Public and single-sourced so a token count is taken over the same
+        system text, messages, tools, schema and tool choice that the
+        Messages request carries. Counting a differently-shaped payload
+        would produce a number that bounds nothing.
+        """
         schema = request.schema_ or {"type": "object"}
         payload: dict[str, Any] = {
             "model": self.model,
@@ -118,6 +128,52 @@ class CloudProvider(LLMProvider):
         }
         if self.send_temperature:
             payload["temperature"] = request.temperature
+        return payload
+
+    async def count_input_tokens(self, request: LLMRequest) -> int:
+        """Count the request's input tokens before creating a Message.
+
+        Uses the provider's own counting endpoint rather than a character
+        heuristic, because the number is a financial control: an estimate
+        that is low under-reserves exactly when a prompt is unusual.
+        `max_tokens` is not part of a count request.
+        """
+        payload = {k: v for k, v in self.build_payload(request).items() if k != "max_tokens"}
+        try:
+            async with asyncio.timeout(self.call_timeout_seconds):
+                response = await self._client.post("/v1/messages/count_tokens", json=payload)
+                response.raise_for_status()
+                body = response.json()
+        except httpx.HTTPStatusError as exc:
+            log.warning(
+                "cloud_token_count_failed",
+                role=request.role,
+                status=exc.response.status_code,
+                model=self.model,
+            )
+            raise LLMError(
+                _status_message(exc.response.status_code), kind="transport_error"
+            ) from None
+        except Exception as exc:
+            log.warning(
+                "cloud_token_count_failed",
+                role=request.role,
+                error_type=type(exc).__name__,
+                model=self.model,
+            )
+            raise LLMError(sanitize_provider_error(exc), kind="transport_error") from None
+
+        counted = body.get("input_tokens")
+        if not isinstance(counted, int) or counted < 0:
+            raise LLMError(
+                "the provider did not return a usable token count",
+                kind="json_parse_error",
+            )
+        return counted
+
+    async def complete_json(self, request: LLMRequest) -> dict[str, Any]:
+        self._check_budget(request.role)
+        payload = self.build_payload(request)
         try:
             async with asyncio.timeout(self.call_timeout_seconds):
                 response = await self._client.post("/v1/messages", json=payload)

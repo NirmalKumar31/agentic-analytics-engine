@@ -125,6 +125,11 @@ class LLMProvider(ABC):
     name: str = "base"
     #: True when calling this provider costs money or needs a credential.
     requires_credentials: bool = False
+    #: True when a prompt sent to this provider leaves the machine. This is
+    #: what decides whether an uploaded file's raw cells may appear in one,
+    #: so it is a property of the provider a run actually holds rather than
+    #: of the process: one process serves both a local run and a cloud run.
+    remote_inference: bool = False
 
     def __init__(self, max_calls: int = 40) -> None:
         self.usage = LLMUsage()

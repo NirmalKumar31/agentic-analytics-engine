@@ -403,6 +403,39 @@ def _flags(outcome: QuestionOutcome) -> list[str]:
     return flags
 
 
+async def _open_provider(cfg: Settings, *, run_id: str) -> Any:
+    """The evaluation's provider, governed when it is a paid one.
+
+    A cloud evaluation must not have an unmetered shortcut: the CLI and the
+    web application reach the same endpoint, so they go through the same
+    preflight, the same ceilings and the same durable ledger.
+    """
+    if cfg.provider_mode != "cloud":
+        return build_provider(cfg)
+
+    from agentic_analytics.llm.governed import open_governed_cloud_provider
+    from agentic_analytics.llm.ledger import open_ledger
+
+    if not cfg.ai_analytics_enabled:
+        raise RuntimeError(
+            "a cloud evaluation requires AAE_AI_ANALYTICS_ENABLED=true, so the "
+            "AI ceilings and the durable ledger apply"
+        )
+    ledger = open_ledger(cfg.ai_quota_redis_url)
+    if ledger is None:
+        raise RuntimeError(
+            "a cloud evaluation requires a reachable AAE_AI_QUOTA_REDIS_URL: "
+            "process-local counters cannot bound spending"
+        )
+    return await open_governed_cloud_provider(
+        cfg,
+        run_id=run_id,
+        session_id=f"eval:{run_id}",
+        client_id="cli",
+        ledger=ledger,
+    )
+
+
 async def evaluate_question(
     question: EvalQuestion,
     dataset_id: str,
@@ -419,7 +452,7 @@ async def evaluate_question(
         expectation=question.expectation,
     )
     manager = SessionManager(max_sessions=4)
-    provider = build_provider(cfg)
+    provider = await _open_provider(cfg, run_id=question_key(dataset_id, 0, question.text))
     calls: list[StructuredCall] = []
     telemetry: dict[str, Any] = {}
     started = time.monotonic()

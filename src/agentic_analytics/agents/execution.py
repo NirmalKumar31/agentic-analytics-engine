@@ -47,7 +47,7 @@ from agentic_analytics.agents.schemas import AnalysisTask
 #: addressed; `task_id` is provenance the engine assigns. They are injected
 #: by `AnalyticsToolset.call`, so showing them to a model could only invite
 #: it to supply one.
-ENGINE_OWNED_ARGUMENTS = frozenset({"session_id", "session_key", "task_id"})
+ENGINE_OWNED_ARGUMENTS = frozenset({"session_id", "session_key", "task_id", "remote_inference"})
 
 #: Tools whose arguments are metric-layer names rather than column names.
 #: Tools that address physical tables and columns. The physical schema is

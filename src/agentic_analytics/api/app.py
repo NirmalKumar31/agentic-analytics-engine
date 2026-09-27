@@ -15,7 +15,9 @@ import json
 import shutil
 import tempfile
 import uuid
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Iterator
+from contextlib import contextmanager
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
@@ -26,7 +28,6 @@ from mcp.server.transport_security import TransportSecuritySettings
 
 from agentic_analytics import __version__
 from agentic_analytics.analytics.semantic import infer_schema
-from agentic_analytics.api.ledger import open_ledger
 from agentic_analytics.api.limits import Capacity, RateLimit, client_key
 from agentic_analytics.api.models import (
     AILimits,
@@ -54,6 +55,13 @@ from agentic_analytics.api.runs import RunRecord, RunRegistry
 from agentic_analytics.config import Settings, get_settings
 from agentic_analytics.events import EventType
 from agentic_analytics.graph.runner import run_analysis
+from agentic_analytics.llm.base import LLMProvider
+from agentic_analytics.llm.governed import (
+    AIBudgetExceeded,
+    PreflightFailed,
+    open_governed_cloud_provider,
+)
+from agentic_analytics.llm.ledger import open_ledger
 from agentic_analytics.logging import configure_logging, get_logger
 from agentic_analytics.mcp_layer.server import build_server
 from agentic_analytics.recordings.store import RecordingStore
@@ -690,18 +698,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 status_code=429,
                 detail="this session has reached its analysis limit; start a new one",
             )
-        if not analysis_capacity.acquire():
-            raise HTTPException(
-                status_code=429,
-                detail="the demo is currently at capacity; please try again shortly",
-            )
-        if mode is RunMode.AI and not ai_capacity.acquire():
-            analysis_capacity.release()
-            raise HTTPException(
-                status_code=429,
-                detail="AI Analytics is at capacity; please try again shortly",
-                headers={"X-AAE-Reason": "ai_concurrent_limit_reached"},
-            )
+        # Every side-effect-free check happens before anything is acquired.
+        # Acquiring first and refusing afterwards leaked a slot on each
+        # unavailable request, so a deployment with AI misconfigured lost
+        # capacity to visitors who never got a run.
         if mode is RunMode.AI:
             availability = ai_availability(cfg, ledger_ready=ledger is not None)
             if not availability.available:
@@ -711,16 +711,83 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                     headers={"X-AAE-Reason": availability.reason},
                 )
 
-        record = _launch(session, request.question, mode)
+        with _admission(mode) as permits:
+            if not permits.ok:
+                raise HTTPException(
+                    status_code=429,
+                    detail=(
+                        "AI Analytics is at capacity; please try again shortly"
+                        if mode is RunMode.AI
+                        else "the demo is currently at capacity; please try again shortly"
+                    ),
+                )
+            record = _launch(session, request.question, mode, client_id=client)
+            permits.keep()
         return AnalysisStarted(
             run_id=record.run_id, session_id=session.session_id, question=request.question
         )
+
+    @dataclass
+    class _Permits:
+        """The slots one run holds, with exactly one release path."""
+
+        general: bool
+        ai: bool
+        mode: RunMode
+        kept: bool = False
+
+        @property
+        def ok(self) -> bool:
+            return self.general and self.ai
+
+        def keep(self) -> None:
+            """Hand ownership to the run task, which releases them."""
+            self.kept = True
+
+    def _release(mode: RunMode) -> None:
+        """Return both permits. One place, so neither is forgotten."""
+        if mode is RunMode.AI:
+            ai_capacity.release()
+        analysis_capacity.release()
+
+    async def _with_ai_deadline(mode: RunMode, coro: Any) -> Any:
+        """A hard ceiling on a whole AI run.
+
+        Node-boundary checks are not enough on their own: one slow provider
+        call can outlast the run's own budget, and the ceiling has to bound
+        the run rather than the gaps between its steps.
+        """
+        if mode is not RunMode.AI:
+            return await coro
+        async with asyncio.timeout(cfg.ai_max_runtime_seconds):
+            return await coro
+
+    @contextmanager
+    def _admission(mode: RunMode) -> Iterator[_Permits]:
+        """Acquire what a run needs, releasing unless the task takes over.
+
+        Refusing after acquiring used to leak a slot on every unavailable
+        request, so a deployment with AI misconfigured lost capacity to
+        visitors who never got a run.
+        """
+        general = analysis_capacity.acquire()
+        ai = ai_capacity.acquire() if general and mode is RunMode.AI else True
+        permits = _Permits(general=general, ai=ai, mode=mode)
+        try:
+            yield permits
+        finally:
+            if not permits.kept:
+                if permits.ai and mode is RunMode.AI:
+                    ai_capacity.release()
+                if permits.general:
+                    analysis_capacity.release()
 
     def _launch(
         session: AnalysisSession,
         question: str,
         mode: RunMode,
         comparison_id: str | None = None,
+        client_id: str = "",
     ) -> RunRecord:
         """Start one run. Capacity for it has already been acquired.
 
@@ -742,26 +809,63 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             record.requested_model = cfg.cloud_model
 
         async def execute() -> None:
+            provider: LLMProvider | None = None
             try:
-                provider = build_provider_for_mode(cfg, mode, ledger_ready=ledger is not None)
-            except ModeUnavailable as exc:
+                if mode is RunMode.AI:
+                    # The one governed construction site. Preflight runs
+                    # here -- ledger health, model resolution, an exact
+                    # pricing entry -- so a run that cannot be bounded is
+                    # refused before its first billable request.
+                    assert ledger is not None
+                    provider = await open_governed_cloud_provider(
+                        cfg,
+                        run_id=record.run_id,
+                        session_id=session.session_id,
+                        client_id=client_id,
+                        ledger=ledger,
+                    )
+                    result = provider.preflight_result
+                    record.requested_model = result.requested_model
+                    record.resolved_model = result.resolved_model
+                    record.pricing_source = result.price.source
+                    record.pricing_reviewed = result.price.reviewed
+                else:
+                    provider = build_provider_for_mode(cfg, mode)
+            except (ModeUnavailable, PreflightFailed, AIBudgetExceeded) as exc:
                 record.error = str(exc)
                 record.bus.emit(EventType.RUN_FAILED, reason=record.error)
                 record.bus.close()
-                analysis_capacity.release()
-                if mode is RunMode.AI:
-                    ai_capacity.release()
+                _release(mode)
+                return
+            except Exception as exc:
+                # Any other construction failure must also return the slots.
+                log.warning(
+                    "provider_construction_failed",
+                    run_id=record.run_id,
+                    error_type=type(exc).__name__,
+                )
+                record.error = "the analysis could not be started"
+                record.bus.emit(EventType.RUN_FAILED, reason=record.error)
+                record.bus.close()
+                _release(mode)
                 return
             try:
-                record.result = await run_analysis(
-                    question,
-                    session,
-                    mcp,
-                    settings=cfg,
-                    provider=provider,
-                    events=record.bus,
-                    run_id=record.run_id,
+                record.result = await _with_ai_deadline(
+                    mode,
+                    run_analysis(
+                        question,
+                        session,
+                        mcp,
+                        settings=cfg,
+                        provider=provider,
+                        events=record.bus,
+                        run_id=record.run_id,
+                    ),
                 )
+            except TimeoutError:
+                record.error = "This AI run reached its time limit."
+                record.bus.emit(EventType.RUN_FAILED, reason=record.error)
+                record.bus.close()
             except asyncio.CancelledError:
                 # The dataset was deleted, replaced or expired. Mark it and
                 # end the stream, so a browser waiting on SSE is told rather
@@ -790,10 +894,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                     record.resolved_model = str(resolved.get("id", "")) or None
                 if record.provider_kind == "cloud" and ledger is not None:
                     record.cost_microdollars = ledger.spent_microdollars(record.run_id)
-                await provider.aclose()
-                analysis_capacity.release()
-                if mode is RunMode.AI:
-                    ai_capacity.release()
+                if provider is not None:
+                    await provider.aclose()
+                _release(mode)
 
         record.task = asyncio.create_task(execute())
         return record

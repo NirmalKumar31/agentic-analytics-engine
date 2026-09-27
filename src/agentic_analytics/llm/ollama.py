@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import asyncio
 from typing import Any
+from urllib.parse import urlparse
 
 import httpx
 
@@ -23,6 +24,15 @@ from agentic_analytics.llm.base import (
 from agentic_analytics.logging import get_logger
 
 log = get_logger(__name__)
+
+
+_LOOPBACK_HOSTS = frozenset({"localhost", "127.0.0.1", "::1", "0.0.0.0", "host.docker.internal"})
+
+
+def _is_loopback(base_url: str) -> bool:
+    """Whether this URL addresses a model running on this machine."""
+    host = urlparse(base_url).hostname
+    return host is not None and host.lower() in _LOOPBACK_HOSTS
 
 
 class OllamaProvider(LLMProvider):
@@ -41,6 +51,11 @@ class OllamaProvider(LLMProvider):
     ) -> None:
         super().__init__(max_calls=max_calls)
         self.base_url = base_url.rstrip("/")
+        #: "Local" is about where the prompt goes, not which vendor built
+        #: the model. An Ollama host on another machine is still a prompt
+        #: leaving this one, so the loopback check is the honest answer and
+        #: an unparseable host is treated as remote.
+        self.remote_inference = not _is_loopback(self.base_url)
         self.model = model
         #: Whether a reasoning-capable model may emit its thinking.
         #:

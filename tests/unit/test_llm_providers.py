@@ -242,9 +242,23 @@ def test_registry_builds_the_local_provider_without_a_credential() -> None:
     assert provider.requires_credentials is False
 
 
-def test_cloud_mode_without_a_key_is_refused() -> None:
-    with pytest.raises(LLMError, match="requires AAE_CLOUD_API_KEY"):
-        build_provider(Settings(provider_mode="cloud", cloud_api_key=None))
+def test_cloud_mode_cannot_be_built_unmetered() -> None:
+    """The registry has no path to a bare cloud provider.
+
+    A `CloudProvider` built here would spend without reserving. The only
+    way to a paid endpoint is the governed factory, which preflights the
+    model and charges every call against the durable ledger.
+    """
+    with pytest.raises(LLMError, match="governed"):
+        build_provider(Settings(provider_mode="cloud", cloud_api_key="k"))
+
+
+def test_the_refusal_names_what_a_paid_run_requires() -> None:
+    with pytest.raises(LLMError) as raised:
+        build_provider(Settings(provider_mode="cloud"))
+    message = str(raised.value)
+    for required in ("AAE_AI_ANALYTICS_ENABLED", "AAE_AI_QUOTA_REDIS_URL", "pricing"):
+        assert required in message
 
 
 def test_registry_honours_the_llm_call_budget() -> None:
@@ -453,17 +467,10 @@ async def test_the_cloud_ceiling_is_configured_not_hardcoded() -> None:
         await provider.aclose()
 
 
-def test_the_cloud_ceiling_reaches_the_provider_from_settings(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
+def test_the_cloud_ceiling_is_configurable(monkeypatch: pytest.MonkeyPatch) -> None:
     """A setting nothing reads is a comment with a type annotation."""
-    monkeypatch.setenv("AAE_PROVIDER_MODE", "cloud")
-    monkeypatch.setenv("AAE_CLOUD_API_KEY", "k")
     monkeypatch.setenv("AAE_CLOUD_TIMEOUT_SECONDS", "33")
-    cfg = Settings()
-    assert cfg.cloud_timeout_seconds == 33.0
-    provider = build_provider(cfg)
-    assert provider.call_timeout_seconds == 33.0  # type: ignore[attr-defined]
+    assert Settings().cloud_timeout_seconds == 33.0
 
 
 def test_the_cloud_ceiling_must_be_positive(monkeypatch: pytest.MonkeyPatch) -> None:

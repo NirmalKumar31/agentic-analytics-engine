@@ -72,6 +72,8 @@ class RunRecord:
     requested_model: str | None = None
     resolved_model: str | None = None
     engine_version: str | None = None
+    pricing_source: str | None = None
+    pricing_reviewed: str | None = None
     dataset_fingerprint: str | None = None
     #: Usage, for the comparison view. Cost is integer microdollars.
     input_tokens: int = 0
@@ -108,7 +110,14 @@ class RunRecord:
         payload["provider_kind"] = self.provider_kind
         if self.comparison_id:
             payload["comparison_id"] = self.comparison_id
-        for key in ("requested_model", "resolved_model", "engine_version", "dataset_fingerprint"):
+        for key in (
+            "requested_model",
+            "resolved_model",
+            "engine_version",
+            "dataset_fingerprint",
+            "pricing_source",
+            "pricing_reviewed",
+        ):
             value = getattr(self, key)
             if value:
                 payload[key] = value
