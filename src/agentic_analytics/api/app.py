@@ -953,23 +953,29 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 status_code=429,
                 detail="this session has reached its analysis limit; start a new one",
             )
-        if not analysis_capacity.acquire():
-            raise HTTPException(
-                status_code=429,
-                detail="the demo is currently at capacity; please try again shortly",
-            )
-
         comparison_id = f"cmp_{uuid.uuid4().hex[:12]}"
-        deterministic = _launch(session, request.question, RunMode.DETERMINISTIC, comparison_id)
+        # Both children go through the same admission as a lone run. A
+        # second hand-rolled acquire/release here is how the slot leak this
+        # guards against got written the first time, and `_launch` raising
+        # after a bare `acquire()` would leak one every attempt.
+        with _admission(RunMode.DETERMINISTIC) as permits:
+            if not permits.ok:
+                raise HTTPException(
+                    status_code=429,
+                    detail="the demo is currently at capacity; please try again shortly",
+                )
+            deterministic = _launch(
+                session, request.question, RunMode.DETERMINISTIC, comparison_id
+            )
+            permits.keep()
 
         # The AI side needs its own capacity slot and its own analysis slot.
         # Failing to get either leaves the deterministic run untouched.
         ai_record: RunRecord | None = None
-        if analysis_capacity.acquire():
-            if ai_capacity.acquire():
+        with _admission(RunMode.AI) as ai_permits:
+            if ai_permits.ok:
                 ai_record = _launch(session, request.question, RunMode.AI, comparison_id)
-            else:
-                analysis_capacity.release()
+                ai_permits.keep()
 
         if ai_record is None:
             ai_record = runs.create(

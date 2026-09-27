@@ -18,6 +18,7 @@ from agentic_analytics.api.modes import (
     AI_DISABLED,
     AI_NOT_CONFIGURED,
     AI_QUOTA_UNAVAILABLE,
+    AI_REQUIRES_GOVERNED_BUILD,
     ModeUnavailable,
     RunMode,
     ai_availability,
@@ -80,10 +81,19 @@ def test_ai_is_refused_before_any_paid_call(
     assert raised.value.reason == reason
 
 
-def test_ai_builds_the_cloud_provider_when_everything_is_configured() -> None:
+def test_a_paid_provider_cannot_be_built_without_its_ledger() -> None:
+    """Even a perfectly configured deployment is refused here.
+
+    A cloud provider built outside `open_governed_cloud_provider` has no
+    reservation, no run ceiling and no reconciliation, so it is a run that
+    spends without a bound. The refusal names that rather than pretending
+    the deployment is misconfigured.
+    """
     cfg = _settings(ai_analytics_enabled=True, cloud_api_key="k", cloud_model="claude-sonnet-5")
-    provider = build_provider_for_mode(cfg, RunMode.AI)
-    assert provider.name == "cloud"
+    assert ai_availability(cfg).available is True
+    with pytest.raises(ModeUnavailable) as raised:
+        build_provider_for_mode(cfg, RunMode.AI)
+    assert raised.value.reason == AI_REQUIRES_GOVERNED_BUILD
     assert provider_kind(RunMode.AI) == "cloud"
 
 

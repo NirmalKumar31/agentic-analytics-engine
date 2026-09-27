@@ -43,12 +43,19 @@ class RunMode(StrEnum):
 AI_DISABLED = "ai_disabled"
 AI_NOT_CONFIGURED = "ai_not_configured"
 AI_QUOTA_UNAVAILABLE = "ai_quota_storage_unavailable"
+#: Not a deployment problem: a caller asked this function to build a paid
+#: provider, which only `governed.open_governed_cloud_provider` may do.
+AI_REQUIRES_GOVERNED_BUILD = "ai_requires_governed_build"
 
 _REASON_TEXT = {
     AI_DISABLED: "AI Analytics is turned off on this deployment.",
     AI_NOT_CONFIGURED: "AI Analytics is not configured on this deployment.",
     AI_QUOTA_UNAVAILABLE: (
         "AI Analytics is unavailable because its usage accounting is not reachable."
+    ),
+    AI_REQUIRES_GOVERNED_BUILD: (
+        "AI Analytics is unavailable because this run was not attached to its "
+        "usage accounting."
     ),
 }
 
@@ -97,6 +104,13 @@ def build_provider_for_mode(
     A deterministic run must not build a cloud provider, read the cloud
     credential or validate it, so that a deployment with no key -- or a
     broken one -- still serves deterministic analytics normally.
+
+    Only the deterministic provider is returned. Asking for the AI one
+    raises even when the deployment is perfectly configured: a paid
+    provider is constructed by
+    :func:`agentic_analytics.llm.governed.open_governed_cloud_provider`
+    and nowhere else, so that it cannot exist without the ledger that
+    bounds its spending.
     """
     if mode is RunMode.DETERMINISTIC:
         from agentic_analytics.llm.fake import FakeProvider
@@ -107,16 +121,13 @@ def build_provider_for_mode(
     if not availability.available:
         raise ModeUnavailable(availability.reason)
 
-    from agentic_analytics.llm.cloud import CloudProvider
-
-    return CloudProvider(
-        api_key=cfg.cloud_api_key or "",
-        model=cfg.cloud_model,
-        base_url=cfg.cloud_base_url,
-        max_calls=cfg.ai_max_llm_calls,
-        timeout_seconds=cfg.cloud_timeout_seconds,
-        send_temperature=cfg.cloud_send_temperature,
-    )
+    # Availability is the cheap half of the answer and is all this function
+    # can give. Building the provider is the expensive half, because a paid
+    # provider may only be built attached to the ledger that bounds it --
+    # an unmetered one here would be a run with no ceiling, which is the
+    # defect this whole path exists to prevent. The caller is `execute()`,
+    # which has the ledger and the run id.
+    raise ModeUnavailable(AI_REQUIRES_GOVERNED_BUILD)
 
 
 def provider_kind(mode: RunMode) -> str:
