@@ -54,8 +54,7 @@ _REASON_TEXT = {
         "AI Analytics is unavailable because its usage accounting is not reachable."
     ),
     AI_REQUIRES_GOVERNED_BUILD: (
-        "AI Analytics is unavailable because this run was not attached to its "
-        "usage accounting."
+        "AI Analytics is unavailable because this run was not attached to its usage accounting."
     ),
 }
 

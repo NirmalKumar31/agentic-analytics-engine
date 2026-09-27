@@ -378,7 +378,7 @@ async def test_aggregate_sql_over_an_upload_still_runs_when_remote(
 
 
 def test_a_non_loopback_ollama_host_counts_as_remote() -> None:
-    """"Local model" is about where the prompt goes, not who built it.
+    """A local model means a local machine, not a local vendor.
 
     An Ollama host on another machine is a third party for this purpose.
     """
