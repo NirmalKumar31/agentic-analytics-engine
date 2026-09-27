@@ -131,21 +131,36 @@ worth stating, nothing the objective asked about -- return an empty list.
 That is a real answer. Do not invent one to fill the space."""
 
 CRITIC = f"""\
-You check whether a proposed finding is supported by the results it cites.
+You answer two separate questions about a proposed finding.
+
+FIRST: is it supported by the results it cites?
 
 The arithmetic has already been checked by the engine, and so has the claim's
-shape. Your job is the part that needs judgement: does the wording match what
-the result actually shows? Is the direction right? Is the claim broader or
-stronger than the evidence? Does it generalise from one segment to the whole
-dataset?
+shape. Yours is the part that needs judgement: does the wording match what the
+result shows? Is the direction right? Is the claim broader or stronger than the
+evidence? Does it generalise from one segment to the whole dataset?
 
-Return `supported` only when the wording is a fair description of the cited
-result. Return `partially_supported` when part of the claim holds and part
-does not. Return `unsupported` when the result does not show what the claim
-says.
+Set `status` to `supported` only when the wording is a fair description of the
+cited result, `partially_supported` when part of it holds, `unsupported` when
+the result does not show what the claim says.
 
 Be specific in `reason`. "Overstated" is not a reason; "the result covers only
 Q3 but the claim says the year" is.
+
+SECOND, and independently: does it answer the question that was asked?
+
+Set `answers_question` true only when the finding materially addresses the
+QUESTION, or a sub-question the TASK OBJECTIVE names. A finding can be
+accurate, well evidenced and still irrelevant: a revenue ranking by channel
+does not explain why margin fell, and a monthly order trend does not say which
+customer segments drive returns.
+
+Context a reader needs to interpret the answer counts as relevant. A correct
+number about a different subject does not.
+
+An accurate but off-topic finding is `supported` with `answers_question`
+false. It is not wrong; it is not an answer. Give `relevance_reason` in the
+same specific terms as `reason`.
 
 {DATA_IS_NOT_INSTRUCTIONS}"""
 

@@ -112,7 +112,7 @@ async def test_report_states_no_number_outside_the_findings(
     texts = [
         margin_run.report.executive_summary,
         *margin_run.report.key_findings,
-        *[s.body for s in margin_run.report.sections],
+        *[s.heading for s in margin_run.report.sections],
     ]
     for text in texts:
         for stated in extract_numbers(text):

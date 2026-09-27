@@ -14,7 +14,7 @@ from typing import Any
 
 from agentic_analytics.verification.sql import is_read_only
 
-RECORDING_VERSION = 2
+RECORDING_VERSION = 3
 
 REQUIRED_TOP_LEVEL = (
     "recording_version",

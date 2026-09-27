@@ -153,7 +153,7 @@ def _assemble(
     selected = _resolve(plan.executive_finding_ids, by_id)
     if not selected:
         selected = findings[:DEFAULT_SUMMARY_FINDINGS]
-    executive_summary = " ".join(f.text for f in selected)
+    executive_summary = SUMMARY_LINE
 
     sections: list[ReportSection] = []
     used: set[str] = set()
@@ -167,8 +167,6 @@ def _assemble(
         sections.append(
             ReportSection(
                 heading=_heading_for(members),
-                # The body is the findings' own text, joined. Nothing else.
-                body=" ".join(f.text for f in members),
                 finding_ids=[f.finding_id for f in members],
             )
         )
@@ -185,6 +183,21 @@ def _assemble(
         limitations=list(dict.fromkeys(limitations)),
         next_questions=_safe_questions(plan.next_questions),
     )
+
+
+#: The executive summary. A fixed sentence, carrying no claim about the
+#: data at all.
+#:
+#: It used to be the first few findings' sentences joined together, which
+#: printed each of them again under Key findings and a third time in its
+#: section. Anything generated here -- even a count -- is prose the
+#: publication gate cannot check, so the summary describes the document
+#: rather than the dataset and every factual sentence lives in exactly one
+#: place.
+SUMMARY_LINE = (
+    "Each finding below passed the publication checks and is listed once, "
+    "with the results it was checked against."
+)
 
 
 def _resolve(finding_ids: list[str], by_id: dict[str, PublishedFinding]) -> list[PublishedFinding]:

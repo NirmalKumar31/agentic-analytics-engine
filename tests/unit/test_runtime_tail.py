@@ -84,20 +84,17 @@ def test_the_engine_can_write_the_report_with_no_model_at_all() -> None:
 
     assert report.key_findings == [f.text for f in findings]
     assert report.sections, "findings are still organised"
-    # Every factual sentence is a finding's own text, unchanged.
-    body = " ".join(s.body for s in report.sections)
-    for finding in findings:
-        assert finding.text in body
+    # Sections group by id; the text lives in key_findings, once.
+    grouped = {fid for s in report.sections for fid in s.finding_ids}
+    assert grouped == {f.finding_id for f in findings}
     assert "ran out of time" in report.limitations
 
 
 def test_the_deterministic_report_invents_no_prose() -> None:
     findings = [_finding("Revenue was 128450.75.", "f1")]
     report = reporter.assemble_without_model("Why did revenue move?", findings, [])
-    allowed = {f.text for f in findings}
-    for section in report.sections:
-        assert section.body in {" ".join(allowed), *allowed}
-    assert report.executive_summary in {" ".join(allowed), *allowed}
+    assert report.executive_summary == reporter.SUMMARY_LINE
+    assert report.key_findings == [f.text for f in findings]
     assert report.next_questions == []
 
 

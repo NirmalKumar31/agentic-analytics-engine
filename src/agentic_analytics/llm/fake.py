@@ -450,11 +450,15 @@ class FakeProvider(LLMProvider):
             return {
                 "status": "unsupported",
                 "reason": "The claim cites no result, so nothing supports it.",
+                "answers_question": False,
+                "relevance_reason": "A claim with no evidence answers nothing.",
             }
         if not results:
             return {
                 "status": "unsupported",
                 "reason": "The cited results are not available for checking.",
+                "answers_question": False,
+                "relevance_reason": "The cited results are not available.",
             }
 
         has_test = any(r.get("statistical_result") for r in results)
@@ -465,15 +469,29 @@ class FakeProvider(LLMProvider):
                     "The claim calls the difference significant but no statistical "
                     "test was run on the cited result."
                 ),
+                "answers_question": False,
+                "relevance_reason": "A significance claim without a test answers nothing.",
             }
+
+        relevant, relevance_reason = _answers_question(
+            text,
+            [str(m) for m in finding.get("metric_ids", [])],
+            str(ctx.get("question", "")),
+            [str(m) for m in ctx.get("target_metrics", [])],
+            [str(d) for d in ctx.get("target_dimensions", [])],
+        )
         if kind == "interpretation":
             return {
                 "status": "supported",
                 "reason": "Stated as an interpretation and scoped to the cited result.",
+                "answers_question": relevant,
+                "relevance_reason": relevance_reason,
             }
         return {
             "status": "supported",
             "reason": "The wording matches the values in the cited result.",
+            "answers_question": relevant,
+            "relevance_reason": relevance_reason,
         }
 
     # ---------------------------------------------------------- visualizer
@@ -1135,3 +1153,189 @@ def _next_questions(question: str, findings: list[dict[str, Any]]) -> list[str]:
     if not out:
         out.append("Which dimension explains the largest share of the variation seen here?")
     return out[:3]
+
+
+#: Words that carry no subject matter, so sharing one says nothing about
+#: whether a finding is on topic.
+_STOPWORDS = frozenset(
+    {
+        "a",
+        "across",
+        "all",
+        "an",
+        "analyse",
+        "analysis",
+        "analyze",
+        "and",
+        "any",
+        "are",
+        "be",
+        "been",
+        "between",
+        "bottom",
+        "by",
+        "change",
+        "changed",
+        "compare",
+        "comparison",
+        "data",
+        "dataset",
+        "did",
+        "do",
+        "does",
+        "done",
+        "each",
+        "finding",
+        "findings",
+        "for",
+        "from",
+        "had",
+        "has",
+        "have",
+        "highest",
+        "how",
+        "in",
+        "is",
+        "it",
+        "its",
+        "largest",
+        "least",
+        "less",
+        "lowest",
+        "more",
+        "most",
+        "number",
+        "numbers",
+        "of",
+        "on",
+        "or",
+        "our",
+        "over",
+        "per",
+        "rate",
+        "rates",
+        "result",
+        "results",
+        "show",
+        "shows",
+        "smallest",
+        "than",
+        "that",
+        "the",
+        "their",
+        "them",
+        "there",
+        "these",
+        "they",
+        "this",
+        "those",
+        "to",
+        "top",
+        "total",
+        "totals",
+        "under",
+        "us",
+        "value",
+        "values",
+        "was",
+        "we",
+        "were",
+        "what",
+        "when",
+        "where",
+        "which",
+        "who",
+        "whom",
+        "whose",
+        "why",
+        "with",
+        "you",
+        "your",
+    }
+)
+
+
+#: Dimension names a finding's wording can be sliced by. Read from the
+#: metric layer at import so the list cannot drift from the warehouse.
+def _known_dimensions() -> frozenset[str]:
+    try:
+        from agentic_analytics.warehouse.metrics import load_registry
+
+        registry = load_registry()
+        return frozenset(d.lower() for model in registry.models.values() for d in model.dimensions)
+    except Exception:  # pragma: no cover - a missing metric layer is not fatal
+        return frozenset()
+
+
+_KNOWN_DIMENSIONS = _known_dimensions()
+
+
+def _terms(text: str) -> set[str]:
+    """Subject-matter words, singularised crudely so plurals match."""
+    words = re.findall(r"[a-z_]+", text.lower())
+    out: set[str] = set()
+    for word in words:
+        for part in word.split("_"):
+            if len(part) < 3 or part in _STOPWORDS:
+                continue
+            out.add(part[:-1] if part.endswith("s") and len(part) > 4 else part)
+    return out
+
+
+def _answers_question(
+    text: str,
+    metric_ids: list[str],
+    question: str,
+    target_metrics: list[str],
+    target_dimensions: list[str],
+) -> tuple[bool, str]:
+    """Deterministic relevance for the scripted provider.
+
+    The committed demonstrations are produced by this provider, and they
+    were the ones carrying accurate, off-topic findings: a revenue ranking
+    by acquisition channel under a question about why margin fell.
+
+    Structural first. The analysis brief decomposes the question into the
+    metrics and dimensions it is about, and a finding that reports one of
+    those is on topic whatever words it uses -- "shipping delays" and
+    `late_delivery_rate` share no word at all, so matching on wording alone
+    rejected the very finding the question asked for.
+
+    Words are the fallback, for findings that carry no metric id. Overlap of
+    subject-matter terms, not similarity: a rule a reader can check by eye.
+    """
+    named = {m.lower() for m in target_metrics}
+    wanted_dims = {d.lower() for d in target_dimensions}
+
+    # When the question names a dimension, a finding sliced by a different
+    # one is not an answer however good its numbers are: "which customer
+    # segments drive returns" is not answered by a month-over-month refund
+    # total. Only applied when the brief actually names one; most questions
+    # do not, and an absent dimension must not reject everything.
+    if wanted_dims:
+        sliced_by = {d for d in _KNOWN_DIMENSIONS if d in text.lower()}
+        off_topic = sliced_by - wanted_dims
+        if off_topic and not (sliced_by & wanted_dims):
+            return False, (
+                f"The claim is sliced by {', '.join(sorted(off_topic))}, "
+                f"while the question asks about {', '.join(sorted(wanted_dims))}."
+            )
+
+    if named and {m.lower() for m in metric_ids} & named:
+        shared = sorted({m.lower() for m in metric_ids} & named)
+        return True, f"Reports a metric the question is about: {', '.join(shared)}."
+
+    asked = _terms(question) | {t for m in target_metrics for t in _terms(m)}
+    asked |= {t for d in target_dimensions for t in _terms(d)}
+    if not asked:
+        return True, "No question was recorded, so relevance was not assessed."
+
+    claimed = _terms(text) | {t for m in metric_ids for t in _terms(m)}
+    shared_terms = asked & claimed
+    if shared_terms:
+        return True, f"Shares subject matter with the question: {', '.join(sorted(shared_terms))}."
+    return False, (
+        "The claim is about "
+        f"{', '.join(sorted(claimed)) or 'nothing the question names'}, "
+        f"while the question is about {', '.join(sorted(asked))}."
+    )

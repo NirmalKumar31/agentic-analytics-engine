@@ -141,6 +141,15 @@ class Verdict(BaseModel):
     rule: str = ""
     # Set when deterministic arithmetic, not the critic, settled the matter.
     numeric_check: dict[str, Any] | None = None
+    #: Whether the cited results support the wording. Kept separate from
+    #: `answers_question` because they fail for different reasons and a
+    #: reader needs to know which: a claim can be well evidenced and still
+    #: not address what was asked.
+    evidence_supported: bool | None = None
+    #: Whether the claim materially answers the question, or a sub-question
+    #: the task objective names.
+    answers_question: bool | None = None
+    relevance_reason: str = ""
 
     @field_validator("reason")
     @classmethod
@@ -165,6 +174,10 @@ class PublishedFinding(BaseModel):
     #: person, which changes whenever the wording is improved.
     verifier_rule: str = ""
     numeric_check: dict[str, Any] | None = None
+    #: What was actually checked, for UI copy that does not overstate it.
+    evidence_supported: bool | None = None
+    answers_question: bool | None = None
+    relevance_reason: str = ""
     # The arithmetic the worker stated, kept so the provenance drawer can
     # show the calculation next to the cells it was computed from.
     claimed_change: dict[str, Any] | None = None
@@ -199,8 +212,16 @@ class ChartSpec(BaseModel):
 
 
 class ReportSection(BaseModel):
+    """A grouping of findings, by id.
+
+    There is no body. A section used to carry the findings' own sentences
+    joined together, which meant every factual sentence appeared three
+    times -- once in the executive summary, once in the findings list, once
+    here. A section says which findings belong together; the findings say
+    what they say, once.
+    """
+
     heading: str
-    body: str
     finding_ids: list[str] = Field(default_factory=list)
 
 
@@ -239,6 +260,9 @@ class AnalysisReport(BaseModel):
     """The written deliverable. Numbers come from findings, never from prose."""
 
     question: str
+    #: One sentence, written by the engine, carrying no claim of its own:
+    #: it describes the shape of the result so the factual sentences stay in
+    #: `key_findings`, where each appears exactly once.
     executive_summary: str
     key_findings: list[str] = Field(default_factory=list)
     sections: list[ReportSection] = Field(default_factory=list)

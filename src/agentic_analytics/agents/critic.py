@@ -36,8 +36,17 @@ from agentic_analytics.verification.numeric import verify_numbers
 log = get_logger(__name__)
 
 
+#: Stable rejection rule for a claim that is accurate and off-topic.
+IRRELEVANT = "irrelevant_to_question"
+
+
 class CriticVerdict(Verdict):
-    """What the critic model returns (finding_id is filled in by the engine)."""
+    """What the critic model returns (finding_id is filled in by the engine).
+
+    `answers_question` defaults to `None`, which the engine treats as "the
+    critic did not answer" and refuses, rather than as consent. A model that
+    omits the field must not thereby publish.
+    """
 
     finding_id: str = ""
 
@@ -71,8 +80,19 @@ async def verify_finding(
     results: dict[str, ResultSnapshot],
     provider: LLMProvider,
     events: EventBus | None = None,
+    question: str = "",
+    objective: str = "",
+    target_metrics: list[str] | None = None,
+    target_dimensions: list[str] | None = None,
 ) -> tuple[Verdict, dict[str, Any] | None]:
-    """Run all three gates on one finding."""
+    """Run every gate on one finding.
+
+    Four now, not three. Claim shape, arithmetic and evidence support all
+    ask whether the claim is *right*; none of them asks whether it is an
+    *answer*. A revenue ranking by channel can pass all three and still say
+    nothing about why margin fell, and shipping that as the flagship result
+    is a product failure even though every number in it is correct.
+    """
     cited = [results[r] for r in finding.result_ids if r in results]
 
     shape = check_claim(finding.text, finding.kind, cited, bool(finding.result_ids))
@@ -110,22 +130,39 @@ async def verify_finding(
             CriticVerdict,
             role="critic",
             system=CRITIC,
-            user=_critic_prompt(finding, cited),
+            user=_critic_prompt(finding, cited, question, objective),
             context={
                 "finding": json.loads(finding.model_dump_json()),
                 "results": [s.compact() for s in cited],
+                "question": question,
+                "objective": objective,
+                "target_metrics": list(target_metrics or []),
+                "target_dimensions": list(target_dimensions or []),
             },
         )
         critic = payload
         status = critic.status
         reason = critic.reason
+        answers = critic.answers_question
+        relevance_reason = critic.relevance_reason
     except LLMError as exc:
         # A critic that cannot answer must not wave a finding through.
         status = "partially_supported"
         reason = f"The verifier could not complete its check ({exc})."
+        relevance_reason = ""
+        answers = None
         rule = "critic_unavailable"
     else:
         rule = "critic"
+
+    evidence_supported = status == "supported"
+
+    # Relevance is only reached when the evidence holds, so a claim is never
+    # rejected as off-topic when the real problem is that it is wrong.
+    if evidence_supported and answers is not True:
+        status = "unsupported"
+        rule = IRRELEVANT
+        reason = relevance_reason or "The finding does not address the question that was asked."
 
     verdict = Verdict(
         finding_id=finding.finding_id,
@@ -133,6 +170,9 @@ async def verify_finding(
         reason=reason,
         rule=rule,
         numeric_check=numeric.as_dict(),
+        evidence_supported=evidence_supported,
+        answers_question=answers,
+        relevance_reason=relevance_reason,
     )
     _emit(events, finding, verdict)
     return verdict, numeric.as_dict()
@@ -168,6 +208,9 @@ def publish(finding: CandidateFinding, verdict: Verdict) -> PublishedFinding:
         verifier_reason=verdict.reason,
         verifier_rule=verdict.rule,
         numeric_check=verdict.numeric_check,
+        evidence_supported=verdict.evidence_supported,
+        answers_question=verdict.answers_question,
+        relevance_reason=verdict.relevance_reason,
         # Dropped when the verifier could not read it. An unreadable change
         # asserts nothing, so it does not fail the finding -- but it must
         # not be displayed as a calculation either, because nothing checked
@@ -223,7 +266,12 @@ def _same_scalar(claimed: Any, actual: Any) -> bool:
     return str(claimed).strip() == str(actual).strip()
 
 
-def _critic_prompt(finding: CandidateFinding, cited: list[ResultSnapshot]) -> str:
+def _critic_prompt(
+    finding: CandidateFinding,
+    cited: list[ResultSnapshot],
+    question: str = "",
+    objective: str = "",
+) -> str:
     blocks: list[str] = []
     for snapshot in cited:
         lines = [
@@ -242,6 +290,12 @@ def _critic_prompt(finding: CandidateFinding, cited: list[ResultSnapshot]) -> st
 
     cells = _render_cells(finding, {s.result_id: s for s in cited})
     return f"""\
+QUESTION
+{question or "(not recorded)"}
+
+TASK OBJECTIVE
+{objective or "(not recorded)"}
+
 PROPOSED FINDING
 text: {finding.text}
 kind: {finding.kind}
@@ -254,4 +308,5 @@ RESULTS
 {chr(10).join(blocks) or "(none)"}
 
 The arithmetic in this finding has already been checked and is correct.
-Judge only whether the wording fairly describes the result."""
+Judge two things: whether the wording fairly describes the result, and
+whether the finding answers the QUESTION above."""

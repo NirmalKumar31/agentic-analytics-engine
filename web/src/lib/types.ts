@@ -96,7 +96,6 @@ export interface ChartSpec {
 
 export interface ReportSection {
   heading: string
-  body: string
   finding_ids: string[]
 }
 

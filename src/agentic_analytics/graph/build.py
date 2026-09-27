@@ -273,6 +273,18 @@ def build_graph(ctx: RunContext) -> Any:
         rejected: list[Verdict] = []
         verdicts: list[Verdict] = []
         supported: list[PublishedFinding] = []
+        # The objective is the sub-question a task was given, and a finding
+        # that answers it answers part of the question even when it does not
+        # restate the whole one.
+        plan = state.get("plan")
+        objectives = {task.task_id: task.objective for task in (plan.tasks if plan else [])}
+        # The brief is the question decomposed into metrics and dimensions,
+        # which is a sturdier statement of "what was asked" than the
+        # question's wording: "shipping delays" and `late_delivery_rate`
+        # share no word at all.
+        brief = state.get("analysis")
+        brief_metrics = list(brief.target_metrics) if brief else []
+        brief_dimensions = list(brief.dimensions) if brief else []
 
         for outcome in state.get("task_outcomes", []):
             for finding in outcome.findings:
@@ -297,7 +309,14 @@ def build_graph(ctx: RunContext) -> Any:
                     continue
                 try:
                     verdict, _ = await critic.verify_finding(
-                        finding, results, ctx.provider, ctx.events
+                        finding,
+                        results,
+                        ctx.provider,
+                        ctx.events,
+                        question=state.get("question", ""),
+                        objective=objectives.get(finding.task_id or "", ""),
+                        target_metrics=brief_metrics,
+                        target_dimensions=brief_dimensions,
                     )
                 except (LLMError, BudgetError) as exc:
                     verdict = Verdict(

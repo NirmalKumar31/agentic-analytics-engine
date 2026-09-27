@@ -443,7 +443,9 @@ async def _run_case(
 
     for finding in findings:
         finding.task_id = task.task_id
-        report.claims.append(await _check_claim(provider, finding, by_id))
+        report.claims.append(
+            await _check_claim(provider, finding, by_id, case.expectation, case.objective)
+        )
     return report
 
 
@@ -494,6 +496,8 @@ async def _check_claim(
     provider: LLMProvider,
     finding: CandidateFinding,
     results: dict[str, ResultSnapshot],
+    question: str = "",
+    objective: str = "",
 ) -> ClaimReport:
     """Reference integrity first, then the three real gates."""
     claim = ClaimReport(
@@ -555,7 +559,9 @@ async def _check_claim(
         claim.numeric_ok = numeric.ok
         claim.numeric_rule = "passed" if numeric.ok else "numeric_mismatch"
 
-    verdict, _ = await verify_finding(finding, results, provider)
+    verdict, _ = await verify_finding(
+        finding, results, provider, question=question, objective=objective
+    )
     claim.verdict_status = verdict.status
     claim.verdict_rule = verdict.rule
     claim.verdict_reason = verdict.reason

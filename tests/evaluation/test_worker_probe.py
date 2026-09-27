@@ -39,7 +39,12 @@ class Scripted(LLMProvider):
         self.usage.record(request.role)
         if request.role == "worker_findings":
             return {"findings": self.findings}
-        return {"status": "supported", "reason": "The wording matches the cited result."}
+        return {
+            "status": "supported",
+            "reason": "The wording matches the cited result.",
+            "answers_question": True,
+            "relevance_reason": "Addresses the objective.",
+        }
 
 
 SIMPLE = ResultSnapshot(
