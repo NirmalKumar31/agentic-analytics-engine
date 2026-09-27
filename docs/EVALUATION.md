@@ -298,3 +298,43 @@ on verification and reporting, not on more tool flailing.
 
 That is evaluation sizing for a slow local model. Product defaults are sized
 for a hosted model and a public service, and are unchanged.
+
+## Relevance is checked separately from arithmetic
+
+A finding passes four gates, not three. Claim shape, deterministic arithmetic
+and evidence support all ask whether a claim is *right*. None asks whether it
+answers the question.
+
+That gap was visible in the committed demonstrations: a revenue ranking by
+acquisition channel under "why did gross margin fall", a month-over-month
+refund total under "which customer segments drive returns". Every number
+verified. Neither answered what was asked.
+
+The critic now returns two judgements. `status` is whether the cited results
+support the wording. `answers_question` is whether the finding addresses the
+question or a sub-question the task objective names. They are recorded
+separately because they fail for different reasons: a claim can be perfectly
+evidenced and still be off-topic, and a reader needs to tell those apart. An
+accurate, off-topic claim is withheld under `irrelevant_to_question` rather
+than called unsupported.
+
+The gate fails closed. A critic that omits `answers_question` has not said
+the finding is relevant, and an unavailable critic withholds.
+
+## What publication-gate integrity does and does not mean
+
+`publication_gate_integrity` is an internal consistency metric: the fraction
+of published findings that carry a supporting verdict from the pipeline. A
+value of 1.000 means the gate emitted nothing it had not verified.
+
+It is not independent evidence that a published finding is true. Arithmetic
+verification proves a number appears in a cited result. It does not prove the
+sentence around that number is a correct reading of the data, that the units
+are named properly, or that a comparison the wording implies was actually
+made. The manual review in
+`examples/evaluations/local-qwen2.5-7b-instruct-stage1/manual-review.json`
+records seven findings that are numerically supported and semantically loose
+for exactly these reasons.
+
+Published findings are described as *numerically verified against cited
+results*. Never as true.

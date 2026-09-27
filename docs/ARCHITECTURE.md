@@ -73,7 +73,7 @@ START
   │       │
   │       └─ followup_round   at most once, guarded by a counter in state
   │
-  ├─ build_visualizations from verified results only
+  ├─ build_visualizations from cited query results
   ├─ write_report         from verified findings only
   ├─ verify_publication   strip any reference that did not survive
   └─ finalize
