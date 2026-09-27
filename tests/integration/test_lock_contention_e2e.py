@@ -32,9 +32,11 @@ from agentic_analytics.mcp_layer.client import AnalyticsToolset, ToolBudget, Too
 from agentic_analytics.mcp_layer.server import build_server
 from agentic_analytics.warehouse.session import SessionManager, open_demo_session
 
-#: Every wait in this test is bounded, including the test itself. A
+#: Every wait in this test is bounded, including the test's own. A
 #: regression here is a hang, and a hanging test in CI is the same outage in
-#: a different place.
+#: a different place -- so the bounds are written with `asyncio.wait_for`
+#: and `Thread.join(timeout=...)` rather than a `pytest.mark.timeout`, which
+#: needs a plugin CI does not install and would silently not apply.
 OUTER_TIMEOUT = 120.0
 HOLD_SECONDS = 6.0
 LOCK_WAIT = 0.5
@@ -50,7 +52,6 @@ def demo(warehouse_dir: Path) -> Iterator[tuple[SessionManager, str, str]]:
         manager.close_all()
 
 
-@pytest.mark.timeout(int(OUTER_TIMEOUT))
 async def test_concurrent_tool_calls_survive_a_held_connection(
     demo: tuple[SessionManager, str, str],
     monkeypatch: pytest.MonkeyPatch,
@@ -116,7 +117,6 @@ async def test_concurrent_tool_calls_survive_a_held_connection(
         assert payload["row_count"] >= 1
 
 
-@pytest.mark.timeout(int(OUTER_TIMEOUT))
 async def test_the_event_loop_stays_responsive_while_the_connection_is_held(
     demo: tuple[SessionManager, str, str],
     monkeypatch: pytest.MonkeyPatch,
