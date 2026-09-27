@@ -1,8 +1,13 @@
 # Agentic Analytics Engine
 
-An analytics engine where language models plan investigations and interpret
-results, while deterministic tools own computation, statistics, security and
-provenance.
+One governed analytics engine, two orchestration strategies.
+
+An analytics engine where the decision-making layer can be swapped without
+swapping the trusted execution layer. Deterministic Analytics drives it with
+a scripted provider; AI Analytics drives the same engine with a cloud model.
+Compare Both runs one question through each and shows the results side by
+side. In every case the computation, the statistics, the security and the
+provenance are deterministic.
 
 Point it at a built-in commerce warehouse or upload your own CSV or Parquet
 file. Ask a question in plain English. The engine decomposes it into
@@ -14,11 +19,14 @@ Every number in the report is clickable. Clicking it shows the task, the SQL,
 the result rows with the cited cells highlighted, the arithmetic the engine
 recomputed, the MCP calls involved, and the dataset fingerprint.
 
-It runs with no API credentials.
+It runs with no API credentials. AI Analytics is off unless a deployment
+explicitly enables it and supplies a model, a credential and a durable usage
+ledger; without all four it stays unavailable and Deterministic Analytics is
+unaffected.
 
 ---
 
-## The architecture that matters
+## How it is put together
 
 ```
         PROBABILISTIC CONTROL PLANE          decides what to investigate
@@ -132,29 +140,85 @@ is withdrawn on purpose — see [Security](#security).
 
 ---
 
-## Three execution modes, labelled
+## Two modes, one engine
 
-A scripted-provider run executes the same graph, the same MCP calls, the same
-SQL and the same verification as a model-driven one. It is still not a
-language model, and the UI never implies otherwise.
+```
+                        USER QUESTION
+                              |
+             +----------------+----------------+
+             |                                 |
+             v                                 v
+     DETERMINISTIC                         AI AGENT
+     scripted planner                      cloud model
+             |                                 |
+             +----------------+----------------+
+                              |
+                          LangGraph
+                              |
+                             MCP
+                              |
+                    governed analytics
+                              |
+                           DuckDB
+                              |
+                        verification
+                              |
+                         provenance
+                              |
+                           report
+```
 
-| Badge | What it means |
-|---|---|
-| **Recorded** | Replaying a committed run |
-| **Deterministic live** | Executing now; agent decisions from a scripted deterministic provider |
-| **AI live** | Executing now; agent decisions from a language model |
+The probabilistic orchestration layer can be replaced without replacing the
+trusted execution layer.
 
-`/api/config` reports `execution_mode`, `model_inference_remote` and
-`mcp_remote_enabled`, and every recording carries `provider_kind` and
-`run_kind`. `/api/health` answers liveness and carries an `instance_id` that
-changes if the process is replaced; `/api/ready` is what the platform's
-health check uses, and returns 503 unless the demo warehouse and the
-recordings are both present — a container that came up without them is alive
-and cannot serve anyone.
+| Mode | Who decides | What it costs |
+|---|---|---|
+| **Deterministic Analytics** | A scripted provider chooses the plan and the tools. The same question produces the same plan every time. | No external model call. Nothing leaves the server. |
+| **AI Analytics** | A cloud model interprets the question, plans, selects tools and organises the report. | Bounded by per-run and public-demo ceilings, tracked in a durable ledger. |
+| **Compare Both** | Both, against the same session and dataset. | One AI run's worth. Only the AI side consumes quota. |
 
-In deterministic mode the Ask panel says so in as many words: question
-interpretation is rule-based, while the SQL, the statistics, the MCP tool
-execution, the verification and the provenance are real.
+What the model controls in AI mode: question interpretation, task planning,
+tool selection, which findings to propose, the evidence and relevance
+judgements, and how the report is organised.
+
+What stays deterministic in **both** modes: the SQL, the metric definitions,
+the statistics, the SQL guard, numeric verification, the claim-shape rules,
+the publication gate, the provenance, and the report's factual sentences,
+which are the findings' own text rather than generated prose.
+
+Compare Both never ranks the two sides. They differ in how the analysis was
+planned, which is not evidence that either is more accurate.
+
+The mode arrives with each request and the provider is constructed per run,
+so one deployment serves both. `/api/config` reports which modes are
+available and, when one is not, a reason a visitor can read.
+
+---
+
+## What is checked before a finding is published
+
+Four gates, and they answer different questions:
+
+1. **Claim shape** — no causal language from observational data, no
+   significance claim without a test.
+2. **Arithmetic** — every number in the sentence appears in a cited result.
+3. **Evidence support** — the wording fairly describes what the cited result
+   shows.
+4. **Question relevance** — the finding materially answers the question, or a
+   sub-question the task objective names.
+
+Evidence and relevance are judged separately and recorded separately,
+because a claim can be perfectly evidenced and still be off-topic. An
+accurate, off-topic finding is withheld under `irrelevant_to_question`
+rather than called unsupported. Both fail closed: a verifier that does not
+answer has not approved anything.
+
+A published finding is **numerically verified against cited query results**
+and **independently checked for evidence support and question relevance**.
+That is not a proof of semantic truth, and the phrase "verified" is not used
+to imply one. `publication_gate_integrity` is an internal consistency metric
+-- the fraction of published findings carrying a supporting verdict -- not
+independent evidence that a finding is correct.
 
 ---
 
@@ -409,7 +473,15 @@ The benchmark numbers come from the scripted provider and measure the engine,
 not model planning. Statistical scope is five test families with Holm
 correction within a task and no causal identification. Correlations above
 50,000 rows use a seeded sample. There is no authentication — session
-capability is not an account. Rate limits are in-process, not durable quotas.
+capability is not an account. Deterministic rate limits are in-process and
+reset on restart; the AI spend ceilings are durable, but they are
+application controls and not a billing guarantee, so a provider-side hard
+spend cap is required before AI is enabled.
+
+The relevance gate judges whether a finding addresses the question. It does
+not check unit semantics, whether the source data is correct, or whether a
+business interpretation is sound, and question classes outside the committed
+benchmark and evaluation artifacts are untested.
 
 The full list is in [docs/LIMITATIONS.md](docs/LIMITATIONS.md).
 
@@ -417,9 +489,10 @@ The full list is in [docs/LIMITATIONS.md](docs/LIMITATIONS.md).
 
 ## Verified
 
-1,065 Python tests, 35 frontend tests and 12 Chromium browser tests run in
-CI; the browser suite also runs on Firefox and WebKit before a release. 89%
-branch coverage. `ruff`,
+1,106 Python tests, 48 frontend tests, and 19 Chromium browser tests of
+which 16 run locally and 3 are skipped unless uploads are enabled on the
+target. Each figure comes from its own run; they are never summed across
+overlapping suites. 89% branch coverage. `ruff`,
 `ruff format`, `mypy` (with `disallow_untyped_defs`), `pip-audit` and
 `npm audit` clean. Frontend production bundle about 380 kB gzipped, of which
 about 296 kB is the Vega chart engine in a lazily-loaded chunk.
