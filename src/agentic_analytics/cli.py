@@ -269,12 +269,12 @@ def probe_worker_findings(
 
     Opt-in and never part of CI: it calls a real model.
     """
+    from agentic_analytics.evaluation.real_model import open_evaluation_provider
     from agentic_analytics.evaluation.worker_probe import (
         probe_cases,
         run_probe,
         write_probe_report,
     )
-    from agentic_analytics.llm.registry import build_provider
 
     configure_logging("WARNING", json_output=False)
     cfg = get_settings()
@@ -293,9 +293,14 @@ def probe_worker_findings(
             console.print(f"[red]no probe case matches {cases!r}[/red]")
             raise typer.Exit(code=2)
 
-    provider = build_provider(cfg)
+    probe_id = f"probe_{schema_variant}_{prompt_variant}"
 
     async def _run() -> dict[str, Any]:
+        # The same governed construction the evaluation uses. A probe
+        # against a hosted model is as paid as anything else, so it gets
+        # the same preflight, ceilings and durable ledger rather than a
+        # measurement-shaped hole in them.
+        provider = await open_evaluation_provider(cfg, run_id=probe_id)
         try:
             return await run_probe(provider, selected, schema_variant, prompt_variant)
         finally:
@@ -403,6 +408,9 @@ def cloud_preflight() -> None:
     console.print("[green]ok[/green] usage ledger reachable")
 
     async def _check() -> Any:
+        # A bare provider is right here and only here: preflight makes no
+        # completion call. It resolves the model and prices it, both free,
+        # so there is nothing for a ledger to admit.
         provider = CloudProvider(
             api_key=cfg.cloud_api_key or "",
             model=cfg.cloud_model,

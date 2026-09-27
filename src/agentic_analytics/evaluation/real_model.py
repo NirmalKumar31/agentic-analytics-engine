@@ -403,7 +403,7 @@ def _flags(outcome: QuestionOutcome) -> list[str]:
     return flags
 
 
-async def _open_provider(cfg: Settings, *, run_id: str) -> Any:
+async def open_evaluation_provider(cfg: Settings, *, run_id: str) -> Any:
     """The evaluation's provider, governed when it is a paid one.
 
     A cloud evaluation must not have an unmetered shortcut: the CLI and the
@@ -452,7 +452,9 @@ async def evaluate_question(
         expectation=question.expectation,
     )
     manager = SessionManager(max_sessions=4)
-    provider = await _open_provider(cfg, run_id=question_key(dataset_id, 0, question.text))
+    provider = await open_evaluation_provider(
+        cfg, run_id=question_key(dataset_id, 0, question.text)
+    )
     calls: list[StructuredCall] = []
     telemetry: dict[str, Any] = {}
     started = time.monotonic()
