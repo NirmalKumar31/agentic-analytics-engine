@@ -33,6 +33,8 @@ from agentic_analytics.api.models import (
     AnalysisRequest,
     AnalysisStarted,
     Capabilities,
+    ComparisonRequest,
+    ComparisonStarted,
     ErrorResponse,
     HealthResponse,
     ModeCapability,
@@ -48,7 +50,7 @@ from agentic_analytics.api.modes import (
     build_provider_for_mode,
     provider_kind,
 )
-from agentic_analytics.api.runs import RunRegistry
+from agentic_analytics.api.runs import RunRecord, RunRegistry
 from agentic_analytics.config import Settings, get_settings
 from agentic_analytics.events import EventType
 from agentic_analytics.graph.runner import run_analysis
@@ -709,11 +711,30 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                     headers={"X-AAE-Reason": availability.reason},
                 )
 
+        record = _launch(session, request.question, mode)
+        return AnalysisStarted(
+            run_id=record.run_id, session_id=session.session_id, question=request.question
+        )
+
+    def _launch(
+        session: AnalysisSession,
+        question: str,
+        mode: RunMode,
+        comparison_id: str | None = None,
+    ) -> RunRecord:
+        """Start one run. Capacity for it has already been acquired.
+
+        Shared by `/api/analyses` and `/api/comparisons` so a comparison
+        child is an ordinary run -- same registry, same event bus, same
+        cancellation and teardown -- rather than a second orchestration path
+        that would have to reimplement all of it.
+        """
         record = runs.create(
             session.session_id,
-            request.question,
+            question,
             mode=str(mode),
             provider_kind=provider_kind(mode),
+            comparison_id=comparison_id,
         )
         record.engine_version = __version__
         record.dataset_fingerprint = session.dataset_fingerprint
@@ -733,7 +754,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 return
             try:
                 record.result = await run_analysis(
-                    request.question,
+                    question,
                     session,
                     mcp,
                     settings=cfg,
@@ -775,9 +796,117 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                     ai_capacity.release()
 
         record.task = asyncio.create_task(execute())
-        return AnalysisStarted(
-            run_id=record.run_id, session_id=session.session_id, question=request.question
+        return record
+
+    @app.post("/api/comparisons", response_model=ComparisonStarted, status_code=202)
+    async def start_comparison(
+        request: ComparisonRequest, http_request: Request
+    ) -> ComparisonStarted:
+        """One question, both decision paths, one dataset.
+
+        The two runs share a session, so they read the same tables at the
+        same fingerprint. Uploading twice would give each side its own
+        snapshot and make the comparison meaningless.
+
+        Only the AI side consumes cloud quota. If AI cannot be admitted the
+        deterministic run is still started, because a visitor who asked for
+        a comparison and can only have half of it is better served with
+        half than with an error.
+        """
+        if not cfg.live_analytics_enabled:
+            raise HTTPException(
+                status_code=403,
+                detail="live analysis is disabled on this server; open a recorded run",
+            )
+        client = client_key(
+            http_request.headers.get("x-forwarded-for"),
+            http_request.client.host if http_request.client else None,
         )
+        allowed, retry_after = analysis_limiter.check(client)
+        if not allowed:
+            raise HTTPException(
+                status_code=429,
+                detail="too many analyses from this address; try again shortly",
+                headers={"Retry-After": str(int(retry_after) + 1)},
+            )
+
+        availability = ai_availability(cfg, ledger_ready=ledger is not None)
+        if not availability.available:
+            raise HTTPException(
+                status_code=503,
+                detail=availability.message,
+                headers={"X-AAE-Reason": availability.reason},
+            )
+
+        session = _session_or_404(request.session_id, http_request)
+        if not session.accepts_new_work:
+            raise HTTPException(
+                status_code=409,
+                detail="this dataset is closing and cannot accept new analyses",
+            )
+        # Two runs, so two slots against the session ceiling.
+        if runs.session_run_count(session.session_id) + 2 > cfg.analyses_per_session:
+            raise HTTPException(
+                status_code=429,
+                detail="this session has reached its analysis limit; start a new one",
+            )
+        if not analysis_capacity.acquire():
+            raise HTTPException(
+                status_code=429,
+                detail="the demo is currently at capacity; please try again shortly",
+            )
+
+        comparison_id = f"cmp_{uuid.uuid4().hex[:12]}"
+        deterministic = _launch(session, request.question, RunMode.DETERMINISTIC, comparison_id)
+
+        # The AI side needs its own capacity slot and its own analysis slot.
+        # Failing to get either leaves the deterministic run untouched.
+        ai_record: RunRecord | None = None
+        if analysis_capacity.acquire():
+            if ai_capacity.acquire():
+                ai_record = _launch(session, request.question, RunMode.AI, comparison_id)
+            else:
+                analysis_capacity.release()
+
+        if ai_record is None:
+            ai_record = runs.create(
+                session.session_id,
+                request.question,
+                mode=str(RunMode.AI),
+                provider_kind="cloud",
+                comparison_id=comparison_id,
+            )
+            ai_record.error = "AI Analytics is at capacity; please try again shortly"
+            ai_record.bus.emit(EventType.RUN_FAILED, reason=ai_record.error)
+            ai_record.bus.close()
+
+        return ComparisonStarted(
+            comparison_id=comparison_id,
+            session_id=session.session_id,
+            question=request.question,
+            deterministic_run_id=deterministic.run_id,
+            ai_run_id=ai_record.run_id,
+        )
+
+    @app.get("/api/comparisons/{comparison_id}")
+    async def comparison(comparison_id: str, request: Request) -> dict[str, Any]:
+        """Both sides, reported separately.
+
+        No merged verdict and no ranking: the two differ in how the analysis
+        was planned, which is not evidence that either is more accurate.
+        """
+        children = runs.by_comparison(comparison_id)
+        if not children:
+            raise HTTPException(status_code=404, detail="unknown comparison")
+        _session_or_404(children[0].session_id, request)
+        payload: dict[str, Any] = {
+            "comparison_id": comparison_id,
+            "session_id": children[0].session_id,
+            "question": children[0].question,
+        }
+        for record in children:
+            payload[f"{record.mode}_run"] = record.public()
+        return payload
 
     @app.get("/api/analyses/{run_id}")
     async def analysis(run_id: str, request: Request) -> dict[str, Any]:

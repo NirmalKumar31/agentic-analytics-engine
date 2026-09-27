@@ -159,6 +159,38 @@ class AnalysisRequest(BaseModel):
         return text
 
 
+class ComparisonRequest(BaseModel):
+    """One question, both decision paths, one dataset."""
+
+    session_id: str
+    question: str
+
+    @field_validator("question")
+    @classmethod
+    def _question_is_reasonable(cls, v: str) -> str:
+        text = " ".join(v.split())
+        if not text:
+            raise ValueError("a question is required")
+        if len(text) > MAX_QUESTION_LENGTH:
+            raise ValueError(f"the question must be under {MAX_QUESTION_LENGTH} characters")
+        return text
+
+
+class ComparisonStarted(BaseModel):
+    """Two ordinary runs, each independently auditable.
+
+    Deliberately not a merged result. The two sides are different planning
+    strategies over the same governed engine, and combining them would
+    invent an authority neither has.
+    """
+
+    comparison_id: str
+    session_id: str
+    question: str
+    deterministic_run_id: str
+    ai_run_id: str
+
+
 class AnalysisStarted(BaseModel):
     run_id: str
     session_id: str

@@ -160,6 +160,12 @@ class RunRegistry:
         self._evict()
         return record
 
+    def by_comparison(self, comparison_id: str) -> list[RunRecord]:
+        """Both children of one Compare Both, oldest first."""
+        self._evict()
+        found = [r for r in self._runs.values() if r.comparison_id == comparison_id]
+        return sorted(found, key=lambda r: r.created_at)
+
     def get(self, run_id: str) -> RunRecord:
         self._evict()
         try:
