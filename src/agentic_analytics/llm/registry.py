@@ -42,6 +42,7 @@ def build_provider(settings: Settings | None = None) -> LLMProvider:
             base_url=cfg.cloud_base_url,
             max_calls=max_calls,
             timeout_seconds=cfg.cloud_timeout_seconds,
+            send_temperature=cfg.cloud_send_temperature,
         )
 
     raise LLMError(f"unknown provider mode {cfg.provider_mode!r}")

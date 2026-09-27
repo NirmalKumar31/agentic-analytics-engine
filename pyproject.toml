@@ -130,7 +130,6 @@ filterwarnings = [
 [tool.coverage.run]
 source = ["src/agentic_analytics"]
 branch = true
-omit = ["src/agentic_analytics/llm/cloud.py"]
 
 [tool.coverage.report]
 exclude_also = [

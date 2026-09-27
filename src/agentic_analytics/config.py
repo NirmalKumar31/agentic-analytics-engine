@@ -101,6 +101,11 @@ class Settings(BaseSettings):
     #: model load to wait through: a hosted endpoint that has sent nothing
     #: in two minutes is not about to start.
     cloud_timeout_seconds: float = Field(default=120.0, gt=0)
+    #: Send `temperature` with cloud requests. Off: several current models
+    #: reject a non-default sampling parameter, and the engine's determinism
+    #: comes from the analytics layer rather than from model decoding. Turn
+    #: it on only for a model whose documentation permits the exact value.
+    cloud_send_temperature: bool = False
 
     # When false the API refuses to start new live analyses and serves
     # recordings only. This is the safe public-demo posture.

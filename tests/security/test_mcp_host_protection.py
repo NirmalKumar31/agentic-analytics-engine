@@ -9,6 +9,8 @@ served unprotected.
 
 from __future__ import annotations
 
+from pathlib import Path
+
 import pytest
 from fastapi.testclient import TestClient
 
@@ -42,9 +44,9 @@ def test_a_network_binding_without_an_allow_list_withdraws_the_endpoint() -> Non
     assert "AAE_MCP_ALLOWED_HOSTS" in body["detail"]
 
 
-def test_the_rest_of_the_api_still_works_when_mcp_is_withdrawn() -> None:
+def test_the_rest_of_the_api_still_works_when_mcp_is_withdrawn(demo_data_dir: Path) -> None:
     """Withdrawing the remote transport must not break the application."""
-    with _client(bind_host="0.0.0.0") as client:
+    with _client(bind_host="0.0.0.0", data_dir=demo_data_dir) as client:
         assert client.get("/api/health").json()["status"] == "ok"
         assert client.post("/api/datasets/demo").status_code == 200
         assert len(client.get("/api/recordings").json()["recordings"]) == 3

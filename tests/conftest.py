@@ -25,6 +25,22 @@ def warehouse_dir(tmp_path_factory: pytest.TempPathFactory) -> Path:
     return out
 
 
+@pytest.fixture(scope="session")
+def demo_data_dir(tmp_path_factory: pytest.TempPathFactory) -> Path:
+    """A `data_dir` whose `commerce/` holds a generated warehouse.
+
+    `Settings.demo_warehouse_dir` is `data_dir / "commerce"`, and
+    `mktemp("commerce")` yields `commerce0`, so passing `warehouse_dir.parent`
+    as `data_dir` points at a directory that does not exist. Any test hitting
+    `/api/datasets/demo` then depends on `make data` having been run first,
+    which is why a clean checkout failed one security test until the demo
+    warehouse was generated.
+    """
+    root = tmp_path_factory.mktemp("aae-data")
+    generate_warehouse(root / "commerce", TEST_CONFIG)
+    return root
+
+
 @pytest.fixture
 def session(warehouse_dir: Path) -> Iterator[AnalysisSession]:
     s = open_demo_session(warehouse_dir)

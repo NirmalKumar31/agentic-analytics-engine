@@ -24,7 +24,7 @@ help: ## Show the available targets
 bootstrap: ## Create the virtualenv, install Python and frontend dependencies
 	python3.12 -m venv .venv || python3 -m venv .venv
 	$(PIP) install --upgrade pip
-	$(PIP) install -e ".[dev]"
+	$(PIP) install -c constraints-dev.txt -e ".[dev]"
 	cd $(WEB) && npm ci --no-audit --no-fund
 	@echo "\nReady. Next: make data && make dev"
 
