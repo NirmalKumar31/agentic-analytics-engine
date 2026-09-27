@@ -4,7 +4,7 @@ import { ActivityLog } from './components/ActivityLog'
 import { ComparisonView } from './components/ComparisonView'
 import { DatasetSummary } from './components/DatasetSummary'
 import { ExecutionFlow } from './components/ExecutionFlow'
-import { ModeBadge } from './components/ModeBadge'
+import { badgeMode, ModeBadge } from './components/ModeBadge'
 import { ModeSelector } from './components/ModeSelector'
 import { ProvenanceDrawer } from './components/ProvenanceDrawer'
 import { ReportView } from './components/ReportView'
@@ -225,7 +225,7 @@ export function App() {
           </div>
         </div>
         <div className="topbar-spacer" />
-        {config && <ModeBadge mode={replay ? 'recorded' : config.execution_mode} />}
+        {config && <ModeBadge mode={badgeMode(!!replay, config.execution_mode, uiMode)} />}
         {session && (
           <button
             className="btn ghost small"
@@ -490,8 +490,12 @@ function DatasetPanel({
             your session. Please do not upload sensitive or regulated data to this
             public demo.
             {config.model_inference_remote
-              ? ' This server is configured with a cloud model, so derived schema information and analysis results are sent to that provider.'
-              : ' This server uses a local deterministic provider, so nothing derived from your file is sent to an external model provider.'}
+              ? ' This deployment offers AI Analytics. A run you start in AI mode, or' +
+                ' in Compare Both, sends derived schema information and analysis results' +
+                ' to a third-party model provider; the raw cells of your file are not' +
+                ' sent. A run in Deterministic Analytics sends nothing to any provider.'
+              : ' This deployment runs Deterministic Analytics only, so nothing derived' +
+                ' from your file is sent to an external model provider.'}
           </p>
         )}
 

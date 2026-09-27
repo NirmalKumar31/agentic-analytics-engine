@@ -134,7 +134,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         max_metadata_bytes=cfg.budgets.max_parquet_metadata_bytes,
         max_uncompressed_bytes=cfg.budgets.max_parquet_uncompressed_bytes,
     )
-    mode = execution_mode(cfg.live_analytics_enabled, cfg.provider_mode)
+    # One source for both: the badge and the privacy claim must not be able
+    # to disagree with the mode selector beside them.
+    _ai_offered = ai_availability(cfg, ledger_ready=ledger is not None).available
+    mode = execution_mode(cfg.live_analytics_enabled, _ai_offered)
     # Identifies this application object for the life of the process. An
     # external checker compares it across a load test: the same id means the
     # process it started with is the process it finished with, which is how
@@ -348,7 +351,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             provider_mode=cfg.provider_mode,
             execution_mode=mode,
             # Only an actual language model sends anything off this server.
-            model_inference_remote=cfg.provider_mode == "cloud",
+            model_inference_remote=_ai_offered,
             live_analytics_enabled=cfg.live_analytics_enabled,
             uploads_enabled=cfg.uploads_enabled and cfg.live_analytics_enabled,
             mcp_remote_enabled=mcp_enabled,

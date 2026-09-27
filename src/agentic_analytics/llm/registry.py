@@ -1,8 +1,13 @@
-"""Provider selection.
+"""Provider selection for the unpaid providers.
 
-The default is the scripted provider. Reaching a paid endpoint requires both
-``AAE_PROVIDER_MODE=cloud`` and a key in the environment, so no default path
-spends money.
+The default is the scripted provider, and ``local`` reaches Ollama. Neither
+costs anything, so this is the path an operator can run freely.
+
+``AAE_PROVIDER_MODE=cloud`` no longer builds anything here; it raises. A
+paid provider is constructed only by
+:func:`agentic_analytics.llm.governed.open_governed_cloud_provider`, so
+that one cannot exist without the ledger that bounds its spending. An
+environment variable is not a spend control.
 """
 
 from __future__ import annotations

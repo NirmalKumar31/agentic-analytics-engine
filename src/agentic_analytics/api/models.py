@@ -14,18 +14,25 @@ MAX_QUESTION_LENGTH = 500
 ExecutionMode = Literal["recorded", "deterministic_live", "ai_live"]
 
 
-def execution_mode(live_enabled: bool, provider_mode: str) -> ExecutionMode:
-    """Which of the three modes the server is actually in.
+def execution_mode(live_enabled: bool, ai_available: bool) -> ExecutionMode:
+    """The strongest kind of run this deployment can produce.
 
     The distinction matters: a run driven by the scripted provider executes
     the same graph, MCP calls, SQL and verification as one driven by a
-    language model, but the planning decisions are deterministic rules. The
-    UI labels these differently so a scripted run is never presented as a
-    model-driven one.
+    language model, but the planning decisions are deterministic rules, and
+    presenting a scripted run as a model-driven one would be false.
+
+    Derived from what the deployment can offer, not from
+    `AAE_PROVIDER_MODE`. The mode is chosen per run now, so a process
+    setting describes nothing a visitor can act on -- and reading it here
+    contradicted the capabilities published beside it: a deployment with
+    AI enabled and the process default left at `fake` reported
+    `deterministic_live` while offering AI runs, and told visitors nothing
+    derived from their upload left the server.
     """
     if not live_enabled:
         return "recorded"
-    return "deterministic_live" if provider_mode == "fake" else "ai_live"
+    return "ai_live" if ai_available else "deterministic_live"
 
 
 class HealthResponse(BaseModel):
@@ -66,8 +73,11 @@ class ServerConfig(BaseModel):
     provider_mode: str
     #: recorded | deterministic_live | ai_live. Drives the badge in the UI.
     execution_mode: ExecutionMode
-    #: True only when a language model makes the agent decisions. When false,
-    #: derived schema and results never leave this server.
+    #: Whether a run on this deployment *can* send prompts to a third-party
+    #: model. False is the strong claim -- nothing derived from a dataset
+    #: leaves this server, in any mode a visitor can pick -- so it is taken
+    #: from the published capabilities rather than from a process setting
+    #: that no longer decides what a run does.
     model_inference_remote: bool
     live_analytics_enabled: bool
     uploads_enabled: bool

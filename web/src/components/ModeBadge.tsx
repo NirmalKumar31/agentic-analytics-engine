@@ -1,6 +1,32 @@
-import type { ExecutionMode } from '../lib/types'
+import type { ExecutionMode, UiMode } from '../lib/types'
 
-const LABELS: Record<ExecutionMode, { label: string; tone: string; title: string }> = {
+/**
+ * What the badge can say. A superset of the API's `ExecutionMode`, because
+ * the deployment-level fact and the thing on screen are no longer the same
+ * question: a deployment that offers AI is reported as `ai_live`, while the
+ * run a visitor is looking at may be the deterministic one.
+ */
+export type BadgeMode = ExecutionMode | 'compare_live'
+
+/**
+ * Which badge belongs on screen.
+ *
+ * A replay is always a replay. Otherwise the selected mode decides, because
+ * it is what the next run will be -- deriving this from the deployment's
+ * capabilities would label a deterministic run "AI live" on any deployment
+ * that merely offers AI.
+ */
+export function badgeMode(
+  replaying: boolean,
+  deployment: ExecutionMode,
+  selected: UiMode,
+): BadgeMode {
+  if (replaying || deployment === 'recorded') return 'recorded'
+  if (selected === 'compare') return 'compare_live'
+  return selected === 'ai' ? 'ai_live' : 'deterministic_live'
+}
+
+const LABELS: Record<BadgeMode, { label: string; tone: string; title: string }> = {
   recorded: {
     label: 'Recorded',
     tone: 'replay',
@@ -20,6 +46,14 @@ const LABELS: Record<ExecutionMode, { label: string; tone: string; title: string
     tone: 'live',
     title: 'A language model is making the agent decisions.',
   },
+  compare_live: {
+    label: 'Compare both',
+    tone: 'live',
+    title:
+      'Two runs of the same question against the same rows: one with a language ' +
+      'model making the agent decisions, one with deterministic rules. Reported ' +
+      'separately, with no merged verdict.',
+  },
 }
 
 /**
@@ -29,7 +63,7 @@ const LABELS: Record<ExecutionMode, { label: string; tone: string; title: string
  * analytics and the same verification as a model-driven one, but nothing
  * about it is a language model, and presenting it as one would be false.
  */
-export function ModeBadge({ mode }: { mode: ExecutionMode }) {
+export function ModeBadge({ mode }: { mode: BadgeMode }) {
   const { label, tone, title } = LABELS[mode]
   return (
     <span className={`mode-pill ${tone}`} title={title}>
