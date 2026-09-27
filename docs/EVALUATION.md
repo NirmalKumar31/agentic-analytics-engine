@@ -261,3 +261,40 @@ a copied value match), then runs the three real gates unmodified.
 "the model cannot do this" and "we asked badly" can be told apart rather
 than guessed between. It is a diagnostic: no pass mark, no score, and never
 part of CI.
+
+## The 34-question local sweep is optional, not a gate
+
+`aae evaluate-real-model` without `--selection` runs all 34 questions against
+whichever local model is configured. It is an **extended behavioural
+evaluation, not a release gate**, and it has not been run to completion.
+Nothing in this repository reports a result from it, and no claim here rests
+on one.
+
+The reason is scope. A 34-question sweep of `qwen2.5:7b-instruct` mostly
+measures that model's limits, and that model is not the intended production
+reasoner. The seven-question Stage 1 already demonstrates what the
+architecture needed to show: real planning, real structured output, real
+tool selection, real DuckDB execution, real findings, real verification,
+real publication, and real failure modes including contention and budget
+exhaustion.
+
+Run it overnight if you want the longer record. Do not treat its absence as
+a missing result.
+
+## Local evaluation budgets are not product budgets
+
+The evaluation overrides two ceilings, and neither changes what a deployment
+does:
+
+    max_llm_calls        64    (product default stays 40)
+    max_runtime_seconds  1800  (product default stays 300)
+
+Measured, on the demo warehouse question. At 40 calls the run produced seven
+candidate findings and published **none**: all twelve critic calls were
+refused before dispatch, so verification was entirely starved and no report
+was written. At 64 the same question produced sixteen candidates, published
+eight, ran every critic call and wrote a report. The extra calls were spent
+on verification and reporting, not on more tool flailing.
+
+That is evaluation sizing for a slow local model. Product defaults are sized
+for a hosted model and a public service, and are unchanged.

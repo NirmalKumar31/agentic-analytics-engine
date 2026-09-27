@@ -57,7 +57,7 @@ LOCK_WAIT_SECONDS = 30.0
 
 @contextmanager
 def held_connection(
-    session: AnalysisSession, timeout_seconds: float = LOCK_WAIT_SECONDS
+    session: AnalysisSession, timeout_seconds: float | None = None
 ) -> Iterator[None]:
     """Take the session's connection lock, or fail rather than wait forever.
 
@@ -79,6 +79,10 @@ def held_connection(
     connection while another thread owns it would cancel that thread's
     query instead of this one's.
     """
+    # Read at call time rather than bound as a default argument, so the
+    # ceiling is one value that a deployment -- or a test proving the wait
+    # really is bounded -- can actually change.
+    timeout_seconds = LOCK_WAIT_SECONDS if timeout_seconds is None else timeout_seconds
     if not session.lock.acquire(timeout=timeout_seconds):
         raise QueryError(
             f"the dataset was busy with another query for more than {timeout_seconds:g}s; "
