@@ -12,13 +12,17 @@ would let two callers both read "under the limit" and both proceed.
 
 from __future__ import annotations
 
+import time
+
 import fakeredis
 import pytest
 
 from agentic_analytics.llm.ledger import (
     CLIENT_LIMIT,
     DAILY_LIMIT,
+    DAY_TTL_SECONDS,
     GLOBAL_LIMIT,
+    HOUR_TTL_SECONDS,
     RUN_LIMIT,
     SESSION_LIMIT,
     CostLedger,
@@ -343,3 +347,124 @@ def test_the_ledger_stores_no_content(ledger: CostLedger) -> None:
         value = client.get(key)  # type: ignore[attr-defined]
         if value is not None:
             assert value.decode().lstrip("-").isdigit(), f"{key} holds non-numeric data"
+
+
+# ------------------------------------------------------------ key lifetimes
+#
+# The TTLs are the difference between a cap that holds and a cap that
+# quietly resets, so they are asserted rather than described. Each test
+# names the question its key answers, because the keys only make sense in
+# terms of what resets them.
+
+
+def _ttl(ledger: CostLedger, *parts: str) -> int:
+    """Seconds until a key expires. -1 means it never does."""
+    return int(ledger._redis.ttl(ledger._k(*parts)))  # type: ignore[attr-defined]
+
+
+def test_the_lifetime_total_never_expires(ledger: CostLedger) -> None:
+    """A lifetime cap that rolled over would be reachable every period.
+
+    This is the counter that matches a provider-side workspace limit, so
+    it resets only when an operator clears it.
+    """
+    _reserve(ledger, 10_000, first=True)
+    assert _ttl(ledger, "total") == -1
+
+
+def test_the_daily_counter_expires_so_tomorrow_starts_clean(
+    ledger: CostLedger,
+) -> None:
+    """Long enough to outlive a missed reconciliation, short enough to
+    keep the store from growing without bound."""
+    _reserve(ledger, 10_000, first=True)
+    day = time.strftime("%Y%m%d", time.gmtime())
+    assert 0 < _ttl(ledger, "day", day) <= DAY_TTL_SECONDS
+
+
+def test_the_per_client_counter_expires_within_the_hour_window(
+    ledger: CostLedger,
+) -> None:
+    _reserve(ledger, 10_000, first=True)
+    hour = time.strftime("%Y%m%d%H", time.gmtime())
+    assert 0 < _ttl(ledger, "client", hour, "ip_1") <= HOUR_TTL_SECONDS
+
+
+def test_the_receipt_expires_but_the_money_stays_charged(
+    ledger: CostLedger,
+) -> None:
+    """The documented, deliberate failure mode.
+
+    A reservation's TTL removes the record needed to refund it, not the
+    charge itself. A process killed mid-call therefore leaves its
+    worst-case estimate counted rather than forgiven, because a call that
+    vanished in transit may still have been billed.
+    """
+    admission = _reserve(ledger, 40_000, first=True)
+    assert ledger.spent_microdollars("run_1") == 40_000
+
+    # Exactly what expiry does: drop the receipt, leave the counters.
+    ledger._redis.delete(ledger._k("resv", admission.reservation_id))  # type: ignore[attr-defined]
+
+    assert (
+        ledger.settle(
+            run_id="run_1",
+            reservation_id=admission.reservation_id,
+            actual_microdollars=1_000,
+        )
+        == "unknown_reservation"
+    )
+    assert ledger.spent_microdollars("run_1") == 40_000, (
+        "an expired receipt must not become a refund"
+    )
+
+
+def test_settling_twice_does_not_refund_twice(ledger: CostLedger) -> None:
+    """The reason an expired receipt cannot be refunded on trust.
+
+    `unknown_reservation` covers both "expired" and "already settled", and
+    the two are indistinguishable. Refunding either would raise the
+    ceiling, which is the one error a spend control must not make.
+    """
+    admission = _reserve(ledger, 40_000, first=True)
+    assert (
+        ledger.settle(
+            run_id="run_1",
+            reservation_id=admission.reservation_id,
+            actual_microdollars=1_000,
+        )
+        == "released"
+    )
+    after_first = ledger.spent_microdollars("run_1")
+    assert after_first == 1_000
+
+    assert (
+        ledger.settle(
+            run_id="run_1",
+            reservation_id=admission.reservation_id,
+            actual_microdollars=1_000,
+        )
+        == "unknown_reservation"
+    )
+    assert ledger.spent_microdollars("run_1") == after_first
+
+
+def test_abandoning_leaves_the_worst_case_charged(ledger: CostLedger) -> None:
+    """An ambiguous failure is charged, not forgiven."""
+    admission = _reserve(ledger, 40_000, first=True)
+    ledger.abandon(reservation_id=admission.reservation_id)
+    assert ledger.spent_microdollars("run_1") == 40_000
+
+
+def test_a_new_day_does_not_clear_the_lifetime_total(ledger: CostLedger) -> None:
+    """The two ceilings answer different questions.
+
+    Simulated by reading the lifetime key directly: it is not keyed by
+    date, so no amount of waiting moves it.
+    """
+    _reserve(ledger, 40_000, first=True)
+    total_key = ledger._k("total")  # type: ignore[attr-defined]
+    assert int(ledger._redis.get(total_key) or 0) == 40_000  # type: ignore[attr-defined]
+    day_key = ledger._k("day", time.strftime("%Y%m%d", time.gmtime()))  # type: ignore[attr-defined]
+    ledger._redis.delete(day_key)  # type: ignore[attr-defined]
+    assert int(ledger._redis.get(total_key) or 0) == 40_000  # type: ignore[attr-defined]

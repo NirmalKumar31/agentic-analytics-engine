@@ -61,6 +61,22 @@ second instance cannot reset them.
 | `AAE_AI_DAILY_COST_MICRODOLLARS` | `2000000` | $2.00 a day. |
 | `AAE_AI_TOTAL_COST_MICRODOLLARS` | `20000000` | $20.00 lifetime. |
 
+### What resets, and what does not
+
+The daily counter is keyed by UTC date and expires on its own. The lifetime
+total is not keyed by anything and never expires: when it is reached, AI
+stays off until you delete `aae:ai:total` in the Key Value instance
+deliberately. That is the intended behaviour for a public demo — a cap that
+rolls over on a schedule can be reached on every schedule, unattended.
+
+The lifetime total counts **worst case, not settled cost**, for any run that
+did not reconcile. A reservation is counted before the call is dispatched
+and released afterwards against reported usage; if the process dies in
+between, the receipt expires and the estimate stays charged. So the counter
+drifts above true spend over time, always upward. Compare it against the
+provider's own usage page before assuming the deployment has spent what this
+says.
+
 These are application controls. They are not a billing guarantee: a request
 that times out in transit may still have been billed, and an application
 cannot refund what a provider charged. **Set a hard spend cap on the

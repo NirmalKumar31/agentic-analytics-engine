@@ -20,6 +20,30 @@ Three rules the implementation follows throughout:
 
 Nothing about a question, a dataset, a prompt or a response is stored. The
 keys hold counters and the reservation amounts that back them.
+
+What each key means, and when it resets:
+
+===========================  =========  ====================================
+key                          expires    resets when
+===========================  =========  ====================================
+``<ns>:total``               never      an operator deletes it
+``<ns>:day:<YYYYMMDD>``      48h        the UTC date changes
+``<ns>:run:<run_id>``        48h        a new run id
+``<ns>:session:<sid>``       48h        a new dataset session
+``<ns>:client:<hour>:<cid>``  2h        the UTC hour changes
+``<ns>:resv:<run>:<call>``   15m        reconciliation, or expiry
+===========================  =========  ====================================
+
+``total`` is a lifetime cap, not a monthly one. It is the counter that
+matches a provider-side workspace spend limit, so nothing here rolls it
+over: when it is reached, AI stays off until an operator clears the key
+deliberately. That is the intended failure mode for a public demo -- a
+cap that resets on a schedule is a cap that can be reached on every
+schedule, unattended.
+
+The daily and lifetime counters answer different questions and are both
+checked, so a single busy day cannot consume the lifetime budget without
+also tripping the daily one.
 """
 
 from __future__ import annotations
@@ -32,9 +56,19 @@ from agentic_analytics.logging import get_logger
 
 log = get_logger(__name__)
 
-#: How long a reservation survives without reconciliation. A process killed
-#: mid-call must not hold budget forever, and a caller that comes back later
-#: finds its reservation already expired rather than double-counted.
+#: How long the *receipt* for a reservation survives.
+#:
+#: Not a hold that lapses. The amount is added to the counters when the
+#: reservation is taken, so this TTL does not give budget back -- it
+#: removes the record needed to give it back. A process killed mid-call
+#: therefore leaves its worst-case estimate charged, permanently against
+#: the lifetime total and until tomorrow against the daily one.
+#:
+#: That is the intended direction. A call that vanished in transit may
+#: still have been billed by the provider, and a spend ceiling that
+#: guesses "free" when it cannot tell is not a ceiling. The cost is that
+#: the lifetime counter drifts above true spend by the unreconciled
+#: worst case of every abandoned run.
 RESERVATION_TTL_SECONDS = 900
 #: Daily counters expire on their own so the store does not grow without
 #: bound and a missed reconciliation cannot poison tomorrow.
@@ -255,6 +289,12 @@ class CostLedger:
 
         Releases only the unused part. If the call actually cost more than
         was reserved, the difference is charged rather than forgiven.
+
+        Returns `unknown_reservation` when the receipt is gone -- already
+        settled, or expired. Neither case refunds, and they are not
+        distinguishable: refunding a second settlement of the same call
+        would silently raise the ceiling, which is the one error a spend
+        control must not make.
         """
         if not reservation_id:
             return "no_reservation"
@@ -269,21 +309,22 @@ class CostLedger:
                 max(0, int(actual_microdollars)),
             )
         except Exception as exc:
-            # The money is already reserved, so a failure here leaves the
-            # ceiling conservative rather than permissive. The reservation
-            # expires on its own.
+            # The money is already counted, so a failure here leaves the
+            # ceiling conservative rather than permissive: the worst case
+            # stays charged. It is not refunded later -- the receipt
+            # expires, and with it any way to tell what to give back.
             log.warning("ai_ledger_settle_failed", error_type=type(exc).__name__)
             return "settle_failed"
         text = outcome.decode() if isinstance(outcome, bytes) else str(outcome)
         return text if int(ok) == 1 else "unknown_reservation"
 
     def abandon(self, *, reservation_id: str) -> None:
-        """Leave a reservation in place after an ambiguous failure.
+        """Leave a reservation charged after an ambiguous failure.
 
         Deliberately not a refund. A request that timed out in transit may
         still have been billed by the provider, and the safe assumption for
-        a spend ceiling is that it was. The reservation's TTL eventually
-        reclaims it.
+        a spend ceiling is that it was. The worst case stays counted; the
+        receipt expires without returning it.
         """
         log.info("ai_ledger_reservation_abandoned", reservation=bool(reservation_id))
 
