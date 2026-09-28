@@ -407,10 +407,14 @@ def cloud_preflight() -> None:
         raise typer.Exit(code=2)
     console.print("[green]ok[/green] usage ledger reachable")
 
+    provider_owner: dict[str, Any] | None = None
+
     async def _check() -> Any:
-        # A bare provider is right here and only here: preflight makes no
-        # completion call. It resolves the model and prices it, both free,
-        # so there is nothing for a ledger to admit.
+        # A bare provider is right here and only here: preflight creates no
+        # response. It resolves the model, prices it, and puts one strict
+        # schema to the token counter -- all free -- so there is nothing
+        # for a ledger to admit.
+        nonlocal provider_owner
         provider = CloudProvider(
             api_key=cfg.cloud_api_key or "",
             model=cfg.cloud_model,
@@ -420,8 +424,12 @@ def cloud_preflight() -> None:
             reasoning_effort=cfg.cloud_reasoning_effort,
         )
         try:
-            return await preflight(provider, ledger)
+            outcome = await preflight(provider, ledger)
+            provider_owner = provider.resolved_model
+            return outcome
         finally:
+            # Closed on every path: a preflight that fails must not leave
+            # a connection pool behind in a long-lived process.
             await provider.aclose()
 
     try:
@@ -433,17 +441,37 @@ def cloud_preflight() -> None:
         console.print(f"[red]x[/red] preflight failed ({type(exc).__name__})")
         raise typer.Exit(code=2) from None
 
-    console.print("[green]ok[/green] credential accepted, model resolved")
+    console.print("[green]ok[/green] credential accepted, model resolved, schemas accepted")
+    model_owner = str((provider_owner or {}).get("owned_by", ""))
 
     table = Table(title="Cloud preflight")
     table.add_column("setting")
     table.add_column("value")
     table.add_row("requested model", result.requested_model)
     table.add_row("resolved model", result.resolved_model)
+    table.add_row("model owner", model_owner or "(not reported)")
+    table.add_row("reasoning effort", cfg.cloud_reasoning_effort)
+    table.add_row("service tier", "default")
+    table.add_row(
+        "strict schemas validated",
+        f"{result.strict_schemas_ok} locally, "
+        f"{result.schemas_checked_remotely} against the provider",
+    )
     table.add_row("pricing source", result.price.source)
     table.add_row("pricing reviewed", result.price.reviewed)
-    table.add_row("input per Mtok", f"{result.price.input_per_mtok / 1_000_000:.2f} USD")
-    table.add_row("output per Mtok", f"{result.price.output_per_mtok / 1_000_000:.2f} USD")
+    short = result.price.short
+    table.add_row("input per Mtok", f"{short.input_per_mtok / 1_000_000:.3f} USD")
+    table.add_row("cached input per Mtok", f"{short.cached_input_per_mtok / 1_000_000:.3f} USD")
+    table.add_row("cache write per Mtok", f"{short.cache_write_per_mtok / 1_000_000:.3f} USD")
+    table.add_row("output per Mtok", f"{short.output_per_mtok / 1_000_000:.3f} USD")
+    table.add_row(
+        "long-context threshold",
+        f"{result.price.long_context_threshold:,} input tokens (whole request repriced)",
+    )
+    worst = result.price.reservation_microdollars(cfg.ai_max_input_tokens, cfg.ai_max_output_tokens)
+    table.add_row(
+        "worst case per run", f"{worst / 1_000_000:.3f} USD (all input at the cache-write rate)"
+    )
     table.add_row("max model calls per run", str(cfg.ai_max_llm_calls))
     table.add_row("max input tokens per run", str(cfg.ai_max_input_tokens))
     table.add_row("max output tokens per run", str(cfg.ai_max_output_tokens))
@@ -455,8 +483,10 @@ def cloud_preflight() -> None:
     table.add_row("runs per address per hour", str(cfg.ai_runs_per_ip_per_hour))
     console.print(table)
     console.print(
-        "No Message was created. Application ceilings are not a billing "
-        "guarantee: set a hard spend cap on the provider account as well."
+        "No model response was created: this used the model registry and the "
+        "input-token endpoint only. Application ceilings are not a billing "
+        "guarantee -- a request that times out in transit may still have been "
+        "billed -- so set a hard spend cap on the provider project as well."
     )
 
 
