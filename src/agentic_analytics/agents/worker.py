@@ -31,6 +31,7 @@ from agentic_analytics.agents.prompts import (
 from agentic_analytics.agents.schemas import (
     AnalysisTask,
     CandidateFinding,
+    JsonObject,
     TaskOutcome,
     TaskStatus,
 )
@@ -54,7 +55,7 @@ class ToolChoice(BaseModel):
 
     done: bool = False
     tool: str | None = None
-    arguments: dict[str, Any] = Field(default_factory=dict)
+    arguments: JsonObject = Field(default_factory=dict)
 
 
 class FindingList(BaseModel):

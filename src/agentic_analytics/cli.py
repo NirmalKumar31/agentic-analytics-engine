@@ -417,7 +417,7 @@ def cloud_preflight() -> None:
             base_url=cfg.cloud_base_url,
             max_calls=cfg.ai_max_llm_calls,
             timeout_seconds=cfg.cloud_timeout_seconds,
-            send_temperature=cfg.cloud_send_temperature,
+            reasoning_effort=cfg.cloud_reasoning_effort,
         )
         try:
             return await preflight(provider, ledger)

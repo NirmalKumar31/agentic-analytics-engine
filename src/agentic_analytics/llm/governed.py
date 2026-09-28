@@ -17,6 +17,7 @@ is exactly when a run makes the most calls.
 
 from __future__ import annotations
 
+import json
 import time
 from dataclasses import dataclass, field
 from typing import Any
@@ -35,7 +36,13 @@ from agentic_analytics.llm.ledger import (
     LedgerCaps,
     LedgerUnavailable,
 )
-from agentic_analytics.llm.pricing import ModelPrice, UnknownModelPrice, price_for
+from agentic_analytics.llm.pricing import (
+    ModelPrice,
+    UnknownModelPrice,
+    price_for,
+    usage_is_coherent,
+)
+from agentic_analytics.llm.strict_schema import to_strict
 from agentic_analytics.logging import get_logger
 
 log = get_logger(__name__)
@@ -103,6 +110,12 @@ class PreflightResult:
     resolved_model: str
     price: ModelPrice
     ledger_healthy: bool
+    #: Response schemas rewritten into the strict dialect and accepted. The
+    #: count is local; `schemas_checked_remotely` is how many were put to
+    #: the provider's own parser through the token-count endpoint, which
+    #: validates a schema without generating anything.
+    strict_schemas_ok: int = 0
+    schemas_checked_remotely: int = 0
 
     def as_dict(self) -> dict[str, Any]:
         return {
@@ -110,8 +123,14 @@ class PreflightResult:
             "resolved_model": self.resolved_model,
             "pricing_source": self.price.source,
             "pricing_reviewed": self.price.reviewed,
-            "input_per_mtok_microdollars": self.price.input_per_mtok,
-            "output_per_mtok_microdollars": self.price.output_per_mtok,
+            # The short-context tier, which is the one every run of this
+            # size is priced at. The long-context rates exist in the table
+            # and are reported by the CLI rather than here, where four more
+            # numbers would obscure the two that matter.
+            "input_per_mtok_microdollars": self.price.short.input_per_mtok,
+            "cached_input_per_mtok_microdollars": self.price.short.cached_input_per_mtok,
+            "cache_write_per_mtok_microdollars": self.price.short.cache_write_per_mtok,
+            "output_per_mtok_microdollars": self.price.short.output_per_mtok,
         }
 
 
@@ -143,13 +162,54 @@ async def preflight(provider: CloudProvider, ledger: CostLedger) -> PreflightRes
             "ai_model_not_priced",
         ) from None
 
+    local_ok, probe = _strict_schema_check()
+    # One real round trip, with the most demanding schema. Converting
+    # locally proves the rewrite is self-consistent; only the provider can
+    # say whether it accepts the result, and the token-count endpoint
+    # answers that without creating a response.
+    remote_ok = 0
+    if probe is not None:
+        await provider.count_input_tokens(probe)
+        remote_ok = 1
+
     log.info("ai_preflight_ok", requested=provider.model, resolved=resolved_id)
     return PreflightResult(
         requested_model=provider.model,
         resolved_model=resolved_id,
         price=price,
         ledger_healthy=True,
+        strict_schemas_ok=local_ok,
+        schemas_checked_remotely=remote_ok,
     )
+
+
+def _strict_schema_check() -> tuple[int, LLMRequest | None]:
+    """Convert every active response schema, and pick one to send.
+
+    A schema that cannot be expressed strictly would otherwise surface as a
+    400 on the first paid call of whichever agent owns it -- possibly not
+    the first agent to run. Converting all of them here turns that into a
+    refusal before anything is spent.
+    """
+    from agentic_analytics.agents.base import active_response_schemas
+
+    schemas = active_response_schemas()
+    for schema in schemas.values():
+        # Raises StrictSchemaError, which `open_governed_cloud_provider`
+        # surfaces as a preflight failure.
+        to_strict(schema)
+    if not schemas:
+        return 0, None
+    # The largest converted schema: the one most likely to meet a limit.
+    hardest = max(schemas.items(), key=lambda kv: len(json.dumps(kv[1])))
+    probe = LLMRequest(
+        role="preflight",
+        system="Preflight schema validation.",
+        user="Preflight schema validation.",
+        schema=hardest[1],
+        max_tokens=16,
+    )
+    return len(schemas), probe
 
 
 class GovernedCloudProvider(LLMProvider):
@@ -231,8 +291,12 @@ class GovernedCloudProvider(LLMProvider):
             )
         bounded = request.model_copy(update={"max_tokens": allowance})
 
-        # 4. Reserve counted input plus the maximum permitted output.
-        worst_case = self._price.cost_microdollars(counted_input, allowance)
+        # 4. Reserve counted input plus the maximum permitted output, both
+        #    priced pessimistically. Nothing here can know whether an input
+        #    token will be served from cache, written to it, or neither, and
+        #    the three rates differ by more than tenfold -- so the dearest
+        #    one is assumed and the difference is released at settlement.
+        worst_case = self._price.reservation_microdollars(counted_input, allowance)
         self.budget.attempts += 1
         call_id = f"c{self.budget.attempts}"
         admission = self._reserve(call_id, worst_case)
@@ -264,7 +328,36 @@ class GovernedCloudProvider(LLMProvider):
         self.budget.input_tokens += actual_in
         self.budget.output_tokens += actual_out
 
-        actual = self._price.cost_microdollars(actual_in, actual_out)
+        # Settle from the provider's own categories. `input_tokens` already
+        # includes the cached and cache-written parts, so the ordinary part
+        # is what remains once they are removed.
+        cached = int(getattr(self._inner, "last_cached_tokens", 0))
+        cache_written = int(getattr(self._inner, "last_cache_write_tokens", 0))
+        if usage_is_coherent(
+            input_tokens=actual_in,
+            cached_tokens=cached,
+            cache_write_tokens=cache_written,
+            output_tokens=actual_out,
+        ):
+            actual = self._price.settlement_microdollars(
+                input_tokens=actual_in,
+                cached_tokens=cached,
+                cache_write_tokens=cache_written,
+                output_tokens=actual_out,
+            )
+        else:
+            # The response arrived and was billed, but its usage does not
+            # add up, so there is no honest number to settle to. The
+            # conservative reservation is kept rather than replaced by a
+            # figure derived from counts that contradict each other.
+            log.warning(
+                "ai_usage_incoherent",
+                run_id=self._run_id,
+                call=call_id,
+            )
+            self._ledger.abandon(reservation_id=admission.reservation_id)
+            self.budget.retained_microdollars += admission.reserved_microdollars
+            return payload
         outcome = self._ledger.settle(
             run_id=self._run_id,
             reservation_id=admission.reservation_id,
@@ -372,7 +465,7 @@ async def open_governed_cloud_provider(
         base_url=cfg.cloud_base_url,
         max_calls=cfg.ai_max_llm_calls,
         timeout_seconds=cfg.cloud_timeout_seconds,
-        send_temperature=cfg.cloud_send_temperature,
+        reasoning_effort=cfg.cloud_reasoning_effort,
     )
     try:
         result = await preflight(inner, ledger)

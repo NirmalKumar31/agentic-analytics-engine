@@ -331,9 +331,21 @@ def test_an_unpriced_model_fails_closed() -> None:
 
 
 def test_pricing_rounds_up_so_a_ceiling_is_never_undershot() -> None:
-    price = price_for("claude-sonnet-5")
-    assert price.cost_microdollars(1, 0) == 2
-    assert isinstance(price.cost_microdollars(4000, 2048), int)
+    """A fraction of a microdollar still costs a microdollar.
+
+    Truncating would let a ceiling be crossed by the rounding rather than
+    by the spending.
+    """
+    price = price_for("gpt-6-luna")
+    # One token at $0.125/M is 0.125 microdollars, which must not be zero.
+    assert price.reservation_microdollars(1, 0) == 1
+    assert isinstance(price.reservation_microdollars(4000, 2048), int)
+    assert (
+        price.settlement_microdollars(
+            input_tokens=1, cached_tokens=0, cache_write_tokens=0, output_tokens=0
+        )
+        == 1
+    )
 
 
 def test_the_ledger_stores_no_content(ledger: CostLedger) -> None:

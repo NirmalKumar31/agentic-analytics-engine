@@ -206,3 +206,32 @@ def schema_of(model: type[BaseModel]) -> dict[str, Any]:
 
 def bullet_list(items: list[str], empty: str = "(none)") -> str:
     return "\n".join(f"- {item}" for item in items) if items else empty
+
+
+def active_response_schemas() -> dict[str, dict[str, Any]]:
+    """Every response schema a provider is ever asked to satisfy.
+
+    One list, built by importing the models rather than by describing them,
+    so a new agent role cannot be added without appearing here. Preflight
+    converts all of them before a run starts: a schema that a strict
+    provider rejects would otherwise fail on the first call of whichever
+    agent owns it, which may be minutes into a paid run.
+
+    Imported inside the function because the agent modules import this one.
+    """
+    from agentic_analytics.agents.analyst import AnalysisPlan, QuestionAnalysis
+    from agentic_analytics.agents.critic import CriticVerdict
+    from agentic_analytics.agents.reporter import ReportPlan
+    from agentic_analytics.agents.visualizer import ChartChoice
+    from agentic_analytics.agents.worker import FindingList, ToolChoice
+
+    models: tuple[type[BaseModel], ...] = (
+        QuestionAnalysis,
+        AnalysisPlan,
+        ToolChoice,
+        FindingList,
+        CriticVerdict,
+        ChartChoice,
+        ReportPlan,
+    )
+    return {model.__name__: schema_of(model) for model in models}

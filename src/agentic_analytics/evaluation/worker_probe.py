@@ -40,7 +40,11 @@ from pydantic import BaseModel, Field
 from agentic_analytics.agents.base import StructuredCall, observe_structured_calls
 from agentic_analytics.agents.critic import verify_finding
 from agentic_analytics.agents.prompts import FINDINGS_FIELD_GUIDE, WORKER_FINDINGS
-from agentic_analytics.agents.schemas import AnalysisTask, CandidateFinding
+from agentic_analytics.agents.schemas import (
+    AnalysisTask,
+    CandidateFinding,
+    OptionalJsonObject,
+)
 from agentic_analytics.agents.worker import FindingList, _findings_prompt
 from agentic_analytics.analytics.results import (
     EvidenceCell,
@@ -125,7 +129,7 @@ class ProposedFinding(BaseModel):
         default_factory=list,
         description="The specific cells the claim reads.",
     )
-    claimed_change: dict[str, Any] | None = Field(
+    claimed_change: OptionalJsonObject = Field(
         default=None,
         description=(
             "Only when the claim asserts arithmetic between cells, e.g. "

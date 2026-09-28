@@ -16,6 +16,10 @@ from pydantic import BaseModel, Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 ProviderMode = Literal["fake", "local", "cloud"]
+#: Accepted by `gpt-6-luna`. A value outside this set is a configuration
+#: error that must fail at startup rather than on the first paid call.
+#: https://developers.openai.com/api/docs/models/gpt-6-luna
+CloudReasoningEffort = Literal["none", "low", "medium", "high", "xhigh", "max"]
 
 #: Accepted spellings for a DuckDB memory limit.
 _MEMORY_LIMIT = re.compile(r"\d+(\.\d+)?\s?(kb|mb|gb|tb|kib|mib|gib|tib)", re.IGNORECASE)
@@ -93,19 +97,20 @@ class Settings(BaseSettings):
     #: produced, and a first call that times out looks like a model failure
     #: when it is a startup cost.
     ollama_timeout_seconds: float = Field(default=300.0, gt=0)
-    cloud_model: str = "claude-sonnet-5"
+    cloud_model: str = "gpt-6-luna"
     cloud_api_key: str | None = None
-    cloud_base_url: str = "https://api.anthropic.com"
+    cloud_base_url: str = "https://api.openai.com"
     #: Ceiling on one cloud model call, enforced by us and not only by the
     #: HTTP client. Lower than the local default because there is no cold
     #: model load to wait through: a hosted endpoint that has sent nothing
     #: in two minutes is not about to start.
     cloud_timeout_seconds: float = Field(default=120.0, gt=0)
-    #: Send `temperature` with cloud requests. Off: several current models
-    #: reject a non-default sampling parameter, and the engine's determinism
-    #: comes from the analytics layer rather than from model decoding. Turn
-    #: it on only for a model whose documentation permits the exact value.
-    cloud_send_temperature: bool = False
+    #: How much the model may reason before answering. `low` is deliberate:
+    #: the engine does not ask the model to compute anything, only to choose
+    #: what to investigate, and reasoning tokens are billed as output. There
+    #: is no sampling setting to configure -- determinism here comes from the
+    #: analytics layer, not from model decoding -- so this is the only knob.
+    cloud_reasoning_effort: CloudReasoningEffort = "low"
 
     # ------------------------------------------------------------ AI mode
     #: Whether this deployment offers AI Analytics at all. Off by default:

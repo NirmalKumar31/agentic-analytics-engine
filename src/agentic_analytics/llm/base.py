@@ -36,6 +36,10 @@ FailureKind = Literal[
     "json_parse_error",
     "schema_validation_error",
     "budget_exhausted",
+    # The model understood the request and declined it. Distinct from a
+    # parse failure on purpose: nothing is wrong with the contract, so
+    # retrying the same prompt is not a fix.
+    "refused",
     "unknown",
 ]
 

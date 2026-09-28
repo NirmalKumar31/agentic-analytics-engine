@@ -4,9 +4,9 @@ A ledger that is configured but never consulted bounds nothing. These tests
 drive the governed provider against a fake Redis and an HTTP transport stub
 and assert the sequence:
 
-    model preflight -> token count -> reservation -> Messages -> reconcile
+    model preflight -> token count -> reservation -> Responses -> reconcile
 
-No Messages request may be created if any earlier stage fails. The
+No Responses request may be created if any earlier stage fails. The
 governance boundary is not mocked away: the real ledger Lua runs, the real
 pricing table is consulted, and the real payload is counted.
 """
@@ -20,7 +20,7 @@ import httpx
 import pytest
 
 from agentic_analytics.llm.base import LLMError, LLMRequest
-from agentic_analytics.llm.cloud import RESPONSE_TOOL, CloudProvider
+from agentic_analytics.llm.cloud import CloudProvider
 from agentic_analytics.llm.governed import (
     AIBudgetExceeded,
     GovernedCloudProvider,
@@ -31,8 +31,8 @@ from agentic_analytics.llm.governed import (
 from agentic_analytics.llm.ledger import CostLedger, LedgerCaps
 from agentic_analytics.llm.pricing import price_for
 
-KEY = "sk-ant-secret-never-logged"
-MODEL = "claude-sonnet-5"
+KEY = "sk-proj-secret-never-logged"
+MODEL = "gpt-6-luna"
 
 CAPS = LedgerCaps(
     total_microdollars=10_000_000,
@@ -52,28 +52,54 @@ class Recorder:
         self.out_tokens = out_tokens
         self.fail_messages_with: int | None = None
 
+    #: Usage the Responses stub reports back. Separate from `count` so a
+    #: test can make the settled cost differ from the reserved one.
+    cached_tokens: int = 0
+    cache_write_tokens: int = 0
+
     def __call__(self, request: httpx.Request) -> httpx.Response:
         path = request.url.path
         self.calls.append(path)
         if path.startswith("/v1/models/"):
-            return httpx.Response(200, json={"id": MODEL, "display_name": "Sonnet 5"})
-        if path == "/v1/messages/count_tokens":
+            return httpx.Response(
+                200, json={"id": MODEL, "object": "model", "created": 1, "owned_by": "openai"}
+            )
+        if path == "/v1/responses/input_tokens":
             return httpx.Response(200, json={"input_tokens": self.count})
-        if path == "/v1/messages":
+        if path == "/v1/responses":
             if self.fail_messages_with:
                 return httpx.Response(self.fail_messages_with, json={"error": {}})
             return httpx.Response(
                 200,
                 json={
-                    "content": [{"type": "tool_use", "name": RESPONSE_TOOL, "input": {"ok": True}}],
-                    "usage": {"input_tokens": self.count, "output_tokens": self.out_tokens},
+                    "id": "resp_1",
+                    "object": "response",
+                    "status": "completed",
+                    "output": [
+                        {"id": "rs_1", "type": "reasoning", "content": []},
+                        {
+                            "id": "msg_1",
+                            "type": "message",
+                            "role": "assistant",
+                            "content": [{"type": "output_text", "text": '{"ok": true}'}],
+                        },
+                    ],
+                    "usage": {
+                        "input_tokens": self.count,
+                        "output_tokens": self.out_tokens,
+                        "input_tokens_details": {
+                            "cached_tokens": self.cached_tokens,
+                            "cache_write_tokens": self.cache_write_tokens,
+                        },
+                        "output_tokens_details": {"reasoning_tokens": 0},
+                    },
                 },
             )
         return httpx.Response(404, json={})
 
     @property
     def messages_calls(self) -> int:
-        return self.calls.count("/v1/messages")
+        return self.calls.count("/v1/responses")
 
 
 def _provider(recorder: Recorder) -> CloudProvider:
@@ -81,7 +107,7 @@ def _provider(recorder: Recorder) -> CloudProvider:
     provider._client = httpx.AsyncClient(
         base_url="http://cloud",
         transport=httpx.MockTransport(recorder),
-        headers={"x-api-key": KEY},
+        headers={"authorization": f"Bearer {KEY}"},
     )
     return provider
 
@@ -118,7 +144,7 @@ def _request(**kw: Any) -> LLMRequest:
         "role": "planner",
         "system": "s" * 400,
         "user": "u" * 800,
-        "schema": {},
+        "schema": {"type": "object", "properties": {"ok": {"type": "boolean"}}},
         "max_tokens": 2048,
     }
     return LLMRequest(**(base | kw))
@@ -139,11 +165,15 @@ async def test_the_whole_sequence_runs_in_order(ledger: CostLedger) -> None:
         await provider.aclose()
 
     assert recorder.calls == [
+        # Preflight: resolve the model, then put one real strict schema to
+        # the provider's own parser. Neither generates anything.
         f"/v1/models/{MODEL}",
-        "/v1/messages/count_tokens",
-        "/v1/messages",
+        "/v1/responses/input_tokens",
+        # The run's own call: count what will be sent, then send it.
+        "/v1/responses/input_tokens",
+        "/v1/responses",
     ]
-    # The reservation happened between the count and the Message.
+    # The reservation happened between the count and the Response.
     assert ledger.spent_microdollars("run_1") > 0
 
 
@@ -198,12 +228,15 @@ async def test_model_verification_precedes_the_first_message(ledger: CostLedger)
     recorder = Recorder()
     provider = await _governed(recorder, ledger)
     try:
-        assert recorder.calls == [f"/v1/models/{MODEL}"], "preflight did not verify the model"
+        assert recorder.calls == [
+            f"/v1/models/{MODEL}",
+            "/v1/responses/input_tokens",
+        ], "preflight did not verify the model and its schemas"
         assert provider.preflight_result.resolved_model == MODEL
         await provider.complete_json(_request())
     finally:
         await provider.aclose()
-    assert recorder.calls.index(f"/v1/models/{MODEL}") < recorder.calls.index("/v1/messages")
+    assert recorder.calls.index(f"/v1/models/{MODEL}") < recorder.calls.index("/v1/responses")
 
 
 async def test_an_unpriced_resolved_model_creates_no_message(ledger: CostLedger) -> None:
@@ -253,10 +286,10 @@ async def test_the_output_allowance_is_clamped_to_what_remains(
 
     class Capturing(Recorder):
         def __call__(self, request: httpx.Request) -> httpx.Response:
-            if request.url.path == "/v1/messages":
+            if request.url.path == "/v1/responses":
                 import json as _json
 
-                sent.append(_json.loads(request.content)["max_tokens"])
+                sent.append(_json.loads(request.content)["max_output_tokens"])
             return super().__call__(request)
 
     recorder = Capturing(out_tokens=100)
@@ -307,7 +340,9 @@ async def test_the_cost_total_is_exact_after_reconciliation(ledger: CostLedger) 
     finally:
         await provider.aclose()
 
-    expected = price_for(MODEL).cost_microdollars(1000, 200)
+    expected = price_for(MODEL).settlement_microdollars(
+        input_tokens=1000, cached_tokens=0, cache_write_tokens=0, output_tokens=200
+    )
     assert ledger.spent_microdollars("run_1") == expected
     assert provider.budget.settled_microdollars == expected
     # The reservation was larger, and the unused part came back.

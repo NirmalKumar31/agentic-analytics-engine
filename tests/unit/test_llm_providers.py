@@ -320,51 +320,6 @@ async def test_ollama_errors_are_sanitised() -> None:
 # ------------------------------------------------------------------- cloud
 
 
-async def test_cloud_provider_uses_a_forced_tool_call() -> None:
-    from agentic_analytics.llm.cloud import RESPONSE_TOOL, CloudProvider
-
-    def handler(req: httpx.Request) -> httpx.Response:
-        payload = httpx.Request("POST", req.url, content=req.read()).read().decode()
-        assert RESPONSE_TOOL in payload
-        assert req.headers["x-api-key"] == "test-key"
-        return httpx.Response(
-            200,
-            json={
-                "content": [{"type": "tool_use", "name": RESPONSE_TOOL, "input": {"intent": "ok"}}],
-                "usage": {"input_tokens": 11, "output_tokens": 3},
-            },
-        )
-
-    provider = CloudProvider(api_key="test-key", model="m")
-    provider._client = httpx.AsyncClient(
-        base_url="http://cloud",
-        transport=httpx.MockTransport(handler),
-        headers={"x-api-key": "test-key"},
-    )
-    try:
-        assert (await provider.complete_json(request()))["intent"] == "ok"
-        assert provider.usage.input_tokens == 11
-    finally:
-        await provider.aclose()
-
-
-async def test_cloud_provider_rejects_a_response_with_no_tool_call() -> None:
-    from agentic_analytics.llm.cloud import CloudProvider
-
-    def handler(_: httpx.Request) -> httpx.Response:
-        return httpx.Response(200, json={"content": [{"type": "text", "text": "hi"}], "usage": {}})
-
-    provider = CloudProvider(api_key="k", model="m")
-    provider._client = httpx.AsyncClient(
-        base_url="http://cloud", transport=httpx.MockTransport(handler)
-    )
-    try:
-        with pytest.raises(LLMError, match="did not return a structured answer"):
-            await provider.complete_json(request())
-    finally:
-        await provider.aclose()
-
-
 def test_cloud_provider_refuses_to_construct_without_a_key() -> None:
     from agentic_analytics.llm.cloud import CloudProvider
 
@@ -378,83 +333,6 @@ def test_base_provider_is_abstract() -> None:
 
 
 # ------------------------------------------------- cloud: the hard ceiling
-
-
-async def test_a_cloud_call_that_never_returns_is_bounded_by_the_application() -> None:
-    """A connection that is accepted and then silent must still end.
-
-    The local provider already carries this bound, added after a run wedged
-    for twenty minutes: socket ESTABLISHED, no bytes moving, the HTTP
-    client's read timeout never firing. Nothing about that failure is
-    specific to Ollama -- it is what "accepted, then nothing" looks like
-    from the client side -- so the cloud adapter needs the same backstop
-    before it is ever pointed at a paid endpoint.
-
-    The mock transport here never responds at all. If the `asyncio.timeout`
-    were removed, this test would hang rather than fail, which is exactly
-    the production behaviour it exists to prevent.
-    """
-    import asyncio
-
-    from structlog.testing import capture_logs
-
-    from agentic_analytics.llm.cloud import CloudProvider
-
-    entered = asyncio.Event()
-
-    async def never_responds(_: httpx.Request) -> httpx.Response:
-        entered.set()
-        await asyncio.Event().wait()  # pragma: no cover - never completes
-        raise AssertionError("unreachable")
-
-    provider = CloudProvider(api_key="sk-secret-key-value", model="m", timeout_seconds=0.25)
-    # Keep the real headers: the point is partly that the key does not leak.
-    provider._client = httpx.AsyncClient(
-        base_url="http://cloud",
-        transport=httpx.MockTransport(never_responds),
-        # Deliberately far longer than the application ceiling, so only the
-        # `asyncio.timeout` can be what ends this call.
-        timeout=httpx.Timeout(600.0),
-        headers={"x-api-key": "sk-secret-key-value"},
-    )
-
-    started = asyncio.get_running_loop().time()
-    try:
-        with capture_logs() as captured, pytest.raises(LLMError) as raised:
-            await provider.complete_json(request(role="planner"))
-        elapsed = asyncio.get_running_loop().time() - started
-    finally:
-        # Closing after a timed-out call must not raise or hang.
-        await provider.aclose()
-
-    assert entered.is_set(), "the request never reached the transport"
-    assert elapsed < 10, f"the application ceiling did not fire (took {elapsed:.1f}s)"
-
-    error = raised.value
-    assert error.kind == "timeout", f"misclassified as {error.kind}"
-    assert str(error) == "the language model did not respond in time"
-
-    # The attempt is charged even though no response arrived. A budget that
-    # only counts successes lets a provider failing every call retry until
-    # the wall clock runs out.
-    assert provider.usage.attempts == 1
-    assert provider.usage.successes == 0
-    assert provider.usage.as_dict()["provider_request_attempts"] == 1
-    assert provider.usage.as_dict()["provider_successful_responses"] == 0
-
-    records = [e for e in captured if e.get("event") == "cloud_call_failed"]
-    assert records, f"no cloud_call_failed record was emitted; saw {captured}"
-    record = records[0]
-    assert record["error_type"] in {"TimeoutError", "CancelledError"}
-    assert record["role"] == "planner"
-    assert record["model"] == "m"
-
-    # Nothing anywhere in the raised message or the log carries the key,
-    # the header name, or a response body.
-    surfaces = [str(error), repr(record)]
-    for surface in surfaces:
-        assert "sk-secret-key-value" not in surface
-        assert "x-api-key" not in surface.lower()
 
 
 async def test_the_cloud_ceiling_is_configured_not_hardcoded() -> None:

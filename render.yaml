@@ -77,7 +77,11 @@ services:
       # Must match a pricing entry exactly. An unpriced model is refused
       # rather than estimated.
       - key: AAE_CLOUD_MODEL
-        value: claude-sonnet-5
+        value: gpt-6-luna
+      # Reasoning tokens are billed as output. The engine chooses what to
+      # investigate; it does not ask the model to compute.
+      - key: AAE_CLOUD_REASONING_EFFORT
+        value: low
       # Render Key Value connection string. Secret, and required before AI
       # can be offered at all.
       - key: AAE_AI_QUOTA_REDIS_URL
