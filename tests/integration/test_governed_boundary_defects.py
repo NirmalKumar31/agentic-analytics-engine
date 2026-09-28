@@ -1,9 +1,19 @@
 """The governed boundary, where money and ceilings are decided.
 
-Every test here reproduces a defect found by audit of 959ebd9. They are
-written to fail against that code and pass against the fix, and the thing
-they have in common is that none of them was visible from the outside: the
-run succeeded, the report looked right, and the accounting was wrong.
+All 27 tests here pass against the current code. **26 of the 27 reproduce
+a defect found by audit of 959ebd9**: they were written to fail against
+that code and pass against the fix, and the thing they have in common is
+that none of them was visible from the outside -- the run succeeded, the
+report looked right, and the accounting was wrong.
+
+The exception is `[cache exceeds total]`, one case of the unusable-usage
+parametrisation. It passes against 959ebd9 too, because the coherence
+check already rejected a cached count larger than the input it is part of.
+It is a broader invariant guarding the same settlement path, not an
+original-defect reproduction, and it is not counted as one. Measured
+against a copy of 959ebd9 on `PYTHONPATH`, not against an editable
+install, which leaks the current code into the old tree and reported 25
+of 27 the first time it was run.
 
     A  a response with unusable usage refunded the whole reservation
     B  tokens billed for a failed parse never reached the run's ceilings

@@ -1741,3 +1741,135 @@ GENERATORS.update(
         "finance_ambiguous": finance_ambiguous,
     }
 )
+
+
+def geology_core_assays(rng: random.Random, n: int = 340) -> Dataset:
+    """Drill-core assays, where the grain is a depth interval.
+
+    Materially different from every other fixture in one way that breaks
+    mappings: `from_depth_m` and `to_depth_m` are *coordinates*. They are
+    floats, they are not identifiers, and they look exactly like measures
+    to anything reading types alone -- but summing them is meaningless, and
+    the only additive column is the length the interval spans.
+
+    The grades compound it. `gold_gpt` and `copper_pct` are intensities,
+    not amounts: they are nulled where a sample was not assayed, so a mean
+    over them is a mean over whichever intervals happened to be tested.
+    """
+    header = [
+        "sample_ref",
+        "hole_id",
+        "logged_on",
+        "from_depth_m",
+        "to_depth_m",
+        "interval_length_m",
+        "lithology_code",
+        "gold_gpt",
+        "copper_pct",
+        "assay_lab",
+    ]
+    lithologies = ("BSLT", "GRNT", "SCHS", "QRTZ", "GNSS", "DLRT")
+    labs = ("Zyrex Assay", "Quobble Labs", "Farnly Geoscience")
+    rows: list[list[object]] = []
+    # Twenty-four holes, each logged as a run of contiguous intervals, so
+    # the depth columns genuinely increase down a hole rather than being
+    # unrelated draws.
+    depth = 0.0
+    hole = 0
+    for i in range(n):
+        if i % 14 == 0:
+            hole += 1
+            depth = round(rng.uniform(0, 12), 1)
+        span = round(rng.uniform(0.5, 3.0), 1)
+        top, bottom = depth, round(depth + span, 1)
+        depth = bottom
+        lab = labs[hole % len(labs)]
+        # Assayed by lab: one lab reports no copper at all, so the nulls
+        # are absent-by-group rather than absent-at-random.
+        gold = round(rng.lognormvariate(0.1, 0.9), 3) if rng.random() > 0.18 else None
+        copper = (
+            round(rng.uniform(0.01, 3.4), 3)
+            if lab != "Farnly Geoscience" and rng.random() > 0.1
+            else None
+        )
+        rows.append(
+            [
+                f"SMP-{i:06d}",
+                f"DDH-{hole:03d}",
+                (date(2025, 1, 6) + timedelta(days=(i * 2) % 250)).isoformat(),
+                top,
+                bottom,
+                span,
+                lithologies[(hole + i) % len(lithologies)],
+                gold,
+                copper,
+                lab,
+            ]
+        )
+    return Dataset("geology_core_assays", Domain.GEOLOGY, Family.INTERVAL_GRAINED, header, rows)
+
+
+def aviation_flight_legs(rng: random.Random, n: int = 420) -> Dataset:
+    """Flight legs: a time span per row, and a pair of places per row.
+
+    The same interval grain as the assay table, expressed in dates rather
+    than metres, plus a structure nothing else in the corpus has -- the
+    row is an *edge*. `origin_airport` and `destination_airport` are two
+    columns drawn from one vocabulary, so "by airport" names neither of
+    them unambiguously, and a question naming one must not be answered
+    with the other.
+
+    Cancelled legs carry no actual departure and no delay, which makes the
+    nulls mean something: a mean delay that silently skips them is a mean
+    over the flights that managed to leave.
+    """
+    header = [
+        "leg_ref",
+        "flight_no",
+        "scheduled_departure",
+        "scheduled_arrival",
+        "actual_departure",
+        "origin_airport",
+        "destination_airport",
+        "aircraft_tail",
+        "leg_status",
+        "block_minutes",
+        "delay_minutes",
+        "passengers",
+    ]
+    airports = ("ZYX", "QBL", "FNY", "VXT", "UMB", "PLN", "NXS", "GRW")
+    rows: list[list[object]] = []
+    for i in range(n):
+        origin = airports[i % len(airports)]
+        destination = airports[(i * 3 + 1) % len(airports)]
+        if destination == origin:  # a leg never starts where it ends
+            destination = airports[(i * 3 + 2) % len(airports)]
+        departure = date(2025, 1, 2) + timedelta(days=(i * 2) % 260)
+        block = rng.randint(45, 380)
+        cancelled = rng.random() < 0.07
+        delay = None if cancelled else max(0, int(rng.lognormvariate(2.2, 1.1)) - 4)
+        rows.append(
+            [
+                f"LEG-{i:06d}",
+                f"ZY{rng.randint(100, 999)}",
+                departure.isoformat(),
+                (departure + timedelta(days=1 if block > 300 else 0)).isoformat(),
+                None if cancelled else departure.isoformat(),
+                origin,
+                destination,
+                f"G-{_FAKE[i % len(_FAKE)][:2].upper()}{i % 12:02d}",
+                "cancelled" if cancelled else ("delayed" if (delay or 0) > 15 else "on_time"),
+                block,
+                delay,
+                0 if cancelled else rng.randint(38, 189),
+            ]
+        )
+    return Dataset("aviation_flight_legs", Domain.AVIATION, Family.INTERVAL_GRAINED, header, rows)
+
+
+GENERATORS.update(
+    {
+        "geology_core_assays": geology_core_assays,
+        "aviation_flight_legs": aviation_flight_legs,
+    }
+)

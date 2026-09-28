@@ -206,9 +206,20 @@ coroutine.
 
 ## 5a. What the upload corpus proves, and what it does not
 
-There is an acceptance corpus of 210 cases: every one of 38 domains, all 23
-structural families, all 10 question kinds, seven domains with the full
+There is an acceptance corpus of 230 cases: every one of 40 domains, all 24
+structural families, all 10 question kinds, nine domains with the full
 matrix, both CSV and Parquet. It runs in CI with no credentials.
+
+The newest family is `interval_grained_rows`, where a row describes a
+*span* rather than a point -- a drill-core depth interval, a
+departure-to-arrival window. It is there because the bound columns read as
+ordinary numbers and dates: nothing about `from_depth_m` marks it as a
+coordinate rather than a quantity, so a question asking for "total depth"
+has three columns to choose between and must refuse rather than pick.
+Flight legs add a shape nothing else has, where the row is an *edge* and
+two columns are drawn from one vocabulary, so "by airport" names neither
+`origin_airport` nor `destination_airport` and must not be answered with
+whichever appears first.
 
 **What it establishes.** Across those cases, no published finding was
 unsupported or irrelevant, nothing failed unexpectedly, no measure,
@@ -230,7 +241,7 @@ column so that a foreign key sharing its value space with the identifier
 it references is not reported as a leak.
 
 **What it does not establish.** That an arbitrary file gets a good answer.
-The corpus is 210 questions the authors chose, against datasets the authors
+The corpus is 230 questions the authors chose, against datasets the authors
 generated. It demonstrates the committed cases and the *shape* of the
 failure behaviour -- refusal rather than guessing -- not coverage of every
 file a visitor might upload. Three of the ten question kinds are satisfied
@@ -318,6 +329,25 @@ mapping with a real operation, leaving the `build_sql` confidence guard
 unreachable and its assertion vacuous. Both are now pinned and exercised
 directly. The number worth reporting is not "the properties pass" but
 "a broken build fails them," and that is what was measured.
+
+The governed-boundary suite is counted the same way and stated precisely,
+because the loose version of the sentence overclaims. **All 27 tests pass
+against the current code, and 26 of the 27 reproduce a defect found by
+audit of 959ebd9.** The 27th, `[cache exceeds total]`, passes against
+959ebd9 as well: the coherence check already rejected a cached count
+larger than the input containing it. It guards the same settlement path
+and is worth keeping, but it is a broader invariant rather than an
+original-defect reproduction, so it is not counted as one and the suite is
+not described as 27 of 27. That figure was also mismeasured once -- an
+editable install leaked current code into the checkout of the old
+revision and produced 25 of 27, which is why the measurement now runs
+against a copy of 959ebd9 on `PYTHONPATH`.
+
+The upload corpus carries two further injections of its own, recorded in
+§5a: the near-unique-text leak, which the disclosure check must catch, and
+the two mapping guards the interval-grained family was added for -- a
+measure taken from the first of several candidates, and a grouping matched
+by substring so that "by airport" silently becomes `origin_airport`.
 
 ---
 

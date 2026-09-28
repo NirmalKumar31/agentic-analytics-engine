@@ -404,6 +404,43 @@ _QUESTIONS: dict[str, dict[QuestionKind, str]] = {
         QuestionKind.ANSWERABLE: "total ticket_total by section",
         QuestionKind.PERIOD_SENSITIVE: "ticket_total in Q1 2025 and Q2 2025",
     },
+    # ── two interval-grained matrices ───────────────────────────────────
+    # The measure named in the answerable questions is deliberately the
+    # only additive column on each table. The bound columns -- depths,
+    # scheduled times -- are left for the ambiguous and synonym cases,
+    # which is where a shape like this actually goes wrong.
+    "geology_core_assays": {
+        QuestionKind.ANSWERABLE: "total interval_length_m by lithology_code",
+        # Several intensities and two depth bounds, none of them named.
+        QuestionKind.AMBIGUOUS: "how rich is it?",
+        QuestionKind.IRRELEVANT: "what is the boiling point of mercury?",
+        QuestionKind.CAUSAL: "does the lithology_code cause higher gold_gpt?",
+        QuestionKind.NEEDS_MEASURE_AND_DIMENSION: "average gold_gpt by hole_id",
+        QuestionKind.PERIOD_SENSITIVE: (
+            "interval_length_m by lithology_code in Q1 2025 and Q2 2025"
+        ),
+        # "grades" is the field's word for two different columns.
+        QuestionKind.SYNONYM: "which rock type has the best grades?",
+        QuestionKind.PHANTOM_COLUMN: "total interval_length_m by drill_rig",
+        QuestionKind.EMPTY_RESULT: "total interval_length_m in 1975",
+        # Copper is absent for one lab entirely, so this groups over a
+        # column whose nulls follow the grouping.
+        QuestionKind.NULL_HEAVY: "average copper_pct by assay_lab",
+    },
+    "aviation_flight_legs": {
+        QuestionKind.ANSWERABLE: "total passengers by origin_airport",
+        QuestionKind.AMBIGUOUS: "how bad is it?",
+        QuestionKind.IRRELEVANT: "who painted the Mona Lisa?",
+        QuestionKind.CAUSAL: "does the aircraft_tail cause delay_minutes?",
+        QuestionKind.NEEDS_MEASURE_AND_DIMENSION: ("average delay_minutes by destination_airport"),
+        QuestionKind.PERIOD_SENSITIVE: ("passengers by origin_airport in Q2 2025 and Q3 2025"),
+        # "airport" alone names two columns drawn from one vocabulary.
+        QuestionKind.SYNONYM: "which airport sees the most travellers?",
+        QuestionKind.PHANTOM_COLUMN: "total passengers by crew_base",
+        QuestionKind.EMPTY_RESULT: "total passengers in 1980",
+        # Cancelled legs have no delay at all.
+        QuestionKind.NULL_HEAVY: "average delay_minutes by leg_status",
+    },
 }
 
 #: Datasets read as Parquet rather than CSV. Spread across families so the
@@ -421,6 +458,7 @@ _PARQUET = frozenset(
         "marketing_holdout",
         "quality_long_form",
         "web_conversion_funnel",
+        "geology_core_assays",
     }
 )
 

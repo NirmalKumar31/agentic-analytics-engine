@@ -81,6 +81,75 @@ def test_several_domains_have_the_full_question_matrix() -> None:
     assert len(full) >= 6, full
 
 
+# ──────────────────────────────────────────── what the new shapes prove
+#
+# A domain that only passes adds nothing. These two assert the hazards the
+# interval-grained family was added for, directly against the resolver,
+# so "adds structural coverage" is a claim the suite checks rather than a
+# claim the manifest asserts by listing a name.
+
+
+def _uploaded_schema(tmp_path: Path, dataset: str) -> dict[str, object]:
+    from tests.corpus.generators import build
+
+    from agentic_analytics.analytics.semantic import infer_schema
+    from agentic_analytics.warehouse.session import SessionManager, open_upload_session
+
+    data = build(dataset)
+    path = data.write_csv(tmp_path)
+    manager = SessionManager()
+    try:
+        session = manager.add(open_upload_session(path, path.name, "csv"))
+        return dict(infer_schema(session, "uploaded_data").as_dict())
+    finally:
+        manager.close_all()
+
+
+@pytest.mark.parametrize(
+    ("question", "answerable"),
+    [
+        # Names the one additive column: answerable.
+        ("total interval_length_m by lithology_code", True),
+        # "depth" is three columns -- two bounds and the span between
+        # them. Picking one would be a silent guess about what was meant.
+        ("total depth by lithology_code", False),
+        # "grade" is two intensities.
+        ("average grade by hole_id", False),
+    ],
+)
+def test_an_interval_table_refuses_a_bound_it_would_have_to_choose(
+    tmp_path: Path, question: str, answerable: bool
+) -> None:
+    from agentic_analytics.analytics.upload_plan import build_sql, resolve_question
+
+    schema = _uploaded_schema(tmp_path, "geology_core_assays")
+    mapping = resolve_question(question, schema)
+    assert bool(build_sql(mapping)) is answerable, mapping.explanation
+
+
+@pytest.mark.parametrize(
+    ("question", "expected_dimension"),
+    [
+        ("total passengers by origin_airport", "origin_airport"),
+        ("average delay_minutes by destination_airport", "destination_airport"),
+        # One vocabulary, two columns: "airport" names neither.
+        ("total passengers by airport", None),
+    ],
+)
+def test_an_edge_table_will_not_pick_one_end_of_the_edge(
+    tmp_path: Path, question: str, expected_dimension: str | None
+) -> None:
+    """The row is an edge -- a leg *from* somewhere *to* somewhere -- so a
+    question naming one end must be answered with that end, and a question
+    naming neither must not be answered with whichever came first in the
+    schema."""
+    from agentic_analytics.analytics.upload_plan import resolve_question
+
+    schema = _uploaded_schema(tmp_path, "aviation_flight_legs")
+    mapping = resolve_question(question, schema)
+    assert mapping.dimension == expected_dimension, mapping.explanation
+
+
 # ─────────────────────────────────────────────────────────── the matrix
 @pytest.fixture(scope="module")
 def observations(tmp_path_factory: pytest.TempPathFactory) -> list[Observation]:
@@ -119,7 +188,7 @@ def remote_observations(tmp_path_factory: pytest.TempPathFactory) -> list[Observ
 def test_no_prompt_ever_contains_a_withheld_cell(
     remote_observations: list[Observation],
 ) -> None:
-    """The privacy boundary, across all 210 cases.
+    """The privacy boundary, across all 230 cases.
 
     A grouping column's labels are part of any aggregate over it, so they
     are not counted. Identifiers, near-unique text and free text are: a
