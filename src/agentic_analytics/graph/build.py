@@ -295,6 +295,7 @@ def build_graph(ctx: RunContext) -> Any:
         brief = state.get("analysis")
         brief_metrics = list(brief.target_metrics) if brief else []
         brief_dimensions = list(brief.dimensions) if brief else []
+        brief_time_scope = (brief.time_scope or "") if brief else ""
 
         for outcome in state.get("task_outcomes", []):
             for finding in outcome.findings:
@@ -327,6 +328,7 @@ def build_graph(ctx: RunContext) -> Any:
                         objective=objectives.get(finding.task_id or "", ""),
                         target_metrics=brief_metrics,
                         target_dimensions=brief_dimensions,
+                        time_scope=brief_time_scope,
                     )
                 except (LLMError, BudgetError) as exc:
                     verdict = Verdict(

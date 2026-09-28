@@ -22,6 +22,7 @@ import re
 from typing import Any
 
 from agentic_analytics.llm.base import LLMProvider, LLMRequest
+from agentic_analytics.verification.period import check_period, resolve_span
 
 # Question keyword -> metrics the analyst should target.
 _METRIC_HINTS: list[tuple[str, tuple[str, ...]]] = [
@@ -46,6 +47,29 @@ _DIMENSION_HINTS: list[tuple[str, str]] = [
 ]
 
 _QUARTER = re.compile(r"\bq([1-4])\b", re.IGNORECASE)
+#: A question asking for one number rather than a decomposition.
+_ASKS_FOR_TOTAL = re.compile(
+    r"\b(total|overall|how much|how many|sum of|aggregate|combined)\b", re.IGNORECASE
+)
+#: A question asking for a decomposition. "Total amount by region" contains
+#: both, and is a breakdown request: the word "total" describes how each
+#: group is measured, not that only one number is wanted. Checked so that
+#: the aggregate rule cannot reject the very breakdown that was asked for.
+_ASKS_FOR_BREAKDOWN = re.compile(
+    r"\b(by|per|across|for each|split|grouped|breakdown|segment|dimension)\b", re.IGNORECASE
+)
+#: A question asking how something moved, rather than what it is.
+_ASKS_FOR_CHANGE = re.compile(
+    r"\b(change|changed|change\?|growth|grew|increase|increased|decrease|decreased|"
+    r"rose|fell|drop|trend|vs|versus|compared|difference|delta|why)\b",
+    re.IGNORECASE,
+)
+#: A claim describing movement between two periods rather than a level.
+_REPORTS_A_CHANGE = re.compile(
+    r"\b(rose from|fell from|increased from|decreased from|a change of|changed by|"
+    r"contributed|contribution of)\b",
+    re.IGNORECASE,
+)
 _YEAR = re.compile(r"\b(20\d{2})\b")
 
 
@@ -510,6 +534,7 @@ class FakeProvider(LLMProvider):
             str(ctx.get("question", "")),
             [str(m) for m in ctx.get("target_metrics", [])],
             [str(d) for d in ctx.get("target_dimensions", [])],
+            ctx.get("time_scope") or None,
         )
         if kind == "interpretation":
             return {
@@ -1319,6 +1344,7 @@ def _answers_question(
     question: str,
     target_metrics: list[str],
     target_dimensions: list[str],
+    time_scope: str | None = None,
 ) -> tuple[bool, str]:
     """Deterministic relevance for the scripted provider.
 
@@ -1350,6 +1376,42 @@ def _answers_question(
             return False, (
                 f"The claim is sliced by {', '.join(sorted(off_topic))}, "
                 f"while the question asks about {', '.join(sorted(wanted_dims))}."
+            )
+
+    # Before the metric check, not after. Reporting the right metric used
+    # to be enough to pass, so a revenue figure for the wrong two months
+    # answered a question about Q3 and Q2: the claim named the metric, the
+    # gate returned early, and the dates were never looked at.
+    if time_scope:
+        period = check_period(text, time_scope, resolve_span(time_scope))
+        if not period.aligned:
+            return False, period.reason
+
+    # Asked for a total, handed a breakdown. "Total revenue in Q3" is not
+    # answered by which category earned the most, however exact that is.
+    # Only when the question asks for an aggregate *and* names no
+    # dimension: a driver question -- "why did margin fall" -- names no
+    # dimension either and breakdowns are precisely its answer, so keying
+    # on the absent dimension alone would reject the right answer.
+    if (
+        not wanted_dims
+        and _ASKS_FOR_TOTAL.search(question or "")
+        and not _ASKS_FOR_BREAKDOWN.search(question or "")
+    ):
+        sliced_by = {d for d in _KNOWN_DIMENSIONS if d in text.lower()}
+        if sliced_by:
+            return False, (
+                f"The question asks for an overall figure, while the claim is "
+                f"broken down by {', '.join(sorted(sliced_by))}."
+            )
+        # Asked what a number *is*, handed how it *moved*. "How much revenue
+        # did we make in 2025" is not answered by a quarter-over-quarter
+        # change, even one inside 2025. Skipped when the question asks about
+        # movement, which is most of them.
+        if not _ASKS_FOR_CHANGE.search(question or "") and _REPORTS_A_CHANGE.search(text):
+            return False, (
+                "The question asks for a level, while the claim describes a "
+                "change between two periods."
             )
 
     if named and {m.lower() for m in metric_ids} & named:

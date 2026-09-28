@@ -84,6 +84,7 @@ async def verify_finding(
     objective: str = "",
     target_metrics: list[str] | None = None,
     target_dimensions: list[str] | None = None,
+    time_scope: str = "",
 ) -> tuple[Verdict, dict[str, Any] | None]:
     """Run every gate on one finding.
 
@@ -138,6 +139,9 @@ async def verify_finding(
                 "objective": objective,
                 "target_metrics": list(target_metrics or []),
                 "target_dimensions": list(target_dimensions or []),
+                # The period the question named. A claim about the right
+                # metric and the wrong months is not an answer.
+                "time_scope": time_scope,
             },
         )
         critic = payload
