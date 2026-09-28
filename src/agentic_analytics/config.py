@@ -119,9 +119,24 @@ class Settings(BaseSettings):
     ai_analytics_enabled: bool = False
     #: Ceilings that apply to an AI run only. Deterministic runs keep the
     #: ordinary budgets; these bound what a single visitor can spend.
-    ai_max_llm_calls: int = Field(default=24, ge=1, le=200)
+    #: Sized for a reasoning model. Its hidden reasoning counts toward
+    #: `output_tokens`, so a budget set for a completion model is spent
+    #: several times faster than the visible answers suggest -- the first
+    #: real run exhausted 16,000 output tokens across 23 calls and
+    #: published nothing, because verification had none left.
+    #:
+    #: A run also needs one call per proposed finding to verify it, on top
+    #: of planning and the tool loop, so the call ceiling has to allow for
+    #: the verification tail rather than just the analysis.
+    ai_max_llm_calls: int = Field(default=64, ge=1, le=200)
     ai_max_input_tokens: int = Field(default=120_000, ge=1_000)
-    ai_max_output_tokens: int = Field(default=16_000, ge=256)
+    ai_max_output_tokens: int = Field(default=64_000, ge=256)
+    #: Output tokens the proposing stages may not touch, so the verifier is
+    #: never starved by the workers ahead of it. A withheld finding is the
+    #: correct outcome for a claim that could not be checked, which makes a
+    #: starved verifier indistinguishable from an analysis that found
+    #: nothing.
+    ai_verification_output_reserve: int = Field(default=24_000, ge=0)
     ai_max_runtime_seconds: float = Field(default=180.0, gt=0)
     ai_max_cost_microdollars: int = Field(default=250_000, ge=1)
     #: Public-demo ceilings, enforced in durable storage so a restart or a

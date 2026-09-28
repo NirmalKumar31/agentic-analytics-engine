@@ -44,9 +44,10 @@ Per-run ceilings for an AI run. Deterministic runs are unaffected.
 
 | Variable | Default | Purpose |
 |---|---|---|
-| `AAE_AI_MAX_LLM_CALLS` | `24` | Provider attempts, including failures and retries. |
+| `AAE_AI_MAX_LLM_CALLS` | `64` | Provider attempts, including failures and retries. Allows for the verification tail: one call per proposed finding, on top of planning and the tool loop. |
 | `AAE_AI_MAX_INPUT_TOKENS` | `120000` | |
-| `AAE_AI_MAX_OUTPUT_TOKENS` | `16000` | |
+| `AAE_AI_MAX_OUTPUT_TOKENS` | `64000` | Sized for a reasoning model, whose hidden reasoning counts toward output. |
+| `AAE_AI_VERIFICATION_OUTPUT_RESERVE` | `24000` | Output tokens only verification may spend. Not extra budget — a claim on part of the ceiling that the proposing stages cannot take. |
 | `AAE_AI_MAX_RUNTIME_SECONDS` | `180` | |
 | `AAE_AI_MAX_COST_MICRODOLLARS` | `250000` | $0.25. Integer microdollars; money is never a float. |
 
@@ -103,9 +104,14 @@ of them and releases the difference once the provider reports what it
 actually used.
 
 At the ceilings above, the conservative maximum for one short-context run is
-120,000 input tokens at the cache-write rate ($0.125/M) plus 16,000 output
-tokens ($0.50/M): **about $0.023**. The `$0.25` per-run ceiling is therefore
+120,000 input tokens at the cache-write rate ($0.125/M) plus 64,000 output
+tokens ($0.50/M): **about $0.047**. The `$0.25` per-run ceiling is therefore
 ample, and is a backstop rather than a binding constraint.
+
+A measured run against `gpt-6-luna` on the demo warehouse cost **$0.0255**,
+which includes worst-case reservations retained for calls that were
+dispatched and then failed. True provider cost is at or below that figure by
+construction.
 
 Requests above 272,000 input tokens are priced at the long-context rates for
 the whole request, not just the excess. The per-run input ceiling is well

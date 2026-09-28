@@ -88,11 +88,15 @@ services:
         sync: false
       # Per-run ceilings for an AI run. Deterministic runs are unaffected.
       - key: AAE_AI_MAX_LLM_CALLS
-        value: "24"
+        value: "64"
       - key: AAE_AI_MAX_INPUT_TOKENS
         value: "120000"
       - key: AAE_AI_MAX_OUTPUT_TOKENS
-        value: "16000"
+        value: "64000"
+      # Output tokens the proposing stages may not touch, so a run
+      # cannot spend its whole budget before verifying anything.
+      - key: AAE_AI_VERIFICATION_OUTPUT_RESERVE
+        value: "24000"
       - key: AAE_AI_MAX_RUNTIME_SECONDS
         value: "180"
       # Integer microdollars. 250000 = $0.25 for one run.

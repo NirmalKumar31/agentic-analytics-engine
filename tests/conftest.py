@@ -7,13 +7,29 @@ exception and say so.
 
 from __future__ import annotations
 
+import os
 from collections.abc import Iterator
 from pathlib import Path
 
 import pytest
 
+from agentic_analytics.config import Settings
 from agentic_analytics.data.generator import GeneratorConfig, generate_warehouse
 from agentic_analytics.warehouse.session import AnalysisSession, open_demo_session
+
+# The suite must not read the developer's own configuration.
+#
+# `Settings` loads `.env` by default, which is right for running the
+# application and wrong for testing it: a developer who has configured AI
+# mode locally gets a different suite from CI, where no `.env` exists. That
+# is the worst direction for the difference to run -- it hid nothing until
+# someone put a real credential in the file, and then twenty tests failed
+# for reasons unrelated to any change.
+#
+# Cleared at import, before any test constructs a `Settings`.
+Settings.model_config["env_file"] = None
+for _leaked in [k for k in os.environ if k.startswith("AAE_")]:
+    del os.environ[_leaked]
 
 TEST_CONFIG = GeneratorConfig(n_customers=6_000, n_products=250, seed=4242)
 

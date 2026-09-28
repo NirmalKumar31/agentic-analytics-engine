@@ -64,6 +64,12 @@ class PreflightFailed(LLMError):
         self.reason = reason
 
 
+#: Roles that verify rather than propose. They draw on the reserved share
+#: of the output budget, because a claim nobody could check is withheld and
+#: a run whose verifier was starved therefore publishes nothing.
+VERIFICATION_ROLES = frozenset({"critic"})
+
+
 @dataclass
 class RunBudget:
     """Cumulative ceilings for one AI run."""
@@ -73,6 +79,10 @@ class RunBudget:
     max_output_tokens: int
     max_runtime_seconds: float
     caps: LedgerCaps
+    #: Output tokens only the verification stage may spend. Zero disables
+    #: the reservation, which is what the evaluation harness wants when it
+    #: is measuring a model rather than serving a visitor.
+    verification_reserve: int = 0
 
     attempts: int = 0
     input_tokens: int = 0
@@ -90,6 +100,24 @@ class RunBudget:
 
     def remaining_output(self) -> int:
         return max(0, self.max_output_tokens - self.output_tokens)
+
+    def remaining_output_for(self, role: str) -> int:
+        """What one role may still spend on output.
+
+        Verification is the last stage and the only one whose absence is
+        silently destructive: a finding that cannot be checked is withheld,
+        never waved through, so a run that spends its whole output budget
+        proposing findings publishes nothing at all. That is exactly what
+        happened the first time this ran against a reasoning model, whose
+        hidden reasoning tokens count as output.
+
+        So the proposing stages see a smaller budget than the verifying one.
+        The reserve is not extra spending -- the ceiling is unchanged -- it
+        is a claim on part of it that the earlier stages cannot take.
+        """
+        if role in VERIFICATION_ROLES:
+            return self.remaining_output()
+        return max(0, self.max_output_tokens - self.output_tokens - self.verification_reserve)
 
     def as_dict(self) -> dict[str, Any]:
         return {
@@ -284,7 +312,7 @@ class GovernedCloudProvider(LLMProvider):
 
         # 3. Clamp the output allowance to what the run has left, and refuse
         #    rather than send a request whose allowance is zero.
-        allowance = min(request.max_tokens, self.budget.remaining_output())
+        allowance = min(request.max_tokens, self.budget.remaining_output_for(request.role))
         if allowance <= 0:
             raise AIBudgetExceeded(
                 "This AI run reached its output token limit.", "ai_run_budget_exceeded"
@@ -479,6 +507,7 @@ async def open_governed_cloud_provider(
         max_attempts=cfg.ai_max_llm_calls,
         max_input_tokens=cfg.ai_max_input_tokens,
         max_output_tokens=cfg.ai_max_output_tokens,
+        verification_reserve=cfg.ai_verification_output_reserve,
         max_runtime_seconds=cfg.ai_max_runtime_seconds,
         caps=LedgerCaps.from_settings(cfg),
     )

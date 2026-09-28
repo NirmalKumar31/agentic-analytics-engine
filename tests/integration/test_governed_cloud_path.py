@@ -13,6 +13,7 @@ pricing table is consulted, and the real payload is counted.
 
 from __future__ import annotations
 
+import json
 from typing import Any
 
 import fakeredis
@@ -517,3 +518,72 @@ async def test_reasoning_tokens_are_not_billed_twice(ledger: CostLedger) -> None
     )
     assert provider.budget.settled_microdollars == expected
     assert provider.budget.output_tokens == 100
+
+
+# ------------------------------------------- the verification reserve
+async def test_the_proposing_stages_cannot_spend_the_verifiers_budget(
+    ledger: CostLedger,
+) -> None:
+    """The failure this reserve exists to prevent, reproduced exactly.
+
+    The first real run against a reasoning model spent all 16,000 of its
+    output tokens across the planning and worker stages, so every critic
+    call was refused and all sixteen proposed findings were withheld. The
+    engine behaved correctly -- a claim nobody could check is never
+    published -- and the run was still useless.
+    """
+    recorder = Recorder(count=100, out_tokens=400)
+    provider = await _governed(recorder, ledger, max_output_tokens=1_000, verification_reserve=600)
+    try:
+        # A worker may spend down to the reserve and no further.
+        await provider.complete_json(_request(role="worker_findings", max_tokens=1_000))
+        with pytest.raises(AIBudgetExceeded):
+            await provider.complete_json(_request(role="worker_findings", max_tokens=1_000))
+
+        # The verifier still has its share.
+        assert provider.budget.remaining_output_for("critic") > 0
+        await provider.complete_json(_request(role="critic", max_tokens=1_000))
+    finally:
+        await provider.aclose()
+
+
+async def test_a_worker_allowance_is_clamped_to_exclude_the_reserve(
+    ledger: CostLedger,
+) -> None:
+    """The clamp, not just the refusal.
+
+    A worker asking for the whole budget must be given the request minus
+    the reserve, or it spends the verifier's share on its first call.
+    """
+    sent: list[int] = []
+
+    class Capturing(Recorder):
+        def __call__(self, request: httpx.Request) -> httpx.Response:
+            if request.url.path == "/v1/responses":
+                sent.append(json.loads(request.content)["max_output_tokens"])
+            return super().__call__(request)
+
+    recorder = Capturing(count=100, out_tokens=10)
+    provider = await _governed(
+        recorder, ledger, max_output_tokens=10_000, verification_reserve=4_000
+    )
+    try:
+        await provider.complete_json(_request(role="planner", max_tokens=10_000))
+        assert sent == [6_000], "the planner was offered the verifier's tokens"
+        await provider.complete_json(_request(role="critic", max_tokens=10_000))
+        assert sent[-1] == 9_990, "the verifier was denied its own reserve"
+    finally:
+        await provider.aclose()
+
+
+async def test_a_zero_reserve_leaves_every_role_the_whole_budget(
+    ledger: CostLedger,
+) -> None:
+    """The evaluation harness measures a model, not a visitor's run."""
+    recorder = Recorder(count=100, out_tokens=10)
+    provider = await _governed(recorder, ledger, max_output_tokens=5_000, verification_reserve=0)
+    try:
+        assert provider.budget.remaining_output_for("planner") == 5_000
+        assert provider.budget.remaining_output_for("critic") == 5_000
+    finally:
+        await provider.aclose()
