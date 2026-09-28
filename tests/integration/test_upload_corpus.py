@@ -96,6 +96,60 @@ def observations(tmp_path_factory: pytest.TempPathFactory) -> list[Observation]:
     return asyncio.run(run_all())
 
 
+@pytest.fixture(scope="module")
+def remote_observations(tmp_path_factory: pytest.TempPathFactory) -> list[Observation]:
+    """Every case again, this time against a provider that declares itself
+    remote and keeps its prompts.
+
+    A second pass rather than a flag on the first: the disclosure question
+    only exists once inference is remote, and the answer has to be measured
+    over the whole corpus, not over the handful of schemas that look
+    obviously sensitive.
+    """
+    import asyncio
+
+    tmp: Path = tmp_path_factory.mktemp("corpus-remote")
+
+    async def run_all() -> list[Observation]:
+        return [await run_case(case, tmp, remote=True) for case in CASES]
+
+    return asyncio.run(run_all())
+
+
+def test_no_prompt_ever_contains_a_withheld_cell(
+    remote_observations: list[Observation],
+) -> None:
+    """The privacy boundary, across all 210 cases.
+
+    A grouping column's labels are part of any aggregate over it, so they
+    are not counted. Identifiers, near-unique text and free text are: a
+    text column with a distinct value per row was once treated as a
+    grouping, which sent uploaded cells to a remote provider as group
+    labels.
+    """
+    leaked = [
+        (o.case.case_id, len(o.disclosed_cells)) for o in remote_observations if o.disclosed_cells
+    ]
+    assert not leaked, leaked
+
+
+def test_the_remote_matrix_reports_no_disclosure(
+    remote_observations: list[Observation],
+) -> None:
+    """The Phase 3 report needs this as a measured number, not a claim."""
+    matrix = report(remote_observations)
+    assert matrix["raw_cell_disclosures"] == 0, matrix["raw_cell_disclosures"]
+    for key in (
+        "unexpected_failures",
+        "unsupported_published",
+        "irrelevant_published",
+        "silent_guesses",
+        "cross_run_leaks",
+        "outcome_not_allowed",
+    ):
+        assert matrix[key] == 0, (key, matrix[key])
+
+
 def test_no_case_fails_unexpectedly(observations: list[Observation]) -> None:
     failures = [(o.case.case_id, o.failure) for o in observations if o.failure]
     assert not failures, failures

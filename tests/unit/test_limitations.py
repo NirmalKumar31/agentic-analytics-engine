@@ -103,3 +103,47 @@ def test_every_rule_the_engine_can_emit_has_prose() -> None:
     }
     missing = emitted - known_rules()
     assert not missing, f"these rules would be described wrongly: {sorted(missing)}"
+
+
+#: Rules with prose that the engine does not emit, and why.
+#:
+#: An ambiguous mapping never reaches the withholding stage: the tool
+#: refuses to build SQL for a question it cannot map, naming the columns it
+#: could not choose between, so the run stops with that refusal instead of
+#: proposing a finding and withholding it. The sentence is kept because the
+#: verifier may reject on that basis in future, and prose arriving later
+#: than the rule is how a rule ends up described wrongly.
+REFUSES_UPSTREAM_INSTEAD = {"ambiguous_mapping"}
+
+
+def _rules_quoted_in_source() -> set[str]:
+    """Rule names appearing as string literals anywhere the engine could
+    emit them. Read from the tree rather than listed by hand, so the set
+    cannot drift from what the code actually does."""
+    import pathlib
+
+    root = pathlib.Path(__file__).resolve().parents[2] / "src" / "agentic_analytics"
+    blob = "\n".join(f.read_text() for f in root.rglob("*.py") if f.name != "limitations.py")
+    return {rule for rule in known_rules() if f'"{rule}"' in blob or f"'{rule}'" in blob}
+
+
+def test_every_sentence_belongs_to_a_rule_something_can_emit() -> None:
+    """The reverse of the test above, which only caught a rule with no
+    sentence. A sentence with no rule is dead prose: it describes a
+    withholding reason a reader can never be shown, and it hides the fact
+    that the case is handled somewhere else entirely.
+    """
+    unreachable = known_rules() - _rules_quoted_in_source() - REFUSES_UPSTREAM_INSTEAD
+    assert not unreachable, (
+        "these sentences describe rules nothing emits; either wire the rule "
+        f"or record why it refuses upstream: {sorted(unreachable)}"
+    )
+
+
+def test_the_upstream_allowance_is_not_a_dumping_ground() -> None:
+    """Each allowance must still be absent from the source, or it should
+    have been deleted from the allowance rather than left to rot."""
+    emitted_anyway = REFUSES_UPSTREAM_INSTEAD & _rules_quoted_in_source()
+    assert not emitted_anyway, (
+        f"these are emitted after all, so remove them from the allowance: {sorted(emitted_anyway)}"
+    )

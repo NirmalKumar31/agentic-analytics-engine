@@ -253,6 +253,15 @@ counter in Redis can therefore overstate real spend. It is never silently
 reset: compare it against the provider's own usage page rather than
 treating it as the truth.
 
+**Cancellation retains both money and token allowance.** A cancelled call
+is not refunded and its output allowance is not returned to the run. The
+request may have reached the provider and been billed, and the tokens it
+was permitted may already have been generated; a ceiling that hands both
+back on cancellation can be crossed by cancelling. So a run that cancels
+work reports a total at or above what was really spent, and has less
+allowance left than an uncancelled run would -- conservative in the
+direction that cannot overspend.
+
 **Provider enforcement is not instantaneous.** OpenAI documents that a hard
 spend limit can process a small amount of extra usage while the limit state
 propagates, so recorded spend can slightly exceed the configured amount.

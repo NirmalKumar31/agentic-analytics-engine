@@ -12,6 +12,8 @@ while reporting itself as remote, so the disclosure path is exercised too.
 
 from __future__ import annotations
 
+import json
+import re
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -38,6 +40,28 @@ class RemoteFakeProvider(FakeProvider):
     remote_inference = True
 
 
+class _Recording(RemoteFakeProvider):
+    """Remote, and keeps every prompt it was handed.
+
+    Used for every case rather than a sensitive subset, so the corpus can
+    report a measured raw-cell disclosure count instead of pointing at a
+    different suite.
+    """
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.requests: list[Any] = []
+
+    async def complete_json(self, request: Any) -> dict[str, Any]:
+        self.requests.append(request)
+        return await super().complete_json(request)
+
+    def everything_sent(self) -> str:
+        return "\n".join(
+            f"{r.system}\n{r.user}\n{json.dumps(r.context, default=str)}" for r in self.requests
+        )
+
+
 @dataclass
 class Observation:
     """What one case actually did."""
@@ -54,6 +78,10 @@ class Observation:
     leaked_results: list[str] = field(default_factory=list)
     failure: str = ""
     withheld_rules: list[str] = field(default_factory=list)
+    #: Values from columns the classifier would not offer as a grouping,
+    #: found in a prompt. A grouping column's own labels are part of any
+    #: aggregate over it and are excluded deliberately.
+    disclosed_cells: list[str] = field(default_factory=list)
 
     @property
     def ok(self) -> bool:
@@ -63,6 +91,7 @@ class Observation:
             and not self.irrelevant
             and not self.silent_guesses
             and not self.leaked_results
+            and not self.disclosed_cells
             and self.outcome in self.case.allowed
         )
 
@@ -105,6 +134,65 @@ def _numbers_resolve(result: RunResult) -> list[str]:
     return broken
 
 
+#: A column whose values repeat is a category, and its labels are part of
+#: any aggregate grouped by it. Judged from the data, in absolute and
+#: relative terms, so a small table and a large one are both handled.
+LEGITIMATE_GROUP_MAX_DISTINCT = 25
+LEGITIMATE_GROUP_MAX_UNIQUENESS = 0.5
+
+#: ISO dates are excluded wholesale. The engine derives period bounds from
+#: the question -- "Q2 2025" becomes 2025-04-01 to 2025-06-30 -- and those
+#: appear in the plan it sends without having been read from any row.
+_ISO_DATE = re.compile(r"^\d{4}-\d{2}-\d{2}")
+
+
+def _values_that_must_not_be_sent(session: Any, dataset: Any) -> set[str]:
+    """Cell values whose presence in a prompt would be a disclosure.
+
+    Derived from the data's own cardinality, deliberately **not** from the
+    classifier's `role`. Reading the role here made this check blind in
+    exactly the case it exists for: reintroducing the near-unique-text
+    defect reclassified those columns as dimensions, and a boundary that
+    trusts the classifier reclassified their values as legitimate at the
+    same moment, so the leak measured zero. The check has to decide what a
+    grouping is for itself.
+
+    Two classes of legitimate value are subtracted:
+
+    *Repeating columns.* Labels of a genuine category. Subtracted by
+    **value**, not by column, because a foreign key shares its value space
+    with the identifier it references -- in a parent/child task table a
+    legitimate `parent_task_ref` label is also some row's `task_ref`.
+
+    *Dates.* See `_ISO_DATE` above.
+
+    What remains is the class that matters: identifiers, near-unique text
+    and free text, whose values a prompt could not legitimately have
+    obtained.
+    """
+    del session  # the boundary is intentionally independent of inference
+    rows = len(dataset.rows)
+    legitimate: set[str] = set()
+    suspect: set[str] = set()
+    for index, _name in enumerate(dataset.header):
+        values = {
+            value
+            for row in dataset.rows
+            if isinstance((value := row[index]), str)
+            and len(value) >= 6
+            and not _ISO_DATE.match(value)
+        }
+        if not values:
+            continue
+        distinct = len(values)
+        repeats = (
+            distinct <= LEGITIMATE_GROUP_MAX_DISTINCT
+            or distinct / max(rows, 1) <= LEGITIMATE_GROUP_MAX_UNIQUENESS
+        )
+        (legitimate if repeats else suspect).update(values)
+    return suspect - legitimate
+
+
 def _cited_results_belong_to_this_run(result: RunResult) -> list[str]:
     """A published finding citing a result this run did not produce."""
     return [
@@ -137,16 +225,24 @@ async def run_case(case: Case, tmp: Path, *, remote: bool = False) -> Observatio
         if not verdict.in_scope:
             return Observation(case, Outcome.SAFE_REFUSAL, refusal_reason=verdict.reason)
 
-        provider = RemoteFakeProvider() if remote else FakeProvider()
+        # Recording on every case, not just the sensitive shapes, so the
+        # disclosure count the report carries is measured rather than
+        # inferred from a neighbouring suite.
+        provider = _Recording() if remote else FakeProvider()
+        forbidden = _values_that_must_not_be_sent(session, dataset) if remote else set()
         server = build_server(manager, cfg)
         result = await run_analysis(case.question, session, server, settings=cfg, provider=provider)
+        sent = provider.everything_sent() if isinstance(provider, _Recording) else ""
     except Exception as exc:  # pragma: no cover - a failure is the finding
         return Observation(case, Outcome.NO_FINDINGS, failure=f"{type(exc).__name__}: {exc}"[:180])
     finally:
         if provider is not None:
             await provider.aclose()
         manager.close_all()
-    return _classify(case, result)
+
+    observation = _classify(case, result)
+    observation.disclosed_cells = sorted(v for v in forbidden if v in sent)[:5]
+    return observation
 
 
 def _classify(case: Case, result: RunResult) -> Observation:
@@ -213,6 +309,7 @@ def report(observations: list[Observation]) -> dict[str, Any]:
         "irrelevant_published": sum(len(o.irrelevant) for o in observations),
         "silent_guesses": sum(len(o.silent_guesses) for o in observations),
         "cross_run_leaks": sum(len(o.leaked_results) for o in observations),
+        "raw_cell_disclosures": sum(len(o.disclosed_cells) for o in observations),
         "csv_cases": sum(1 for o in observations if not o.case.parquet),
         "parquet_cases": sum(1 for o in observations if o.case.parquet),
     }

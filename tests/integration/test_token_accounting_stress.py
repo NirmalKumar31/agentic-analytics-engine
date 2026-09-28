@@ -15,6 +15,13 @@ inside the window where allowances are outstanding.
 Repeated rather than run once. A scheduling bug that appears in one
 interleaving in twenty is still a bug, and a single pass is as likely to
 miss it as to find it.
+
+The requested shape was an `asyncio.Barrier`, and it cannot be used here:
+a barrier for four callers never releases when the ceiling admits two, so
+the test deadlocks instead of failing. The hold is timed instead --
+every admitted call keeps its allowance outstanding while the others
+arrive -- which produces the same overlap the barrier was for, and lets
+the refused callers be observed being refused rather than hanging.
 """
 
 from __future__ import annotations
