@@ -34,11 +34,11 @@ working.
 |---|---|---|
 | `AAE_AI_ANALYTICS_ENABLED` | `false` | Master switch. |
 | `AAE_CLOUD_API_KEY` | *(unset)* | Provider credential. Secret: dashboard only, never in a blueprint. |
-| `AAE_CLOUD_MODEL` | `claude-sonnet-5` | Must match a pricing entry exactly. An unpriced model is refused. |
+| `AAE_CLOUD_MODEL` | `gpt-6-luna` | Must match a pricing entry exactly. An unpriced model is refused. |
 | `AAE_AI_QUOTA_REDIS_URL` | *(unset)* | Redis-compatible durable ledger. Secret. Without it AI stays off: process-local counters reset on cold start and are not shared between instances. |
-| `AAE_CLOUD_BASE_URL` | `https://api.anthropic.com` | Provider endpoint. |
+| `AAE_CLOUD_BASE_URL` | `https://api.openai.com` | Provider endpoint. |
 | `AAE_CLOUD_TIMEOUT_SECONDS` | `120` | Application ceiling on one call, enforced independently of the HTTP client. |
-| `AAE_CLOUD_SEND_TEMPERATURE` | `false` | Send `temperature`. Off: several current models reject a non-default sampling parameter. |
+| `AAE_CLOUD_REASONING_EFFORT` | `low` | How much the model may reason before answering. Reasoning tokens are billed as output. No sampling parameter is configurable: the engine's determinism comes from the analytics layer, not from model decoding. |
 
 Per-run ceilings for an AI run. Deterministic runs are unaffected.
 
@@ -81,6 +81,36 @@ These are application controls. They are not a billing guarantee: a request
 that times out in transit may still have been billed, and an application
 cannot refund what a provider charged. **Set a hard spend cap on the
 provider account as well.** That is the only external backstop.
+
+For OpenAI that is a per-project limit: Project settings → Limits → Spend →
+Edit spend limit, with **Enforce a hard limit** turned on. A spend alert is
+not a limit. Use a project created for this demo rather than the default
+one, so the ceiling cannot be raised by unrelated work sharing it.
+
+OpenAI documents that enforcement is not instantaneous — a small amount of
+extra usage can be processed while the limit state propagates, so recorded
+spend can slightly exceed the configured amount. Size the limit with that in
+mind rather than treating it as exact.
+https://developers.openai.com/api/docs/guides/spend-limits
+
+### What a run costs
+
+Priced from the published rates for `gpt-6-luna`, reviewed 2026-09-27
+(https://developers.openai.com/api/docs/models/gpt-6-luna). Input is billed
+at one of three rates — ordinary, cache read, or cache write — and nothing
+before dispatch can know which, so the application reserves at the dearest
+of them and releases the difference once the provider reports what it
+actually used.
+
+At the ceilings above, the conservative maximum for one short-context run is
+120,000 input tokens at the cache-write rate ($0.125/M) plus 16,000 output
+tokens ($0.50/M): **about $0.023**. The `$0.25` per-run ceiling is therefore
+ample, and is a backstop rather than a binding constraint.
+
+Requests above 272,000 input tokens are priced at the long-context rates for
+the whole request, not just the excess. The per-run input ceiling is well
+below that threshold, so a run cannot reach it without the ceiling being
+raised deliberately.
 
 ## Checklist
 

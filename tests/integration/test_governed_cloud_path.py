@@ -414,3 +414,106 @@ async def test_the_ledger_never_holds_prompt_text(ledger: CostLedger) -> None:
         value = client.get(key)  # type: ignore[attr-defined]
         if value is not None:
             assert b"SECRET-PROMPT-MARKER" not in value
+
+
+# ------------------------------------------- reservation and settlement
+async def test_the_reservation_uses_the_dearest_input_rate(ledger: CostLedger) -> None:
+    """Before dispatch, nothing knows which rate an input token will attract.
+
+    So the reservation assumes cache-write -- the dearest of the three --
+    and the ledger holds that much until the provider reports otherwise.
+    """
+    recorder = Recorder(count=10_000, out_tokens=0)
+    provider = await _governed(recorder, ledger)
+    price = price_for(MODEL)
+    try:
+        # Reserve, then fail the call so nothing settles and the reservation
+        # is what remains visible.
+        recorder.fail_messages_with = 500
+        with pytest.raises(LLMError):
+            await provider.complete_json(_request(max_tokens=1_000))
+    finally:
+        await provider.aclose()
+
+    expected = price.reservation_microdollars(10_000, 1_000)
+    assert provider.budget.reserved_microdollars == expected
+    # Priced at cache-write, not at the ordinary input rate.
+    cheaper = price.settlement_microdollars(
+        input_tokens=10_000, cached_tokens=0, cache_write_tokens=0, output_tokens=1_000
+    )
+    assert expected > cheaper
+
+
+async def test_settlement_uses_the_reported_usage_categories(ledger: CostLedger) -> None:
+    """A cached call must actually cost less once it has been reported."""
+    recorder = Recorder(count=10_000, out_tokens=100)
+    recorder.cached_tokens = 9_000
+    recorder.cache_write_tokens = 500
+    provider = await _governed(recorder, ledger)
+    try:
+        await provider.complete_json(_request())
+    finally:
+        await provider.aclose()
+
+    expected = price_for(MODEL).settlement_microdollars(
+        input_tokens=10_000,
+        cached_tokens=9_000,
+        cache_write_tokens=500,
+        output_tokens=100,
+    )
+    assert ledger.spent_microdollars("run_1") == expected
+    assert provider.budget.settled_microdollars == expected
+    # Most of the input was a cache read, so this is far below the reservation.
+    assert expected < provider.budget.reserved_microdollars
+
+
+async def test_incoherent_usage_keeps_the_conservative_reservation(
+    ledger: CostLedger,
+) -> None:
+    """The response was billed; its usage just cannot be believed.
+
+    Settling to a number derived from counts that contradict each other
+    would be inventing a figure. The reservation stands instead.
+    """
+    recorder = Recorder(count=10_000, out_tokens=100)
+    # More cached tokens than there were input tokens in total.
+    recorder.cached_tokens = 99_999
+    provider = await _governed(recorder, ledger)
+    try:
+        await provider.complete_json(_request())
+    finally:
+        await provider.aclose()
+
+    assert provider.budget.settled_microdollars == 0
+    assert provider.budget.retained_microdollars == provider.budget.reserved_microdollars
+    assert ledger.spent_microdollars("run_1") == provider.budget.reserved_microdollars
+
+
+async def test_reasoning_tokens_are_not_billed_twice(ledger: CostLedger) -> None:
+    """`output_tokens` already includes them.
+
+    Adding them again would charge for the same generation twice and make
+    the run ceiling bite earlier than the spending warrants.
+    """
+
+    class Reasoning(Recorder):
+        def __call__(self, request: httpx.Request) -> httpx.Response:
+            response = super().__call__(request)
+            if request.url.path != "/v1/responses":
+                return response
+            body = response.json()
+            body["usage"]["output_tokens_details"]["reasoning_tokens"] = 80
+            return httpx.Response(200, json=body)
+
+    recorder = Reasoning(count=1_000, out_tokens=100)
+    provider = await _governed(recorder, ledger)
+    try:
+        await provider.complete_json(_request())
+    finally:
+        await provider.aclose()
+
+    expected = price_for(MODEL).settlement_microdollars(
+        input_tokens=1_000, cached_tokens=0, cache_write_tokens=0, output_tokens=100
+    )
+    assert provider.budget.settled_microdollars == expected
+    assert provider.budget.output_tokens == 100

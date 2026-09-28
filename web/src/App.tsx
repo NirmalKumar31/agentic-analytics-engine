@@ -490,10 +490,14 @@ function DatasetPanel({
             your session. Please do not upload sensitive or regulated data to this
             public demo.
             {config.model_inference_remote
-              ? ' This deployment offers AI Analytics. A run you start in AI mode, or' +
-                ' in Compare Both, sends derived schema information and analysis results' +
-                ' to a third-party model provider; the raw cells of your file are not' +
-                ' sent. A run in Deterministic Analytics sends nothing to any provider.'
+              ? ' This deployment offers AI Analytics, which uses a model hosted by' +
+                ' OpenAI. A run you start in AI mode, or in Compare Both, sends your' +
+                " file's column names, types and computed results to OpenAI as part of" +
+                ' the prompt; the raw cells of your file are not sent. Those requests' +
+                ' ask OpenAI not to store the exchange for later retrieval, but what' +
+                " OpenAI retains is governed by that account's own data settings, not" +
+                ' by this application. A run in Deterministic Analytics sends nothing' +
+                ' to any provider.'
               : ' This deployment runs Deterministic Analytics only, so nothing derived' +
                 ' from your file is sent to an external model provider.'}
           </p>
