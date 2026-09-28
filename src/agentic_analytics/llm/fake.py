@@ -93,19 +93,39 @@ class FakeProvider(LLMProvider):
             if _matches(pattern, question) and dim in available_dims
         ]
 
-        quarter = _QUARTER.search(question)
-        year = _YEAR.search(question)
+        # Every quarter named, not just the first. "Q3 and Q2" is a request
+        # to compare two periods, and reading only the leading match turned
+        # it into a request about one -- which then failed to resolve at all
+        # and was answered as though no period had been named.
+        quarters = _QUARTER.findall(question)
+        years = _YEAR.findall(question)
         time_scope = None
-        if quarter and year:
-            time_scope = f"{year.group(1)} Q{quarter.group(1)}"
-        elif quarter:
-            time_scope = f"Q{quarter.group(1)}"
-        elif year:
-            time_scope = year.group(1)
+        if len(quarters) >= 2:
+            # Newest first, so the later quarter is the current period.
+            first, second = sorted({int(q) for q in quarters}, reverse=True)[:2]
+            if years:
+                time_scope = f"{years[0]} Q{first} vs {years[-1]} Q{second}"
+            else:
+                time_scope = f"Q{first} vs Q{second}"
+        elif quarters and years:
+            time_scope = f"{years[0]} Q{quarters[0]}"
+        elif quarters:
+            time_scope = f"Q{quarters[0]}"
+        elif years:
+            time_scope = years[0]
 
         if _matches(r"affect|impact|relate|associat|correlat|driv", question):
             analysis_type = "correlation"
-        elif _matches(r"trend|over time|month|quarter|increase|decrease|fell|rose", question):
+        elif len(quarters) >= 2 or _matches(
+            r"percentage change|pct change|\bvs\b|versus", question
+        ):
+            # Two periods, or an explicit comparison. Not profiling: asking
+            # for a change between periods and being handed a profile of the
+            # whole dataset is the wrong answer, not a partial one.
+            analysis_type = "timeseries"
+        elif _matches(
+            r"trend|over time|month|quarter|increase|decrease|fell|rose|change", question
+        ):
             analysis_type = "timeseries"
         elif dimensions:
             analysis_type = "segmentation"
@@ -113,7 +133,18 @@ class FakeProvider(LLMProvider):
             analysis_type = "profiling"
 
         ambiguities: list[str] = []
-        if not time_scope:
+        if quarters and not years:
+            # The specific, actionable version. A quarter with no year
+            # cannot be resolved -- guessing one would analyse data nobody
+            # asked about -- so say exactly what to type instead.
+            named = " and ".join(f"Q{q}" for q in dict.fromkeys(quarters))
+            example = f"Q{quarters[0]} 2025"
+            ambiguities.append(
+                f"{named} was named without a year, so no period filter could be "
+                f"applied and the figures below cover the whole dataset. "
+                f"Add a year -- for example '{example}' -- to analyse that quarter."
+            )
+        elif not time_scope:
             ambiguities.append("No explicit time range; the full dataset period is used.")
         if not dimensions:
             ambiguities.append(
