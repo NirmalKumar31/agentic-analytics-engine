@@ -10,7 +10,7 @@
 #   AAE_AI_ANALYTICS_ENABLED=true
 #   AAE_CLOUD_API_KEY         set in the dashboard, never here
 #   AAE_CLOUD_MODEL           an identifier with a pricing entry in
-#                             src/agentic_analytics/api/pricing.py
+#                             src/agentic_analytics/llm/pricing.py
 #   AAE_AI_QUOTA_REDIS_URL    a reachable Redis/Key Value instance
 #
 # Missing any of them leaves AI unavailable with a sanitized reason and

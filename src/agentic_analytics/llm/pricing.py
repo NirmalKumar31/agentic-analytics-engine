@@ -58,7 +58,7 @@ class UnknownModelPrice(LookupError):
 
     def __init__(self, model: str) -> None:
         super().__init__(
-            f"no pricing entry for model {model!r}; add one to api/pricing.py "
+            f"no pricing entry for model {model!r}; add one to llm/pricing.py "
             "before enabling AI Analytics with it"
         )
         self.model = model

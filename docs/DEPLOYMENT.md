@@ -98,7 +98,7 @@ Deterministic first. AI only after the deterministic service is healthy.
 5. **Provider-side spend cap** — set a hard monthly cap on the account or
    project. Do this *before* enabling AI, not after.
 6. **Verify the model** — confirm the exact identifier is accessible to that
-   credential, and that `src/agentic_analytics/api/pricing.py` has an entry
+   credential, and that `src/agentic_analytics/llm/pricing.py` has an entry
    for it. An unpriced model is refused at runtime.
 7. **Confirm pricing** — check the entry against the provider's published
    prices and update the `reviewed` date.
