@@ -79,7 +79,7 @@ DEPLOYMENTS: list[tuple[str, dict[str, Any], bool]] = [
             "provider_mode": "fake",
             "ai_analytics_enabled": True,
             "cloud_api_key": "sk-test-not-a-real-key",
-            "cloud_model": "claude-sonnet-5",
+            "cloud_model": "gpt-6-luna",
             "ai_quota_redis_url": "redis://localhost:6379/0",
         },
         True,
@@ -90,7 +90,7 @@ DEPLOYMENTS: list[tuple[str, dict[str, Any], bool]] = [
             "provider_mode": "cloud",
             "ai_analytics_enabled": True,
             "cloud_api_key": "sk-test-not-a-real-key",
-            "cloud_model": "claude-sonnet-5",
+            "cloud_model": "gpt-6-luna",
             "ai_quota_redis_url": "redis://localhost:6379/0",
         },
         True,
@@ -101,7 +101,7 @@ DEPLOYMENTS: list[tuple[str, dict[str, Any], bool]] = [
             "provider_mode": "cloud",
             "ai_analytics_enabled": False,
             "cloud_api_key": "sk-test-not-a-real-key",
-            "cloud_model": "claude-sonnet-5",
+            "cloud_model": "gpt-6-luna",
         },
         False,
     ),
@@ -161,7 +161,7 @@ def test_the_process_setting_no_longer_changes_any_answer(
     ai = {
         "ai_analytics_enabled": True,
         "cloud_api_key": "sk-test-not-a-real-key",
-        "cloud_model": "claude-sonnet-5",
+        "cloud_model": "gpt-6-luna",
         "ai_quota_redis_url": "redis://localhost:6379/0",
     }
     as_fake = _config(_settings(warehouse_dir, tmp_path, provider_mode="fake", **ai))
@@ -182,7 +182,7 @@ def test_a_recorded_deployment_says_so_whatever_else_is_configured(
             live_analytics_enabled=False,
             ai_analytics_enabled=True,
             cloud_api_key="sk-test-not-a-real-key",
-            cloud_model="claude-sonnet-5",
+            cloud_model="gpt-6-luna",
             ai_quota_redis_url="redis://localhost:6379/0",
         )
     )
@@ -207,7 +207,7 @@ def test_an_unreachable_ledger_withdraws_the_privacy_risk_too(
             provider_mode="cloud",
             ai_analytics_enabled=True,
             cloud_api_key="sk-test-not-a-real-key",
-            cloud_model="claude-sonnet-5",
+            cloud_model="gpt-6-luna",
             ai_quota_redis_url="redis://localhost:6379/0",
         )
     )
@@ -226,7 +226,7 @@ def test_the_config_never_echoes_a_credential(
             tmp_path,
             ai_analytics_enabled=True,
             cloud_api_key="sk-test-not-a-real-key",
-            cloud_model="claude-sonnet-5",
+            cloud_model="gpt-6-luna",
             ai_quota_redis_url="redis://user:password@example.invalid:6379/0",
         )
     )

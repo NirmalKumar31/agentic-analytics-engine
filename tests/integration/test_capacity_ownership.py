@@ -55,7 +55,7 @@ def _ai_settings(warehouse_dir: Path, tmp_path: Path, **overrides: Any) -> Setti
         tmp_path,
         ai_analytics_enabled=True,
         cloud_api_key="sk-test-not-a-real-key",
-        cloud_model="claude-sonnet-5",
+        cloud_model="gpt-6-luna",
         ai_quota_redis_url="redis://localhost:6379/0",
         **overrides,
     )
@@ -102,8 +102,8 @@ def _stub_governed_provider(monkeypatch: pytest.MonkeyPatch) -> None:
         reviewed = "2026-09-27"
 
     class _Preflight:
-        requested_model = "claude-sonnet-5"
-        resolved_model = "claude-sonnet-5"
+        requested_model = "gpt-6-luna"
+        resolved_model = "gpt-6-luna"
         price = _Price()
 
     class _Stub(FakeProvider):

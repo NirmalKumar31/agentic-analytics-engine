@@ -89,7 +89,7 @@ def test_a_paid_provider_cannot_be_built_without_its_ledger() -> None:
     spends without a bound. The refusal names that rather than pretending
     the deployment is misconfigured.
     """
-    cfg = _settings(ai_analytics_enabled=True, cloud_api_key="k", cloud_model="claude-sonnet-5")
+    cfg = _settings(ai_analytics_enabled=True, cloud_api_key="k", cloud_model="gpt-6-luna")
     assert ai_availability(cfg).available is True
     with pytest.raises(ModeUnavailable) as raised:
         build_provider_for_mode(cfg, RunMode.AI)

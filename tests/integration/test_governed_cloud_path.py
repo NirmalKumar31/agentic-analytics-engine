@@ -244,11 +244,11 @@ async def test_an_unpriced_resolved_model_creates_no_message(ledger: CostLedger)
         def __call__(self, request: httpx.Request) -> httpx.Response:
             if request.url.path.startswith("/v1/models/"):
                 self.calls.append(request.url.path)
-                return httpx.Response(200, json={"id": "claude-unpriced-9"})
+                return httpx.Response(200, json={"id": "gpt-6-unpriced-9"})
             return super().__call__(request)
 
     recorder = Unpriced()
-    inner = CloudProvider(api_key=KEY, model="claude-unpriced-9", max_calls=4)
+    inner = CloudProvider(api_key=KEY, model="gpt-6-unpriced-9", max_calls=4)
     inner._client = httpx.AsyncClient(
         base_url="http://cloud", transport=httpx.MockTransport(recorder)
     )

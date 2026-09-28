@@ -45,7 +45,7 @@ def ai_client(demo_data_dir: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[
         demo_data_dir,
         ai_analytics_enabled=True,
         cloud_api_key="sk-test-not-used",
-        cloud_model="claude-sonnet-5",
+        cloud_model="gpt-6-luna",
         ai_quota_redis_url="redis://localhost:6379/0",
     )
     with TestClient(create_app(cfg)) as client:
@@ -193,7 +193,7 @@ def test_the_session_ceiling_counts_both_children(
         demo_data_dir,
         ai_analytics_enabled=True,
         cloud_api_key="sk-test-not-used",
-        cloud_model="claude-sonnet-5",
+        cloud_model="gpt-6-luna",
         ai_quota_redis_url="redis://localhost:6379/0",
         analyses_per_session=3,
     )

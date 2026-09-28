@@ -258,8 +258,8 @@ def test_the_summary_groups_by_question_kind() -> None:
 def test_the_summary_names_the_model_for_each_provider_mode() -> None:
     local = _summarise(Settings(provider_mode="local", ollama_model="qwen3:4b"), [], 0.0)
     assert local["model"] == "qwen3:4b"
-    cloud = _summarise(Settings(provider_mode="cloud", cloud_model="claude-sonnet-5"), [], 0.0)
-    assert cloud["model"] == "claude-sonnet-5"
+    cloud = _summarise(Settings(provider_mode="cloud", cloud_model="gpt-6-luna"), [], 0.0)
+    assert cloud["model"] == "gpt-6-luna"
 
 
 def test_the_summary_says_it_is_not_a_benchmark() -> None:
