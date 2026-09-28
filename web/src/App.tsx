@@ -5,6 +5,7 @@ import { ComparisonView } from './components/ComparisonView'
 import { DatasetSummary } from './components/DatasetSummary'
 import { ExecutionFlow } from './components/ExecutionFlow'
 import { badgeMode, ModeBadge } from './components/ModeBadge'
+import { ThemeToggle, useTheme } from './components/ThemeToggle'
 import { ModeSelector } from './components/ModeSelector'
 import { ProvenanceDrawer } from './components/ProvenanceDrawer'
 import { ReportView } from './components/ReportView'
@@ -38,6 +39,7 @@ export function App() {
   const [replay, setReplay] = useState<RecordingSummary | null>(null)
   // Deterministic by default. The server decides what else is on offer.
   const [uiMode, setUiMode] = useState<UiMode>('deterministic')
+  const [theme, toggleTheme] = useTheme()
   const [comparison, setComparison] = useState<ComparisonStarted | null>(null)
   const [aiRun, setAiRun] = useState<RunPayload | null>(null)
   const [aiError, setAiError] = useState<string | null>(null)
@@ -226,6 +228,7 @@ export function App() {
         </div>
         <div className="topbar-spacer" />
         {config && <ModeBadge mode={badgeMode(!!replay, config.execution_mode, uiMode)} />}
+        <ThemeToggle theme={theme} onToggle={toggleTheme} />
         {session && (
           <button
             className="btn ghost small"
@@ -258,7 +261,7 @@ export function App() {
         <Step index={5} label="Report" state={stage === 'report' ? 'active' : 'idle'} />
       </nav>
 
-      <main className="main">
+      <main className="main" data-rail={run || runId ? 'true' : 'false'}>
         <div className="column">
           {configError && <div className="notice error">{configError}</div>}
           {error && <div className="notice error">{error}</div>}
@@ -484,22 +487,21 @@ function DatasetPanel({
 
         {config.uploads_enabled && (
           <p className="small dim" style={{ margin: 0 }}>
-            Your file is used only for this analysis session and is deleted when the
-            session ends or expires, after {config.session_ttl_minutes} minutes of
-            inactivity. There are no accounts, so anyone with your session cookie is
-            your session. Please do not upload sensitive or regulated data to this
-            public demo.
-            {config.model_inference_remote
-              ? ' This deployment offers AI Analytics, which uses a model hosted by' +
-                ' OpenAI. A run you start in AI mode, or in Compare Both, sends your' +
-                " file's column names, types and computed results to OpenAI as part of" +
-                ' the prompt; the raw cells of your file are not sent. Those requests' +
-                ' ask OpenAI not to store the exchange for later retrieval, but what' +
-                " OpenAI retains is governed by that account's own data settings, not" +
-                ' by this application. A run in Deterministic Analytics sends nothing' +
-                ' to any provider.'
-              : ' This deployment runs Deterministic Analytics only, so nothing derived' +
-                ' from your file is sent to an external model provider.'}
+            Your file stays for this session only and is deleted after 15 minutes
+            of inactivity. Please don't upload sensitive or regulated data.
+            {config.model_inference_remote && (
+              <>
+                {' '}
+                <details className="disclosure">
+                  <summary>What is sent to OpenAI in AI mode</summary>
+                  Column names, types and computed results go to OpenAI as part of the
+                  prompt. The raw cells of your file do not. Requests ask OpenAI not to
+                  store the exchange; what it retains beyond that is governed by that
+                  account's data settings, not by this application. Deterministic
+                  Analytics sends nothing to any provider.
+                </details>
+              </>
+            )}
           </p>
         )}
 

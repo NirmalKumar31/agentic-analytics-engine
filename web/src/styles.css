@@ -1,61 +1,96 @@
-/* Signal-instrument analytics workbench.
+/* Two themes, one instrument.
 
-   The palette is a measuring instrument, not a dashboard: warm near-black
-   like an unlit panel, sodium amber for anything the operator drives, and
-   a phosphor mint reserved for "this was verified". Deliberately not the
-   cool indigo-and-violet every model-backed product wears, because this
-   one's claim is that a deterministic engine owns the arithmetic.
+   The default is light, because this is a document about numbers and a
+   document about numbers should read like one. Dark is available and is a
+   real theme rather than an inversion -- both are tuned separately.
 
-   Colour carries meaning -- verification state, task state, evidence kind
-   -- and nothing else. Motion carries one meaning too: that computation is
-   progressing. Every animation here is tied to real state, and all of it
-   is switched off under `prefers-reduced-motion`. */
+   Colour carries meaning: verification state, task state, evidence kind.
+   Motion carries one meaning: that computation is progressing. Neither is
+   decoration, and all motion is withdrawn under `prefers-reduced-motion`.
+
+   Contrast is deliberate. Body text sits at or above 7:1 against its
+   surface in both themes, because the first version of this shipped muted
+   brown on near-black and was, correctly, called unreadable. */
 
 :root {
-  color-scheme: dark;
-
-  /* Warm near-black. A brown-black rather than a blue-black so the amber
-     reads as emitted light instead of a highlight colour. */
-  --bg: #0a0907;
-  --bg-raised: #100e0b;
-  --bg-panel: #14110d;
-  --bg-inset: #0c0a08;
-  --border: #272018;
-  --border-strong: #3b3125;
-
-  --text: #f4efe4;
-  --text-muted: #a2917a;
-  --text-dim: #6d6151;
-
-  /* Interactive and "the engine is doing something". */
-  --accent: #ff9d2e;
-  --accent-rgb: 255 157 46;
-  --accent-dim: #6d4413;
-  /* Verified. The one colour that means a claim survived checking. */
-  --supported: #4fd6a0;
-  --supported-rgb: 79 214 160;
-  --rejected: #ff6a5b;
-  --rejected-rgb: 255 106 91;
-  --warning: #ffce5a;
-  --warning-rgb: 255 206 90;
-  /* Evidence kinds, distinct in hue rather than brightness. */
-  --statistical: #5cc9d8;
-  --statistical-rgb: 92 201 216;
-  --interpretation: #c9a227;
-  --interpretation-rgb: 201 162 39;
-
-  --radius: 8px;
-  --radius-sm: 5px;
+  --radius: 10px;
+  --radius-sm: 6px;
   --mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
   --sans: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", Roboto, sans-serif;
-
-  --shadow: 0 10px 34px rgb(0 0 0 / 58%);
-  --glow: 0 0 0 1px rgb(var(--accent-rgb) / 28%), 0 0 22px -6px rgb(var(--accent-rgb) / 45%);
-
-  /* One easing for everything, so the interface moves like one object. */
   --ease: cubic-bezier(0.22, 0.61, 0.36, 1);
   --fast: 140ms;
   --med: 260ms;
+
+  /* Shared hues. Chosen to hold up on both a white and a dark surface, so
+     a verdict colour means the same thing whichever theme is on. */
+  --accent-rgb: 197 88 0;
+  --supported-rgb: 0 132 90;
+  --rejected-rgb: 194 42 42;
+  --warning-rgb: 158 100 0;
+  --statistical-rgb: 20 110 150;
+  --interpretation-rgb: 128 78 0;
+}
+
+/* ------------------------------------------------------------- light */
+:root, [data-theme='light'] {
+  color-scheme: light;
+
+  --bg: #f4f2ee;
+  --bg-raised: #ffffff;
+  --bg-panel: #ffffff;
+  --bg-inset: #f6f4f0;
+  --border: #ddd8d0;
+  --border-strong: #bdb6ab;
+
+  --text: #16130f;
+  --text-muted: #4a443c;
+  --text-dim: #6d6659;
+
+  --accent: #c55800;
+  --accent-dim: #e6a86b;
+  --supported: #00845a;
+  --rejected: #c22a2a;
+  --warning: #9e6400;
+  --statistical: #146e96;
+  --interpretation: #804e00;
+
+  --shadow: 0 1px 2px rgb(22 19 15 / 6%), 0 8px 24px -12px rgb(22 19 15 / 18%);
+  --glow: 0 0 0 3px rgb(var(--accent-rgb) / 16%);
+}
+
+/* -------------------------------------------------------------- dark */
+[data-theme='dark'] {
+  color-scheme: dark;
+
+  /* A lifted charcoal, not a void. The first attempt used near-black and
+     read as switched off rather than as a surface. */
+  --bg: #16181c;
+  --bg-raised: #1e2127;
+  --bg-panel: #1e2127;
+  --bg-inset: #191c21;
+  --border: #333840;
+  --border-strong: #4a515c;
+
+  --text: #f3f5f8;
+  --text-muted: #c2c8d2;
+  --text-dim: #949bA6;
+  --text-dim: #959daa;
+
+  --accent: #ff9e3d;
+  --accent-rgb: 255 158 61;
+  --supported: #3ddc9a;
+  --supported-rgb: 61 220 154;
+  --rejected: #ff7a6b;
+  --rejected-rgb: 255 122 107;
+  --warning: #ffcc5c;
+  --warning-rgb: 255 204 92;
+  --statistical: #5cc8e8;
+  --statistical-rgb: 92 200 232;
+  --interpretation: #e0b44a;
+  --interpretation-rgb: 224 180 74;
+
+  --shadow: 0 10px 34px rgb(0 0 0 / 50%);
+  --glow: 0 0 0 3px rgb(var(--accent-rgb) / 22%);
 }
 
 * { box-sizing: border-box; }
@@ -67,9 +102,10 @@ body {
   background: var(--bg);
   color: var(--text);
   font-family: var(--sans);
-  font-size: 14px;
-  line-height: 1.55;
+  font-size: 15.5px;
+  line-height: 1.6;
   -webkit-font-smoothing: antialiased;
+  transition: background-color var(--med) var(--ease), color var(--med) var(--ease);
 }
 
 button { font: inherit; color: inherit; cursor: pointer; }
@@ -139,16 +175,35 @@ code, pre, .mono { font-family: var(--mono); }
 
 /* ------------------------------------------------------------------ layout */
 
-.main { flex: 1; display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 20px; padding: 22px; align-items: start; max-width: 1600px; width: 100%; margin: 0 auto; }
+.main {
+  flex: 1;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 330px;
+  gap: 22px;
+  padding: 26px 24px 48px;
+  align-items: start;
+  max-width: 1500px;
+  width: 100%;
+  margin: 0 auto;
+}
+
+/* No rail on this screen, so no column for one. Reserving 330px for an
+   empty aside is what left a dead strip down the right of the landing
+   page; the content is centred at a readable measure instead. */
+.main[data-rail='false'] {
+  grid-template-columns: minmax(0, 1fr);
+  max-width: 1020px;
+}
+
 @media (max-width: 1100px) { .main { grid-template-columns: minmax(0, 1fr); } .rail { order: -1; } }
 
 .column { display: flex; flex-direction: column; gap: 18px; min-width: 0; }
 
-.panel { background: var(--bg-panel); border: 1px solid var(--border); border-radius: var(--radius); }
-.panel-head { display: flex; align-items: center; gap: 10px; padding: 12px 16px; border-bottom: 1px solid var(--border); }
-.panel-head h2 { margin: 0; font-size: 13px; font-weight: 600; letter-spacing: 0.02em; text-transform: uppercase; color: var(--text-muted); }
+.panel { background: var(--bg-panel); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); }
+.panel-head { display: flex; align-items: center; gap: 10px; padding: 14px 18px; border-bottom: 1px solid var(--border); }
+.panel-head h2 { margin: 0; font-size: 12.5px; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase; color: var(--text-muted); }
 .panel-head .spacer { flex: 1; }
-.panel-body { padding: 16px; }
+.panel-body { padding: 18px; }
 
 /* ---------------------------------------------------------------- controls */
 
@@ -198,7 +253,7 @@ code, pre, .mono { font-family: var(--mono); }
 .choice:hover:not(:disabled) { border-color: var(--accent-dim); transform: translateY(-1px); }
 .choice[aria-pressed='true'] { border-color: var(--accent); background: rgb(var(--accent-rgb) / 9%); }
 .choice strong { font-size: 13.5px; }
-.choice span { color: var(--text-muted); font-size: 12.5px; }
+.choice span { color: var(--text-muted); font-size: 13.5px; }
 
 .example-list { display: flex; flex-direction: column; gap: 8px; }
 .example {
@@ -208,7 +263,7 @@ code, pre, .mono { font-family: var(--mono); }
   transition: border-color 140ms ease;
 }
 .example:hover { border-color: var(--accent-dim); }
-.example small { display: block; color: var(--text-dim); font-size: 12px; margin-top: 3px; }
+.example small { display: block; color: var(--text-muted); font-size: 13px; margin-top: 4px; }
 
 /* ------------------------------------------------------------------ flow */
 
@@ -288,6 +343,8 @@ code, pre, .mono { font-family: var(--mono); }
 
 .list { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 6px; }
 .list li { color: var(--text-muted); }
+.small { font-size: 13.5px; }
+.dim { color: var(--text-muted); }
 
 /* ------------------------------------------------------------------ table */
 
@@ -369,7 +426,7 @@ pre.sql {
 
 /* ------------------------------------------------------------------ misc */
 
-.notice { padding: 11px 14px; border-radius: var(--radius-sm); border: 1px solid var(--border-strong); background: var(--bg-inset); color: var(--text-muted); font-size: 13px; }
+.notice { padding: 12px 15px; border-radius: var(--radius-sm); border: 1px solid var(--border-strong); background: var(--bg-inset); color: var(--text); font-size: 14px; }
 .notice.error { border-color: rgb(var(--rejected-rgb) / 45%); color: #ffb0a5; }
 .notice.warn { border-color: rgb(var(--warning-rgb) / 45%); color: #ffdf9a; }
 .notice.info { border-color: var(--border-strong); }
@@ -659,3 +716,23 @@ table.data td.cited { animation: cite 900ms var(--ease) both; }
   }
   body::before { display: none; }
 }
+
+/* A disclosure that is available without being a wall.
+
+   This paragraph used to be five dense lines every visitor scrolled past,
+   which is a worse outcome than a summary they can open: text nobody reads
+   is not disclosure. The headline obligation stays visible; the detail is
+   one click away. */
+.disclosure { display: inline; }
+.disclosure > summary {
+  display: inline;
+  cursor: pointer;
+  color: var(--accent);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.disclosure > summary::-webkit-details-marker { display: none; }
+.disclosure[open] { display: block; margin-top: 8px; }
+.disclosure[open] > summary { display: block; margin-bottom: 6px; }
+
+.theme-toggle { font-variant-numeric: tabular-nums; min-width: 74px; }
