@@ -38,6 +38,14 @@ _DATE_LIKE = re.compile(
 )
 _NUMBER = re.compile(r"[-+]?\d[\d,]*(?:\.\d+)?(?:[eE][-+]?\d+)?")
 
+# Digits glued to letters are part of a name, not a quantity. `Dept3`,
+# `Region2`, `SKU12`, `store_7` are category values, and an uploaded
+# dataset is full of them -- a third of real category columns seem to be
+# numbered. Read as claims they must appear in the cited results, they do
+# not, and a correct finding is withheld for a numeric mismatch it never
+# made. Requires a leading letter, so `8,120.55` and `-3.2` are untouched.
+_IDENTIFIER = re.compile(r"\b[A-Za-z][A-Za-z_]*\d[A-Za-z0-9_]*\b")
+
 # Statistical boilerplate states a threshold, not a measurement. "significant
 # at the 5% level" is not a claim that something equals 5, and treating it as
 # one rejects correct findings.
@@ -101,8 +109,13 @@ def _close(a: float, b: float) -> bool:
 
 
 def extract_numbers(text: str) -> list[float]:
-    """Numbers stated in prose, with date-like tokens removed first."""
-    cleaned = _THRESHOLD.sub(" ", _DATE_LIKE.sub(" ", text))
+    """Numbers stated in prose.
+
+    Dates, statistical thresholds and identifiers are removed first: none
+    of them is a quantity the finding is claiming, and demanding they
+    appear in the cited results rejects correct findings.
+    """
+    cleaned = _IDENTIFIER.sub(" ", _THRESHOLD.sub(" ", _DATE_LIKE.sub(" ", text)))
     out: list[float] = []
     for match in _NUMBER.finditer(cleaned):
         token = match.group(0).replace(",", "")

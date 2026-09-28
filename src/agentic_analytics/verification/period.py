@@ -29,6 +29,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass
+from typing import Any
 
 #: Dates as the engine renders them in a finding: `2025-07-01`, or a month
 #: like `2025-07`. Anything looser is not a date this can reason about.
@@ -137,3 +138,44 @@ def resolve_span(time_scope: str | None) -> tuple[str, str] | None:
     if resolved is not None and resolved.focus_period:
         return (resolved.start, resolved.end)
     return None
+
+
+#: Column types that cannot be a breakdown. Anything else can: a
+#: categorical column is a dimension whether or not a metric layer has
+#: blessed it.
+_NON_DIMENSION_TYPES = ("INT", "BIGINT", "DOUBLE", "FLOAT", "DECIMAL", "NUMERIC", "REAL")
+
+
+def dataset_dimensions(catalog: dict[str, Any], metrics: list[dict[str, Any]]) -> set[str]:
+    """Every column of this dataset a finding could be sliced by.
+
+    From the dataset in front of us rather than from a global, which is the
+    bug this replaces: the relevance rules read their dimension list from
+    the demo warehouse's metric registry, loaded once at import. An upload
+    has no metric registry, so its own columns were not in that set and the
+    rules that depend on it silently never fired -- the checks passed by
+    doing nothing, which is the worst way for a check to pass.
+
+    A governed dataset contributes its declared dimensions. An upload
+    contributes its categorical columns, since nothing has declared
+    anything and a column of strings is a plausible breakdown.
+    """
+    names: set[str] = set()
+    for metric in metrics or []:
+        if isinstance(metric, dict):
+            for dimension in metric.get("valid_dimensions") or []:
+                names.add(str(dimension).lower())
+    if names:
+        return names
+    tables = catalog.get("tables") if isinstance(catalog, dict) else None
+    for table in tables or []:
+        if not isinstance(table, dict):
+            continue
+        for column in table.get("columns") or []:
+            if not isinstance(column, dict):
+                continue
+            declared = str(column.get("type", "")).upper()
+            if any(kind in declared for kind in _NON_DIMENSION_TYPES):
+                continue
+            names.add(str(column.get("name", "")).lower())
+    return {n for n in names if n}

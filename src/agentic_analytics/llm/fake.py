@@ -535,6 +535,7 @@ class FakeProvider(LLMProvider):
             [str(m) for m in ctx.get("target_metrics", [])],
             [str(d) for d in ctx.get("target_dimensions", [])],
             ctx.get("time_scope") or None,
+            {str(d).lower() for d in ctx.get("available_dimensions", [])} or None,
         )
         if kind == "interpretation":
             return {
@@ -1345,6 +1346,7 @@ def _answers_question(
     target_metrics: list[str],
     target_dimensions: list[str],
     time_scope: str | None = None,
+    available_dimensions: set[str] | None = None,
 ) -> tuple[bool, str]:
     """Deterministic relevance for the scripted provider.
 
@@ -1363,6 +1365,9 @@ def _answers_question(
     """
     named = {m.lower() for m in target_metrics}
     wanted_dims = {d.lower() for d in target_dimensions}
+    # This dataset's own columns. Falling back to the demo registry's
+    # dimensions is what made these rules no-ops for every upload.
+    known_dims = available_dimensions if available_dimensions is not None else _KNOWN_DIMENSIONS
 
     # When the question names a dimension, a finding sliced by a different
     # one is not an answer however good its numbers are: "which customer
@@ -1370,7 +1375,7 @@ def _answers_question(
     # total. Only applied when the brief actually names one; most questions
     # do not, and an absent dimension must not reject everything.
     if wanted_dims:
-        sliced_by = {d for d in _KNOWN_DIMENSIONS if d in text.lower()}
+        sliced_by = {d for d in known_dims if d in text.lower()}
         off_topic = sliced_by - wanted_dims
         if off_topic and not (sliced_by & wanted_dims):
             return False, (
@@ -1398,7 +1403,7 @@ def _answers_question(
         and _ASKS_FOR_TOTAL.search(question or "")
         and not _ASKS_FOR_BREAKDOWN.search(question or "")
     ):
-        sliced_by = {d for d in _KNOWN_DIMENSIONS if d in text.lower()}
+        sliced_by = {d for d in known_dims if d in text.lower()}
         if sliced_by:
             return False, (
                 f"The question asks for an overall figure, while the claim is "

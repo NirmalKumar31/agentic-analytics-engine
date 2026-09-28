@@ -85,6 +85,7 @@ async def verify_finding(
     target_metrics: list[str] | None = None,
     target_dimensions: list[str] | None = None,
     time_scope: str = "",
+    available_dimensions: list[str] | None = None,
 ) -> tuple[Verdict, dict[str, Any] | None]:
     """Run every gate on one finding.
 
@@ -142,6 +143,9 @@ async def verify_finding(
                 # The period the question named. A claim about the right
                 # metric and the wrong months is not an answer.
                 "time_scope": time_scope,
+                # This dataset's own columns, so the relevance rules work
+                # on an upload as well as on the governed warehouse.
+                "available_dimensions": list(available_dimensions or []),
             },
         )
         critic = payload

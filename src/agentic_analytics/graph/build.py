@@ -43,6 +43,7 @@ from agentic_analytics.llm.base import BudgetError, LLMError, LLMProvider
 from agentic_analytics.logging import get_logger
 from agentic_analytics.mcp_layer.client import AnalyticsToolset
 from agentic_analytics.verification.claims import collapse_exact_duplicates
+from agentic_analytics.verification.period import dataset_dimensions
 from agentic_analytics.warehouse.metrics import VALID_GRAINS
 from agentic_analytics.warehouse.session import AnalysisSession
 
@@ -296,6 +297,13 @@ def build_graph(ctx: RunContext) -> Any:
         brief_metrics = list(brief.target_metrics) if brief else []
         brief_dimensions = list(brief.dimensions) if brief else []
         brief_time_scope = (brief.time_scope or "") if brief else ""
+        # Derived from this dataset, not from the demo warehouse's registry.
+        dataset_dims = sorted(
+            dataset_dimensions(
+                ctx.session.catalog(),
+                ctx.session.registry.describe_all() if ctx.session.registry else [],
+            )
+        )
 
         for outcome in state.get("task_outcomes", []):
             for finding in outcome.findings:
@@ -329,6 +337,7 @@ def build_graph(ctx: RunContext) -> Any:
                         target_metrics=brief_metrics,
                         target_dimensions=brief_dimensions,
                         time_scope=brief_time_scope,
+                        available_dimensions=dataset_dims,
                     )
                 except (LLMError, BudgetError) as exc:
                     verdict = Verdict(
