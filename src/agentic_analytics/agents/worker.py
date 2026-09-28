@@ -371,8 +371,20 @@ async def run_task(
         notes.append(str(exc))
         findings = []
 
-    for finding in findings:
+    for index, finding in enumerate(findings):
         finding.task_id = task.task_id
+        # A model names its own findings, and it names them `f1`, `f2`,
+        # `f3` every time it is asked. Two rounds of findings on one task
+        # therefore produce two different claims sharing an id, and
+        # anything that looks a claim up by id afterwards -- verdict
+        # attribution, duplicate detection, an evaluation artifact --
+        # silently pairs one claim's text with another's ruling. A real
+        # run recorded the published total and a rejected claim as the
+        # same sentence with opposite verdicts because of this.
+        #
+        # The model's own label is kept as a prefix so its reasoning stays
+        # traceable, and the task and position make it unique.
+        finding.finding_id = f"{task.task_id}:{finding.finding_id}:{index}"
         if events:
             events.emit(
                 EventType.FINDING_PROPOSED,

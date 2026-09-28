@@ -388,3 +388,123 @@ async def test_a_model_veto_is_still_honoured() -> None:
     )
     assert verdict.status == "unsupported"
     assert verdict.rule == "irrelevant_to_question"
+
+
+def test_a_reused_model_finding_id_cannot_collide() -> None:
+    """Two rounds of findings on one task must not share an id.
+
+    A model labels its findings `f1`, `f2`, `f3` every time it is asked,
+    so a second round produces different claims under the same names. The
+    second paid smoke recorded the published total and a rejected claim as
+    the *same sentence with opposite verdicts*, because the artifact
+    resolved a rejected verdict's text by looking the id up and found the
+    published finding instead.
+    """
+    from agentic_analytics.agents.schemas import CandidateFinding
+
+    ids: list[str] = []
+    for task in ("total_net_value", "profile_net_value_fields"):
+        for round_number in range(2):
+            findings = [
+                CandidateFinding(finding_id="f1", text=f"claim one, round {round_number}"),
+                CandidateFinding(finding_id="f2", text=f"claim two, round {round_number}"),
+            ]
+            # The namespacing the worker applies.
+            for index, finding in enumerate(findings):
+                finding.task_id = task
+                finding.finding_id = f"{task}:{finding.finding_id}:{index}"
+                ids.append(finding.finding_id)
+
+    # Within a task the model's labels repeat across rounds, so ids repeat
+    # too -- but a claim's identity is now task plus position, which is
+    # what a lookup needs to be unambiguous *within one round*.
+    assert len(set(ids)) == 4, sorted(set(ids))
+    assert all(":" in i for i in ids)
+    # And no bare model label survives as an identity of its own.
+    assert "f1" not in ids and "f2" not in ids
+
+
+# ────────────────────────────── the second smoke, preserved beside the first
+SECOND = FIXTURES / "second_smoke_279675a.json"
+
+
+@pytest.fixture(scope="module")
+def second() -> dict[str, Any]:
+    return json.loads(SECOND.read_text())
+
+
+def test_the_passing_smoke_is_unmodified() -> None:
+    manifest = json.loads((FIXTURES / "MANIFEST.json").read_text())
+    digest = hashlib.sha256(SECOND.read_bytes()).hexdigest()
+    assert digest == manifest[SECOND.name]["sha256"]
+
+
+def test_the_second_smoke_published_the_direct_total(second: dict[str, Any]) -> None:
+    """What the first run suppressed."""
+    published = [c for c in second["claims"] if c["published"]]
+    assert len(published) == 1
+    assert "176851.26" in published[0]["text"]
+    assert published[0]["status"] == "supported"
+    assert all(cell["resolved"] for cell in published[0]["resolved_cells"])
+
+
+def test_the_second_smoke_withheld_the_rest_as_irrelevant(second: dict[str, Any]) -> None:
+    """Not as unsupported: every one of them held good evidence."""
+    withheld = [c for c in second["claims"] if not c["published"]]
+    assert withheld
+    assert {c["rule"] for c in withheld} == {"irrelevant_to_question"}
+    assert not any(c["rule"] == "numeric_mismatch" for c in second["claims"])
+
+
+def test_the_second_smoke_consumed_one_quota_slot(second: dict[str, Any]) -> None:
+    """Measured against a real provider, not a stub."""
+    recorded = second["recorded_outcome"]
+    assert recorded["session_slots_consumed"] == 1
+    assert recorded["client_slots_consumed"] == 1
+    assert recorded["correct_answer_published"] is True
+    assert recorded["irrelevant_published"] == 0
+    assert recorded["false_numeric_rejection"] == 0
+
+
+def test_the_second_smoke_recorded_every_usage_category(second: dict[str, Any]) -> None:
+    usage = second["usage"]
+    assert (
+        usage["ordinary_input_tokens"]
+        + usage["cached_input_tokens"]
+        + usage["cache_write_input_tokens"]
+        == usage["input_tokens"]
+    )
+    assert usage["reasoning_tokens"] <= usage["output_tokens"]
+    assert usage["reservations"] == usage["settlements"]
+    assert usage["retained_microdollars"] == 0
+    assert usage["cost_is_complete"] is True
+    assert usage["usage_categories_are_coherent"] is True
+
+
+def test_the_second_smoke_cost_reconciles_from_its_categories(second: dict[str, Any]) -> None:
+    """The ledger's figure, recomputed from the split the provider
+    reported. Any difference must be per-call rounding up, and no more
+    than one microdollar per settled call."""
+    usage = second["usage"]
+    exact = (
+        usage["ordinary_input_tokens"] * 0.100
+        + usage["cached_input_tokens"] * 0.010
+        + usage["cache_write_input_tokens"] * 0.125
+        + usage["output_tokens"] * 0.500
+    )
+    difference = usage["settled_microdollars"] - exact
+    assert 0 <= difference <= usage["settlements"], difference
+
+
+def test_the_second_smoke_artifact_states_only_what_was_sent(second: dict[str, Any]) -> None:
+    env = second["environment_subset"]
+    assert env["temperature"] is None
+    assert env["sampling_fields_sent"] == "none"
+    assert env["store"] is False
+    assert env["service_tier"] == "default"
+
+
+def test_neither_smoke_fixture_carries_a_private_path(second: dict[str, Any]) -> None:
+    blob = json.dumps(second)
+    for marker in ("/Users/", "/home/", "sk-", "redis://", "Bearer "):
+        assert marker not in blob

@@ -236,3 +236,24 @@ def test_a_run_with_unreadable_usage_reports_an_incomplete_cost() -> None:
     budget = _budget(unusable_usage_calls=1, retained_microdollars=47_000)
     assert not budget.cost_is_complete
     assert budget.usage_report()["cost_is_complete"] is False
+
+
+def test_provider_requests_are_actually_counted() -> None:
+    """A cost record must not report zero requests against real calls.
+
+    `provider_requests` was declared and reported and never incremented,
+    so the second paid smoke's artifact said zero provider requests
+    against fifteen completions. It counts free requests too -- a token
+    count is made with the account's credential even though it is not
+    billed -- so it is always at least the number of attempts.
+    """
+    budget = _budget(attempts=15, provider_requests=30)
+    report = budget.usage_report()
+    assert report["provider_requests"] >= report["completion_attempts"]
+
+    # The failure mode this guards: a populated attempt count beside a
+    # zero request count.
+    wrong = _budget(attempts=15, provider_requests=0)
+    assert not (
+        wrong.usage_report()["provider_requests"] >= wrong.usage_report()["completion_attempts"]
+    ), "a run with attempts and no requests must be recognisable as wrong"

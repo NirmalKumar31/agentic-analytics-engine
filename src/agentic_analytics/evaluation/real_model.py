@@ -40,6 +40,7 @@ import re
 import subprocess
 import time
 import traceback
+import uuid
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any
@@ -457,7 +458,7 @@ async def evaluate_question(
     )
     manager = SessionManager(max_sessions=4)
     provider = await open_evaluation_provider(
-        cfg, run_id=question_key(dataset_id, 0, question.text)
+        cfg, run_id=run_identity(question_key(dataset_id, 0, question.text))
     )
     calls: list[StructuredCall] = []
     telemetry: dict[str, Any] = {}
@@ -513,6 +514,24 @@ async def evaluate_question(
         await provider.aclose()
         manager.close_all()
     return outcome
+
+
+#: One identity per process, so each invocation is a distinct *run* even
+#: when it asks a question it has asked before.
+#:
+#: `question_key` is deliberately stable: a checkpoint has to recognise the
+#: same question across invocations. The ledger was handed that same string
+#: as its run id, which conflated two different identities. Asking the same
+#: question twice then consumed one run slot rather than two -- `admit_run`
+#: is idempotent per run id and correctly reported `already_admitted` --
+#: and both invocations accumulated against one per-run cost cap. A paid
+#: re-run must be a new run.
+_INVOCATION = uuid.uuid4().hex[:8]
+
+
+def run_identity(question_key_value: str) -> str:
+    """The ledger's identity for one question in *this* invocation."""
+    return f"{question_key_value}:{_INVOCATION}"
 
 
 def question_key(dataset_id: str, index: int, text: str) -> str:

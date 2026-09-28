@@ -434,6 +434,14 @@ class GovernedCloudProvider(LLMProvider):
         self._guard_run_limits()
 
         # 1. The exact payload, counted by the provider.
+        #
+        # A request made with the account's credential, so it is counted
+        # even though it is free. `provider_requests` was declared and
+        # reported and never incremented, so the second paid smoke's
+        # artifact recorded zero provider requests against fifteen
+        # completions -- a number in a cost record that was simply not
+        # true.
+        self.budget.provider_requests += 1
         counted_input = await self._inner.count_input_tokens(request)
 
         # 2 and 3. Admission. Both ceilings are checked and the allowance
@@ -464,6 +472,9 @@ class GovernedCloudProvider(LLMProvider):
             # allowance was never at risk and goes back.
             self._release_in_flight(counted_input, allowance)
             raise
+
+        # The billable request.
+        self.budget.provider_requests += 1
 
         # A repeated reservation id must not authorise a second free
         # dispatch. Idempotency protects the ledger, not the provider.
