@@ -262,6 +262,39 @@ discovered mid-run.
 
 ---
 
+## 5c. How the cost and mapping invariants are checked
+
+The invariants that money and mapping rest on are checked by **deterministic
+sweep, not by a property-generation engine**. For each one the test walks a
+fixed grid -- token counts either side of both context tiers, every split of
+input across the three billing categories, six schema shapes against nine
+questions -- and asserts the property at every point. Several thousand
+combinations, reproducible exactly, no new dependency in a pinned install.
+
+What that buys and what it does not:
+
+* the grid covers the corners that matter (zero, one, the tier boundary and
+  the token either side of it, an empty schema, a schema with no measure),
+  because those were chosen deliberately rather than sampled;
+* it does **not** search for a counterexample outside the grid. A defect
+  reachable only at, say, 3,912 cached tokens against a seven-column schema
+  would not be found here.
+
+Each property was checked against a deliberately broken build before being
+trusted -- rounding reversed, the long-context threshold moved out of reach
+and off by one, the settlement receipt left in place, run admission made
+non-idempotent, the session quota off by one, the confidence gate removed,
+the resolver made to invent a column. Ten such mutations, ten caught. Two
+of them were caught only after the tests were strengthened: one property
+had read the context threshold off the object it was meant to pin, so it
+moved with the mutation, and the sweep never produced an unconfident
+mapping with a real operation, leaving the `build_sql` confidence guard
+unreachable and its assertion vacuous. Both are now pinned and exercised
+directly. The number worth reporting is not "the properties pass" but
+"a broken build fails them," and that is what was measured.
+
+---
+
 ## 6. Change decomposition
 
 Additive decomposition is exact. Shift-share decomposition for rate metrics
