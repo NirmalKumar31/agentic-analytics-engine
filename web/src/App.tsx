@@ -500,11 +500,16 @@ function DatasetPanel({
                 {' '}
                 <details className="disclosure">
                   <summary>What is sent to OpenAI in AI mode</summary>
-                  Column names, types and computed results go to OpenAI as part of the
-                  prompt. The raw cells of your file do not. Requests ask OpenAI not to
-                  store the exchange; what it retains beyond that is governed by that
-                  account's data settings, not by this application. Deterministic
-                  Analytics sends nothing to any provider.
+                  Column names, inferred column roles and computed results go to
+                  OpenAI as part of the prompt. Computed results include the labels of
+                  a column you group by — a total by department cannot be reported
+                  without naming the departments. Individual rows do not go: row
+                  sampling is refused, a profile's smallest and largest values are
+                  withheld, and a column with a different value on almost every row is
+                  never used as a grouping. Requests ask OpenAI not to store the
+                  exchange; what it retains beyond that is governed by that account's
+                  data settings, not by this application. Deterministic Analytics sends
+                  nothing to any provider.
                 </details>
               </>
             )}

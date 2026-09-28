@@ -313,14 +313,25 @@ groupable would produce a number that reads like an answer without being one.
 
 ### What leaves the server
 
-Nothing, on the public deployment: the provider is the scripted one and no
-inference call is made. On a deployment configured with a cloud model, the
-schema, the profile and aggregated results are sent — and individual cells of
-your file are not. `sample_rows` is refused for uploaded data, and a profile's
-per-column minimum and maximum are withheld from the model, because those are
-cells rather than summaries. An aggregate over a group of one row can still
-equal a cell; that is inherent to aggregation and is stated in
-[docs/LIMITATIONS.md](docs/LIMITATIONS.md) rather than glossed over.
+Nothing on a deterministic run: no inference call is made. An AI run sends
+the schema, the inferred column roles and computed results.
+
+Being precise about "computed results", because the obvious phrasing
+overclaims. An aggregate grouped by a column **contains that column's
+values**: a total by department cannot be reported without naming the
+departments, so those labels reach the model and are disclosed as such.
+
+What is withheld is unaggregated data. `sample_rows` is refused for an
+uploaded dataset under remote inference, row-returning SQL over one is
+refused rather than filtered, a profile's per-column minimum and maximum are
+withheld because those are cells rather than summaries, and a column holding
+a different value on almost every row is classified as an identifier so that
+it can never become a group key — which is what stops a column of names
+travelling as labels.
+
+An aggregate over a group of one row can still equal a cell. That is inherent
+to aggregation and is stated in [docs/LIMITATIONS.md](docs/LIMITATIONS.md)
+rather than glossed over.
 
 ---
 
