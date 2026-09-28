@@ -967,7 +967,13 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                     status_code=429,
                     detail="the demo is currently at capacity; please try again shortly",
                 )
-            deterministic = _launch(session, request.question, RunMode.DETERMINISTIC, comparison_id)
+            deterministic = _launch(
+                session,
+                request.question,
+                RunMode.DETERMINISTIC,
+                comparison_id,
+                client_id=client,
+            )
             permits.keep()
 
         # The AI side needs its own capacity slot and its own analysis slot.
@@ -975,7 +981,17 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         ai_record: RunRecord | None = None
         with _admission(RunMode.AI) as ai_permits:
             if ai_permits.ok:
-                ai_record = _launch(session, request.question, RunMode.AI, comparison_id)
+                # The caller's identity, not the anonymous default. Without
+                # it the AI half of a comparison is charged to an empty
+                # client bucket, and the per-address hourly ceiling is
+                # bypassed by asking for Compare Both instead of AI.
+                ai_record = _launch(
+                    session,
+                    request.question,
+                    RunMode.AI,
+                    comparison_id,
+                    client_id=client,
+                )
                 ai_permits.keep()
 
         if ai_record is None:

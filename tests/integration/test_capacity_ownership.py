@@ -310,3 +310,36 @@ def test_the_refused_ai_half_is_reported_as_at_capacity(
     rendered = str(payload)
     assert "at capacity" in rendered
     assert "sk-test-not-a-real-key" not in rendered
+
+
+def test_a_comparison_charges_the_ai_half_to_the_real_client(
+    warehouse_dir: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, fake_ledger: None
+) -> None:
+    """Compare Both must not be a way around the per-address ceiling.
+
+    The AI half of a comparison is an ordinary paid run and is metered like
+    one. Launched without the caller's identity it lands in an anonymous
+    bucket shared by every visitor, so a visitor who has used up their
+    hourly AI runs gets more of them by asking for a comparison instead.
+    """
+    seen: list[str] = []
+
+    async def capture(*args: object, **kwargs: object) -> object:
+        seen.append(str(kwargs.get("client_id", "")))
+        raise AssertionError("stop before dispatch")
+
+    import agentic_analytics.api.app as app_module
+
+    monkeypatch.setattr(app_module, "open_governed_cloud_provider", capture)
+
+    cfg = _ai_settings(warehouse_dir, tmp_path, max_concurrent_analyses=4)
+    with TestClient(create_app(cfg)) as client:
+        session = client.post("/api/datasets/demo").json()["session_id"]
+        assert _compare(client, session).status_code == 202
+        for _ in range(100):
+            if seen:
+                break
+            time.sleep(0.05)
+
+    assert seen, "the AI half never constructed a governed provider"
+    assert seen[0] != "", "the AI half was charged to an anonymous client bucket"
