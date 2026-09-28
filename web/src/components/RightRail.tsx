@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from 'react'
 import { formatDuration } from '../lib/format'
 import type {
   DatasetCatalog,
@@ -131,10 +132,57 @@ export function RightRail({
   )
 }
 
+/**
+ * Counts from the previous value to the new one.
+ *
+ * These are measurements of a run in progress, and a number that jumps
+ * reads as a different number rather than the same one having moved. The
+ * animation is skipped entirely for anyone who has asked for less motion,
+ * and for the first paint, where there is nothing to count from.
+ */
+function useCountUp(value: number, duration = 520): number {
+  const [shown, setShown] = useState(value)
+  const from = useRef(value)
+
+  useEffect(() => {
+    const reduced = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
+    const start = from.current
+    if (reduced || start === value || !Number.isFinite(value)) {
+      from.current = value
+      setShown(value)
+      return
+    }
+    let frame = 0
+    const t0 = performance.now()
+    const tick = (now: number) => {
+      const p = Math.min(1, (now - t0) / duration)
+      // Ease out: fast to most of the value, then settle.
+      const eased = 1 - (1 - p) ** 3
+      setShown(start + (value - start) * eased)
+      if (p < 1) frame = requestAnimationFrame(tick)
+      else from.current = value
+    }
+    frame = requestAnimationFrame(tick)
+    return () => cancelAnimationFrame(frame)
+  }, [value, duration])
+
+  return shown
+}
+
 function Tile({ label, value }: { label: string; value: number }) {
+  const shown = useCountUp(value)
+  // Fractional inputs (seconds) keep their precision; counts stay integers
+  // while they climb so a tally never shows a fraction of a tool call.
+  const decimals = Number.isInteger(value) ? 0 : 3
+  const text = Number.isFinite(shown)
+    ? shown.toLocaleString(undefined, {
+        minimumFractionDigits: decimals,
+        maximumFractionDigits: decimals,
+      })
+    : String(value)
   return (
     <div className="metric-tile">
-      <div className="value">{typeof value === 'number' ? value.toLocaleString() : value}</div>
+      <div className="value">{text}</div>
       <div className="label">{label}</div>
     </div>
   )
