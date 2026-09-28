@@ -45,3 +45,22 @@ paths = [
   '''tests/unit/test_recordings\.py''',
   '''src/agentic_analytics/recordings/schema\.py''',
 ]
+
+[[allowlists]]
+description = """
+A developer's own .env, which is gitignored and can never be committed.
+
+`gitleaks dir` walks the filesystem rather than the index, so on a machine
+configured to run AI mode it reports the operator's real credential every
+time. That finding is true and useless: the file is not in the repository
+and cannot get there. Leaving it in place trains people to skim past
+gitleaks output, which is the opposite of what a secret scan is for.
+
+Scoped to the path, not to a pattern, so a credential appearing anywhere
+else is still a finding. The history scan (`gitleaks git`) is unaffected
+and remains the check that matters for what has actually been committed.
+"""
+paths = [
+  '''^\.env$''',
+  '''^\.env\.local$''',
+]

@@ -240,6 +240,11 @@ def suggestion_in_scope(suggestion: str, vocabulary: set[str]) -> bool:
     reaches a visitor. They are already stripped of numbers and causal
     claims; this keeps them on the subject as well, so a run cannot put
     arbitrary text on the page by way of a suggestion.
+
+    Same two-part test as `check_scope`, and for the same reason: demanding
+    a dataset word alone drops perfectly good follow-ups that happen to be
+    phrased naturally -- "Does the move persist, or does it recover?" names
+    no column and is exactly the question a reader would ask next.
     """
     words = set(_WORD.findall(suggestion.lower()))
-    return bool(words & vocabulary)
+    return bool(words & vocabulary or words & ANALYTICAL_TERMS)
