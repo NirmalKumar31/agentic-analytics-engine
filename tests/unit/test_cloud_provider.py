@@ -258,12 +258,14 @@ async def test_the_count_and_generation_payloads_cannot_drift() -> None:
     finally:
         await provider.aclose()
 
-    for field in ("model", "instructions", "input", "text"):
+    for field in ("model", "instructions", "input", "text", "reasoning"):
         assert count[field] == generate[field], f"{field} differs between count and generation"
     # Only non-token-bearing fields may be absent from the count request.
+    # `reasoning` is not one of them: reasoning effort can change the hidden
+    # instructions the model is given, which is input, and the endpoint is
+    # documented as taking the same payload as `responses.create`.
     assert set(generate) - set(count) == {
         "max_output_tokens",
-        "reasoning",
         "service_tier",
         "store",
     }

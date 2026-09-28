@@ -23,13 +23,12 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from agentic_analytics.llm.base import (
-    BudgetError,
     LLMError,
     LLMProvider,
     LLMRequest,
     LLMUsage,
 )
-from agentic_analytics.llm.cloud import CloudProvider
+from agentic_analytics.llm.cloud import CloudProvider, UsageRecord
 from agentic_analytics.llm.ledger import (
     Admission,
     CostLedger,
@@ -40,7 +39,6 @@ from agentic_analytics.llm.pricing import (
     ModelPrice,
     UnknownModelPrice,
     price_for,
-    usage_is_coherent,
 )
 from agentic_analytics.llm.strict_schema import to_strict
 from agentic_analytics.logging import get_logger
@@ -87,9 +85,21 @@ class RunBudget:
     attempts: int = 0
     input_tokens: int = 0
     output_tokens: int = 0
+    #: Allowance handed to calls that have been admitted and have not yet
+    #: reported. Without it, several calls each read the same committed
+    #: totals, each passed the same check, and together exceeded a ceiling
+    #: that every one of them individually respected.
+    in_flight_input: int = 0
+    in_flight_output: int = 0
     reserved_microdollars: int = 0
     settled_microdollars: int = 0
     retained_microdollars: int = 0
+    #: Calls whose reported usage could not be read, so whose cost is the
+    #: reservation rather than a measurement.
+    unusable_usage_calls: int = 0
+    #: Provider HTTP requests, including the free ones. Distinct from
+    #: `attempts`, which counts completions.
+    provider_requests: int = 0
     deadline: float = field(default=0.0)
 
     def start(self) -> None:
@@ -98,8 +108,17 @@ class RunBudget:
     def out_of_time(self) -> bool:
         return self.deadline > 0 and time.monotonic() > self.deadline
 
+    @property
+    def cost_is_complete(self) -> bool:
+        """Whether every call in this run reported usable usage.
+
+        False means the total is a conservative floor built from
+        reservations, not a measurement, and must not be presented as one.
+        """
+        return self.unusable_usage_calls == 0
+
     def remaining_output(self) -> int:
-        return max(0, self.max_output_tokens - self.output_tokens)
+        return max(0, self.max_output_tokens - self.output_tokens - self.in_flight_output)
 
     def remaining_output_for(self, role: str) -> int:
         """What one role may still spend on output.
@@ -117,7 +136,13 @@ class RunBudget:
         """
         if role in VERIFICATION_ROLES:
             return self.remaining_output()
-        return max(0, self.max_output_tokens - self.output_tokens - self.verification_reserve)
+        return max(
+            0,
+            self.max_output_tokens
+            - self.output_tokens
+            - self.in_flight_output
+            - self.verification_reserve,
+        )
 
     def as_dict(self) -> dict[str, Any]:
         return {
@@ -128,6 +153,20 @@ class RunBudget:
             "settled_microdollars": self.settled_microdollars,
             "conservatively_retained_microdollars": self.retained_microdollars,
         }
+
+
+@dataclass(frozen=True)
+class RunAdmission:
+    """Who a durable run slot is taken against.
+
+    Grouped rather than passed as four arguments so that `preflight` cannot
+    be called with an identity that is half-supplied.
+    """
+
+    run_id: str
+    session_id: str
+    client_id: str
+    caps: LedgerCaps
 
 
 @dataclass(frozen=True)
@@ -162,18 +201,49 @@ class PreflightResult:
         }
 
 
-async def preflight(provider: CloudProvider, ledger: CostLedger) -> PreflightResult:
+async def preflight(
+    provider: CloudProvider,
+    ledger: CostLedger,
+    *,
+    admission: RunAdmission | None = None,
+) -> PreflightResult:
     """Establish that a paid run may start, spending no completion.
 
-    Order matters. The ledger is checked first because an unreachable one
-    means the run cannot be bounded however good the model is, and the
-    Models lookup is free while a Message is not.
+    Order matters, and the order changed. The ledger is checked first
+    because an unreachable one means the run cannot be bounded however good
+    the model is. Then a durable run slot is taken -- before the first
+    provider request, not before the first billable one.
+
+    The Models lookup and the token count cost nothing, and "free" is not
+    "unaccounted": they are requests made with the account's credential,
+    and until a run was admitted a caller could drive them indefinitely by
+    opening sessions and varying a forwarded-for header. `admission`
+    carries the identity that slot is taken against; without it this
+    performs the health check only, which is what a test harness wants.
     """
     if not ledger.healthy():
         raise PreflightFailed(
             "AI Analytics is unavailable because its usage accounting is not reachable.",
             "ai_quota_storage_unavailable",
         )
+
+    if admission is not None:
+        try:
+            admitted = ledger.admit_run(
+                run_id=admission.run_id,
+                session_id=admission.session_id,
+                client_id=admission.client_id,
+                caps=admission.caps,
+            )
+        except LedgerUnavailable:
+            raise PreflightFailed(
+                "AI Analytics is unavailable because its usage accounting is not reachable.",
+                "ai_quota_storage_unavailable",
+            ) from None
+        if not admitted.admitted:
+            # Refused before a single provider request. This is the point
+            # of doing it here.
+            raise PreflightFailed(message_for(admitted.reason), admitted.reason)
 
     resolved = await provider.verify_model()
     resolved_id = str(resolved.get("id") or provider.model)
@@ -304,34 +374,39 @@ class GovernedCloudProvider(LLMProvider):
         # 1. The exact payload, counted by the provider.
         counted_input = await self._inner.count_input_tokens(request)
 
-        # 2. Cumulative input ceiling, before anything billable.
-        if self.budget.input_tokens + counted_input > self.budget.max_input_tokens:
-            raise AIBudgetExceeded(
-                "This AI run reached its input token limit.", "ai_run_budget_exceeded"
-            )
+        # 2 and 3. Admission. Both ceilings are checked and the allowance
+        #    is taken in one atomic step, because the previous shape read
+        #    the committed totals, awaited the network, and only then
+        #    recorded anything -- so several concurrent calls each passed
+        #    the same check and together exceeded a ceiling every one of
+        #    them individually respected.
+        #
+        #    The lock covers the bookkeeping and nothing else. Holding it
+        #    across the request would serialise the run for no benefit: the
+        #    allowance is already claimed by the time it is released.
+        allowance, call_id = self._claim_tokens(counted_input, request)
 
-        # 3. Clamp the output allowance to what the run has left, and refuse
-        #    rather than send a request whose allowance is zero.
-        allowance = min(request.max_tokens, self.budget.remaining_output_for(request.role))
-        if allowance <= 0:
-            raise AIBudgetExceeded(
-                "This AI run reached its output token limit.", "ai_run_budget_exceeded"
-            )
         bounded = request.model_copy(update={"max_tokens": allowance})
 
         # 4. Reserve counted input plus the maximum permitted output, both
-        #    priced pessimistically. Nothing here can know whether an input
-        #    token will be served from cache, written to it, or neither, and
-        #    the three rates differ by more than tenfold -- so the dearest
-        #    one is assumed and the difference is released at settlement.
+        #    priced pessimistically, immediately before dispatch. Nothing
+        #    here can know whether an input token will be served from cache,
+        #    written to it, or neither, and the three rates differ by more
+        #    than tenfold -- so the dearest one is assumed and the
+        #    difference is released at settlement.
         worst_case = self._price.reservation_microdollars(counted_input, allowance)
-        self.budget.attempts += 1
-        call_id = f"c{self.budget.attempts}"
-        admission = self._reserve(call_id, worst_case)
+        try:
+            admission = self._reserve(call_id, worst_case)
+        except BaseException:
+            # Refused or unreachable before anything was sent, so the
+            # allowance was never at risk and goes back.
+            self._release_in_flight(counted_input, allowance)
+            raise
 
         # A repeated reservation id must not authorise a second free
         # dispatch. Idempotency protects the ledger, not the provider.
         if admission.reservation_id in self._dispatched:
+            self._release_in_flight(counted_input, allowance)
             raise AIBudgetExceeded(
                 "This AI run repeated a request that was already dispatched.",
                 "ai_run_budget_exceeded",
@@ -339,53 +414,120 @@ class GovernedCloudProvider(LLMProvider):
         self._dispatched.add(admission.reservation_id)
         self.budget.reserved_microdollars += admission.reserved_microdollars
 
-        before_in = self.usage.input_tokens
-        before_out = self.usage.output_tokens
         try:
-            payload = await self._inner.complete_json(bounded)
-        except (BudgetError, LLMError):
-            # The request left this process. It may have been billed even
-            # if no answer came back, so the reservation stands: a spend
-            # ceiling should assume a sent request was charged.
-            self._ledger.abandon(reservation_id=admission.reservation_id)
-            self.budget.retained_microdollars += admission.reserved_microdollars
+            payload, usage = await self._inner.complete_with_usage(bounded)
+        except BaseException as exc:
+            # Everything from here is billed-or-maybe-billed. The request
+            # left this process, so neither the money nor the allowance
+            # comes back: a cancellation or a transport error says nothing
+            # about whether the provider served and charged for the call.
+            attached = getattr(exc, "usage", None)
+            self._commit(
+                counted_input,
+                allowance,
+                attached if isinstance(attached, UsageRecord) else None,
+                admission,
+                call_id,
+                settle=False,
+            )
             raise
 
-        actual_in = self.usage.input_tokens - before_in
-        actual_out = self.usage.output_tokens - before_out
+        self._commit(counted_input, allowance, usage, admission, call_id, settle=True)
+        return payload
+
+    def _claim_tokens(self, counted_input: int, request: LLMRequest) -> tuple[int, str]:
+        """Check both token ceilings and take the allowance, atomically.
+
+        Synchronous on purpose, and that is the fix. The previous shape
+        read the committed totals, awaited the token count, and recorded
+        nothing until the response came back -- so several concurrent calls
+        each passed the same check and together exceeded a ceiling every
+        one of them individually respected.
+
+        No lock is needed once the window contains no `await`: a coroutine
+        cannot be interleaved between statements that do not yield. A lock
+        would also have to be re-acquired during cleanup, and a cancelled
+        task cannot reliably await anything.
+        """
+        committed_in = self.budget.input_tokens + self.budget.in_flight_input
+        if committed_in + counted_input > self.budget.max_input_tokens:
+            raise AIBudgetExceeded(
+                "This AI run reached its input token limit.", "ai_run_budget_exceeded"
+            )
+        allowance = min(request.max_tokens, self.budget.remaining_output_for(request.role))
+        if allowance <= 0:
+            raise AIBudgetExceeded(
+                "This AI run reached its output token limit.", "ai_run_budget_exceeded"
+            )
+        self.budget.in_flight_input += counted_input
+        self.budget.in_flight_output += allowance
+        self.budget.attempts += 1
+        return allowance, f"c{self.budget.attempts}"
+
+    def _release_in_flight(self, counted_input: int, allowance: int) -> None:
+        """Hand back an allowance claimed for a call that never left."""
+        self.budget.in_flight_input -= counted_input
+        self.budget.in_flight_output -= allowance
+
+    def _commit(
+        self,
+        counted_input: int,
+        allowance: int,
+        usage: UsageRecord | None,
+        admission: Admission,
+        call_id: str,
+        *,
+        settle: bool,
+    ) -> None:
+        """Turn an in-flight allowance into consumed tokens and a cost.
+
+        Two cases, and the difference between them is the whole point.
+
+        Reported usage that reads cleanly is charged exactly, and the
+        unused part of the reservation is released. The run's counters move
+        by what the provider says it served -- including when the response
+        then failed to parse, because a billed response is billed whether
+        or not it could be understood.
+
+        Usage that is absent or does not add up is not a measurement, so
+        nothing is settled. The reservation stands in full, the run is
+        charged the counted input and the entire output allowance it was
+        permitted to use, and the run's cost is marked incomplete. Settling
+        such a call to zero -- which is what reading an absent count as
+        zero amounted to -- refunded real spending.
+        """
+        trustworthy = usage is not None and usage.valid
+        if trustworthy:
+            assert usage is not None
+            actual_in, actual_out = usage.input_tokens, usage.output_tokens
+        else:
+            actual_in, actual_out = counted_input, allowance
+
+        self.budget.in_flight_input -= counted_input
+        self.budget.in_flight_output -= allowance
         self.budget.input_tokens += actual_in
         self.budget.output_tokens += actual_out
+        if not trustworthy:
+            self.budget.unusable_usage_calls += 1
 
-        # Settle from the provider's own categories. `input_tokens` already
-        # includes the cached and cache-written parts, so the ordinary part
-        # is what remains once they are removed.
-        cached = int(getattr(self._inner, "last_cached_tokens", 0))
-        cache_written = int(getattr(self._inner, "last_cache_write_tokens", 0))
-        if usage_is_coherent(
-            input_tokens=actual_in,
-            cached_tokens=cached,
-            cache_write_tokens=cache_written,
-            output_tokens=actual_out,
-        ):
-            actual = self._price.settlement_microdollars(
-                input_tokens=actual_in,
-                cached_tokens=cached,
-                cache_write_tokens=cache_written,
-                output_tokens=actual_out,
-            )
-        else:
-            # The response arrived and was billed, but its usage does not
-            # add up, so there is no honest number to settle to. The
-            # conservative reservation is kept rather than replaced by a
-            # figure derived from counts that contradict each other.
+        if not trustworthy or not settle:
             log.warning(
-                "ai_usage_incoherent",
+                "ai_cost_retained",
                 run_id=self._run_id,
                 call=call_id,
+                reason="usage unusable" if not trustworthy else "call did not complete",
             )
             self._ledger.abandon(reservation_id=admission.reservation_id)
             self.budget.retained_microdollars += admission.reserved_microdollars
-            return payload
+            return
+
+        assert usage is not None
+        actual = self._price.settlement_microdollars(
+            input_tokens=usage.input_tokens,
+            cached_tokens=usage.cached_tokens,
+            cache_write_tokens=usage.cache_write_tokens,
+            output_tokens=usage.output_tokens,
+        )
         outcome = self._ledger.settle(
             run_id=self._run_id,
             reservation_id=admission.reservation_id,
@@ -400,7 +542,6 @@ class GovernedCloudProvider(LLMProvider):
             actual=actual,
             outcome=outcome,
         )
-        return payload
 
     def _guard_run_limits(self) -> None:
         if self.budget.out_of_time():
@@ -495,8 +636,21 @@ async def open_governed_cloud_provider(
         timeout_seconds=cfg.cloud_timeout_seconds,
         reasoning_effort=cfg.cloud_reasoning_effort,
     )
+    caps = LedgerCaps.from_settings(cfg)
     try:
-        result = await preflight(inner, ledger)
+        result = await preflight(
+            inner,
+            ledger,
+            # The durable slot is taken here, so no provider request --
+            # not even a free one -- happens for a run the ledger has not
+            # authorised.
+            admission=RunAdmission(
+                run_id=run_id,
+                session_id=session_id,
+                client_id=client_id,
+                caps=caps,
+            ),
+        )
     except BaseException:
         # Preflight owns the provider it was handed; a failure must not
         # leak the HTTP client.
@@ -509,7 +663,7 @@ async def open_governed_cloud_provider(
         max_output_tokens=cfg.ai_max_output_tokens,
         verification_reserve=cfg.ai_verification_output_reserve,
         max_runtime_seconds=cfg.ai_max_runtime_seconds,
-        caps=LedgerCaps.from_settings(cfg),
+        caps=caps,
     )
     return GovernedCloudProvider(
         inner,

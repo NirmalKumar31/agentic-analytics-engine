@@ -30,6 +30,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+from dataclasses import dataclass
 from typing import Any
 
 import httpx
@@ -165,6 +166,10 @@ class CloudProvider(LLMProvider):
         self.last_reasoning_tokens = 0
         self.last_cached_tokens = 0
         self.last_cache_write_tokens = 0
+        #: The last call's full record, including whether it was readable.
+        #: Kept for observability; a caller that needs to charge a specific
+        #: call takes the record `complete_with_usage` returns to it.
+        self.last_usage = UsageRecord(False, reason="no call has been made")
         #: Hard ceiling on one call, enforced by us. The httpx timeout below
         #: is kept as well; this is the backstop for when it does not fire.
         #: Not hypothetical: an evaluation run against a local model wedged
@@ -236,16 +241,29 @@ class CloudProvider(LLMProvider):
             "schema": strict,
         }
 
+    #: Fields removed before counting, and the only ones that may be.
+    #:
+    #: The endpoint is documented as taking "the same payload you would send
+    #: to responses.create", so a field is dropped only when it cannot
+    #: affect the input the model receives: how much output it may generate,
+    #: whether the exchange is stored, and which billing tier serves it.
+    #:
+    #: `reasoning` used to be in this list and should not have been.
+    #: Reasoning effort can change the hidden instructions the model is
+    #: given, which is input -- so counting without it produced a number
+    #: about a request the model never sees, and a count that bounds a
+    #: different request bounds nothing.
+    #:   https://developers.openai.com/api/docs/guides/token-counting
+    NON_INPUT_FIELDS = ("max_output_tokens", "store", "service_tier")
+
     def count_payload(self, request: LLMRequest) -> dict[str, Any]:
         """The body sent to the token-count endpoint.
 
-        Derived from `build_payload` by removing only the fields that
-        endpoint does not accept, so the two cannot drift in anything that
-        bears tokens: the model, the instructions, the input and the schema
-        are the same objects.
+        Derived from `build_payload` by removing only `NON_INPUT_FIELDS`, so
+        the two cannot drift in anything that bears tokens.
         """
         payload = self.build_payload(request)
-        for field in ("max_output_tokens", "reasoning", "service_tier", "store"):
+        for field in self.NON_INPUT_FIELDS:
             payload.pop(field, None)
         return payload
 
@@ -274,6 +292,21 @@ class CloudProvider(LLMProvider):
         return counted
 
     async def complete_json(self, request: LLMRequest) -> dict[str, Any]:
+        payload, _ = await self.complete_with_usage(request)
+        return payload
+
+    async def complete_with_usage(self, request: LLMRequest) -> tuple[dict[str, Any], UsageRecord]:
+        """The answer and what the call reported using.
+
+        Returned together, per call, rather than left on the provider for a
+        caller to read afterwards: two concurrent calls would each overwrite
+        the other's totals, and the caller would charge one call for the
+        other's tokens.
+
+        A response that arrives and then fails to parse has still been
+        billed, so its record is attached to the exception. A caller that
+        dropped it would let a failed call spend from outside every ceiling.
+        """
         self._check_budget(request.role)
         body = await self._post(
             "/v1/responses",
@@ -281,8 +314,15 @@ class CloudProvider(LLMProvider):
             role=request.role,
             event="cloud_call_failed",
         )
-        self._record_usage(request.role, body)
-        return _parse_structured_output(body)
+        record = read_usage(body)
+        self._record_usage(request.role, record)
+        if not record.valid:
+            log.warning("cloud_usage_unusable", role=request.role, reason=record.reason)
+        try:
+            return _parse_structured_output(body), record
+        except LLMError as exc:
+            exc.usage = record  # type: ignore[attr-defined]
+            raise
 
     async def _post(
         self, path: str, payload: dict[str, Any], *, role: str, event: str
@@ -332,31 +372,21 @@ class CloudProvider(LLMProvider):
             )
             raise LLMError(sanitize_provider_error(exc), kind=kind) from None
 
-    def _record_usage(self, role: str, body: dict[str, Any]) -> None:
-        """Record what the provider says the call used.
+    def _record_usage(self, role: str, record: UsageRecord) -> None:
+        """Add a call's reported usage to this provider's running totals.
 
         Recorded before the output is parsed. A response that arrived and
         cannot be understood has still been billed, and a run that forgot to
         count it would under-report its own spending.
         """
-        usage = body.get("usage")
-        usage = usage if isinstance(usage, dict) else {}
-        input_details = usage.get("input_tokens_details")
-        input_details = input_details if isinstance(input_details, dict) else {}
-        output_details = usage.get("output_tokens_details")
-        output_details = output_details if isinstance(output_details, dict) else {}
-
-        self.last_cached_tokens = _non_negative_int(input_details.get("cached_tokens"))
-        self.last_cache_write_tokens = _non_negative_int(input_details.get("cache_write_tokens"))
-        # Observability only. The provider's `output_tokens` already
-        # includes reasoning and other non-visible output, so adding this
-        # would charge the same tokens twice.
-        self.last_reasoning_tokens = _non_negative_int(output_details.get("reasoning_tokens"))
-
+        self.last_usage = record
+        self.last_cached_tokens = record.cached_tokens
+        self.last_cache_write_tokens = record.cache_write_tokens
+        self.last_reasoning_tokens = record.reasoning_tokens
         self.usage.record(
             role,
-            input_tokens=_non_negative_int(usage.get("input_tokens")),
-            output_tokens=_non_negative_int(usage.get("output_tokens")),
+            input_tokens=record.input_tokens,
+            output_tokens=record.output_tokens,
         )
 
     # -------------------------------------------------------- preflight
@@ -416,11 +446,86 @@ class CloudProvider(LLMProvider):
         await self._client.aclose()
 
 
-def _non_negative_int(value: Any) -> int:
-    """A usage count, or zero. Never negative and never a bool."""
-    if isinstance(value, bool) or not isinstance(value, int):
-        return 0
-    return max(0, value)
+def _token_count(value: Any) -> int | None:
+    """A reported token count, or `None` when it cannot be read.
+
+    `None` rather than zero, which is the distinction this replaces. An
+    absent, negative, boolean or string count used to become zero, and zero
+    is a coherent, cheap, entirely believable number -- so a response whose
+    usage could not be read priced as a free call and the ledger refunded
+    the reservation. "Unknown" and "none" are different facts and the
+    accounting depends on telling them apart.
+    """
+    if isinstance(value, bool) or not isinstance(value, int) or value < 0:
+        return None
+    return value
+
+
+@dataclass(frozen=True)
+class UsageRecord:
+    """What one response reported about its own size.
+
+    Per response, and immutable. The previous shape was a pair of
+    attributes overwritten on each call, which is wrong twice over: it
+    cannot describe concurrent calls, and it cannot describe a call whose
+    usage was unreadable.
+
+    `valid` is the whole point. When it is false the numbers here mean
+    nothing and the caller must fall back to what it reserved.
+    """
+
+    valid: bool
+    input_tokens: int = 0
+    output_tokens: int = 0
+    cached_tokens: int = 0
+    cache_write_tokens: int = 0
+    #: Observability only. Already inside `output_tokens`; adding it would
+    #: charge the same generation twice.
+    reasoning_tokens: int = 0
+    reason: str = ""
+
+
+def read_usage(body: dict[str, Any]) -> UsageRecord:
+    """Read a response's usage, refusing anything that does not add up.
+
+    Strict on purpose. Input and output totals must both be present and
+    readable; the cache categories default to zero only when absent, and a
+    present-but-unreadable one invalidates the record rather than being
+    treated as zero. The categories must fit inside the total they are part
+    of.
+    """
+    usage = body.get("usage")
+    if not isinstance(usage, dict):
+        return UsageRecord(False, reason="no usage was reported")
+
+    total_in = _token_count(usage.get("input_tokens"))
+    total_out = _token_count(usage.get("output_tokens"))
+    if total_in is None or total_out is None:
+        return UsageRecord(False, reason="reported token totals could not be read")
+
+    details = usage.get("input_tokens_details")
+    details = details if isinstance(details, dict) else {}
+    cached = 0 if "cached_tokens" not in details else _token_count(details["cached_tokens"])
+    written = (
+        0 if "cache_write_tokens" not in details else _token_count(details["cache_write_tokens"])
+    )
+    if cached is None or written is None:
+        return UsageRecord(False, reason="reported cache token counts could not be read")
+    if cached + written > total_in:
+        return UsageRecord(False, reason="reported cache tokens exceed the input total")
+
+    out_details = usage.get("output_tokens_details")
+    out_details = out_details if isinstance(out_details, dict) else {}
+    reasoning = _token_count(out_details.get("reasoning_tokens")) or 0
+
+    return UsageRecord(
+        True,
+        input_tokens=total_in,
+        output_tokens=total_out,
+        cached_tokens=cached,
+        cache_write_tokens=written,
+        reasoning_tokens=reasoning,
+    )
 
 
 def _parse_structured_output(body: dict[str, Any]) -> dict[str, Any]:

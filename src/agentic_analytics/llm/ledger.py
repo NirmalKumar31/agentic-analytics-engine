@@ -113,6 +113,54 @@ class RedisLike(Protocol):
     def get(self, name: Any) -> Any: ...
 
 
+#: Run admission, before any provider request.
+#:
+#: Session and client run counting used to happen inside `_RESERVE`, on the
+#: first *billable* call. Model retrieval and token counting come before
+#: that, and they are provider requests made with the account's credential
+#: -- so a caller could open sessions, vary a forwarded-for header and
+#: drive preflight traffic indefinitely without ever consuming a run quota.
+#: Nothing durable had authorised the run.
+#:
+#: Idempotent per run id: a retry of the same run consumes one slot, not
+#: two. The global and daily ceilings are checked here as well, so a run is
+#: never admitted into a budget that is already spent.
+_ADMIT = """
+local admit_key   = KEYS[1]
+local session_key = KEYS[2]
+local client_key  = KEYS[3]
+local total_key   = KEYS[4]
+local day_key     = KEYS[5]
+local session_cap = tonumber(ARGV[1])
+local client_cap  = tonumber(ARGV[2])
+local total_cap   = tonumber(ARGV[3])
+local day_cap     = tonumber(ARGV[4])
+local day_ttl     = tonumber(ARGV[5])
+local hour_ttl    = tonumber(ARGV[6])
+local admit_ttl   = tonumber(ARGV[7])
+
+if redis.call('EXISTS', admit_key) == 1 then
+  return {1, 'already_admitted'}
+end
+
+local total = tonumber(redis.call('GET', total_key) or '0')
+if total >= total_cap then return {0, 'ai_global_limit_reached'} end
+local day = tonumber(redis.call('GET', day_key) or '0')
+if day >= day_cap then return {0, 'ai_daily_limit_reached'} end
+
+local session = tonumber(redis.call('GET', session_key) or '0')
+if session + 1 > session_cap then return {0, 'ai_session_limit_reached'} end
+local client = tonumber(redis.call('GET', client_key) or '0')
+if client + 1 > client_cap then return {0, 'ai_client_limit_reached'} end
+
+redis.call('INCRBY', session_key, 1)
+redis.call('EXPIRE', session_key, day_ttl)
+redis.call('INCRBY', client_key, 1)
+redis.call('EXPIRE', client_key, hour_ttl)
+redis.call('SET', admit_key, 1, 'EX', admit_ttl)
+return {1, 'admitted'}
+"""
+
 #: Admission and reservation in one atomic step.
 #:
 #: Checking then writing from the application would let two instances both
@@ -229,6 +277,51 @@ class CostLedger:
         except Exception as exc:
             log.warning("ai_ledger_unreachable", error_type=type(exc).__name__)
             return False
+
+    def admit_run(
+        self,
+        *,
+        run_id: str,
+        session_id: str,
+        client_id: str,
+        caps: LedgerCaps,
+    ) -> Admission:
+        """Authorise one run, before any provider request is made.
+
+        This is the gate that makes the free endpoints answerable to the
+        ledger. Model retrieval and token counting cost nothing and are
+        still traffic sent with the account's credential, so they happen
+        only after a durable slot has been taken.
+
+        An unreachable store refuses. A run that cannot be accounted for is
+        a run that cannot be bounded.
+        """
+        try:
+            ok, reason = self._redis.eval(
+                _ADMIT,
+                5,
+                self._k("admitted", run_id),
+                self._k("session", session_id),
+                self._k("client", self._hour(), client_id),
+                self._k("total"),
+                self._k("day", self._today()),
+                int(caps.runs_per_session),
+                int(caps.runs_per_client_hour),
+                int(caps.total_microdollars),
+                int(caps.daily_microdollars),
+                DAY_TTL_SECONDS,
+                HOUR_TTL_SECONDS,
+                DAY_TTL_SECONDS,
+            )
+        except Exception as exc:
+            log.warning("ai_ledger_admit_failed", error_type=type(exc).__name__)
+            raise LedgerUnavailable("the usage ledger is unavailable") from None
+
+        text = reason.decode() if isinstance(reason, bytes) else str(reason)
+        if int(ok) != 1:
+            log.info("ai_run_refused", run_id=run_id, reason=text)
+            return Admission(False, reason=text)
+        return Admission(True, reason=text)
 
     def reserve(
         self,
