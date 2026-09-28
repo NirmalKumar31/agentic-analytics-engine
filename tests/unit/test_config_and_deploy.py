@@ -223,11 +223,10 @@ def test_blueprints_mark_the_cookie_secure() -> None:
 
 
 def test_blueprints_size_duckdb_for_the_instance() -> None:
-    """A 1 GB session envelope does not fit twelve sessions on a 2 GB box."""
+    """The session envelope has to fit the instance it is deployed on."""
     service = _blueprint("render.yaml")
     by_key = {e["key"]: e for e in service["envVars"]}  # type: ignore[index]
-    # `1c-2g` is the explicit spelling of the legacy `standard` plan.
-    assert service["plan"] == "1c-2g"
+    assert service["plan"] == "free"
     # Parseable by the application, and smaller than the old hardcoded 1 GB.
     settings = Settings(
         duckdb_memory_limit=by_key["AAE_DUCKDB_MEMORY_LIMIT"]["value"],
@@ -289,3 +288,71 @@ def test_the_blueprint_does_not_promise_a_local_model() -> None:
     text = (REPO / "render.yaml").read_text()
     assert "11434" not in text
     assert "AAE_OLLAMA_BASE_URL" not in text
+
+
+# -------------------------------------------------- memory-critical ceilings
+#
+# The deployed instance has 512 MB. Each live session holds a DuckDB
+# connection over the warehouse, costing roughly 55 MB, so the session cap
+# is the difference between a service that stays up and one that restarts
+# under its first bit of attention. Measured, with two analyses running
+# against a full session table: 3 sessions 438 MB, 4 sessions 497 MB,
+# 6 sessions 600 MB, 8 sessions 708 MB.
+#
+# These assertions exist so that raising one of these numbers is a decision
+# rather than an accident.
+
+#: What the deployed plan provides, in MB. Keep in step with `plan:`.
+FREE_PLAN_MB = 512
+
+
+def _env(service: dict[str, object]) -> dict[str, str]:
+    return {e["key"]: str(e.get("value", "")) for e in service["envVars"]}  # type: ignore[union-attr,index]
+
+
+def test_the_blueprint_declares_the_plan_its_ceilings_were_sized_for() -> None:
+    """A plan change without a ceiling change is the failure mode here."""
+    assert _blueprint("render.yaml")["plan"] == "free"
+
+
+def test_the_session_cap_fits_the_instance() -> None:
+    """Three sessions measured 438 MB against a 512 MB instance.
+
+    Four measured 497 MB, which is within 15 MB of the limit and leaves
+    nothing for a request spike.
+    """
+    env = _env(_blueprint("render.yaml"))
+    assert int(env["AAE_MAX_CONCURRENT_SESSIONS"]) <= 3
+
+
+def test_concurrency_is_capped_for_the_instance_size() -> None:
+    env = _env(_blueprint("render.yaml"))
+    assert int(env["AAE_MAX_CONCURRENT_ANALYSES"]) <= 2
+    assert int(env["AAE_AI_CONCURRENT_RUNS"]) <= 1
+
+
+def test_the_duckdb_envelope_leaves_room_for_the_rest_of_the_process() -> None:
+    """Two analyses may hold an envelope each, and the rest of the process
+    -- Python, the warehouse handles, the HTTP server -- shares what is
+    left."""
+    env = _env(_blueprint("render.yaml"))
+    limit_mb = int(env["AAE_DUCKDB_MEMORY_LIMIT"].removesuffix("MB"))
+    concurrent = int(env["AAE_MAX_CONCURRENT_ANALYSES"])
+    assert limit_mb * concurrent < FREE_PLAN_MB * 0.7
+
+
+def test_the_session_ttl_does_not_outlive_the_container() -> None:
+    """Free instances spin down after 15 minutes of inactivity.
+
+    A session promised for longer than that is a promise the plan cannot
+    keep, and the visitor meets a 404 rather than their dataset.
+    """
+    env = _env(_blueprint("render.yaml"))
+    assert int(env["AAE_SESSION_TTL_SECONDS"]) <= 900
+
+
+def test_uploads_cannot_exceed_what_the_instance_can_hold() -> None:
+    """An upload is profiled in memory before it is anything else."""
+    env = _env(_blueprint("render.yaml"))
+    assert int(env["AAE_BUDGETS__MAX_UPLOAD_BYTES"]) <= 10 * 1024 * 1024
+    assert int(env["AAE_BUDGETS__MAX_UPLOAD_ROWS"]) <= 400_000

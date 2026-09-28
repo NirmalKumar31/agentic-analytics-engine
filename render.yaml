@@ -44,9 +44,17 @@ services:
     name: agentic-analytics-engine
     runtime: docker
     dockerfilePath: ./Dockerfile
-    # `1c-2g` is the explicit spelling of the legacy `standard` plan:
-    # 1 CPU, 2 GB. The numbers below are sized against exactly that.
-    plan: 1c-2g
+    # Free instances spin down after 15 minutes of inactivity and take
+    # about a minute to wake. That is the scale-to-zero this demo wants,
+    # and it is only safe because the ceilings below are sized for 512 MB:
+    # four concurrent analyses measured 654 MB, which this plan would
+    # OOM-kill. See docs/DEPLOYMENT.md for the measurements.
+    #
+    # The ephemeral filesystem is not a problem here. The demo warehouse is
+    # baked into the image at build time, uploads live under /tmp for the
+    # life of a session, and the AI ledger is in Key Value rather than on
+    # disk -- so there is nothing to persist across a spin-down.
+    plan: free
     region: oregon
     # Readiness rather than liveness: a container that came up without
     # its demo warehouse is alive and useless, and a health check that
@@ -109,7 +117,7 @@ services:
       - key: AAE_AI_RUNS_PER_IP_PER_HOUR
         value: "5"
       - key: AAE_AI_CONCURRENT_RUNS
-        value: "2"
+        value: "1"
       # 2000000 = $2.00 a day, 20000000 = $20.00 in total.
       - key: AAE_AI_DAILY_COST_MICRODOLLARS
         value: "2000000"
@@ -138,9 +146,12 @@ services:
       - key: AAE_LOG_JSON
         value: "true"
 
-      # Per-session DuckDB envelope, sized for 1 CPU / 2 GB.
+      # Per-session DuckDB envelope. Two analyses may run at once, so this
+      # is set well below half the instance's 512 MB rather than near it:
+      # the Python process, the warehouse handles and the HTTP server all
+      # live in the same budget.
       - key: AAE_DUCKDB_MEMORY_LIMIT
-        value: 384MB
+        value: 160MB
       - key: AAE_DUCKDB_THREADS
         value: "1"
 
@@ -160,9 +171,9 @@ services:
       - key: AAE_BUDGETS__MAX_RESULT_ROWS
         value: "500"
       - key: AAE_BUDGETS__MAX_UPLOAD_BYTES
-        value: "15728640"
+        value: "10485760"
       - key: AAE_BUDGETS__MAX_UPLOAD_ROWS
-        value: "750000"
+        value: "400000"
       - key: AAE_BUDGETS__MAX_UPLOAD_COLUMNS
         value: "200"
       # Ceiling on the uncompressed size a Parquet footer declares, checked
@@ -173,13 +184,30 @@ services:
       - key: AAE_BUDGETS__MAX_PARQUET_UNCOMPRESSED_BYTES
         value: "536870912"
 
-      # Uploaded data is ephemeral, and these bound how much of it can exist.
+      # Uploaded data is ephemeral, and these bound how much of it can
+      # exist. The session cap is the single most important number on this
+      # plan: each live session holds a DuckDB connection over the
+      # warehouse, costing roughly 55 MB, and the instance has 512 MB.
+      #
+      # Measured, with two analyses running against a full session table:
+      #   3 sessions -> 438 MB   fits
+      #   4 sessions -> 497 MB   within 15 MB of the limit
+      #   6 sessions -> 600 MB   killed
+      #   8 sessions -> 708 MB   killed
+      #
+      # So three. A fourth visitor evicts the least recently used session
+      # rather than taking the instance down with it. Raising this without
+      # raising the plan is how this deployment dies under its first bit of
+      # attention.
+      #
+      # The TTL matches the plan's own 15-minute spin-down: a session that
+      # outlived the container it lived in is not a session.
       - key: AAE_SESSION_TTL_SECONDS
-        value: "1800"
+        value: "900"
       - key: AAE_MAX_CONCURRENT_SESSIONS
-        value: "12"
+        value: "3"
       - key: AAE_MAX_ACTIVE_UPLOAD_SESSIONS
-        value: "6"
+        value: "2"
 
       # Abuse controls. In-process counters, not durable quotas: a restart
       # resets them, and the client key comes from X-Forwarded-For, which is

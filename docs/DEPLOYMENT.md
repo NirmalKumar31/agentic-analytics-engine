@@ -118,6 +118,40 @@ the whole request, not just the excess. The per-run input ceiling is well
 below that threshold, so a run cannot reach it without the ceiling being
 raised deliberately.
 
+## What the instance can hold
+
+The service runs on Render's **free** instance type: 512 MB, and it spins
+down after 15 minutes without traffic, waking in about a minute. That
+spin-down is the point — this is a portfolio demo, not a service with an
+availability target — and it is safe here because nothing needs to survive
+it. The demo warehouse is baked into the image at build time, uploads live
+under `/tmp` for the life of a session, and the AI ledger is in Key Value.
+
+512 MB is the constraint that shapes the rest of the configuration. Each
+live session holds a DuckDB connection over the warehouse, costing roughly
+55 MB. Measured on the demo warehouse, with two analyses running against a
+full session table:
+
+| live sessions | peak RSS | on a 512 MB instance |
+|---|---|---|
+| 3 | 438 MB | fits |
+| 4 | 497 MB | within 15 MB of the limit |
+| 6 | 600 MB | killed |
+| 8 | 708 MB | killed |
+
+Memory does not grow across runs — a single session doing twelve analyses
+two at a time plateaus at 391 MB — so the cap is about how many sessions
+are *open*, not how much work they do.
+
+Hence `AAE_MAX_CONCURRENT_SESSIONS=3`. A fourth visitor evicts the least
+recently used session rather than taking the instance down. **Raising it
+without raising the plan is how this deployment dies under its first bit
+of attention**, and there is a test asserting the ceiling for that reason.
+
+If you want more than three concurrent visitors, move to a paid instance
+type — `1c-2g` gives 2 GB — and raise the caps together. Paid instances do
+not spin down, so that trades the scale-to-zero away.
+
 ## Checklist
 
 Deterministic first. AI only after the deterministic service is healthy.
