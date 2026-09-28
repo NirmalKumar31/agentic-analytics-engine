@@ -43,6 +43,7 @@ from agentic_analytics.llm.base import BudgetError, LLMError, LLMProvider
 from agentic_analytics.logging import get_logger
 from agentic_analytics.mcp_layer.client import AnalyticsToolset
 from agentic_analytics.verification.claims import collapse_exact_duplicates
+from agentic_analytics.verification.limitations import rejection_limitations
 from agentic_analytics.verification.period import dataset_dimensions
 from agentic_analytics.warehouse.metrics import VALID_GRAINS
 from agentic_analytics.warehouse.session import AnalysisSession
@@ -383,12 +384,12 @@ def build_graph(ctx: RunContext) -> Any:
             ctx.telemetry["duplicate_published_findings_removed"] = len(duplicates)
             ctx.telemetry["duplicate_published_findings"] = duplicates
 
-        limitations: list[str] = []
-        if rejected:
-            limitations.append(
-                f"{len(rejected)} proposed finding(s) were withheld because the "
-                "cited results did not support them."
-            )
+        # One sentence per reason, not one sentence for every rejection.
+        # A single blanket line told a reader the engine had found a data
+        # problem when it had found a relevance problem, or none at all.
+        limitations: list[str] = rejection_limitations(v.rule for v in rejected)
+        if duplicates:
+            limitations.extend(rejection_limitations(["duplicate_finding"] * len(duplicates)))
         return {
             "verdicts": verdicts,
             "published": published,

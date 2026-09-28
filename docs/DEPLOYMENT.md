@@ -59,8 +59,8 @@ second instance cannot reset them.
 | `AAE_AI_RUNS_PER_SESSION` | `3` | |
 | `AAE_AI_RUNS_PER_IP_PER_HOUR` | `5` | |
 | `AAE_AI_CONCURRENT_RUNS` | `2` | |
-| `AAE_AI_DAILY_COST_MICRODOLLARS` | `2000000` | $2.00 a day. |
-| `AAE_AI_TOTAL_COST_MICRODOLLARS` | `20000000` | $20.00 lifetime. |
+| `AAE_AI_DAILY_COST_MICRODOLLARS` | `500000` | $0.50 a day. |
+| `AAE_AI_TOTAL_COST_MICRODOLLARS` | `4000000` | $4.00 lifetime, against a $5 provider hard limit. Contradictory ceilings are refused at startup. |
 
 ### What resets, and what does not
 

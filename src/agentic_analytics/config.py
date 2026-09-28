@@ -12,7 +12,7 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Literal
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 ProviderMode = Literal["fake", "local", "cloud"]
@@ -138,14 +138,30 @@ class Settings(BaseSettings):
     #: nothing.
     ai_verification_output_reserve: int = Field(default=24_000, ge=0)
     ai_max_runtime_seconds: float = Field(default=180.0, gt=0)
+    #: Derived elsewhere and checked at startup rather than trusted: the
+    #: worst a single run can cost is the configured input and output
+    #: ceilings priced at the dearest applicable tier. A per-run ceiling
+    #: below that number is not a ceiling, it is a mid-run failure.
     ai_max_cost_microdollars: int = Field(default=250_000, ge=1)
     #: Public-demo ceilings, enforced in durable storage so a restart or a
     #: second instance cannot reset them.
     ai_runs_per_session: int = Field(default=3, ge=1, le=50)
     ai_runs_per_ip_per_hour: int = Field(default=5, ge=1, le=100)
     ai_concurrent_runs: int = Field(default=2, ge=1, le=20)
-    ai_daily_cost_microdollars: int = Field(default=2_000_000, ge=1)
-    ai_total_cost_microdollars: int = Field(default=20_000_000, ge=1)
+    #: $0.50 a day. A portfolio demo that spends more than this in a day is
+    #: being used by something other than a visitor reading it.
+    ai_daily_cost_microdollars: int = Field(default=500_000, ge=1)
+    #: $4.00 for the lifetime of the deployment, against a $5 hard limit on
+    #: the provider project. The gap is deliberate: OpenAI documents that
+    #: hard-limit enforcement is not instantaneous and recorded spend can
+    #: slightly exceed the configured amount, so the application has to
+    #: stop first rather than race it.
+    #:   https://developers.openai.com/api/docs/guides/spend-limits
+    #:
+    #: Never silently reset. The counter can also overstate real spend: an
+    #: ambiguous failure retains its worst-case reservation on purpose, so
+    #: the figure is a conservative floor rather than a measurement.
+    ai_total_cost_microdollars: int = Field(default=4_000_000, ge=1)
     #: Redis-compatible URL for the durable ledger. Without it AI stays off:
     #: process-local counters reset on every cold start, and Render runs
     #: more than one instance.
@@ -259,6 +275,67 @@ class Settings(BaseSettings):
     @property
     def demo_warehouse_dir(self) -> Path:
         return self.data_dir / "commerce"
+
+    @model_validator(mode="after")
+    def _cost_ceilings_are_coherent(self) -> Settings:
+        """Refuse a set of ceilings that cannot all hold.
+
+        These are cheap arithmetic facts about the configuration, and every
+        one of them is a mid-run failure if it is discovered later: a run
+        that cannot finish inside its own cost ceiling fails somewhere in
+        the middle, having already spent money, and reports a budget error
+        that looks like a bug.
+
+        Only checked when AI is switched on. A deterministic deployment
+        does not read any of these, and refusing to start over a number it
+        never uses would take the free half of the product down with the
+        paid half.
+        """
+        if not self.ai_analytics_enabled:
+            return self
+
+        if self.ai_verification_output_reserve >= self.ai_max_output_tokens:
+            raise ValueError(
+                "ai_verification_output_reserve "
+                f"({self.ai_verification_output_reserve}) must be smaller than "
+                f"ai_max_output_tokens ({self.ai_max_output_tokens}); the "
+                "proposing stages would have no output allowance at all"
+            )
+
+        if self.ai_max_cost_microdollars > self.ai_daily_cost_microdollars:
+            raise ValueError(
+                f"ai_max_cost_microdollars ({self.ai_max_cost_microdollars}) "
+                f"exceeds ai_daily_cost_microdollars "
+                f"({self.ai_daily_cost_microdollars}); one run could not "
+                "complete inside the day's budget"
+            )
+        if self.ai_daily_cost_microdollars > self.ai_total_cost_microdollars:
+            raise ValueError(
+                f"ai_daily_cost_microdollars ({self.ai_daily_cost_microdollars}) "
+                f"exceeds ai_total_cost_microdollars "
+                f"({self.ai_total_cost_microdollars}); a single day could "
+                "exhaust the deployment's lifetime budget"
+            )
+
+        # The dearest a single run can be, from the token ceilings and the
+        # most expensive applicable price tier. An unpriced model is refused
+        # at preflight rather than here, so an unknown one is not an error
+        # at startup.
+        from agentic_analytics.llm.pricing import UnknownModelPrice, price_for
+
+        try:
+            price = price_for(self.cloud_model)
+        except UnknownModelPrice:
+            return self
+        worst = price.reservation_microdollars(self.ai_max_input_tokens, self.ai_max_output_tokens)
+        if worst > self.ai_max_cost_microdollars:
+            raise ValueError(
+                f"the configured token ceilings allow a run costing {worst} "
+                f"microdollars on {self.cloud_model}, above "
+                f"ai_max_cost_microdollars ({self.ai_max_cost_microdollars}); "
+                "raise the cost ceiling or lower the token ceilings"
+            )
+        return self
 
 
 @lru_cache(maxsize=1)

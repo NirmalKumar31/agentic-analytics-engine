@@ -120,9 +120,12 @@ services:
         value: "1"
       # 2000000 = $2.00 a day, 20000000 = $20.00 in total.
       - key: AAE_AI_DAILY_COST_MICRODOLLARS
-        value: "2000000"
+        value: "500000"
+      # $4.00 against a $5 hard limit on the provider project. The gap is
+      # deliberate: provider enforcement is documented as not instantaneous,
+      # so the application stops first rather than racing it.
       - key: AAE_AI_TOTAL_COST_MICRODOLLARS
-        value: "20000000"
+        value: "4000000"
       # Visitors may ask their own questions and upload their own data.
       - key: AAE_LIVE_ANALYTICS_ENABLED
         value: "true"
