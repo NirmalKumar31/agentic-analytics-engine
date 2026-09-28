@@ -215,6 +215,20 @@ unsupported or irrelevant, nothing failed unexpectedly, no measure,
 dimension, unit or time field was silently guessed, and no run cited
 another run's results. Every case's outcome was one the manifest allows.
 
+Every case also runs a second time against a provider that declares itself
+remote and retains its prompts, and **no prompt contained a withheld
+cell**. The boundary for that count is derived from each dataset's own
+cardinality rather than from the schema classifier: a column whose values
+repeat is a category, and its labels are legitimately part of an aggregate
+grouped by it, while a near-unique or free-text column's values are not.
+Reading the classifier's verdict instead made the measurement blind to the
+one leak it exists for -- reintroducing the defect reclassified those
+columns as groupings and the check excused them in the same instant. ISO
+dates are excluded because the engine derives period bounds from the
+question, and legitimate values are subtracted by value rather than by
+column so that a foreign key sharing its value space with the identifier
+it references is not reported as a leak.
+
 **What it does not establish.** That an arbitrary file gets a good answer.
 The corpus is 210 questions the authors chose, against datasets the authors
 generated. It demonstrates the committed cases and the *shape* of the
@@ -290,11 +304,14 @@ What that buys and what it does not:
   would not be found here.
 
 Each property was checked against a deliberately broken build before being
-trusted -- rounding reversed, the long-context threshold moved out of reach
-and off by one, the settlement receipt left in place, run admission made
-non-idempotent, the session quota off by one, the confidence gate removed,
-the resolver made to invent a column. Ten such mutations, ten caught. Two
-of them were caught only after the tests were strengthened: one property
+trusted: rounding reversed; the reservation priced at the cached rate
+instead of the dearest; the long-context threshold moved out of reach, and
+separately off by one; the settlement receipt left in place; run admission
+made non-idempotent; the session quota off by one; the confidence gate
+removed from `build_sql`; the period filter dropped from the `WHERE`
+clause; an unresolved grouping answered instead of refused; the resolver
+made to invent a column. **Eleven mutations, eleven caught.** Two of them
+were caught only after the tests were strengthened: one property
 had read the context threshold off the object it was meant to pin, so it
 moved with the mutation, and the sweep never produced an unconfident
 mapping with a real operation, leaving the `build_sql` confidence guard
