@@ -1,0 +1,8 @@
+{
+  "first_smoke_38cfb51.json": {
+    "sha256": "87257a0eed773971dc4373098a39bf922d3303adacac5f594014f380d3fa3e27",
+    "bytes": 5990,
+    "purpose": "failed acceptance, preserved as regression input",
+    "immutable": true
+  }
+}

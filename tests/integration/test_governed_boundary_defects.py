@@ -39,6 +39,7 @@ from agentic_analytics.llm.cloud import CloudProvider
 from agentic_analytics.llm.governed import (
     AIBudgetExceeded,
     GovernedCloudProvider,
+    RunAdmission,
     RunBudget,
     preflight,
 )
@@ -155,7 +156,13 @@ def _budget(**kw: Any) -> RunBudget:
 
 async def _governed(stub: Stub, ledger: CostLedger, **budget_kw: Any) -> GovernedCloudProvider:
     inner = _inner(stub)
-    result = await preflight(inner, ledger)
+    result = await preflight(
+        inner,
+        ledger,
+        admission=RunAdmission(
+            run_id="run_defects", session_id="ses_1", client_id="ip_1", caps=CAPS
+        ),
+    )
     return GovernedCloudProvider(
         inner,
         ledger=ledger,
@@ -399,7 +406,13 @@ async def test_concurrent_calls_cannot_exceed_the_input_ceiling(
     """
     stub = BarrierStub(2, counted=3_000)
     inner = _barrier_provider(stub)
-    result = await preflight(inner, ledger)
+    result = await preflight(
+        inner,
+        ledger,
+        admission=RunAdmission(
+            run_id="run_conc_in", session_id="ses_1", client_id="ip_1", caps=CAPS
+        ),
+    )
     provider = GovernedCloudProvider(
         inner,
         ledger=ledger,
@@ -436,7 +449,13 @@ async def test_concurrent_calls_cannot_exceed_the_output_ceiling(
     """
     stub = BarrierStub(2, counted=100)
     inner = _barrier_provider(stub)
-    result = await preflight(inner, ledger)
+    result = await preflight(
+        inner,
+        ledger,
+        admission=RunAdmission(
+            run_id="run_conc_out", session_id="ses_1", client_id="ip_1", caps=CAPS
+        ),
+    )
     provider = GovernedCloudProvider(
         inner,
         ledger=ledger,
@@ -469,7 +488,13 @@ async def test_a_cancelled_call_does_not_restore_ambiguous_allowance(
     """
     stub = HangStub(counted=2_000)
     inner = _barrier_provider(stub)
-    result = await preflight(inner, ledger)
+    result = await preflight(
+        inner,
+        ledger,
+        admission=RunAdmission(
+            run_id="run_cancel", session_id="ses_1", client_id="ip_1", caps=CAPS
+        ),
+    )
     provider = GovernedCloudProvider(
         inner,
         ledger=ledger,

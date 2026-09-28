@@ -36,6 +36,7 @@ import contextlib
 import hashlib
 import json
 import os
+import re
 import subprocess
 import time
 import traceback
@@ -163,6 +164,9 @@ class QuestionOutcome:
     provider_successful_responses: int = 0
     input_tokens: int = 0
     output_tokens: int = 0
+    #: The full cost-reproducing split, when a governed provider supplied
+    #: one. Empty for a local model, which is not billed.
+    usage: dict[str, Any] = field(default_factory=dict)
     runtime_seconds: float = 0.0
 
 
@@ -497,6 +501,13 @@ async def evaluate_question(
         outcome.runtime_seconds = round(time.monotonic() - started, 2)
         outcome.input_tokens = int(getattr(provider.usage, "input_tokens", 0))
         outcome.output_tokens = int(getattr(provider.usage, "output_tokens", 0))
+        # The billing split, when the provider is the governed one. The
+        # first paid smoke recorded only the two totals, so its cache
+        # behaviour had to be inferred from the settled figure instead of
+        # read off the record.
+        budget = getattr(provider, "budget", None)
+        if budget is not None and hasattr(budget, "usage_report"):
+            outcome.usage = dict(budget.usage_report())
         outcome.provider_request_attempts = int(getattr(provider.usage, "attempts", 0))
         outcome.provider_successful_responses = int(getattr(provider.usage, "successes", 0))
         await provider.aclose()
@@ -528,7 +539,16 @@ def environment_fingerprint(cfg: Settings) -> dict[str, Any]:
         "provider_mode": cfg.provider_mode,
         "model": model,
         "think": cfg.ollama_think if cfg.provider_mode == "local" else None,
-        "temperature": 0.0,
+        # What was actually sent. A hardcoded `temperature: 0.0` used to
+        # sit here and was never sent to the cloud provider at all --
+        # sampling fields are refused by the transport -- so the artifact
+        # asserted a setting that was not in effect. A record that states
+        # a configuration nobody applied is worse than one that omits it.
+        "sampling_fields_sent": "none",
+        "temperature": 0.0 if cfg.provider_mode == "local" else None,
+        "reasoning_effort": (cfg.cloud_reasoning_effort if cfg.provider_mode == "cloud" else None),
+        "service_tier": "default" if cfg.provider_mode == "cloud" else None,
+        "store": False if cfg.provider_mode == "cloud" else None,
         "dataset_seed": SEED,
         "max_llm_calls": cfg.budgets.max_llm_calls,
         "max_analysis_tasks": cfg.budgets.max_analysis_tasks,
@@ -825,7 +845,7 @@ async def run_real_model_evaluation(
     report = _summarise(cfg, outcomes, round(time.monotonic() - started, 1))
     report["environment"] = fingerprint
     report["question_timeout_seconds"] = question_timeout_seconds
-    report["checkpoint_dir"] = str(checkpoint_dir)
+    report["checkpoint_dir"] = safe_path(checkpoint_dir)
     return report
 
 
@@ -917,6 +937,7 @@ def _summarise(cfg: Settings, outcomes: list[QuestionOutcome], wall_clock: float
         ),
         "total_input_tokens": sum(o.input_tokens for o in outcomes),
         "total_output_tokens": sum(o.output_tokens for o in outcomes),
+        "usage": _totalled_usage(outcomes),
         "total_candidate_findings": sum(o.candidate_findings for o in outcomes),
         "total_published_findings": sum(o.published_findings for o in outcomes),
         "total_withheld_findings": sum(o.withheld_findings for o in outcomes),
@@ -1030,3 +1051,50 @@ def write_report(report: dict[str, Any], path: Path) -> Path:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(report, indent=2, default=str))
     return path
+
+
+#: Path segments that identify a person's home directory, in the three
+#: spellings this could arrive in.
+_NAMES_A_HOME = re.compile(r"(^|/)(Users|home)/[^/]+", re.IGNORECASE)
+
+
+def safe_path(path: Path) -> str:
+    """A path an artifact can carry.
+
+    Relative to the repository when it lies inside it, and otherwise the
+    final component alone. The first paid smoke wrote `/Users/<name>/...`
+    into a JSON report: a home directory names a person, and an artifact
+    is the thing most likely to be attached to an issue or committed by
+    mistake.
+    """
+    text = str(path)
+    # A Windows-style path is not absolute on POSIX, so it resolves *under*
+    # the repository and passes the containment check below while still
+    # carrying a home directory. Checked on the spelling, before resolving.
+    if _NAMES_A_HOME.search(text.replace("\\", "/")):
+        return Path(text.replace("\\", "/")).name or "checkpoint"
+    try:
+        root = Path(__file__).resolve().parents[3]
+        relative = Path(path).resolve().relative_to(root)
+    except (ValueError, OSError):
+        return Path(path).name or "checkpoint"
+    if _NAMES_A_HOME.search(str(relative)):
+        return relative.name or "checkpoint"
+    return str(relative)
+
+
+def _totalled_usage(outcomes: list[QuestionOutcome]) -> dict[str, int | bool]:
+    """The run's billing split, summed across questions.
+
+    Counts add; the two booleans are conjunctions, because a report whose
+    cost is complete for nine questions and incomplete for one has an
+    incomplete cost.
+    """
+    totals: dict[str, int | bool] = {}
+    for outcome in outcomes:
+        for key, value in (outcome.usage or {}).items():
+            if isinstance(value, bool):
+                totals[key] = bool(totals.get(key, True)) and value
+            else:
+                totals[key] = int(totals.get(key, 0)) + int(value)
+    return totals

@@ -85,6 +85,20 @@ class RunBudget:
     attempts: int = 0
     input_tokens: int = 0
     output_tokens: int = 0
+    #: The input total split by how it was billed. They sum to
+    #: `input_tokens`, and the split is what makes a cost reproducible
+    #: from the record: the three categories are priced differently and a
+    #: total alone cannot be checked against a provider's invoice. The
+    #: first paid run recorded only the total, so its cache behaviour had
+    #: to be inferred from the settled figure rather than read.
+    cached_input_tokens: int = 0
+    cache_write_input_tokens: int = 0
+    #: Already inside `output_tokens`. Recorded for observability and
+    #: never added to it -- a reasoning model that billed its thinking
+    #: twice would be over-charged by the engine, not by the provider.
+    reasoning_tokens: int = 0
+    settlements: int = 0
+    reservations: int = 0
     #: Allowance handed to calls that have been admitted and have not yet
     #: reported. Without it, several calls each read the same committed
     #: totals, each passed the same check, and together exceeded a ceiling
@@ -107,6 +121,54 @@ class RunBudget:
 
     def out_of_time(self) -> bool:
         return self.deadline > 0 and time.monotonic() > self.deadline
+
+    @property
+    def ordinary_input_tokens(self) -> int:
+        """Input billed at the full rate: the total less what was served
+        from cache and less what was written to it."""
+        return self.input_tokens - self.cached_input_tokens - self.cache_write_input_tokens
+
+    @property
+    def usage_categories_are_coherent(self) -> bool:
+        """Whether the categories still fit inside the total they split.
+
+        Asserted rather than assumed: a negative ordinary count means the
+        engine has mis-attributed tokens and any cost derived from the
+        split is wrong.
+        """
+        return (
+            self.cached_input_tokens >= 0
+            and self.cache_write_input_tokens >= 0
+            and self.reasoning_tokens >= 0
+            and self.reasoning_tokens <= self.output_tokens
+            and self.ordinary_input_tokens >= 0
+        )
+
+    def usage_report(self) -> dict[str, int | bool]:
+        """Everything needed to reproduce this run's cost.
+
+        Written as one structure so an artifact cannot record half of it.
+        Nothing here derives from a prompt or a response body: these are
+        counts and money, and they are what a reader needs to check the
+        engine's arithmetic against a provider's invoice.
+        """
+        return {
+            "input_tokens": self.input_tokens,
+            "ordinary_input_tokens": self.ordinary_input_tokens,
+            "cached_input_tokens": self.cached_input_tokens,
+            "cache_write_input_tokens": self.cache_write_input_tokens,
+            "output_tokens": self.output_tokens,
+            "reasoning_tokens": self.reasoning_tokens,
+            "provider_requests": self.provider_requests,
+            "completion_attempts": self.attempts,
+            "reservations": self.reservations,
+            "settlements": self.settlements,
+            "unusable_usage_calls": self.unusable_usage_calls,
+            "settled_microdollars": self.settled_microdollars,
+            "retained_microdollars": self.retained_microdollars,
+            "cost_is_complete": self.cost_is_complete,
+            "usage_categories_are_coherent": self.usage_categories_are_coherent,
+        }
 
     @property
     def cost_is_complete(self) -> bool:
@@ -507,7 +569,14 @@ class GovernedCloudProvider(LLMProvider):
         self.budget.in_flight_output -= allowance
         self.budget.input_tokens += actual_in
         self.budget.output_tokens += actual_out
-        if not trustworthy:
+        if trustworthy:
+            assert usage is not None
+            # The split, so the cost can be recomputed from the record
+            # rather than inferred from the total.
+            self.budget.cached_input_tokens += usage.cached_tokens
+            self.budget.cache_write_input_tokens += usage.cache_write_tokens
+            self.budget.reasoning_tokens += usage.reasoning_tokens
+        else:
             self.budget.unusable_usage_calls += 1
 
         if not trustworthy or not settle:
@@ -534,6 +603,7 @@ class GovernedCloudProvider(LLMProvider):
             actual_microdollars=actual,
         )
         self.budget.settled_microdollars += actual
+        self.budget.settlements += 1
         log.info(
             "ai_call_settled",
             run_id=self._run_id,
@@ -569,6 +639,7 @@ class GovernedCloudProvider(LLMProvider):
             ) from None
         if not admission.admitted:
             raise AIBudgetExceeded(message_for(admission.reason), admission.reason)
+        self.budget.reservations += 1
         return admission
 
     async def aclose(self) -> None:
@@ -578,6 +649,12 @@ class GovernedCloudProvider(LLMProvider):
 #: Stable reason to readable sentence. A visitor never sees a key, and none
 #: of these names a provider, a credential or a remaining balance.
 _MESSAGES = {
+    # Internal rather than a quota: a run reached a billable call without a
+    # durable admission. The visitor sees the generic ceiling message; the
+    # reason string is what the logs and tests key off.
+    "ai_run_not_admitted": (
+        "AI mode could not start this run. Deterministic Analytics is still available."
+    ),
     "ai_global_limit_reached": (
         "AI mode has reached its public demo usage limit. "
         "Deterministic Analytics is still available."

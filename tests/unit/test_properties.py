@@ -207,6 +207,7 @@ def test_settlement_never_drives_a_counter_negative() -> None:
     for trial in range(120):
         ledger = CostLedger(fakeredis.FakeRedis())
         run = f"run_{trial}"
+        ledger.admit_run(run_id=run, session_id="ses_1", client_id="ip_1", caps=_caps())
         for call in range(rng.randrange(1, 6)):
             amount = rng.randrange(1, 40_000)
             admission = ledger.reserve(
@@ -237,6 +238,7 @@ def test_settling_the_same_reservation_twice_changes_nothing() -> None:
     for trial in range(60):
         ledger = CostLedger(fakeredis.FakeRedis())
         amount = rng.randrange(100, 50_000)
+        ledger.admit_run(run_id="run_1", session_id="ses_1", client_id="ip_1", caps=_caps())
         admission = ledger.reserve(
             run_id="run_1",
             call_id="c1",
@@ -277,6 +279,117 @@ def test_run_admission_is_never_granted_beyond_its_quota() -> None:
             ).admitted:
                 granted += 1
         assert granted == per_session, f"trial {trial}: {granted} of {per_session} allowed"
+
+
+def test_a_whole_run_consumes_exactly_one_session_and_client_slot() -> None:
+    """Admission and reservation together, which is how a run actually
+    runs.
+
+    Both were tested alone and both were correct alone. `_ADMIT` counted
+    the slot and `_RESERVE` counted it again on the first billable call,
+    so every run cost two of each. A cap of three runs per session
+    admitted one run, then refused the second at its first reservation --
+    after preflight had already made provider requests with the account's
+    credential. The first paid run against a real provider found it; 1,580
+    tests did not, because none of them exercised the two scripts in
+    sequence.
+    """
+    rng = _rng()
+    for trial in range(30):
+        ledger = CostLedger(fakeredis.FakeRedis())
+        caps = _caps(runs_per_session=3, runs_per_client_hour=5)
+        run, session, client = f"r{trial}", f"s{trial}", f"c{trial}"
+
+        assert ledger.admit_run(
+            run_id=run, session_id=session, client_id=client, caps=caps
+        ).admitted
+        for call in range(rng.randrange(1, 5)):
+            admission = ledger.reserve(
+                run_id=run,
+                call_id=f"call{call}",
+                session_id=session,
+                client_id=client,
+                amount_microdollars=rng.randrange(1, 5_000),
+                caps=caps,
+                first_call_of_run=call == 0,
+            )
+            assert admission.admitted, admission.reason
+            ledger.settle(
+                run_id=run,
+                reservation_id=admission.reservation_id,
+                actual_microdollars=1,
+            )
+
+        raw = ledger._redis  # the counters the caps are enforced against
+        assert int(raw.get(f"aae:ai:session:{session}") or 0) == 1, "session slot double-counted"
+        hour = ledger._hour()
+        assert int(raw.get(f"aae:ai:client:{hour}:{client}") or 0) == 1, (
+            "client slot double-counted"
+        )
+
+
+def test_a_session_can_run_its_full_quota() -> None:
+    """The consequence, stated as the visitor experiences it: a cap of
+    three runs per session allows three runs, each of which completes."""
+    ledger = CostLedger(fakeredis.FakeRedis())
+    caps = _caps(runs_per_session=3, runs_per_client_hour=10)
+    for index in range(3):
+        run = f"run{index}"
+        assert ledger.admit_run(
+            run_id=run, session_id="one_session", client_id="one_client", caps=caps
+        ).admitted, f"run {index} refused admission"
+        admission = ledger.reserve(
+            run_id=run,
+            call_id="c0",
+            session_id="one_session",
+            client_id="one_client",
+            amount_microdollars=1_000,
+            caps=caps,
+            first_call_of_run=True,
+        )
+        assert admission.admitted, f"run {index} admitted then refused: {admission.reason}"
+    # And the fourth is refused, at admission rather than mid-run.
+    assert not ledger.admit_run(
+        run_id="run3", session_id="one_session", client_id="one_client", caps=caps
+    ).admitted
+
+
+def test_money_cannot_be_reserved_without_a_durable_admission() -> None:
+    """Closing the duplicate count must not open a bypass.
+
+    Moving session and client counting into `admit_run` removed the only
+    thing `_RESERVE` checked about whether a run was authorised. Without
+    this, a caller could skip admission entirely and spend against the
+    money ceilings while consuming no run slot -- unlimited runs, each
+    correctly billed, which is worse than the double count it replaced.
+    """
+    ledger = CostLedger(fakeredis.FakeRedis())
+    unadmitted = ledger.reserve(
+        run_id="never_admitted",
+        call_id="c0",
+        session_id="ses_1",
+        client_id="ip_1",
+        amount_microdollars=10_000,
+        caps=_caps(),
+        first_call_of_run=True,
+    )
+    assert not unadmitted.admitted
+    assert unadmitted.reason == "ai_run_not_admitted"
+    assert ledger.spent_microdollars("never_admitted") == 0
+
+    # And the same call succeeds once the run is admitted.
+    assert ledger.admit_run(
+        run_id="never_admitted", session_id="ses_1", client_id="ip_1", caps=_caps()
+    ).admitted
+    assert ledger.reserve(
+        run_id="never_admitted",
+        call_id="c0",
+        session_id="ses_1",
+        client_id="ip_1",
+        amount_microdollars=10_000,
+        caps=_caps(),
+        first_call_of_run=True,
+    ).admitted
 
 
 def test_admitting_the_same_run_repeatedly_consumes_one_slot() -> None:

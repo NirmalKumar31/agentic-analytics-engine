@@ -102,6 +102,27 @@ class ResultSnapshot(BaseModel):
     #: The stored snapshot keeps every value: the visitor sees their own
     #: file in full, and numeric verification still checks against the truth.
     withhold_cells: bool = False
+    #: Declared type per column, as the engine produced it. Present so a
+    #: cell holding numeric text can be read as a number when -- and only
+    #: when -- the column it came from is numeric. Absent on artifacts
+    #: written before this field existed, which read as "nothing declared"
+    #: and therefore as "no coercion", the safe direction.
+    column_types: dict[str, str] = Field(default_factory=dict)
+    #: Where an output column came from, for aggregates:
+    #: ``{"total_net_value": {"aggregate": "SUM", "table": "uploaded_data",
+    #: "column": "net_value"}}``. Without it an alias is indistinguishable
+    #: from a physical column, and a verifier asked to check "the sum of
+    #: total_net_value" cannot tell whether the claim invents a column or
+    #: names the engine's own output.
+    column_lineage: dict[str, dict[str, str]] = Field(default_factory=dict)
+
+    def declared_type(self, column: str) -> str | None:
+        """The declared type of one output column, if recorded."""
+        return self.column_types.get(column)
+
+    def lineage_of(self, column: str) -> dict[str, str] | None:
+        """What an output column is derived from, if recorded."""
+        return self.column_lineage.get(column)
 
     def cell(self, row: int, column: str) -> Scalar:
         """Value at a row index and column name, for evidence references."""

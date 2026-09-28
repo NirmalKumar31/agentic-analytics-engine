@@ -495,6 +495,68 @@ def _alias(*parts: str) -> str:
     return slug[:60]
 
 
+def sql_lineage(mapping: QuestionMapping) -> dict[str, dict[str, str]]:
+    """What each aggregate output column is derived from.
+
+    `SUM(net_value)` is emitted as `total_net_value`, and without this the
+    alias is indistinguishable from a column of the uploaded file. A
+    verifier reading "the sum of total_net_value" could not tell whether
+    the claim named the engine's own output or invented a source column,
+    and withheld a correct, fully evidenced total on that doubt.
+
+    Keyed by output column, so a reader of the result can go from the
+    number back to the file it came from.
+    """
+    if not mapping.confident or mapping.operation == "profile":
+        return {}
+    out: dict[str, dict[str, str]] = {}
+    if mapping.dimension:
+        out[_alias(mapping.dimension)] = {
+            "kind": "grouping",
+            "table": mapping.table,
+            "column": mapping.dimension,
+        }
+    if mapping.time_field and mapping.operation == "trend":
+        out["period"] = {
+            "kind": "derived",
+            "aggregate": "MONTH",
+            "table": mapping.table,
+            "column": mapping.time_field,
+        }
+    if mapping.measure:
+        aggregate = "AVG" if mapping.operation == "average" else "SUM"
+        label = _alias("average" if mapping.operation == "average" else "total", mapping.measure)
+        if mapping.operation == "trend":
+            label = _alias("total", mapping.measure)
+            aggregate = "SUM"
+        out[label] = {
+            "kind": "aggregate",
+            "aggregate": aggregate,
+            "table": mapping.table,
+            "column": mapping.measure,
+            "expression": f"{aggregate}({mapping.table}.{mapping.measure})",
+        }
+    elif mapping.operation in ("count", "ranking", "trend"):
+        out["row_total" if mapping.operation == "trend" else "row_count"] = {
+            "kind": "aggregate",
+            "aggregate": "COUNT",
+            "table": mapping.table,
+            "column": "*",
+            "expression": f"COUNT(*) over {mapping.table}",
+        }
+    out.setdefault(
+        "row_count",
+        {
+            "kind": "aggregate",
+            "aggregate": "COUNT",
+            "table": mapping.table,
+            "column": "*",
+            "expression": f"COUNT(*) over {mapping.table}",
+        },
+    )
+    return out
+
+
 def _quote(identifier: str) -> str:
     """Quote an identifier for DuckDB.
 

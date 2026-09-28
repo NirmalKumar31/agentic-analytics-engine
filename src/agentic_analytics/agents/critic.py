@@ -31,7 +31,9 @@ from agentic_analytics.events import EventBus, EventType
 from agentic_analytics.llm.base import LLMError, LLMProvider
 from agentic_analytics.logging import get_logger
 from agentic_analytics.verification.claims import check_claim
+from agentic_analytics.verification.intent import check_intent
 from agentic_analytics.verification.numeric import verify_numbers
+from agentic_analytics.verification.typing import as_number
 
 log = get_logger(__name__)
 
@@ -69,9 +71,14 @@ def _resolve_cells(
             value = snapshot.cell(cell.row, cell.column)
         except (KeyError, IndexError):
             continue
-        if isinstance(value, bool) or not isinstance(value, int | float):
+        # Read through the declared type rather than the Python type. A
+        # profile statistic that arrived as text used to be skipped here,
+        # and the arithmetic check then reported the claim's own correct
+        # number as underivable from the result it came from.
+        number = as_number(value, declared_type=snapshot.declared_type(cell.column))
+        if number is None:
             continue
-        out.append((float(value), f"{cell.result_id}[{cell.row}].{cell.column}"))
+        out.append((float(number), f"{cell.result_id}[{cell.row}].{cell.column}"))
     return out
 
 
@@ -86,6 +93,7 @@ async def verify_finding(
     target_dimensions: list[str] | None = None,
     time_scope: str = "",
     available_dimensions: list[str] | None = None,
+    mapping: Any = None,
 ) -> tuple[Verdict, dict[str, Any] | None]:
     """Run every gate on one finding.
 
@@ -171,6 +179,23 @@ async def verify_finding(
         status = "unsupported"
         rule = IRRELEVANT
         reason = relevance_reason or "The finding does not address the question that was asked."
+
+    # The engine's own reading of the question, which the model cannot
+    # overrule. Asked for a total, a real model answered `true` to "does
+    # this answer the question?" for a claim about a column's null rate,
+    # in the same response whose reason said it did not report the total.
+    # A gate whose only input is the model's opinion is not a gate, so the
+    # model keeps its veto and loses its power to grant.
+    #
+    # It abstains where there is no mapping to judge against, and a
+    # profile question accepts profile findings as before.
+    intent = check_intent(finding.text, mapping)
+    if evidence_supported and intent.applicable and not intent.answers:
+        status = "unsupported"
+        rule = IRRELEVANT
+        reason = intent.reason
+        relevance_reason = intent.reason
+        answers = False
 
     verdict = Verdict(
         finding_id=finding.finding_id,

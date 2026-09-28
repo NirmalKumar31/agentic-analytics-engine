@@ -672,6 +672,9 @@ def build_server(manager: SessionManager, settings: Settings | None = None) -> M
             max_sql_length=budgets.max_sql_length,
             extra_warnings=[f"question interpreted by rule, not by a model: {mapping.explanation}"],
         )
+        # Where each output column came from, so an alias cannot be read
+        # as a column of the uploaded file.
+        snapshot.column_lineage = upload_plan.sql_lineage(mapping)
         return ToolResult.of(snapshot)
 
     @mcp.tool(

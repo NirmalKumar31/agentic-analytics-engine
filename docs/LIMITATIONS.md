@@ -296,6 +296,24 @@ discovered mid-run.
 
 ---
 
+## 5b-i. Minimum and maximum are still text
+
+The profile query emits one `UNION ALL` across every column of a table,
+so its `min_value` and `max_value` must share a single type and that type
+is text. `mean_value` does not have to, and no longer does -- it was cast
+to text, which made a correct claim about it unverifiable, and it is now
+numeric where it is produced.
+
+The two range columns remain a gap. **A finding citing the minimum or
+maximum of a numeric column is reported as numerically unsupported**,
+because the verifier reads a cell's number only when the column declares
+itself numeric and those columns declare VARCHAR. Coercing them would
+mean trusting numeric-looking text on a column that says it is not
+numeric, which is the rule that keeps an order reference like `0012345`
+from being read as a quantity.
+
+---
+
 ## 5c. How the cost and mapping invariants are checked
 
 The invariants that money and mapping rest on are checked by **deterministic

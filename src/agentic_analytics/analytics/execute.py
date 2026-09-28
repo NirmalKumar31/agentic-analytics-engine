@@ -141,6 +141,14 @@ def run_query(
                 cursor = session.con.execute(wrapped)
                 description = cursor.description or []
                 columns = [str(d[0]) for d in description]
+                # The engine's own declaration of what each output column
+                # holds. Recorded here, at the one place every result is
+                # made, so a numeric statistic that arrives as text can be
+                # read as a number and an identifier that looks numeric
+                # cannot.
+                column_types = {
+                    str(d[0]): str(d[1]) for d in description if len(d) > 1 and d[1] is not None
+                }
                 raw_rows = cursor.fetchall()
             finally:
                 timer.cancel()
@@ -171,6 +179,7 @@ def run_query(
         sql=sql_to_run,
         columns=columns,
         rows=rows,
+        column_types=column_types,
         row_count=len(rows),
         truncated=truncated,
         dataset_fingerprint=session.dataset_fingerprint,

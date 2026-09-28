@@ -38,6 +38,7 @@ from agentic_analytics.llm.cloud import CloudProvider
 from agentic_analytics.llm.governed import (
     AIBudgetExceeded,
     GovernedCloudProvider,
+    RunAdmission,
     RunBudget,
     preflight,
 )
@@ -148,7 +149,16 @@ async def _governed(stub: SamplingStub, **budget_kw: Any) -> GovernedCloudProvid
         headers={"authorization": f"Bearer {KEY}"},
     )
     ledger = CostLedger(fakeredis.FakeRedis())
-    result = await preflight(inner, ledger)
+    # Admit first, as production does: a reservation against a run with no
+    # durable admission is refused, so a test that skipped admission was
+    # exercising a path the application does not have.
+    result = await preflight(
+        inner,
+        ledger,
+        admission=RunAdmission(
+            run_id="run_stress", session_id="ses_1", client_id="ip_1", caps=CAPS
+        ),
+    )
     base: dict[str, Any] = {
         "max_attempts": 500,
         "max_input_tokens": 100_000,

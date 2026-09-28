@@ -26,6 +26,7 @@ from agentic_analytics.llm.governed import (
     AIBudgetExceeded,
     GovernedCloudProvider,
     PreflightFailed,
+    RunAdmission,
     RunBudget,
     preflight,
 )
@@ -128,7 +129,11 @@ async def _governed(
     recorder: Recorder, ledger: CostLedger, **budget_kw: Any
 ) -> GovernedCloudProvider:
     inner = _provider(recorder)
-    result = await preflight(inner, ledger)
+    result = await preflight(
+        inner,
+        ledger,
+        admission=RunAdmission(run_id="run_1", session_id="ses_1", client_id="ip_1", caps=CAPS),
+    )
     return GovernedCloudProvider(
         inner,
         ledger=ledger,

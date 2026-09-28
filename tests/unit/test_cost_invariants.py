@@ -21,6 +21,8 @@ import pytest
 from pydantic import ValidationError
 
 from agentic_analytics.config import Settings
+from agentic_analytics.llm.governed import RunBudget
+from agentic_analytics.llm.ledger import LedgerCaps
 from agentic_analytics.llm.pricing import price_for
 
 #: The smallest configuration that turns the paid half on.
@@ -138,3 +140,99 @@ def test_a_deterministic_deployment_ignores_all_of_this(
         ai_total_cost_microdollars=1,
     )
     assert cfg.ai_analytics_enabled is False
+
+
+# ─────────────────────────────────── the input split, and what it must obey
+def _budget(**kw: object) -> RunBudget:
+    base: dict[str, object] = {
+        "max_attempts": 10,
+        "max_input_tokens": 1_000_000,
+        "max_output_tokens": 1_000_000,
+        "max_runtime_seconds": 60.0,
+        "caps": LedgerCaps(
+            total_microdollars=4_000_000,
+            daily_microdollars=500_000,
+            run_microdollars=250_000,
+            runs_per_session=3,
+            runs_per_client_hour=5,
+        ),
+    }
+    return RunBudget(**(base | kw))  # type: ignore[arg-type]
+
+
+def test_the_three_input_categories_sum_to_the_total() -> None:
+    """`ordinary = total - cached - cache_write`.
+
+    The three are priced differently, so a report carrying only the total
+    cannot be checked against an invoice. The first paid smoke recorded
+    only the total and its cache behaviour had to be inferred.
+    """
+    budget = _budget(input_tokens=18_094, cached_input_tokens=4_000, cache_write_input_tokens=1_094)
+    assert budget.ordinary_input_tokens == 18_094 - 4_000 - 1_094
+    assert (
+        budget.ordinary_input_tokens + budget.cached_input_tokens + budget.cache_write_input_tokens
+        == budget.input_tokens
+    )
+    assert budget.usage_categories_are_coherent
+
+
+def test_categories_that_exceed_their_total_are_incoherent() -> None:
+    """A negative ordinary count means tokens were mis-attributed, and any
+    cost derived from the split is wrong."""
+    budget = _budget(input_tokens=100, cached_input_tokens=80, cache_write_input_tokens=40)
+    assert budget.ordinary_input_tokens < 0
+    assert not budget.usage_categories_are_coherent
+
+
+def test_reasoning_tokens_live_inside_the_output_total() -> None:
+    """Counted for observability and never added: reasoning is already
+    billed as output, and adding it would charge the same generation
+    twice."""
+    budget = _budget(output_tokens=4_104, reasoning_tokens=1_200)
+    assert budget.usage_categories_are_coherent
+    assert budget.reasoning_tokens <= budget.output_tokens
+
+    over = _budget(output_tokens=100, reasoning_tokens=200)
+    assert not over.usage_categories_are_coherent
+
+
+def test_the_usage_report_carries_everything_needed_to_recompute_cost() -> None:
+    budget = _budget(
+        input_tokens=18_094,
+        output_tokens=4_104,
+        cached_input_tokens=0,
+        cache_write_input_tokens=0,
+        reasoning_tokens=0,
+        attempts=19,
+        provider_requests=19,
+        reservations=19,
+        settlements=19,
+        settled_microdollars=3_875,
+    )
+    report = budget.usage_report()
+    for key in (
+        "input_tokens",
+        "ordinary_input_tokens",
+        "cached_input_tokens",
+        "cache_write_input_tokens",
+        "output_tokens",
+        "reasoning_tokens",
+        "provider_requests",
+        "completion_attempts",
+        "reservations",
+        "settlements",
+        "unusable_usage_calls",
+        "settled_microdollars",
+        "retained_microdollars",
+        "cost_is_complete",
+        "usage_categories_are_coherent",
+    ):
+        assert key in report, key
+    # And nothing that could carry a prompt, a response or a credential.
+    assert all(isinstance(v, int | bool) for v in report.values())
+
+
+def test_a_run_with_unreadable_usage_reports_an_incomplete_cost() -> None:
+    budget = _budget(unusable_usage_calls=1, retained_microdollars=47_000)
+    assert not budget.cost_is_complete
+    assert budget.usage_report()["cost_is_complete"] is False

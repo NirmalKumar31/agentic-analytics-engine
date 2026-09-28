@@ -56,7 +56,13 @@ def _reserve(
     client: str = "ip_1",
     first: bool = False,
     caps: LedgerCaps = CAPS,
+    admit: bool = True,
 ):
+    if admit:
+        # A run reaches a billable call only after durable admission, so the
+        # helper takes the slot unless a test is specifically about what
+        # happens without one.
+        ledger.admit_run(run_id=run, session_id=session, client_id=client, caps=caps)
     return ledger.reserve(
         run_id=run,
         call_id=call,
@@ -66,6 +72,24 @@ def _reserve(
         caps=caps,
         first_call_of_run=first,
     )
+
+
+def _start(
+    ledger: CostLedger,
+    *,
+    run: str = "run_1",
+    session: str = "ses_1",
+    client: str = "ip_1",
+    caps: LedgerCaps = CAPS,
+):
+    """Admit a run, the way a real run begins.
+
+    Session and client slots are counted here and nowhere else. Tests that
+    reserved without admitting used to exercise the ceiling because
+    `_RESERVE` counted the slot too -- which meant every real run spent
+    two, and a cap of three admitted one.
+    """
+    return ledger.admit_run(run_id=run, session_id=session, client_id=client, caps=caps)
 
 
 # --------------------------------------------------------------- admission
@@ -88,7 +112,9 @@ def test_the_daily_ceiling_refuses(ledger: CostLedger) -> None:
         assert _reserve(
             ledger, 100_000, run=f"r{i}", call="c", session=f"s{i}", client=f"ip{i}", first=True
         ).admitted
-    refused = _reserve(ledger, 100_000, run="r9", call="c", session="s9", client="ip9", first=True)
+    # Admission is now where a spent budget is discovered, before any
+    # provider request rather than at the first billable call.
+    refused = ledger.admit_run(run_id="r9", session_id="s9", client_id="ip9", caps=CAPS)
     assert not refused.admitted
     assert refused.reason == DAILY_LIMIT
 
@@ -108,9 +134,17 @@ def test_the_global_ceiling_refuses(ledger: CostLedger) -> None:
 
 
 def test_the_session_run_ceiling_counts_runs_not_calls(ledger: CostLedger) -> None:
+    """Three runs fit a cap of three, and each of them can spend.
+
+    Asserted through admission *and* reservation, because the ceiling is
+    only meaningful if an admitted run can then pay for its calls. The
+    earlier version reserved without admitting, so it passed while a real
+    run consumed two slots.
+    """
     for i in range(3):
+        assert _start(ledger, run=f"r{i}").admitted
         assert _reserve(ledger, 1_000, run=f"r{i}", call="c", first=True).admitted
-    refused = _reserve(ledger, 1_000, run="r9", call="c", first=True)
+    refused = _start(ledger, run="r9")
     assert not refused.admitted
     assert refused.reason == SESSION_LIMIT
     # Further calls within an admitted run are not new runs.
@@ -126,10 +160,11 @@ def test_the_client_hour_ceiling_refuses(ledger: CostLedger) -> None:
         runs_per_client_hour=2,
     )
     for i in range(2):
+        assert _start(ledger, run=f"r{i}", session=f"s{i}", caps=caps).admitted
         assert _reserve(
             ledger, 1_000, run=f"r{i}", call="c", session=f"s{i}", caps=caps, first=True
         ).admitted
-    refused = _reserve(ledger, 1_000, run="r9", call="c", session="s9", caps=caps, first=True)
+    refused = _start(ledger, run="r9", session="s9", caps=caps)
     assert not refused.admitted
     assert refused.reason == CLIENT_LIMIT
 
@@ -143,6 +178,8 @@ def test_two_instances_cannot_overspend_the_shared_limit() -> None:
     """
     shared = fakeredis.FakeRedis()
     first, second = CostLedger(shared), CostLedger(shared)
+    # Both runs are admitted; the contention under test is monetary, not
+    # admission.
     caps = LedgerCaps(
         total_microdollars=100_000,
         daily_microdollars=100_000,
@@ -150,6 +187,8 @@ def test_two_instances_cannot_overspend_the_shared_limit() -> None:
         runs_per_session=99,
         runs_per_client_hour=99,
     )
+    first.admit_run(run_id="r1", session_id="s1", client_id="ip", caps=caps)
+    second.admit_run(run_id="r2", session_id="s2", client_id="ip", caps=caps)
     a = first.reserve(
         run_id="r1",
         call_id="c",
@@ -188,6 +227,9 @@ def test_many_concurrent_reservations_never_exceed_the_ceiling() -> None:
 
     def attempt(i: int) -> None:
         ledger = CostLedger(shared)
+        # Each thread stands in for an independent run, admitted before it
+        # spends. The contention under test is the shared money ceiling.
+        ledger.admit_run(run_id=f"r{i}", session_id=f"s{i}", client_id="ip", caps=caps)
         got = ledger.reserve(
             run_id=f"r{i}",
             call_id="c",
@@ -397,7 +439,7 @@ def test_the_daily_counter_expires_so_tomorrow_starts_clean(
 def test_the_per_client_counter_expires_within_the_hour_window(
     ledger: CostLedger,
 ) -> None:
-    _reserve(ledger, 10_000, first=True)
+    _start(ledger)
     hour = time.strftime("%Y%m%d%H", time.gmtime())
     assert 0 < _ttl(ledger, "client", hour, "ip_1") <= HOUR_TTL_SECONDS
 

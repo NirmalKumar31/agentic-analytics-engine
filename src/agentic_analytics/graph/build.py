@@ -98,6 +98,103 @@ class RunContext:
         return {rid: store.get(rid) for rid in self.toolset.result_ids if store.has(rid)}
 
 
+def _canonical_for(mapping: Any, results: dict[str, Any], already: list[Any]) -> Any:
+    """The engine's direct answer, when there is one to give and it is not
+    already said.
+
+    Skipped when a published claim already reports the same figure, so the
+    report does not say the same number twice in two voices.
+    """
+    if mapping is None or not getattr(mapping, "confident", False):
+        return None
+    from agentic_analytics.verification.canonical import canonical_answer
+
+    for snapshot in reversed(list(results.values())):
+        if snapshot.tool_name != "aggregate_for_question":
+            continue
+        finding = canonical_answer(mapping, snapshot)
+        if finding is None:
+            continue
+        cited = {(c.result_id, c.row, c.column) for c in finding.evidence_cells}
+        for published in already:
+            if cited & {(c.result_id, c.row, c.column) for c in published.evidence_cells}:
+                return None
+        return finding
+    return None
+
+
+def _verify_without_a_model(finding: Any, results: dict[str, Any], mapping: Any) -> Verdict:
+    """Deterministic gates only, for a claim the engine wrote itself.
+
+    Every gate a model-proposed claim faces except the model: the cells
+    must resolve, the arithmetic must check, and it must answer the
+    resolved intent. Asking a model to approve the engine's own arithmetic
+    would reintroduce exactly the failure this exists to prevent.
+    """
+    from agentic_analytics.agents.critic import _resolve_cells
+    from agentic_analytics.verification.intent import check_intent
+    from agentic_analytics.verification.numeric import verify_numbers
+
+    cells = _resolve_cells(finding, results)
+    cited = [results[r] for r in finding.result_ids if r in results]
+    numeric = verify_numbers(finding.text, finding.claimed_change, cells, cited)
+    if not numeric.ok:
+        return Verdict(
+            finding_id=finding.finding_id,
+            status="unsupported",
+            reason=numeric.reason,
+            rule="numeric_mismatch",
+            numeric_check=numeric.as_dict(),
+        )
+    intent = check_intent(finding.text, mapping)
+    if intent.applicable and not intent.answers:
+        return Verdict(
+            finding_id=finding.finding_id,
+            status="unsupported",
+            reason=intent.reason,
+            rule="irrelevant_to_question",
+            numeric_check=numeric.as_dict(),
+        )
+    return Verdict(
+        finding_id=finding.finding_id,
+        status="supported",
+        reason=(
+            "Composed by the engine from the executed aggregate and its result "
+            "lineage, and checked against the cells it cites."
+        ),
+        rule="engine_canonical",
+        numeric_check=numeric.as_dict(),
+        evidence_supported=True,
+        answers_question=True,
+    )
+
+
+def _resolve_intent(ctx: Any, question: str) -> Any:
+    """The question mapped onto an uploaded table, or `None`.
+
+    Only for a single uploaded table: the governed warehouse answers
+    through its metric registry, where the brief already carries the
+    target metrics and this adds nothing. Any failure here returns `None`
+    and the intent check abstains -- a verification must not fall over
+    because a question could not be parsed.
+    """
+    if not question:
+        return None
+    try:
+        from agentic_analytics.analytics import upload_plan
+        from agentic_analytics.analytics.semantic import infer_schema
+
+        if ctx.session.registry is not None:
+            return None
+        tables = list(ctx.session.table_names)
+        if len(tables) != 1:
+            return None
+        schema = infer_schema(ctx.session, tables[0])
+        return upload_plan.resolve_question(question, schema.as_dict())
+    except Exception:  # pragma: no cover - never break verification
+        return None
+
+
 def build_graph(ctx: RunContext) -> Any:
     """Compile the workflow with its context bound into the nodes."""
     graph: StateGraph[AnalysisState, None, AnalysisState, AnalysisState] = StateGraph(AnalysisState)
@@ -305,6 +402,14 @@ def build_graph(ctx: RunContext) -> Any:
                 ctx.session.registry.describe_all() if ctx.session.registry else [],
             )
         )
+        # The engine's own reading of the question, resolved once for the
+        # run and handed to every verification. For an uploaded table this
+        # names the operation, measure, dimension and period the question
+        # asked for, and a claim that speaks to none of them does not
+        # answer it whatever the model says. `None` for the governed
+        # warehouse and for anything that cannot be mapped, where the
+        # intent check abstains.
+        question_mapping = _resolve_intent(ctx, state.get("question", ""))
 
         for outcome in state.get("task_outcomes", []):
             for finding in outcome.findings:
@@ -339,6 +444,7 @@ def build_graph(ctx: RunContext) -> Any:
                         target_dimensions=brief_dimensions,
                         time_scope=brief_time_scope,
                         available_dimensions=dataset_dims,
+                        mapping=question_mapping,
                     )
                 except (LLMError, BudgetError) as exc:
                     verdict = Verdict(
@@ -353,6 +459,27 @@ def build_graph(ctx: RunContext) -> Any:
                     supported.append(critic.publish(finding, verdict))
                 else:
                     rejected.append(verdict)
+
+        # The engine's own answer to a question it mapped confidently.
+        #
+        # Added after the model's claims and verified without asking a
+        # model anything: the sentence is generated from the executed
+        # query and its lineage, so its numbers are its cells by
+        # construction. A real run proposed the correct total and the
+        # critic withheld it, unsure whether `total_net_value` named a
+        # column of the uploaded file or the engine's own alias. It was
+        # the alias, the doubt was fair, and the wording caused it. This
+        # says "the total net value is ..." instead, naming the visitor's
+        # column, and a model cannot discard it over a name the engine
+        # chose.
+        canonical = _canonical_for(question_mapping, results, supported)
+        if canonical is not None:
+            verdict = _verify_without_a_model(canonical, results, question_mapping)
+            verdicts.append(verdict)
+            if verdict.status == "supported":
+                supported.insert(0, critic.publish(canonical, verdict))
+            else:
+                rejected.append(verdict)
 
         # Exact duplicates, collapsed after verification rather than before.
         # A real run published "The product family 'Home' has the highest

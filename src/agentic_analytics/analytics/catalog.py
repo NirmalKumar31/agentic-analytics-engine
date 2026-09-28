@@ -94,14 +94,21 @@ def profile_table(
             + (
                 f"ROUND(MIN({q})::DOUBLE, 4)::VARCHAR AS min_value, "
                 f"ROUND(MAX({q})::DOUBLE, 4)::VARCHAR AS max_value, "
-                f"ROUND(AVG({q})::DOUBLE, 4)::VARCHAR AS mean_value"
+                # Numeric, not text. Casting the mean to VARCHAR made a
+                # correct claim about it unverifiable: the arithmetic check
+                # reads numbers, saw a string, and reported that the value
+                # could not be derived from the result it came from.
+                # `min_value` and `max_value` cannot follow -- this is one
+                # UNION ALL across columns of every type -- so they stay
+                # text and are read through the declared-type rule.
+                f"ROUND(AVG({q})::DOUBLE, 4) AS mean_value"
                 if dtype in NUMERIC_TYPES
                 else (
                     f"MIN({q})::VARCHAR AS min_value, MAX({q})::VARCHAR AS max_value, "
-                    "NULL::VARCHAR AS mean_value"
+                    "NULL::DOUBLE AS mean_value"
                     if dtype in TEMPORAL_TYPES
                     else "NULL::VARCHAR AS min_value, NULL::VARCHAR AS max_value, "
-                    "NULL::VARCHAR AS mean_value"
+                    "NULL::DOUBLE AS mean_value"
                 )
             )
             + f' FROM "{name}"'

@@ -173,6 +173,7 @@ local run_key     = KEYS[3]
 local session_key = KEYS[4]
 local client_key  = KEYS[5]
 local resv_key    = KEYS[6]
+local admit_key   = KEYS[7]
 local amount        = tonumber(ARGV[1])
 local total_cap     = tonumber(ARGV[2])
 local day_cap       = tonumber(ARGV[3])
@@ -188,6 +189,14 @@ if redis.call('EXISTS', resv_key) == 1 then
   return {1, 'duplicate', 0}
 end
 
+-- No money moves for a run that was never admitted. Counting moved out of
+-- this script into `_ADMIT`, and without this check that would have left a
+-- path which spends budget while consuming no run slot at all -- a worse
+-- bug than the double count it replaced.
+if redis.call('EXISTS', admit_key) == 0 then
+  return {0, 'ai_run_not_admitted', 0}
+end
+
 local total = tonumber(redis.call('GET', total_key) or '0')
 local day   = tonumber(redis.call('GET', day_key) or '0')
 local run   = tonumber(redis.call('GET', run_key) or '0')
@@ -196,15 +205,22 @@ if total + amount > total_cap then return {0, 'ai_global_limit_reached', 0} end
 if day + amount > day_cap then return {0, 'ai_daily_limit_reached', 0} end
 if run + amount > run_cap then return {0, 'ai_run_budget_exceeded', 0} end
 
+-- Session and client slots are *counted* by `_ADMIT`, once per run id,
+-- before any provider request. This script re-checks them and must not
+-- increment: doing both charged every run two slots, so a cap of three
+-- runs per session admitted one and then refused the second at its first
+-- reservation, after preflight had already spent requests. Found by the
+-- first paid smoke, not by any test.
+--
+-- The comparison reads the counter as already incremented, so it is `>`
+-- rather than `+ 1 >`. The check is kept rather than dropped: admission
+-- is the enforcement point, and this is the backstop for any path that
+-- reserves against a run admission never authorised.
 if new_run == 1 then
   local session = tonumber(redis.call('GET', session_key) or '0')
-  if session + 1 > session_cap then return {0, 'ai_session_limit_reached', 0} end
+  if session > session_cap then return {0, 'ai_session_limit_reached', 0} end
   local client = tonumber(redis.call('GET', client_key) or '0')
-  if client + 1 > client_cap then return {0, 'ai_client_limit_reached', 0} end
-  redis.call('INCRBY', session_key, 1)
-  redis.call('EXPIRE', session_key, day_ttl)
-  redis.call('INCRBY', client_key, 1)
-  redis.call('EXPIRE', client_key, hour_ttl)
+  if client > client_cap then return {0, 'ai_client_limit_reached', 0} end
 end
 
 redis.call('INCRBY', total_key, amount)
@@ -346,13 +362,14 @@ class CostLedger:
         try:
             ok, reason, reserved = self._redis.eval(
                 _RESERVE,
-                6,
+                7,
                 self._k("total"),
                 self._k("day", self._today()),
                 self._k("run", run_id),
                 self._k("session", session_id),
                 self._k("client", self._hour(), client_id),
                 self._k("resv", reservation_id),
+                self._k("admitted", run_id),
                 int(amount_microdollars),
                 int(caps.total_microdollars),
                 int(caps.daily_microdollars),
