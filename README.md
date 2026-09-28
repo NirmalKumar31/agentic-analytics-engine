@@ -278,7 +278,7 @@ cookie. The handle appears in MCP resource URIs and authorises nothing on its
 own. This is isolation, not authentication — anyone holding the token is the
 session, and the docs say so rather than implying more.
 
-- One file, 15 MB, 200 columns, CSV or Parquet only on the public deployment
+- One file, 10 MB, 200 columns, CSV or Parquet only on the public deployment
 - Its own DuckDB database and its own scratch directory, both erased when the
   session ends or expires after 30 minutes
 - Parquet validated through its metadata — columns, row groups, nesting,

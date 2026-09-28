@@ -22,12 +22,12 @@
 # The application ceilings below are the first line of defence, not a billing
 # guarantee. Set a hard spend cap on the provider account as well.
 #
-# Sizing. `standard` is 1 CPU / 2 GB. The numbers below are chosen against
-# that, not against a hoped-for load: each session's DuckDB gets 384 MB and
-# one thread, and at most 12 sessions (6 of them uploads) are admitted at
-# once. Those are admission limits, not a measured concurrency guarantee --
-# 12 sessions all running large aggregates simultaneously is not something
-# this instance is claimed to survive.
+# Sizing. `free` is 512 MB. The numbers below are measured against that,
+# not chosen against a hoped-for load: each session's DuckDB gets 160 MB and
+# one thread, and at most 3 sessions (2 of them uploads) are admitted at
+# once, because three live sessions with two analyses running peaked at
+# 438 MB and six reached 600 MB. Those are admission limits, not a measured
+# concurrency guarantee -- see docs/DEPLOYMENT.md for the measurements.
 #
 # One thing needs setting by hand, and deliberately is not set:
 #
@@ -118,7 +118,7 @@ services:
         value: "5"
       - key: AAE_AI_CONCURRENT_RUNS
         value: "1"
-      # 2000000 = $2.00 a day, 20000000 = $20.00 in total.
+      # 500000 = $0.50 a day.
       - key: AAE_AI_DAILY_COST_MICRODOLLARS
         value: "500000"
       # $4.00 against a $5 hard limit on the provider project. The gap is

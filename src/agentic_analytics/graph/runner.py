@@ -2,9 +2,10 @@
 
 from __future__ import annotations
 
+import asyncio
 import time
 from dataclasses import dataclass, field
-from typing import Any
+from typing import Any, Literal
 
 from agentic_analytics.agents.schemas import (
     AnalysisReport,
@@ -27,6 +28,23 @@ from agentic_analytics.warehouse.session import AnalysisSession
 log = get_logger(__name__)
 
 
+#: How a run ended, as a stable identifier.
+#:
+#: `completed` means the graph ran to the end. It does not mean anything was
+#: published: a run that honestly found nothing publishable is complete and
+#: says why in its limitations, which is a different outcome from a run that
+#: broke -- and the two used to be reported identically, because a
+#: `RunResult` object existed in both cases.
+RunOutcome = Literal[
+    "completed",
+    "failed",
+    "timeout",
+    "budget_exhausted",
+    "refused",
+    "cancelled",
+]
+
+
 @dataclass
 class RunResult:
     """Everything a run produced, ready to serialise."""
@@ -45,6 +63,18 @@ class RunResult:
     events: list[dict[str, Any]] = field(default_factory=list)
     metrics: dict[str, Any] = field(default_factory=dict)
     stopped_reason: str = ""
+    #: Set from the stop reason, or explicitly on the failure path. A caller
+    #: must not infer success from the existence of this object.
+    outcome: RunOutcome = "completed"
+
+    @property
+    def failed(self) -> bool:
+        """Whether the run broke rather than finished.
+
+        A zero-finding run is not a failure. A run that raised is, and it
+        used to be indistinguishable because both returned a `RunResult`.
+        """
+        return self.outcome != "completed"
 
     def to_public_dict(self) -> dict[str, Any]:
         """The shape the API and the recordings use."""
@@ -64,7 +94,50 @@ class RunResult:
             "events": self.events,
             "metrics": self.metrics,
             "stopped_reason": self.stopped_reason,
+            "outcome": self.outcome,
         }
+
+
+def _outcome_for(exc: BaseException) -> RunOutcome:
+    """Classify a run that raised, so the cause survives to the API."""
+    if isinstance(exc, asyncio.CancelledError):
+        return "cancelled"
+    if isinstance(exc, TimeoutError):
+        return "timeout"
+    name = type(exc).__name__
+    if "Budget" in name:
+        return "budget_exhausted"
+    return "failed"
+
+
+#: Stop reasons the graph sets for itself, mapped to an outcome. A reason
+#: not listed here is a run that stopped without finishing, which is a
+#: failure even though nothing raised.
+_STOP_OUTCOMES: tuple[tuple[str, RunOutcome], ...] = (
+    ("time budget", "timeout"),
+    ("reached its time limit", "timeout"),
+    ("token limit", "budget_exhausted"),
+    ("budget", "budget_exhausted"),
+    ("declined", "refused"),
+    ("cancelled", "cancelled"),
+    ("dataset was closed", "cancelled"),
+)
+
+
+def _outcome_from_reason(reason: str) -> RunOutcome:
+    """The outcome a stop reason implies.
+
+    An empty reason is an ordinary completion, including the case where
+    nothing was published: the report says why, and calling that a failure
+    would make "found nothing" indistinguishable from "broke".
+    """
+    if not reason:
+        return "completed"
+    lowered = reason.lower()
+    for needle, outcome in _STOP_OUTCOMES:
+        if needle in lowered:
+            return outcome
+    return "failed"
 
 
 async def run_analysis(
@@ -150,6 +223,7 @@ async def run_analysis(
             report=None,
             events=[e.model_dump() for e in bus.history],
             stopped_reason=f"the run failed ({type(exc).__name__})",
+            outcome=_outcome_for(exc),
         )
 
     duration = time.monotonic() - started
@@ -186,6 +260,7 @@ async def run_analysis(
             **llm.usage.as_dict(),
         },
         stopped_reason=state.get("stopped_reason", ""),
+        outcome=_outcome_from_reason(state.get("stopped_reason", "")),
     )
 
     bus.emit(

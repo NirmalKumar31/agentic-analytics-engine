@@ -85,12 +85,20 @@ class RunRecord:
 
     @property
     def status(self) -> str:
+        """How this run ended, as the API reports it.
+
+        Reads the run's own outcome rather than inferring success from the
+        existence of a result: `run_analysis` returns a `RunResult` on its
+        failure path too, so a run that raised internally, emitted
+        RUN_FAILED and produced no report was reported as "completed".
+        """
         if self.cancelled:
             return "cancelled"
         if self.error:
             return "failed"
         if self.result is not None:
-            return "completed"
+            outcome = getattr(self.result, "outcome", "completed")
+            return "completed" if outcome == "completed" else str(outcome)
         return "running"
 
     @property
