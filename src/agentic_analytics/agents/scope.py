@@ -64,7 +64,23 @@ ANALYTICAL_TERMS = frozenset(
         "drivers",
         "drop",
         "fell",
+        "best",
+        "biggest",
+        "earn",
+        "earned",
+        "fastest",
         "forecast",
+        "largest",
+        "least",
+        "longest",
+        "made",
+        "most",
+        "quickest",
+        "slowest",
+        "smallest",
+        "spent",
+        "took",
+        "worst",
         "grew",
         "growth",
         "higher",
@@ -145,7 +161,20 @@ _PROSE_REQUEST = re.compile(
     re.IGNORECASE,
 )
 
-_WORD = re.compile(r"[a-z0-9_]+")
+_WORD = re.compile(r"[a-z0-9]+")
+
+
+def _words(text: str) -> set[str]:
+    """Question words, tokenised the way the vocabulary is built.
+
+    Underscores are separators here as they are there. Keeping them made
+    `kwh_consumed` one token that matched neither `kwh` nor `consumed`, so
+    for any dataset with underscored columns the vocabulary contributed
+    nothing at all and every question fell through to the analytical-term
+    fallback -- which is how questions naming a column exactly were still
+    judged as though they had named nothing.
+    """
+    return {w for w in _WORD.findall(text.lower()) if w}
 
 
 @dataclass(frozen=True)
@@ -210,7 +239,7 @@ def check_scope(
             "Ask a question about the dataset to start an analysis.",
         )
 
-    words = set(_WORD.findall(text.lower()))
+    words = _words(text)
     vocabulary = dataset_vocabulary(catalog, metrics or [])
 
     if words & vocabulary:
@@ -246,5 +275,5 @@ def suggestion_in_scope(suggestion: str, vocabulary: set[str]) -> bool:
     phrased naturally -- "Does the move persist, or does it recover?" names
     no column and is exactly the question a reader would ask next.
     """
-    words = set(_WORD.findall(suggestion.lower()))
+    words = _words(suggestion)
     return bool(words & vocabulary or words & ANALYTICAL_TERMS)

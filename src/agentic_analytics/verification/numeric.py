@@ -44,7 +44,16 @@ _NUMBER = re.compile(r"[-+]?\d[\d,]*(?:\.\d+)?(?:[eE][-+]?\d+)?")
 # numbered. Read as claims they must appear in the cited results, they do
 # not, and a correct finding is withheld for a numeric mismatch it never
 # made. Requires a leading letter, so `8,120.55` and `-3.2` are untouched.
-_IDENTIFIER = re.compile(r"\b[A-Za-z][A-Za-z_]*\d[A-Za-z0-9_]*\b")
+_IDENTIFIER = re.compile(
+    # Contiguous: `Dept3`, `Region2`, `SKU12`.
+    r"\b[A-Za-z][A-Za-z_]*\d[A-Za-z0-9_]*\b"
+    # Hyphenated or dotted: `MATH-101`, `ORD-100042`, `P1.2`. The separator
+    # must touch both sides, so "revenue -101" keeps its number while
+    # "MATH-101" does not read as minus one hundred and one -- which is how
+    # a course code became a claimed negative value and failed a correct
+    # finding for a numeric mismatch it never made.
+    r"|\b[A-Za-z][A-Za-z_]*[-.][0-9][A-Za-z0-9_.-]*\b"
+)
 
 # Statistical boilerplate states a threshold, not a measurement. "significant
 # at the 5% level" is not a claim that something equals 5, and treating it as

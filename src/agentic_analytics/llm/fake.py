@@ -64,13 +64,23 @@ _ASKS_FOR_CHANGE = re.compile(
     r"rose|fell|drop|trend|vs|versus|compared|difference|delta|why)\b",
     re.IGNORECASE,
 )
+#: The engine's own profile sentence: how many columns a table has and how
+#: many distinct values one of them holds. Matched on the engine's wording
+#: because the engine wrote it.
+_IS_TABLE_SHAPE = re.compile(r"\bhas \d[\d,]* columns\b|\bdistinct values across\b", re.IGNORECASE)
+#: A question that actually wants the shape of the table.
+_ASKS_FOR_DESCRIPTION = re.compile(
+    r"\b(describe|description|profile|schema|structure|overview|columns?|fields?|"
+    r"what is in|what does .* contain|summar)",
+    re.IGNORECASE,
+)
 #: A claim describing movement between two periods rather than a level.
 _REPORTS_A_CHANGE = re.compile(
     r"\b(rose from|fell from|increased from|decreased from|a change of|changed by|"
     r"contributed|contribution of)\b",
     re.IGNORECASE,
 )
-_YEAR = re.compile(r"\b(20\d{2})\b")
+_YEAR = re.compile(r"\b((?:19|20)\d{2})\b")
 
 
 def _matches(pattern: str, text: str) -> bool:
@@ -1173,13 +1183,35 @@ def _adhoc_findings(task: dict[str, Any], result: dict[str, Any]) -> list[dict[s
     return _scalar_findings(task, result)
 
 
+#: Columns that describe a result rather than answer anything. A scalar
+#: finding that reported one of these said "row_count for the selected
+#: scope is 240" to a question about yield -- true, checkable, and not the
+#: answer, so the relevance gate withheld it and the run published nothing.
+_PROVENANCE_COLUMNS = frozenset({"row_count", "rows", "n", "count_rows"})
+
+
 def _scalar_findings(task: dict[str, Any], result: dict[str, Any]) -> list[dict[str, Any]]:
     columns: list[str] = result["columns"]
     rows: list[list[Any]] = result["rows"]
     if not rows:
         return []
-    metric = columns[-1]
-    value = rows[0][len(columns) - 1]
+
+    # The aggregate, not the row count beside it. Aggregates carry a
+    # `row_count` column for provenance, and it is usually last.
+    index = next(
+        (
+            i
+            for i, name in enumerate(columns)
+            if name.lower() not in _PROVENANCE_COLUMNS
+            and isinstance(rows[0][i], int | float)
+            and not isinstance(rows[0][i], bool)
+        ),
+        None,
+    )
+    if index is None:
+        return []
+    metric = columns[index]
+    value = rows[0][index]
     if not isinstance(value, int | float):
         return []
     return [
@@ -1391,6 +1423,18 @@ def _answers_question(
         period = check_period(text, time_scope, resolve_span(time_scope))
         if not period.aligned:
             return False, period.reason
+
+    # A description of the table's shape, offered as the answer to a
+    # question that asked for something else. It is true and checkable --
+    # the counts come from the profile result -- and it is not an answer to
+    # "total kwh_consumed by tariff_band". The engine falls back to a
+    # profile when a question cannot be mapped, and publishing that
+    # fallback as a finding presented the fallback as the answer.
+    if _IS_TABLE_SHAPE.search(text) and not _ASKS_FOR_DESCRIPTION.search(question or ""):
+        return False, (
+            "The claim describes the shape of the table, while the question asks "
+            "for a specific figure."
+        )
 
     # Asked for a total, handed a breakdown. "Total revenue in Q3" is not
     # answered by which category earned the most, however exact that is.

@@ -19,12 +19,14 @@ from typing import Any, Literal
 
 Grain = Literal["day", "week", "month", "quarter", "year"]
 
-_QUARTER_YEAR = re.compile(r"\b(?:(20\d{2})\s*[- ]?\s*)?[Qq]([1-4])(?:\s*,?\s*(20\d{2}))?\b")
+_QUARTER_YEAR = re.compile(
+    r"\b(?:((?:19|20)\d{2})\s*[- ]?\s*)?[Qq]([1-4])(?:\s*,?\s*((?:19|20)\d{2}))?\b"
+)
 _MONTH_YEAR = re.compile(
-    r"\b(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\.?\s*(20\d{2})\b",
+    r"\b(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\.?\s*((?:19|20)\d{2})\b",
     re.IGNORECASE,
 )
-_YEAR_ONLY = re.compile(r"\b(20\d{2})\b")
+_YEAR_ONLY = re.compile(r"\b((?:19|20)\d{2})\b")
 
 _MONTHS = {
     "jan": 1,

@@ -33,10 +33,12 @@ from typing import Any
 
 #: Dates as the engine renders them in a finding: `2025-07-01`, or a month
 #: like `2025-07`. Anything looser is not a date this can reason about.
-_DATE = re.compile(r"\b(20\d{2})-(0[1-9]|1[0-2])(?:-(\d{2}))?\b")
+_DATE = re.compile(r"\b((?:19|20)\d{2})-(0[1-9]|1[0-2])(?:-(\d{2}))?\b")
 
 #: A quarter named in a question, with or without a year.
-_QUARTER = re.compile(r"\b(?:(20\d{2})\s*[- ]?\s*)?[Qq]([1-4])(?:\s*,?\s*(20\d{2}))?\b")
+_QUARTER = re.compile(
+    r"\b(?:((?:19|20)\d{2})\s*[- ]?\s*)?[Qq]([1-4])(?:\s*,?\s*((?:19|20)\d{2}))?\b"
+)
 
 
 @dataclass(frozen=True)

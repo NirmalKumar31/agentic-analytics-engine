@@ -54,6 +54,10 @@ MAX_DIMENSION_CARDINALITY = 200
 MAX_NUMERIC_DIMENSION_DISTINCT = 12
 MAX_NUMERIC_DIMENSION_SHARE = 0.2
 MIN_ROWS_FOR_CARDINALITY_RULES = 40
+#: How few distinct values a key-named text column may hold before it is
+#: read as a category instead. Deliberately small: a genuine key has
+#: hundreds, and this is only reached when the name suggested otherwise.
+NAMED_KEY_DIMENSION_DISTINCT = 25
 # Column names that are keys regardless of how they are typed.
 IDENTIFIER_HINTS = ("_id", "id_", "uuid", "guid", "key", "code", "number", "no.")
 
@@ -111,6 +115,28 @@ class InferredSchema:
     def identifiers(self) -> list[str]:
         return [f.name for f in self.fields if f.role == "identifier"]
 
+    @property
+    def aggregatable_if_named(self) -> list[str]:
+        """Numeric columns that were classified as something else.
+
+        A low-cardinality integer is read as a dimension, because a column
+        holding 1 to 9 across four hundred rows is more often a band or a
+        rating than a quantity. That is the right default for a column
+        nobody mentioned.
+
+        It is the wrong answer when the question names it: "total
+        units_sold by store_code" has said exactly which column to total,
+        and refusing on the grounds that the column might have been a
+        rating substitutes the engine's guess for the user's instruction.
+        Aggregating a named column is not a guess; these are offered only
+        when the question names one.
+        """
+        return [
+            f.name
+            for f in self.fields
+            if f.role in ("dimension", "identifier") and f.data_type in NUMERIC_TYPES
+        ]
+
     def as_dict(self) -> dict[str, Any]:
         return {
             "table": self.table,
@@ -121,6 +147,7 @@ class InferredSchema:
             "dimensions": self.dimensions,
             "measures": self.measures,
             "identifiers": self.identifiers,
+            "aggregatable_if_named": self.aggregatable_if_named,
             "ambiguities": self.ambiguities,
         }
 
@@ -231,7 +258,29 @@ def _classify(name: str, dtype: str, distinct_count: int, row_count: int) -> tup
     if distinct_count <= 1:
         return "ignored", "constant"
     if _looks_like_identifier(name):
-        return "identifier", "the name reads as a key"
+        # Unless the data says otherwise. A key takes a different value on
+        # almost every row; a column of four values repeated across four
+        # hundred rows is a category whatever it is called, and `store_code`,
+        # `region_code` and `account_no` are all ordinary groupings. Reading
+        # the name over the cardinality made them ungroupable, so "total
+        # units_sold by store_code" could not be answered at all.
+        repeats = distinct_count <= NAMED_KEY_DIMENSION_DISTINCT
+        if not (row_count >= MIN_ROWS_FOR_CARDINALITY_RULES and repeats):
+            return "identifier", "the name reads as a key"
+        return (
+            "dimension",
+            f"the name reads as a key, but only {distinct_count} values repeat "
+            f"across {row_count} rows",
+        )
+    uniqueness = distinct_count / max(row_count, 1)
+    if uniqueness >= IDENTIFIER_UNIQUENESS and row_count >= MIN_ROWS_FOR_CARDINALITY_RULES:
+        # One row per value. Grouping by it returns the rows, so it is a
+        # label rather than a category -- and on a remote run those labels
+        # would be uploaded cells travelling as group keys.
+        return (
+            "identifier",
+            f"{uniqueness:.0%} distinct, so one row per value rather than a grouping",
+        )
     if distinct_count <= MAX_DIMENSION_CARDINALITY:
         return "dimension", f"{distinct_count} distinct values"
     # Nearly-unique text with no key-like name is free text, not an

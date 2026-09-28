@@ -81,6 +81,56 @@ _GROUPING_PHRASE = re.compile(
 )
 
 
+#: Grouping words that name a period rather than a column. "by month" is a
+#: trend, handled elsewhere, and must not be mistaken for a missing column.
+_PERIOD_WORDS = frozenset(
+    {
+        "month",
+        "months",
+        "week",
+        "weeks",
+        "day",
+        "days",
+        "quarter",
+        "quarters",
+        "year",
+        "years",
+        "date",
+        "time",
+        "period",
+        "monthly",
+        "weekly",
+        "daily",
+        "quarterly",
+        "yearly",
+    }
+)
+
+
+def _unresolved_grouping(text: str, schema: dict[str, Any]) -> str | None:
+    """A grouping the question named that matches nothing in the table.
+
+    Returns the phrase so the refusal can quote it back. `None` when the
+    question named no grouping, or named a period, or named something that
+    does resolve -- in which case the caller has already used it.
+    """
+    columns = {str(f.get("name", "")).lower() for f in schema.get("fields", [])}
+    for phrase in _GROUPING_PHRASE.findall(text):
+        tokens = [w for w in re.split(r"[^a-z0-9_]+", phrase.lower().strip()) if w]
+        if not tokens:
+            continue
+        if any(w in _PERIOD_WORDS for w in tokens):
+            return None
+        # The phrase runs to the end of the clause, so any token matching a
+        # column means the grouping did resolve.
+        if any(t in columns for t in tokens):
+            return None
+        if any(_mentions(t, c) >= 0 for t in tokens for c in columns):
+            return None
+        return " ".join(tokens[:3])
+    return None
+
+
 @dataclass
 class QuestionMapping:
     """What the engine decided the question asked of this table.
@@ -95,6 +145,12 @@ class QuestionMapping:
     measure: str | None = None
     dimension: str | None = None
     time_field: str | None = None
+    #: A period the question named, as inclusive ISO bounds, with the column
+    #: it applies to. Carried rather than ignored: answering "total revenue
+    #: in 1998" over every row in the table is a guessed answer, and it was
+    #: the silent guess the upload corpus caught most often.
+    period: tuple[str, str] | None = None
+    period_field: str | None = None
     ascending: bool = False
     confident: bool = True
     explanation: str = ""
@@ -105,6 +161,8 @@ class QuestionMapping:
             "operation": self.operation,
             "table": self.table,
             "measure": self.measure,
+            "period": list(self.period) if self.period else None,
+            "period_field": self.period_field,
             "dimension": self.dimension,
             "time_field": self.time_field,
             "ascending": self.ascending,
@@ -165,16 +223,31 @@ def _roles(schema: dict[str, Any]) -> tuple[list[str], list[str], list[str]]:
     )
 
 
-def _pick(named: list[str], candidates: list[str], what: str) -> tuple[str | None, str | None]:
+def _pick(
+    named: list[str],
+    candidates: list[str],
+    what: str,
+    also_if_named: list[str] | None = None,
+) -> tuple[str | None, str | None]:
     """Resolve one column, or say why it could not be resolved.
 
     Two acceptable outcomes: the question named a column of this role, or the
     table offers exactly one, in which case there is nothing to choose. A
     third candidate to pick from is a guess, and a guess is refused.
+
+    `also_if_named` widens the first outcome only. A numeric column read as
+    a dimension -- an integer repeating across a handful of values -- is not
+    offered as a candidate, because choosing it unprompted would be a guess.
+    If the question names it, there is nothing to guess: the user said which
+    column to use, and refusing would substitute the engine's inference for
+    their instruction.
     """
     overlap = [c for c in named if c in candidates]
     if len(overlap) >= 1:
         return overlap[0], None
+    explicit = [c for c in named if c in (also_if_named or [])]
+    if explicit:
+        return explicit[0], None
     if len(candidates) == 1:
         return candidates[0], None
     if not candidates:
@@ -194,6 +267,41 @@ def resolve_question(question: str, schema: dict[str, Any]) -> QuestionMapping:
     """
     table = str(schema.get("table", ""))
     measures, dimensions, time_fields = _roles(schema)
+    # Numeric columns read as something else. Usable only when named; see
+    # `_pick`.
+    aggregatable = [str(c) for c in schema.get("aggregatable_if_named", [])]
+
+    # A period the question named. Needs a time column to apply to; without
+    # one there is nothing to filter and the question is refused below
+    # rather than answered over the whole table.
+    from agentic_analytics.agents.timescope import parse_time_scope
+
+    # Read the period from the question with any column name the question
+    # mentions removed first. A column called `2024 sales ($)` otherwise
+    # made every question about it a question about the year 2024, and the
+    # table had no date column to apply that to, so it was refused.
+    period_text = question
+    for column in sorted(
+        (str(f.get("name", "")) for f in schema.get("fields", [])), key=len, reverse=True
+    ):
+        if column:
+            period_text = re.sub(re.escape(column), " ", period_text, flags=re.IGNORECASE)
+    window = parse_time_scope(period_text)
+    named_period: tuple[str, str] | None = None
+    period_field: str | None = None
+    if window is not None:
+        if not time_fields:
+            return QuestionMapping(
+                operation="profile",
+                table=table,
+                confident=False,
+                explanation=(
+                    "the question names a period, and this table has no date column to apply it to"
+                ),
+                named_columns=[],
+            )
+        named_period = (window.start, window.end)
+        period_field = time_fields[0]
     text = _normalise(question)
 
     def refuse(reason: str) -> QuestionMapping:
@@ -203,6 +311,8 @@ def resolve_question(question: str, schema: dict[str, Any]) -> QuestionMapping:
             confident=False,
             explanation=reason,
             named_columns=named,
+            period=named_period,
+            period_field=period_field,
         )
 
     # Columns the question actually named, in the order they were written.
@@ -240,6 +350,8 @@ def resolve_question(question: str, schema: dict[str, Any]) -> QuestionMapping:
             confident=True,
             explanation="the question asked what the table contains",
             named_columns=named,
+            period=named_period,
+            period_field=period_field,
         )
 
     # A grouping the question spelled out: "by region", "per store".
@@ -258,6 +370,19 @@ def resolve_question(question: str, schema: dict[str, Any]) -> QuestionMapping:
         mentioned_dims = [c for c in named if c in dimensions]
         dimension = mentioned_dims[0] if mentioned_dims else None
 
+    if dimension is None:
+        # A grouping was asked for and nothing in the table answers to it.
+        # Dropping it and returning an ungrouped total was the wrong
+        # outcome twice over: the visitor asked for a breakdown and got a
+        # single number, and the number was presented confidently as the
+        # answer. "by loyalty_tier" on a table with no such column is a
+        # question about data that is not here.
+        unresolved = _unresolved_grouping(text, schema)
+        if unresolved:
+            return refuse(
+                f"the question groups by {unresolved!r}, which is not a column of this table"
+            )
+
     if operation == "trend":
         time_field, why = _pick(named, time_fields, "date column")
         if time_field is None:
@@ -275,6 +400,8 @@ def resolve_question(question: str, schema: dict[str, Any]) -> QuestionMapping:
                 f"monthly {'total of ' + measure if measure else 'row count'} over {time_field}"
             ),
             named_columns=named,
+            period=named_period,
+            period_field=period_field,
         )
 
     if operation == "count":
@@ -285,10 +412,22 @@ def resolve_question(question: str, schema: dict[str, Any]) -> QuestionMapping:
             confident=True,
             explanation=(f"row count by {dimension}" if dimension else "total row count"),
             named_columns=named,
+            period=named_period,
+            period_field=period_field,
         )
 
     # sum, average and rank all need a measure.
-    measure, why = _pick(named, measures, "numeric column")
+    measure, why = _pick(named, measures, "numeric column", aggregatable)
+
+    # A column cannot be both the thing being totalled and the thing being
+    # grouped by. This happens when a numeric column was read as a
+    # dimension -- "total units_sold by store_code" matched `units_sold` on
+    # the grouping search first, and then totalled it as well, so the
+    # answer was grouped by the very column it was summing.
+    if measure is not None and dimension == measure:
+        others = [c for c in named if c in dimensions and c != measure]
+        dimension = others[0] if others else None
+
     if measure is None:
         if operation == "rank" and dimension:
             # "top regions" with no measure named is a frequency ranking,
@@ -322,6 +461,8 @@ def resolve_question(question: str, schema: dict[str, Any]) -> QuestionMapping:
                 f"{measure} by {rank_dimension}"
             ),
             named_columns=named,
+            period=named_period,
+            period_field=period_field,
         )
 
     verb = "average" if operation == "average" else "total"
@@ -333,6 +474,8 @@ def resolve_question(question: str, schema: dict[str, Any]) -> QuestionMapping:
         confident=True,
         explanation=(f"{verb} {measure} by {dimension}" if dimension else f"{verb} {measure}"),
         named_columns=named,
+        period=named_period,
+        period_field=period_field,
     )
 
 
@@ -361,6 +504,18 @@ def _quote(identifier: str) -> str:
     return '"' + identifier.replace('"', '""') + '"'
 
 
+def _period_filter(mapping: QuestionMapping) -> str:
+    """A `WHERE` fragment for a named period, or an empty string."""
+    if not mapping.period or not mapping.period_field:
+        return ""
+    column = _quote(mapping.period_field)
+    start, end = mapping.period
+    return (
+        f" WHERE CAST({column} AS DATE) >= DATE '{start}' "
+        f"AND CAST({column} AS DATE) <= DATE '{end}'"
+    )
+
+
 def build_sql(mapping: QuestionMapping) -> str | None:
     """Compose the statement for a resolved mapping.
 
@@ -370,6 +525,7 @@ def build_sql(mapping: QuestionMapping) -> str | None:
     if not mapping.confident or mapping.operation == "profile":
         return None
     table = _quote(mapping.table)
+    where = _period_filter(mapping)
 
     if mapping.operation == "trend":
         if mapping.time_field is None:
@@ -386,17 +542,17 @@ def build_sql(mapping: QuestionMapping) -> str | None:
             value = f"ROUND(SUM(CAST({_quote(mapping.measure)} AS DOUBLE)), 4) AS {label}"
         return (
             f"SELECT {period} AS period, {value}, COUNT(*) AS row_count "
-            f"FROM {table} WHERE {stamp} IS NOT NULL "
+            f"FROM {table} WHERE {stamp} IS NOT NULL{where.replace(' WHERE ', ' AND ', 1)} "
             f"GROUP BY 1 ORDER BY 1 LIMIT {TREND_LIMIT}"
         )
 
     if mapping.operation == "count":
         if not mapping.dimension:
-            return f"SELECT COUNT(*) AS row_count FROM {table}"
+            return f"SELECT COUNT(*) AS row_count FROM {table}{where}"
         dim = _quote(mapping.dimension)
         return (
             f"SELECT {dim} AS {_alias(mapping.dimension)}, COUNT(*) AS row_count "
-            f"FROM {table} GROUP BY 1 ORDER BY 2 DESC NULLS LAST LIMIT {GROUP_LIMIT}"
+            f"FROM {table}{where} GROUP BY 1 ORDER BY 2 DESC NULLS LAST LIMIT {GROUP_LIMIT}"
         )
 
     if mapping.operation == "rank" and mapping.measure is None:
@@ -406,7 +562,7 @@ def build_sql(mapping: QuestionMapping) -> str | None:
         direction = "ASC" if mapping.ascending else "DESC"
         return (
             f"SELECT {dim} AS {_alias(mapping.dimension)}, COUNT(*) AS row_count "
-            f"FROM {table} GROUP BY 1 ORDER BY 2 {direction} NULLS LAST LIMIT {RANK_LIMIT}"
+            f"FROM {table}{where} GROUP BY 1 ORDER BY 2 {direction} NULLS LAST LIMIT {RANK_LIMIT}"
         )
 
     if mapping.measure is None:
@@ -416,12 +572,12 @@ def build_sql(mapping: QuestionMapping) -> str | None:
     value = f"ROUND({aggregate}(CAST({_quote(mapping.measure)} AS DOUBLE)), 4) AS {label}"
 
     if not mapping.dimension:
-        return f"SELECT {value}, COUNT(*) AS row_count FROM {table}"
+        return f"SELECT {value}, COUNT(*) AS row_count FROM {table}{where}"
 
     dim = _quote(mapping.dimension)
     direction = "ASC" if mapping.ascending else "DESC"
     limit = RANK_LIMIT if mapping.operation == "rank" else GROUP_LIMIT
     return (
         f"SELECT {dim} AS {_alias(mapping.dimension)}, {value}, COUNT(*) AS row_count "
-        f"FROM {table} GROUP BY 1 ORDER BY 2 {direction} NULLS LAST LIMIT {limit}"
+        f"FROM {table}{where} GROUP BY 1 ORDER BY 2 {direction} NULLS LAST LIMIT {limit}"
     )
