@@ -227,7 +227,13 @@ export function App() {
           </div>
         </div>
         <div className="topbar-spacer" />
-        {config && <ModeBadge mode={badgeMode(!!replay, config.execution_mode, uiMode)} />}
+        {/* Only once something has actually run. The badge says what
+            produced what is on screen, and before a run nothing has -- so
+            announcing "Deterministic live" on the dataset picker claims a
+            result that does not exist yet. */}
+        {config && (run || runId || replay) && (
+          <ModeBadge mode={badgeMode(!!replay, config.execution_mode, uiMode)} />
+        )}
         <ThemeToggle theme={theme} onToggle={toggleTheme} />
         {session && (
           <button
