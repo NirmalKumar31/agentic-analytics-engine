@@ -239,7 +239,7 @@ def test_deleting_a_dataset_cancels_its_running_analysis(
     with TestClient(app) as client:
         session_id = client.post("/api/datasets/demo").json()["session_id"]
         run_id = client.post(
-            "/api/analyses", json={"session_id": session_id, "question": "why?"}
+            "/api/analyses", json={"session_id": session_id, "question": "why did revenue change?"}
         ).json()["run_id"]
 
         # The DELETE must not hang, and must not leave the run running.
@@ -268,13 +268,17 @@ def test_capacity_is_released_when_a_run_is_cancelled(
     with TestClient(create_app(cfg)) as client:
         first = client.post("/api/datasets/demo").json()["session_id"]
         assert (
-            client.post("/api/analyses", json={"session_id": first, "question": "one"}).status_code
+            client.post(
+                "/api/analyses", json={"session_id": first, "question": "total revenue by region"}
+            ).status_code
             == 202
         )
         client.delete(f"/api/datasets/{first}")
 
         second = client.post("/api/datasets/demo").json()["session_id"]
-        response = client.post("/api/analyses", json={"session_id": second, "question": "two"})
+        response = client.post(
+            "/api/analyses", json={"session_id": second, "question": "revenue trend by quarter"}
+        )
 
     assert response.status_code == 202, (
         f"the capacity slot leaked: {response.status_code} {response.text[:160]}"
@@ -291,7 +295,9 @@ def test_opening_a_second_dataset_cancels_the_first_run(
 
     with TestClient(create_app(cfg)) as client:
         first = client.post("/api/datasets/demo").json()["session_id"]
-        client.post("/api/analyses", json={"session_id": first, "question": "one"})
+        client.post(
+            "/api/analyses", json={"session_id": first, "question": "total revenue by region"}
+        )
 
         # Same browser, same cookie: this replaces the session.
         second = client.post("/api/datasets/demo").json()["session_id"]
@@ -300,7 +306,9 @@ def test_opening_a_second_dataset_cancels_the_first_run(
 
         # And the slot came back, so the new session can be analysed.
         assert (
-            client.post("/api/analyses", json={"session_id": second, "question": "two"}).status_code
+            client.post(
+                "/api/analyses", json={"session_id": second, "question": "revenue trend by quarter"}
+            ).status_code
             == 202
         )
 
@@ -325,7 +333,7 @@ async def test_ttl_expiry_cancels_before_closing(
     with TestClient(create_app(cfg)) as client:
         session_id = client.post("/api/datasets/demo").json()["session_id"]
         started_run = client.post(
-            "/api/analyses", json={"session_id": session_id, "question": "one"}
+            "/api/analyses", json={"session_id": session_id, "question": "total revenue by region"}
         )
         assert started_run.status_code == 202, started_run.text[:200]
         await _wait(started)
@@ -338,7 +346,9 @@ async def test_ttl_expiry_cancels_before_closing(
         # The slot returned, so the sweep cancelled rather than orphaned.
         fresh = client.post("/api/datasets/demo").json()["session_id"]
         assert (
-            client.post("/api/analyses", json={"session_id": fresh, "question": "two"}).status_code
+            client.post(
+                "/api/analyses", json={"session_id": fresh, "question": "revenue trend by quarter"}
+            ).status_code
             == 202
         )
 
@@ -355,7 +365,8 @@ def test_session_eviction_cancels_the_evicted_sessions_run(
         session_id = first.post("/api/datasets/demo").json()["session_id"]
         assert (
             first.post(
-                "/api/analyses", json={"session_id": session_id, "question": "one"}
+                "/api/analyses",
+                json={"session_id": session_id, "question": "total revenue by region"},
             ).status_code
             == 202
         )
@@ -466,7 +477,9 @@ def test_a_session_is_not_closed_while_a_run_still_holds_it(
 
     with TestClient(create_app(cfg)) as client:
         session_id = client.post("/api/datasets/demo").json()["session_id"]
-        client.post("/api/analyses", json={"session_id": session_id, "question": "one"})
+        client.post(
+            "/api/analyses", json={"session_id": session_id, "question": "total revenue by region"}
+        )
         assert started.wait(10), "the analysis never started"
 
         deleted = client.delete(f"/api/datasets/{session_id}")
@@ -476,7 +489,9 @@ def test_a_session_is_not_closed_while_a_run_still_holds_it(
         assert deleted.json()["status"] == "closing"
 
         # It refuses new analyses while closing.
-        refused = client.post("/api/analyses", json={"session_id": session_id, "question": "two"})
+        refused = client.post(
+            "/api/analyses", json={"session_id": session_id, "question": "revenue trend by quarter"}
+        )
         assert refused.status_code in (409, 404), refused.status_code
 
         # Letting the task finish allows the deferred close to complete.
@@ -517,7 +532,9 @@ def test_a_deferred_close_does_not_affect_another_session(
 
     with TestClient(create_app(cfg)) as client:
         stuck = client.post("/api/datasets/demo").json()["session_id"]
-        client.post("/api/analyses", json={"session_id": stuck, "question": "one"})
+        client.post(
+            "/api/analyses", json={"session_id": stuck, "question": "total revenue by region"}
+        )
         assert started.wait(10)
         assert client.delete(f"/api/datasets/{stuck}").status_code == 202
 

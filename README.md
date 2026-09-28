@@ -222,6 +222,52 @@ independent evidence that a finding is correct.
 
 ---
 
+## If someone asks it something else
+
+A public endpoint that dispatches a language model on whatever it is handed
+is a general-purpose text generator with someone else's credit card behind
+it. Three things stop that here, and only the first is a filter.
+
+**Scope, before anything is spent.** A question that names nothing in the
+dataset and uses no analytical vocabulary is refused with `422` before a
+model is constructed, before a concurrency slot is taken, and before
+anything billable happens. The check is deliberately tuned to admit rather
+than reject: turning away a question the engine could have answered is a
+broken product, while running one it cannot answer merely wastes a run.
+It is a relevance test, not a safety classifier, and it does not pretend to
+judge intent.
+
+**Shape, which is the real defence.** The model is never asked for a factual
+sentence. It decides which *verified* findings appear, how they are grouped
+and in what order; the engine writes the report from each finding's own
+checked text. `ReportPlan` — everything the reporter may decide — contains
+two lists of ids and nothing else that can carry a claim. A model that is
+never asked to assert something cannot assert something, which is a stronger
+guarantee than scanning output for the assertions someone thought to look
+for. A test asserts the schema itself, so adding a free-text field to it
+fails the build.
+
+**One bounded exception.** The report's suggested follow-up questions are
+the only model-written sentences a visitor sees. They are capped at five,
+truncated to 200 characters, stripped of anything containing a number or a
+causal claim, and dropped entirely unless they name something in the
+dataset.
+
+The question itself is data throughout. It is never concatenated into an
+instruction position, and a question containing "ignore previous
+instructions" changes neither the plan nor the tools available — there is a
+test that inspects the actual prompt payloads rather than reasoning about
+the code path.
+
+What this does **not** claim: it is not a content moderation system, and the
+scope check is a keyword test that a determined person can phrase their way
+past. What they reach if they do is an engine that can only call read-only
+analytical tools over one dataset and can only publish sentences that
+survived arithmetic verification — which is why the shape matters more than
+the filter.
+
+---
+
 ## Upload your own data
 
 The public deployment accepts a CSV or Parquet file with no account.

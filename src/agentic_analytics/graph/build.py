@@ -32,6 +32,7 @@ from agentic_analytics.agents.schemas import (
     TaskOutcome,
     Verdict,
 )
+from agentic_analytics.agents.scope import dataset_vocabulary
 from agentic_analytics.agents.worker import run_task
 from agentic_analytics.analytics.corrections import apply_family_correction
 from agentic_analytics.analytics.results import ResultSnapshot, StatisticalResult
@@ -487,6 +488,10 @@ def build_graph(ctx: RunContext) -> Any:
                 ctx.results(),
                 limitations,
                 ctx.provider,
+                dataset_vocabulary(
+                    ctx.session.catalog(),
+                    ctx.session.registry.describe_all() if ctx.session.registry else [],
+                ),
             )
         except LLMError as exc:
             # Includes `BudgetError`. Same reasoning as above: fall back to

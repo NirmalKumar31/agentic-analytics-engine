@@ -42,6 +42,7 @@ from agentic_analytics.agents.schemas import (
     ReportPlanSection,
     ReportSection,
 )
+from agentic_analytics.agents.scope import suggestion_in_scope
 from agentic_analytics.analytics.results import ResultSnapshot
 from agentic_analytics.llm.base import LLMError, LLMProvider
 from agentic_analytics.logging import get_logger
@@ -94,8 +95,13 @@ async def write_report(
     results: dict[str, ResultSnapshot],
     limitations: list[str],
     provider: LLMProvider,
+    vocabulary: set[str] | None = None,
 ) -> AnalysisReport:
-    """Ask for a plan, then build the report from verified text."""
+    """Ask for a plan, then build the report from verified text.
+
+    `vocabulary` is the dataset's own words, used to keep the model's
+    suggested follow-up questions on the subject.
+    """
     if not findings:
         return _empty_report(question, limitations)
 
@@ -116,9 +122,11 @@ async def write_report(
         plan = payload
     except LLMError as exc:
         log.warning("report_plan_failed", error=str(exc))
-        return _assemble(question, findings, _default_plan(findings), [*limitations, str(exc)])
+        return _assemble(
+            question, findings, _default_plan(findings), [*limitations, str(exc)], vocabulary
+        )
 
-    return _assemble(question, findings, plan, limitations)
+    return _assemble(question, findings, plan, limitations, vocabulary)
 
 
 def _default_plan(findings: list[PublishedFinding]) -> ReportPlan:
@@ -141,6 +149,7 @@ def _assemble(
     findings: list[PublishedFinding],
     plan: ReportPlan,
     limitations: list[str],
+    vocabulary: set[str] | None = None,
 ) -> AnalysisReport:
     """Build the report. Every factual sentence comes from a finding.
 
@@ -181,7 +190,7 @@ def _assemble(
         # Engine-owned. The model is never asked for a limitation, so it
         # cannot state one that is really a conclusion.
         limitations=list(dict.fromkeys(limitations)),
-        next_questions=_safe_questions(plan.next_questions),
+        next_questions=_safe_questions(plan.next_questions, vocabulary),
     )
 
 
@@ -227,11 +236,17 @@ def _heading_for(members: list[PublishedFinding]) -> str:
     return KIND_HEADINGS.get(dominant, FALLBACK_HEADING)
 
 
-def _safe_questions(questions: list[str]) -> list[str]:
+def _safe_questions(questions: list[str], vocabulary: set[str] | None = None) -> list[str]:
     """Keep questions that ask something; drop ones that assert something.
 
     "Why did late delivery cause churn?" presupposes the causal claim the
     critic exists to reject, so the same detector is applied here.
+
+    These suggestions are the only model-written sentences that reach a
+    visitor -- everything else on the page is a verified finding's own text
+    -- so they are also held to the subject. A suggestion naming nothing in
+    the dataset is dropped, which closes the one path by which a run could
+    put arbitrary text on the page.
     """
     kept: list[str] = []
     for question in questions[:5]:
@@ -239,7 +254,10 @@ def _safe_questions(questions: list[str]) -> list[str]:
         if not text:
             continue
         if extract_numbers(text) or is_causal(text):
-            log.info("report_question_dropped", question=text)
+            log.info("report_question_dropped", reason="asserts")
+            continue
+        if vocabulary and not suggestion_in_scope(text, vocabulary):
+            log.info("report_question_dropped", reason="off_dataset")
             continue
         kept.append(text[:200])
     return kept

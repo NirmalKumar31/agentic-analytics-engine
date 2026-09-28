@@ -27,6 +27,7 @@ from fastapi.staticfiles import StaticFiles
 from mcp.server.transport_security import TransportSecuritySettings
 
 from agentic_analytics import __version__
+from agentic_analytics.agents.scope import check_scope
 from agentic_analytics.analytics.semantic import infer_schema
 from agentic_analytics.api.limits import Capacity, RateLimit, client_key
 from agentic_analytics.api.models import (
@@ -701,6 +702,22 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 status_code=429,
                 detail="this session has reached its analysis limit; start a new one",
             )
+        # Before a model call, before a slot, before anything billable: is
+        # this a question about the data at all? A public demo that
+        # dispatches a model on anything it is handed spends a shared quota
+        # on runs that cannot produce a finding, which takes the tool away
+        # from people it could have served.
+        verdict = check_scope(
+            request.question,
+            session.catalog(),
+            session.registry.describe_all() if session.registry else [],
+        )
+        if not verdict.in_scope:
+            raise HTTPException(
+                status_code=422,
+                detail=verdict.message,
+                headers={"X-AAE-Reason": verdict.reason},
+            )
         # Every side-effect-free check happens before anything is acquired.
         # Acquiring first and refusing afterwards leaked a slot on each
         # unavailable request, so a deployment with AI misconfigured lost
@@ -936,6 +953,19 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 headers={"Retry-After": str(int(retry_after) + 1)},
             )
 
+        session = _session_or_404(request.session_id, http_request)
+        verdict = check_scope(
+            request.question,
+            session.catalog(),
+            session.registry.describe_all() if session.registry else [],
+        )
+        if not verdict.in_scope:
+            raise HTTPException(
+                status_code=422,
+                detail=verdict.message,
+                headers={"X-AAE-Reason": verdict.reason},
+            )
+
         availability = ai_availability(cfg, ledger_ready=ledger is not None)
         if not availability.available:
             raise HTTPException(
@@ -944,7 +974,6 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 headers={"X-AAE-Reason": availability.reason},
             )
 
-        session = _session_or_404(request.session_id, http_request)
         if not session.accepts_new_work:
             raise HTTPException(
                 status_code=409,
