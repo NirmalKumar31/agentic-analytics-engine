@@ -31,6 +31,8 @@ import re
 from dataclasses import dataclass, field
 from typing import Any, Literal
 
+from agentic_analytics.analytics.row_filters import parse_filters
+
 Operation = Literal["count", "sum", "average", "trend", "rank", "profile"]
 
 #: Rows returned by a grouped aggregate. Small enough to read, large enough
@@ -151,6 +153,10 @@ class QuestionMapping:
     #: the silent guess the upload corpus caught most often.
     period: tuple[str, str] | None = None
     period_field: str | None = None
+    #: Row restrictions the question stated, already resolved to real
+    #: columns and finite values. Empty is "no restriction asked for",
+    #: never "one was asked for and dropped" -- that case refuses.
+    filters: tuple[Any, ...] = ()
     ascending: bool = False
     confident: bool = True
     explanation: str = ""
@@ -163,6 +169,7 @@ class QuestionMapping:
             "measure": self.measure,
             "period": list(self.period) if self.period else None,
             "period_field": self.period_field,
+            "filters": [f.as_dict() for f in self.filters],
             "dimension": self.dimension,
             "time_field": self.time_field,
             "ascending": self.ascending,
@@ -302,6 +309,42 @@ def resolve_question(question: str, schema: dict[str, Any]) -> QuestionMapping:
             )
         named_period = (window.start, window.end)
         period_field = time_fields[0]
+
+    # Row restrictions, resolved before anything else is decided.
+    #
+    # A question that restricts its population and is answered over every
+    # row is not a slightly worse answer, it is an answer to a different
+    # question -- and the old planner returned one confidently, because it
+    # had no way to represent the restriction and therefore no way to
+    # notice it had dropped one. An unresolvable restriction refuses here
+    # rather than falling through.
+    resolution = parse_filters(question, schema)
+    if resolution.refusal is not None:
+        return QuestionMapping(
+            operation="profile",
+            table=table,
+            confident=False,
+            explanation=resolution.refusal,
+            named_columns=[],
+            period=named_period,
+            period_field=period_field,
+        )
+    row_filters = resolution.filters
+    if resolution.constraint_detected and not row_filters:
+        return QuestionMapping(
+            operation="profile",
+            table=table,
+            confident=False,
+            explanation=(
+                "the question restricts which rows to include, and that restriction "
+                "could not be mapped to a column of this table; name the column and "
+                "the bound, for example 'age between 30 and 40'"
+            ),
+            named_columns=[],
+            period=named_period,
+            period_field=period_field,
+        )
+
     text = _normalise(question)
 
     def refuse(reason: str) -> QuestionMapping:
@@ -348,6 +391,7 @@ def resolve_question(question: str, schema: dict[str, Any]) -> QuestionMapping:
             operation="profile",
             table=table,
             confident=True,
+            filters=row_filters,
             explanation="the question asked what the table contains",
             named_columns=named,
             period=named_period,
@@ -396,6 +440,7 @@ def resolve_question(question: str, schema: dict[str, Any]) -> QuestionMapping:
             measure=measure,
             time_field=time_field,
             confident=True,
+            filters=row_filters,
             explanation=(
                 f"monthly {'total of ' + measure if measure else 'row count'} over {time_field}"
             ),
@@ -410,6 +455,7 @@ def resolve_question(question: str, schema: dict[str, Any]) -> QuestionMapping:
             table=table,
             dimension=dimension,
             confident=True,
+            filters=row_filters,
             explanation=(f"row count by {dimension}" if dimension else "total row count"),
             named_columns=named,
             period=named_period,
@@ -438,6 +484,7 @@ def resolve_question(question: str, schema: dict[str, Any]) -> QuestionMapping:
                 dimension=dimension,
                 ascending=bool(_ASCENDING.search(question)),
                 confident=True,
+                filters=row_filters,
                 explanation=f"{dimension} values ranked by how often they occur",
                 named_columns=named,
             )
@@ -456,6 +503,7 @@ def resolve_question(question: str, schema: dict[str, Any]) -> QuestionMapping:
             dimension=rank_dimension,
             ascending=bool(_ASCENDING.search(question)),
             confident=True,
+            filters=row_filters,
             explanation=(
                 f"{'lowest' if _ASCENDING.search(question) else 'highest'} total "
                 f"{measure} by {rank_dimension}"
@@ -472,6 +520,7 @@ def resolve_question(question: str, schema: dict[str, Any]) -> QuestionMapping:
         measure=measure,
         dimension=dimension,
         confident=True,
+        filters=row_filters,
         explanation=(f"{verb} {measure} by {dimension}" if dimension else f"{verb} {measure}"),
         named_columns=named,
         period=named_period,
@@ -566,6 +615,25 @@ def _quote(identifier: str) -> str:
     return '"' + identifier.replace('"', '""') + '"'
 
 
+def _where(mapping: QuestionMapping) -> str:
+    """Everything restricting the rows: the named period and the row
+    filters, joined.
+
+    One place, so a new query shape cannot pick up the period and forget
+    the filters -- which is the shape of the defect this replaces.
+    """
+    from agentic_analytics.analytics.row_filters import where_clause
+
+    parts: list[str] = []
+    period = _period_filter(mapping).strip()
+    if period:
+        parts.append(period.removeprefix("WHERE ").strip())
+    rows = where_clause(tuple(mapping.filters), _quote)
+    if rows:
+        parts.append(rows)
+    return f" WHERE {' AND '.join(parts)} " if parts else ""
+
+
 def _period_filter(mapping: QuestionMapping) -> str:
     """A `WHERE` fragment for a named period, or an empty string."""
     if not mapping.period or not mapping.period_field:
@@ -587,7 +655,7 @@ def build_sql(mapping: QuestionMapping) -> str | None:
     if not mapping.confident or mapping.operation == "profile":
         return None
     table = _quote(mapping.table)
-    where = _period_filter(mapping)
+    where = _where(mapping)
 
     if mapping.operation == "trend":
         if mapping.time_field is None:
