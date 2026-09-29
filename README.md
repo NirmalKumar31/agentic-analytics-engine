@@ -540,9 +540,11 @@ correction within a task and no causal identification. Correlations above
 capability is not an account. Deterministic rate limits are in-process and
 reset on restart. The AI spend ceilings are atomic and shared across web
 instances and web restarts, but a free Render Key Value instance loses its
-counters if the datastore itself restarts. They are application controls,
-not a billing guarantee, so a provider-side hard spend cap is required before
-AI is enabled.
+counters if the datastore itself restarts. The public research and analytics
+demos share that store with disjoint key prefixes, so their counters cannot
+collide but their datastore failure domain is shared. These are application
+controls, not a billing guarantee, so a provider-side hard spend cap is
+required before AI is enabled.
 
 The relevance gate judges whether a finding addresses the question. It does
 not check unit semantics, whether the source data is correct, or whether a

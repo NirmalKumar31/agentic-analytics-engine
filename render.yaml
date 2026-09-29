@@ -90,10 +90,18 @@ services:
       # investigate; it does not ask the model to compute.
       - key: AAE_CLOUD_REASONING_EFFORT
         value: low
-      # Render Key Value connection string. Secret, and required before AI
-      # can be offered at all.
+      # This workspace permits only one free Key Value instance. The public
+      # research and analytics demos therefore share the existing store, but
+      # not a keyspace: analytics is fixed to `aae:ai:*` and research uses
+      # `are:live-runs:*`. `fromService` keeps the connection string out of
+      # this repository and out of the dashboard copy/paste path. A restart
+      # of the free datastore still resets both demos' counters; the $5
+      # provider-project hard limit remains the external backstop.
       - key: AAE_AI_QUOTA_REDIS_URL
-        sync: false
+        fromService:
+          name: agentic-research-quota
+          type: keyvalue
+          property: connectionString
       # Per-run ceilings for an AI run. Deterministic runs are unaffected.
       - key: AAE_AI_MAX_LLM_CALLS
         value: "64"

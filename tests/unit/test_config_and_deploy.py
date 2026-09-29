@@ -81,7 +81,9 @@ def test_blueprints_never_carry_a_secret_value() -> None:
     for entry in service["envVars"]:  # type: ignore[index]
         if entry["key"].endswith(("API_KEY", "TOKEN", "SECRET", "PASSWORD", "REDIS_URL")):
             assert "value" not in entry, f"render.yaml inlines {entry['key']}"
-            assert entry.get("sync") is False, f"{entry['key']} must be sync: false"
+            assert entry.get("sync") is False or entry.get("fromService"), (
+                f"{entry['key']} must be prompted or supplied by a service reference"
+            )
 
 
 def test_blueprint_env_vars_are_all_real_settings() -> None:
@@ -157,10 +159,17 @@ def test_the_blueprint_does_not_default_to_a_paid_provider() -> None:
     service = _blueprint("render.yaml")
     by_key = {e["key"]: e for e in service["envVars"]}  # type: ignore[index]
     assert by_key["AAE_AI_ANALYTICS_ENABLED"]["value"] == "false"
-    # Secrets are dashboard-only: declared, never valued.
-    for secret in ("AAE_CLOUD_API_KEY", "AAE_AI_QUOTA_REDIS_URL"):
-        assert by_key[secret].get("sync") is False, secret
-        assert "value" not in by_key[secret], secret
+    # The credential is dashboard-only: declared, never valued.
+    assert by_key["AAE_CLOUD_API_KEY"].get("sync") is False
+    assert "value" not in by_key["AAE_CLOUD_API_KEY"]
+    # The ledger URL is a secret too, but Render resolves it internally from
+    # the existing Key Value service instead of asking a person to copy it.
+    assert by_key["AAE_AI_QUOTA_REDIS_URL"]["fromService"] == {
+        "name": "agentic-research-quota",
+        "type": "keyvalue",
+        "property": "connectionString",
+    }
+    assert "value" not in by_key["AAE_AI_QUOTA_REDIS_URL"]
 
 
 def test_every_ai_ceiling_is_declared_and_positive() -> None:
