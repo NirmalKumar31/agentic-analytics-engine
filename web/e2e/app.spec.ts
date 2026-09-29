@@ -55,8 +55,8 @@ test.describe('a recorded run', () => {
     await expect(drawer.getByRole('heading', { name: 'Analytical task' })).toBeVisible()
     await expect(drawer.getByRole('heading', { name: 'Agent and tool path' })).toBeVisible()
     await expect(drawer.getByRole('heading', { name: 'Referenced cells' })).toBeVisible()
-    await expect(drawer.getByRole('heading', { name: 'Dataset fingerprint' })).toBeVisible()
     await expect(drawer.getByText(/MCP:/).first()).toBeVisible()
+    await expect(drawer).not.toContainText(/sha256:/)
 
     await drawer.getByRole('button', { name: 'Close' }).click()
     await expect(drawer).toBeHidden()

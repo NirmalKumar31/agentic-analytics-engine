@@ -140,7 +140,17 @@ def _await_analysis(client: Client, run_id: str, checks: Checks) -> dict[str, An
         if status != 200:
             checks.ok("analysis is readable", False, f"HTTP {status}")
             return None
-        if run.get("status") in {"completed", "failed"}:
+        # A safe refusal is terminal too.  It is a correct response for an
+        # unmappable uploaded-data question, not a run that should be polled
+        # until the timeout.
+        if run.get("status") in {
+            "completed",
+            "failed",
+            "refused",
+            "cancelled",
+            "timeout",
+            "budget_exhausted",
+        }:
             return dict(run)
         time.sleep(1.5)
     checks.ok("analysis finished within the timeout", False)
@@ -429,6 +439,7 @@ def main(argv: list[str]) -> int:
     if checks.ok("an unmappable question is accepted", status == 202):
         run = _await_analysis(client, started["run_id"], checks)
         if run is not None:
+            checks.ok("an unmappable question ends as a refusal", run.get("status") == "refused")
             report = run.get("report") or {}
             limitations = " ".join(report.get("limitations", []))
             checks.ok(

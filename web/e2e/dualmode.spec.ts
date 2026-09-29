@@ -316,7 +316,10 @@ test.describe('AI and Compare, with the API intercepted', () => {
 
     const drawer = page.getByRole('dialog', { name: 'How this was derived' })
     await expect(drawer).toContainText('AI PANE ONLY: total revenue is 123.')
-    await expect(drawer).toContainText('res_ai')
-    await expect(drawer).not.toContainText('res_abc123')
+    // The pane owns the evidence even though opaque result ids are no longer
+    // shown to a visitor. The deterministic result would have a different
+    // total, so this proves resolution from the clicked pane.
+    await expect(drawer).toContainText('AI total = 123')
+    await expect(drawer).not.toContainText('Deterministic finding')
   })
 })
