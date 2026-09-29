@@ -19,6 +19,7 @@ Authoritative. Anything not listed here has a working default in
 | `AAE_PROVIDER_MODE` | `fake` | Default provider for the CLI and the evaluation harness. The web application ignores it and builds the provider from the per-run mode. |
 | `AAE_LIVE_ANALYTICS_ENABLED` | `false` | Whether visitors may run new analyses. False serves recorded runs only. |
 | `AAE_UPLOADS_ENABLED` | `true` | Whether visitors may upload CSV or Parquet. |
+| `AAE_API_DOCS_ENABLED` | `true` | Interactive API docs and OpenAPI schema. Set false on an anonymous public deployment. |
 | `AAE_BIND_HOST` | `127.0.0.1` | The MCP host policy reads this. |
 | `AAE_MCP_ALLOWED_HOSTS` | *(empty)* | Empty withdraws the public MCP endpoint. A network binding with no allow-list serves 503 rather than serving unvalidated. |
 | `AAE_SESSION_COOKIE_SECURE` | `false` | Set true behind TLS. |
@@ -160,7 +161,8 @@ Deterministic first. AI only after the deterministic service is healthy.
    `/api/ready`, manual deploys.
 2. **Verify deterministic** — `/api/ready` returns 200, `/api/config` shows
    `deterministic` available and `ai` unavailable with a reason, a demo
-   question runs end to end.
+   question runs end to end, and `scripts/live_acceptance.py` passes with
+   `--expect-api-docs-disabled`.
 3. **Key Value instance** — provision Redis-compatible storage in the same
    region. Note the connection string; it is a secret.
 4. **Provider credential** — create the key with the smallest scope that

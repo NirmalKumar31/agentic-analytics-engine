@@ -131,6 +131,10 @@ services:
         value: "true"
       - key: AAE_UPLOADS_ENABLED
         value: "true"
+      # Keep the public demo from advertising every endpoint that can spend
+      # the shared provider budget. Local development keeps docs enabled.
+      - key: AAE_API_DOCS_ENABLED
+        value: "false"
 
       # Network binding. The MCP host policy reads this.
       - key: AAE_BIND_HOST

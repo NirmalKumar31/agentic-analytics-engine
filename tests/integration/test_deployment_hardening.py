@@ -300,20 +300,81 @@ def test_browser_security_headers_are_set(warehouse_dir: Path, tmp_path: Path) -
     assert headers["x-content-type-options"] == "nosniff"
     assert headers["referrer-policy"] == "same-origin"
     assert headers["x-frame-options"] == "DENY"
+    for capability in ("camera=()", "microphone=()", "geolocation=()", "payment=()"):
+        assert capability in headers["permissions-policy"]
+    assert headers["cross-origin-opener-policy"] == "same-origin"
     assert "frame-ancestors 'none'" in headers["content-security-policy"]
 
 
-def test_the_csp_does_not_restrict_scripts(warehouse_dir: Path, tmp_path: Path) -> None:
+def test_hsts_is_only_sent_for_a_tls_deployment(warehouse_dir: Path, tmp_path: Path) -> None:
+    with TestClient(create_app(_settings(warehouse_dir, tmp_path))) as local:
+        assert "strict-transport-security" not in local.get("/api/health").headers
+
+    secure_cfg = _settings(warehouse_dir, tmp_path, session_cookie_secure=True)
+    with TestClient(create_app(secure_cfg)) as secure:
+        value = secure.get("/api/health").headers["strict-transport-security"]
+    assert value == "max-age=31536000"
+    assert "includesubdomains" not in value.lower()
+
+
+def test_public_api_documentation_can_be_withdrawn(warehouse_dir: Path, tmp_path: Path) -> None:
+    cfg = _settings(warehouse_dir, tmp_path, api_docs_enabled=False)
+    with TestClient(create_app(cfg)) as client:
+        for path in ("/api/docs", "/api/redoc", "/api/openapi.json"):
+            response = client.get(path)
+            assert response.status_code == 404, path
+            assert response.headers["cache-control"] == "no-store", path
+
+
+def test_oversized_json_is_rejected_before_validation(warehouse_dir: Path, tmp_path: Path) -> None:
+    with TestClient(create_app(_settings(warehouse_dir, tmp_path))) as client:
+        response = client.post(
+            "/api/analyses",
+            content=b"x" * (32 * 1024),
+            headers={"Content-Type": "application/json"},
+        )
+    assert response.status_code == 413
+    assert response.json() == {
+        "error": "request_too_large",
+        "detail": "request body is too large",
+    }
+
+
+def test_streamed_bytes_override_a_false_small_content_length(
+    warehouse_dir: Path, tmp_path: Path
+) -> None:
+    with TestClient(create_app(_settings(warehouse_dir, tmp_path))) as client:
+        response = client.post(
+            "/api/analyses",
+            content=b"x" * (32 * 1024),
+            headers={"Content-Type": "application/json", "Content-Length": "1"},
+        )
+    assert response.status_code == 413
+
+
+def test_invalid_content_length_is_rejected(warehouse_dir: Path, tmp_path: Path) -> None:
+    with TestClient(create_app(_settings(warehouse_dir, tmp_path))) as client:
+        response = client.post(
+            "/api/analyses",
+            content=b"{}",
+            headers={"Content-Type": "application/json", "Content-Length": "not-a-number"},
+        )
+    assert response.status_code == 400
+
+
+def test_the_csp_limits_vegas_eval_exception(warehouse_dir: Path, tmp_path: Path) -> None:
     """Vega compiles expressions with `new Function`.
 
-    A `script-src` policy would need `unsafe-eval` to keep charts working,
-    which buys nothing. This asserts the policy stays out of that business
-    rather than silently breaking rendering.
+    Keep that exception, but only alongside a same-origin script policy and
+    explicit restrictions on every other browser capability the app uses.
     """
     with TestClient(create_app(_settings(warehouse_dir, tmp_path))) as client:
         policy = client.get("/api/health").headers["content-security-policy"]
-    assert "script-src" not in policy
-    assert "unsafe-eval" not in policy
+    assert "default-src 'self'" in policy
+    assert "script-src 'self' 'unsafe-eval'" in policy
+    assert "connect-src 'self'" in policy
+    assert "object-src 'none'" in policy
+    assert "form-action 'none'" in policy
 
 
 def test_there_is_no_wildcard_cors(warehouse_dir: Path, tmp_path: Path) -> None:

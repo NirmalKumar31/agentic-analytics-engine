@@ -84,6 +84,139 @@ from agentic_analytics.warehouse.upload import (
 
 log = get_logger(__name__)
 
+# Same-origin application and SSE. Vega compiles chart expressions at runtime,
+# so `unsafe-eval` is the one explicit exception; restricting script origins
+# still blocks third-party script execution and is materially stronger than
+# omitting `script-src` altogether.
+_CSP = "; ".join(
+    [
+        "default-src 'self'",
+        "script-src 'self' 'unsafe-eval'",
+        "style-src 'self' 'unsafe-inline'",
+        "img-src 'self' data:",
+        "font-src 'self' data:",
+        "connect-src 'self'",
+        "object-src 'none'",
+        "base-uri 'self'",
+        "form-action 'none'",
+        "frame-ancestors 'none'",
+    ]
+)
+_PERMISSIONS_POLICY = ", ".join(
+    f"{feature}=()"
+    for feature in (
+        "accelerometer",
+        "autoplay",
+        "camera",
+        "display-capture",
+        "encrypted-media",
+        "geolocation",
+        "gyroscope",
+        "magnetometer",
+        "microphone",
+        "midi",
+        "payment",
+        "usb",
+        "xr-spatial-tracking",
+    )
+)
+
+# A question and its session handle serialize to well under 16 KiB. Enforce
+# this below the framework so an invalid request cannot become an arbitrary
+# memory allocation before Pydantic gets a chance to reject it.
+_MAX_JSON_BODY_BYTES = 16 * 1024
+_MULTIPART_OVERHEAD_BYTES = 64 * 1024
+
+
+class _RequestBodyLimitMiddleware:
+    """Bound declared and streamed request bytes before framework parsing.
+
+    Uploads get their configured file ceiling plus a small, fixed multipart
+    envelope. Every other body-bearing route gets the JSON ceiling. Responses
+    are buffered only for these body-bearing requests so a dishonest streamed
+    body can be replaced with a 413 before the application starts a response;
+    GET event streams remain streaming.
+    """
+
+    def __init__(
+        self,
+        app: Any,
+        *,
+        json_max_bytes: int,
+        upload_max_bytes: int,
+    ) -> None:
+        self.app = app
+        self.json_max_bytes = json_max_bytes
+        self.upload_max_bytes = upload_max_bytes
+
+    async def __call__(self, scope: Any, receive: Any, send: Any) -> None:
+        if scope.get("type") != "http" or scope.get("method") not in {
+            "POST",
+            "PUT",
+            "PATCH",
+        }:
+            await self.app(scope, receive, send)
+            return
+
+        is_upload = scope.get("path") == "/api/datasets/upload"
+        limit = self.upload_max_bytes if is_upload else self.json_max_bytes
+        too_large_error = "upload_rejected" if is_upload else "request_too_large"
+        headers = {k.decode("latin-1").lower(): v for k, v in scope.get("headers", [])}
+        declared = headers.get("content-length")
+        if declared is not None:
+            try:
+                declared_bytes = int(declared)
+            except ValueError:
+                await self._error(send, 400, "invalid_request", "invalid Content-Length")
+                return
+            if declared_bytes < 0:
+                await self._error(send, 400, "invalid_request", "invalid Content-Length")
+                return
+            if declared_bytes > limit:
+                await self._error(send, 413, too_large_error, "request body is too large")
+                return
+
+        received = 0
+        exceeded = False
+        pending_response: list[dict[str, Any]] = []
+
+        async def counting_receive() -> Any:
+            nonlocal received, exceeded
+            message = await receive()
+            if message.get("type") == "http.request":
+                received += len(message.get("body", b""))
+                if received > limit:
+                    exceeded = True
+                    return {"type": "http.disconnect"}
+            return message
+
+        async def buffering_send(message: dict[str, Any]) -> None:
+            pending_response.append(message)
+
+        await self.app(scope, counting_receive, buffering_send)
+        if exceeded:
+            await self._error(send, 413, too_large_error, "request body is too large")
+            return
+        for message in pending_response:
+            await send(message)
+
+    @staticmethod
+    async def _error(send: Any, status: int, error: str, detail: str) -> None:
+        body = json.dumps({"error": error, "detail": detail}, separators=(",", ":")).encode()
+        await send(
+            {
+                "type": "http.response.start",
+                "status": status,
+                "headers": [
+                    (b"content-type", b"application/json"),
+                    (b"content-length", str(len(body)).encode()),
+                    (b"cache-control", b"no-store"),
+                ],
+            }
+        )
+        await send({"type": "http.response.body", "body": body})
+
+
 DEMO_QUESTIONS: list[dict[str, str]] = [
     {
         "id": "margin",
@@ -233,8 +366,14 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         title="Agentic Analytics Engine",
         version=__version__,
         lifespan=lifespan,
-        docs_url="/api/docs",
-        openapi_url="/api/openapi.json",
+        docs_url="/api/docs" if cfg.api_docs_enabled else None,
+        redoc_url="/api/redoc" if cfg.api_docs_enabled else None,
+        openapi_url="/api/openapi.json" if cfg.api_docs_enabled else None,
+    )
+    app.add_middleware(
+        _RequestBodyLimitMiddleware,
+        json_max_bytes=_MAX_JSON_BODY_BYTES,
+        upload_max_bytes=cfg.budgets.max_upload_bytes + _MULTIPART_OVERHEAD_BYTES,
     )
 
     @app.middleware("http")
@@ -248,10 +387,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         deliberately left alone; they are public and immutable, and caching
         them is the point.
 
-        The CSP here restricts framing and base URIs only. A `script-src`
-        policy would need `unsafe-eval` for Vega, which compiles chart
-        expressions with `new Function`, and a CSP that has to allow eval to
-        work is not buying protection worth the risk of breaking charts.
+        Vega requires `unsafe-eval` for compiled chart expressions. That
+        exception is limited to scripts; sources, connections, objects,
+        framing, forms and base URIs remain explicitly constrained.
         """
         response: Response = await call_next(request)
         if request.url.path.startswith("/api/") and "cache-control" not in response.headers:
@@ -260,9 +398,13 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         response.headers.setdefault("X-Content-Type-Options", "nosniff")
         response.headers.setdefault("Referrer-Policy", "same-origin")
         response.headers.setdefault("X-Frame-Options", "DENY")
-        response.headers.setdefault(
-            "Content-Security-Policy", "frame-ancestors 'none'; base-uri 'self'"
-        )
+        response.headers.setdefault("Permissions-Policy", _PERMISSIONS_POLICY)
+        response.headers.setdefault("Cross-Origin-Opener-Policy", "same-origin")
+        if cfg.session_cookie_secure:
+            # Do not includeSubDomains: onrender.com is a shared parent that
+            # this service neither owns nor controls.
+            response.headers.setdefault("Strict-Transport-Security", "max-age=31536000")
+        response.headers.setdefault("Content-Security-Policy", _CSP)
         return response
 
     # No CORS middleware. The frontend is served from this same origin, so
@@ -1160,6 +1302,12 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         @app.get("/{full_path:path}", include_in_schema=False)
         async def spa(full_path: str) -> FileResponse:
             # Any non-API path serves the app shell; routing happens client side.
+            # Unknown or deliberately withdrawn API routes must remain JSON
+            # 404s. Serving the SPA for `/api/openapi.json` made disabled
+            # documentation look publicly available and made client errors
+            # indistinguishable from frontend navigation.
+            if full_path == "api" or full_path.startswith("api/"):
+                raise HTTPException(status_code=404, detail="not found")
             candidate = (frontend_dir / full_path).resolve()
             if (
                 full_path

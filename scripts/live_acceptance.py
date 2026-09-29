@@ -192,6 +192,11 @@ def main(argv: list[str]) -> int:
         default=None,
         help="require Secure on the session cookie (default: on for https)",
     )
+    parser.add_argument(
+        "--expect-api-docs-disabled",
+        action="store_true",
+        help="require the public API docs, ReDoc and OpenAPI schema to return 404",
+    )
     args = parser.parse_args(argv)
 
     base = args.base_url.rstrip("/")
@@ -245,6 +250,16 @@ def main(argv: list[str]) -> int:
     )
     checks.ok("live analysis is enabled", config.get("live_analytics_enabled") is True)
     checks.ok("uploads are enabled", config.get("uploads_enabled") is True)
+
+    # Refused below request parsing: this must not create a session, take a
+    # capacity slot or reach either provider path.
+    oversized = json.dumps({"question": "x" * (32 * 1024)}).encode()
+    status, _, raw = client.request("/api/analyses", "POST", oversized, "application/json")
+    checks.ok(
+        "an oversized JSON body is refused before parsing",
+        status == 413,
+        f"HTTP {status}: {raw[:80]!r}",
+    )
 
     # --------------------------------------------------------- recordings
     status, listing = client.json("/api/recordings")
@@ -308,10 +323,39 @@ def main(argv: list[str]) -> int:
     checks.ok("nosniff is set", headers.get("x-content-type-options") == "nosniff")
     checks.ok("a referrer policy is set", bool(headers.get("referrer-policy")))
     checks.ok(
+        "unused browser capabilities are disabled",
+        all(
+            capability in headers.get("permissions-policy", "")
+            for capability in ("camera=()", "microphone=()", "geolocation=()", "payment=()")
+        ),
+        headers.get("permissions-policy", "(absent)"),
+    )
+    checks.ok(
+        "browser opener isolation is enabled",
+        headers.get("cross-origin-opener-policy") == "same-origin",
+        headers.get("cross-origin-opener-policy", "(absent)"),
+    )
+    if expect_secure:
+        hsts = headers.get("strict-transport-security", "")
+        checks.ok("HSTS is set", hsts == "max-age=31536000", hsts or "(absent)")
+        checks.ok(
+            "HSTS does not claim Render's shared parent domain",
+            "includesubdomains" not in hsts.lower(),
+            hsts,
+        )
+    checks.ok(
         "framing is refused",
         headers.get("x-frame-options") == "DENY"
         or "frame-ancestors" in headers.get("content-security-policy", ""),
     )
+    if args.expect_api_docs_disabled:
+        for path in ("/api/docs", "/api/redoc", "/api/openapi.json"):
+            status, _, raw = client.request(path)
+            checks.ok(
+                f"{path} is withdrawn",
+                status == 404,
+                f"HTTP {status}: {raw[:80]!r}",
+            )
 
     # --------------------------------------------------------------- MCP
     status, _, mcp_body = client.request(

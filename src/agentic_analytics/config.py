@@ -171,6 +171,10 @@ class Settings(BaseSettings):
     # recordings only. This is the safe public-demo posture.
     live_analytics_enabled: bool = False
     uploads_enabled: bool = True
+    #: Interactive API documentation is useful during local development but
+    #: advertises every spending endpoint on an anonymous public demo.  The
+    #: Render blueprint disables it; local development keeps it available.
+    api_docs_enabled: bool = True
 
     #: Whether an uploaded dataset's raw cells may be shown to a *remote*
     #: model. Off by default: schema, profile and aggregated results are

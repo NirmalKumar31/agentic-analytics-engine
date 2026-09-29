@@ -140,7 +140,9 @@ def test_oversized_upload_is_rejected(client: TestClient) -> None:
         "/api/datasets/upload",
         files={"file": ("big.csv", io.BytesIO(payload), "text/csv")},
     )
-    assert response.status_code == 400
+    # The ASGI byte ceiling now rejects this before multipart parsing; 413 is
+    # more precise than the upload-layer 400 this exercised previously.
+    assert response.status_code == 413
     assert response.json()["error"] == "upload_rejected"
 
 

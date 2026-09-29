@@ -118,6 +118,7 @@ def test_public_blueprint_needs_no_secret() -> None:
     # their own data.
     assert by_key["AAE_LIVE_ANALYTICS_ENABLED"]["value"] == "true"
     assert by_key["AAE_UPLOADS_ENABLED"]["value"] == "true"
+    assert by_key["AAE_API_DOCS_ENABLED"]["value"] == "false"
 
 
 def test_public_blueprint_binds_to_a_network_interface_and_says_so() -> None:
