@@ -252,6 +252,7 @@ jobs:
 
       - name: The installed package must do the work the image asks of it
         run: |
+          /tmp/clean/bin/python -c "import redis; print('redis', redis.__version__)"
           /tmp/clean/bin/python -m agentic_analytics.cli version
           /tmp/clean/bin/python -m agentic_analytics.cli generate-data --out /tmp/wh/commerce
           /tmp/clean/bin/python -m agentic_analytics.cli validate-recordings \
@@ -353,6 +354,11 @@ jobs:
           tags: agentic-analytics-engine:ci
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+      - name: Governed ledger dependency is in the production image
+        run: |
+          docker run --rm --entrypoint python agentic-analytics-engine:ci \
+            -c "import redis; print('redis', redis.__version__)"
 
       # Uploads are off in the image by default, which is the safe posture
       # for anyone who runs it without reading anything. The public
