@@ -109,10 +109,15 @@ At the ceilings above, the conservative maximum for one short-context run is
 tokens ($0.50/M): **about $0.047**. The `$0.25` per-run ceiling is therefore
 ample, and is a backstop rather than a binding constraint.
 
-A measured run against `gpt-6-luna` on the demo warehouse cost **$0.0255**,
-which includes worst-case reservations retained for calls that were
-dispatched and then failed. True provider cost is at or below that figure by
-construction.
+A successful one-question smoke against `gpt-6-luna` on the demo warehouse
+settled **$0.003156** across 15 completion attempts. It recorded 8,542
+ordinary input, 6,018 cache-write input, 0 cached input, 3,084 output and
+1,223 reasoning tokens; every reservation settled and none was retained. That
+is evidence for that run, not a price forecast for an arbitrary upload. The
+provider dashboard exposed only cent-granularity cumulative spend, so it
+could not independently confirm a roughly three-tenths-of-a-cent delta; the
+application figure reconciled to the provider-reported token categories plus
+conservative per-call microdollar rounding.
 
 Requests above 272,000 input tokens are priced at the long-context rates for
 the whole request, not just the excess. The per-run input ceiling is well
