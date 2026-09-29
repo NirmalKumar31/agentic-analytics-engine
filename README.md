@@ -20,9 +20,13 @@ the result rows with the cited cells highlighted, the arithmetic the engine
 recomputed, the MCP calls involved, and the dataset fingerprint.
 
 It runs with no API credentials. AI Analytics is off unless a deployment
-explicitly enables it and supplies a model, a credential and a durable usage
-ledger; without all four it stays unavailable and Deterministic Analytics is
-unaffected.
+explicitly enables it and supplies a model, a credential and a shared external
+usage ledger; without all four it stays unavailable and Deterministic
+Analytics is unaffected.
+
+**Live demo:** [agentic-analytics-engine.onrender.com](https://agentic-analytics-engine.onrender.com/).
+The service reports the availability of each mode at runtime; Deterministic
+Analytics remains available when the AI credential or quota ledger is absent.
 
 ---
 
@@ -100,7 +104,7 @@ make dev          # build the frontend and serve on http://127.0.0.1:8000
 No `.env` required. `make verify` runs everything CI runs.
 
 ```bash
-make test         # 1,065 Python tests
+make test         # 1,677 Python tests
 make evaluate     # score the engine against the injected patterns
 make record       # re-record the three demo runs
 ```
@@ -174,7 +178,7 @@ trusted execution layer.
 | Mode | Who decides | What it costs |
 |---|---|---|
 | **Deterministic Analytics** | A scripted provider chooses the plan and the tools. The same question produces the same plan every time. | No external model call. Nothing leaves the server. |
-| **AI Analytics** | A cloud model interprets the question, plans, selects tools and organises the report. | Bounded by per-run and public-demo ceilings, tracked in a durable ledger. |
+| **AI Analytics** | A cloud model interprets the question, plans, selects tools and organises the report. | Bounded by per-run and public-demo ceilings, tracked in a shared external ledger. |
 | **Compare Both** | Both, against the same session and dataset. | One AI run's worth. Only the AI side consumes quota. |
 
 What the model controls in AI mode: question interpretation, task planning,
@@ -490,17 +494,20 @@ Dataset values are data. A cell containing `IGNORE PREVIOUS INSTRUCTIONS` or
 
 | Mode | Credential | Used for |
 |---|---|---|
-| `fake` | no | tests, CI, recordings, the public demo |
+| `fake` | no | tests, CI, recordings and Deterministic Analytics |
 | `local` | no | an Ollama-compatible server |
-| `cloud` | yes | a hosted API, configured only through the environment |
+| `cloud` | yes | AI Analytics and the AI half of Compare Both |
 
 The scripted provider is a rule-based stand-in, not a language model. It reads
 every figure it writes out of a real `ResultSnapshot`, and on correlation
 tasks it proposes a causal claim — the mistake real models make most often —
 so the rejection path is exercised by a genuine error.
 
-Reaching a paid endpoint requires both `AAE_PROVIDER_MODE=cloud` and a key in
-the environment. No default path spends money.
+The CLI and evaluation harness use `AAE_PROVIDER_MODE`; the web application
+does not. A web request reaches a paid endpoint only when it explicitly asks
+for AI Analytics or Compare Both *and* the deployment has enabled AI, supplied
+an exactly priced model and credential, and connected the shared quota
+ledger. No default path spends money.
 
 ---
 
@@ -531,9 +538,11 @@ not model planning. Statistical scope is five test families with Holm
 correction within a task and no causal identification. Correlations above
 50,000 rows use a seeded sample. There is no authentication — session
 capability is not an account. Deterministic rate limits are in-process and
-reset on restart; the AI spend ceilings are durable, but they are
-application controls and not a billing guarantee, so a provider-side hard
-spend cap is required before AI is enabled.
+reset on restart. The AI spend ceilings are atomic and shared across web
+instances and web restarts, but a free Render Key Value instance loses its
+counters if the datastore itself restarts. They are application controls,
+not a billing guarantee, so a provider-side hard spend cap is required before
+AI is enabled.
 
 The relevance gate judges whether a finding addresses the question. It does
 not check unit semantics, whether the source data is correct, or whether a
@@ -546,10 +555,11 @@ The full list is in [docs/LIMITATIONS.md](docs/LIMITATIONS.md).
 
 ## Verified
 
-1,106 Python tests, 48 frontend tests, and 19 Chromium browser tests of
-which 16 run locally and 3 are skipped unless uploads are enabled on the
-target. Each figure comes from its own run; they are never summed across
-overlapping suites. 89% branch coverage. `ruff`,
+1,677 Python tests, 48 frontend tests, and 19 Chromium browser tests. Each
+figure comes from its own run; they are never summed across overlapping
+suites. 89% branch coverage. The deployed deterministic path passes a
+58-check acceptance run plus an independent Parquet upload, analysis,
+provenance and cleanup check. `ruff`,
 `ruff format`, `mypy` (with `disallow_untyped_defs`), `pip-audit` and
 `npm audit` clean. Frontend production bundle about 380 kB gzipped, of which
 about 296 kB is the Vega chart engine in a lazily-loaded chunk.
