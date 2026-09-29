@@ -81,7 +81,6 @@ export function Chart({ chart, snapshot, onOpenProvenance }: Props) {
           >
             Show work
           </button>
-          <span className="small dim mono">{chart.result_id}</span>
         </div>
       )}
     </figure>

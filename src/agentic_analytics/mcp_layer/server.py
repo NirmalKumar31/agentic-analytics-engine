@@ -640,19 +640,28 @@ def build_server(manager: SessionManager, settings: Settings | None = None) -> M
         description=(
             "Answer a question about an arbitrary table by mapping it onto "
             "the inferred schema and computing a bounded aggregate. The "
-            "mapping is rule-based and the SQL is composed by the engine. "
+            "mapping is validated and the SQL is composed by the engine. "
             "Fails with an explanation when the question cannot be mapped "
             "without guessing which column was meant -- use profile_dataset "
             "then."
         )
     )
     def aggregate_for_question(
-        session_id: str, session_key: str, table: str, question: str
+        session_id: str,
+        session_key: str,
+        table: str,
+        question: str,
+        contract: dict[str, Any] | None = None,
     ) -> ToolResult:
         session = _session(session_id, session_key)
         name = _guarded(catalog_tools.resolve_table, session, table)
         schema = _guarded(infer_schema, session, name)
-        mapping = upload_plan.resolve_question(question, schema.as_dict())
+        if contract is None:
+            mapping = upload_plan.resolve_question(question, schema.as_dict())
+        else:
+            if len(json.dumps(contract, sort_keys=True).encode("utf-8")) > 16_384:
+                raise ToolError("the query contract is too large")
+            mapping = upload_plan.mapping_from_contract(question, schema.as_dict(), contract)
         sql = upload_plan.build_sql(mapping)
         if sql is None:
             # Refusing is the feature. Returning the sum of whichever numeric
@@ -670,7 +679,9 @@ def build_server(manager: SessionManager, settings: Settings | None = None) -> M
             max_rows=budgets.max_result_rows,
             timeout_seconds=budgets.query_timeout_seconds,
             max_sql_length=budgets.max_sql_length,
-            extra_warnings=[f"question interpreted by rule, not by a model: {mapping.explanation}"],
+            extra_warnings=[
+                f"question interpreted by {mapping.interpretation}: {mapping.explanation}"
+            ],
         )
         # Where each output column came from, so an alias cannot be read
         # as a column of the uploaded file.

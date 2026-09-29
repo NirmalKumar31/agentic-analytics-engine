@@ -104,7 +104,7 @@ make dev          # build the frontend and serve on http://127.0.0.1:8000
 No `.env` required. `make verify` runs everything CI runs.
 
 ```bash
-make test         # 1,678 Python tests
+make test         # 1,778 Python tests
 make evaluate     # score the engine against the injected patterns
 make record       # re-record the three demo runs
 ```
@@ -201,14 +201,16 @@ available and, when one is not, a reason a visitor can read.
 
 ## What is checked before a finding is published
 
-Four gates, and they answer different questions:
+Five gates, and they answer different questions:
 
 1. **Claim shape** — no causal language from observational data, no
    significance claim without a test.
 2. **Arithmetic** — every number in the sentence appears in a cited result.
-3. **Evidence support** — the wording fairly describes what the cited result
+3. **Answer coverage** — a direct aggregate must preserve the accepted
+   operation, measure, grouping, row filters, period and output shape.
+4. **Evidence support** — the wording fairly describes what the cited result
    shows.
-4. **Question relevance** — the finding materially answers the question, or a
+5. **Question relevance** — the finding materially answers the question, or a
    sub-question the task objective names.
 
 Evidence and relevance are judged separately and recorded separately,
@@ -298,14 +300,20 @@ clarifying question, not a guess.
 
 ### How a question about your file is answered
 
-`aggregate_for_question` maps the question onto that inferred schema by rule,
-inside the engine. A column counts only when the question names it; the
-operation comes from a fixed vocabulary — count, total, average, ranking,
-trend; and a column the operation needs is filled in only when the schema
-offers exactly one candidate, so the choice is forced rather than guessed.
-The engine then composes the SQL itself and it still passes the guard.
+`aggregate_for_question` executes a **validated query contract** against that
+inferred schema. Deterministic Analytics derives the contract from bounded
+rules. AI Analytics can propose a typed contract, but every table name,
+column, operation, filter, period and source excerpt is checked locally before
+execution. A rule-detectable restriction is a lower bound: an AI plan that
+omits “aged 30 to 40”, changes an inclusive bound, or names an unknown column
+is refused. The engine composes the SQL itself and it still passes the guard.
 
-When the question cannot be resolved that way, **it is refused with the
+The report shows the accepted calculation, measure, grouping, filters and
+period under **Applied analysis**. In Compare Both, the panes also state when
+they executed the same canonical contract; if interpretations differ, the page
+warns that the results are not like-for-like.
+
+When the question cannot be resolved into a safe contract, **it is refused with the
 reason** and the table's profile is offered instead:
 
 > this question could not be mapped to the table without guessing (the
@@ -557,7 +565,7 @@ The full list is in [docs/LIMITATIONS.md](docs/LIMITATIONS.md).
 
 ## Verified
 
-1,678 Python tests, 48 frontend tests, and 19 Chromium browser tests. Each
+1,778 Python tests, 54 frontend tests, and 21 Chromium browser tests. Each
 figure comes from its own run; they are never summed across overlapping
 suites. 89% branch coverage. The deployed deterministic path passes a
 **55-check** credential-free acceptance run plus an independent Parquet

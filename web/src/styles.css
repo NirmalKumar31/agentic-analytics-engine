@@ -429,7 +429,20 @@ pre.sql {
 .notice { padding: 12px 15px; border-radius: var(--radius-sm); border: 1px solid var(--border-strong); background: var(--bg-inset); color: var(--text); font-size: 14px; }
 .notice.error { border-color: rgb(var(--rejected-rgb) / 45%); color: #ffb0a5; }
 .notice.warn { border-color: rgb(var(--warning-rgb) / 45%); color: #ffdf9a; }
+.notice.success { border-color: rgb(var(--supported-rgb) / 45%); color: var(--supported); }
 .notice.info { border-color: var(--border-strong); }
+
+.applied-analysis {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-inset);
+  padding: 11px 13px;
+}
+.applied-analysis h3 { margin: 0 0 8px; font-size: 12px; color: var(--text-muted); }
+.contract-summary { display: grid; gap: 5px; margin: 0; }
+.contract-summary div { display: grid; grid-template-columns: 100px minmax(0, 1fr); gap: 10px; }
+.contract-summary dt { color: var(--text-dim); }
+.contract-summary dd { margin: 0; overflow-wrap: anywhere; }
 
 .chart-card { border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--bg-inset); padding: 12px; }
 .chart-card h4 { margin: 0 0 9px; font-size: 13px; font-weight: 500; color: var(--text-muted); }
@@ -583,6 +596,36 @@ table.data .tag { font-size: 10px; padding: 1px 6px; }
 
 .usage-summary dd {
   margin: 0;
+}
+
+/* --------------------------------------------------------------- print */
+
+@media print {
+  @page { size: landscape; margin: 12mm; }
+
+  :root { color-scheme: light; }
+  html, body, #root { height: auto; }
+  body { background: #fff; color: #111; font-size: 10pt; }
+  body::before, body::after, .topbar, .steps, .rail, .no-print,
+  .activity, .flow, .drawer, .drawer-backdrop { display: none !important; }
+  .main, .main[data-rail='false'] {
+    display: block;
+    max-width: none;
+    padding: 0;
+  }
+  .column { gap: 8mm; }
+  .panel, .compare-pane, .finding, .chart-card {
+    break-inside: avoid;
+    box-shadow: none;
+    animation: none;
+    background: #fff;
+    border-color: #bbb;
+  }
+  .panel:hover { transform: none; box-shadow: none; }
+  .compare-grid { grid-template-columns: 1fr 1fr; gap: 7mm; }
+  .chart-host { min-height: 180px; max-height: 240px; overflow: hidden; }
+  .chart-host svg, .chart-host canvas { max-width: 100% !important; max-height: 230px !important; }
+  .table-wrap, pre.sql { max-height: none; overflow: visible; }
 }
 
 /* ------------------------------------------------------------ instrument

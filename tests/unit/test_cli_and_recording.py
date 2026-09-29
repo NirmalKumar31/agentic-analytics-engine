@@ -13,6 +13,7 @@ import pytest
 from typer.testing import CliRunner
 
 from agentic_analytics.cli import app
+from agentic_analytics.config import Settings
 from agentic_analytics.data.cli import build
 from agentic_analytics.data.generator import GeneratorConfig, generate_warehouse
 from agentic_analytics.graph.runner import RunResult
@@ -21,6 +22,7 @@ from agentic_analytics.recordings.record import (
     build_recording,
     write_recording,
 )
+from agentic_analytics.recordings.runner import record_demos
 
 runner = CliRunner()
 SMALL = GeneratorConfig(n_customers=1_500, n_products=80, seed=5)
@@ -106,6 +108,25 @@ def test_a_real_run_produces_a_valid_recording(recording_source: RunResult, tmp_
     assert written["recording_id"] == "test-run"
     assert written["provider"] == "fake"
     assert written["findings"]
+
+
+def test_recording_generation_never_inherits_cloud_mode(
+    warehouse_dir: Path, tmp_path: Path
+) -> None:
+    """A release-evidence command must stay credential-free by construction."""
+    import anyio
+
+    written = anyio.run(
+        record_demos,
+        tmp_path,
+        Settings(
+            provider_mode="cloud",
+            cloud_api_key="not-used-by-this-test",
+            demo_warehouse_dir=warehouse_dir,
+        ),
+    )
+    assert len(written) == 3
+    assert all(metrics["provider"] == "fake" for _, metrics in written)
 
 
 def test_a_recording_that_would_fail_acceptance_is_refused(

@@ -132,6 +132,7 @@ def _verify_without_a_model(finding: Any, results: dict[str, Any], mapping: Any)
     would reintroduce exactly the failure this exists to prevent.
     """
     from agentic_analytics.agents.critic import _resolve_cells
+    from agentic_analytics.verification.coverage import check_answer_coverage
     from agentic_analytics.verification.intent import check_intent
     from agentic_analytics.verification.numeric import verify_numbers
 
@@ -145,6 +146,18 @@ def _verify_without_a_model(finding: Any, results: dict[str, Any], mapping: Any)
             reason=numeric.reason,
             rule="numeric_mismatch",
             numeric_check=numeric.as_dict(),
+        )
+    coverage = check_answer_coverage(mapping, cited)
+    if coverage.applicable and not coverage.complete:
+        return Verdict(
+            finding_id=finding.finding_id,
+            status="unsupported",
+            reason=coverage.reason,
+            rule=coverage.rule,
+            numeric_check=numeric.as_dict() | {"answer_coverage": coverage.as_dict()},
+            evidence_supported=True,
+            answers_question=False,
+            relevance_reason=coverage.reason,
         )
     intent = check_intent(finding.text, mapping)
     if intent.applicable and not intent.answers:
@@ -221,15 +234,29 @@ def build_graph(ctx: RunContext) -> Any:
 
     # ----------------------------------------------------- analyze_question
     async def analyze_question(state: AnalysisState) -> dict[str, Any]:
-        try:
-            analysis = await analyst.analyze_question(
-                ctx.provider,
-                state["question"],
-                state["dataset_catalog"],
-                state["metric_catalog"],
-            )
-        except (LLMError, BudgetError) as exc:
-            return _abort("the question could not be analysed", exc, ctx)
+        query_mapping: Any = None
+        if ctx.session.registry is None and len(ctx.session.table_names) == 1:
+            from agentic_analytics.analytics.semantic import infer_schema
+
+            table = next(iter(ctx.session.table_names))
+            schema = infer_schema(ctx.session, table).as_dict()
+            try:
+                query_mapping = await analyst.resolve_upload_query(
+                    ctx.provider, state["question"], schema
+                )
+            except (LLMError, BudgetError) as exc:
+                return _abort("the uploaded-data question could not be grounded", exc, ctx)
+            analysis = analyst.analysis_from_upload_mapping(state["question"], query_mapping)
+        else:
+            try:
+                analysis = await analyst.analyze_question(
+                    ctx.provider,
+                    state["question"],
+                    state["dataset_catalog"],
+                    state["metric_catalog"],
+                )
+            except (LLMError, BudgetError) as exc:
+                return _abort("the question could not be analysed", exc, ctx)
 
         ctx.events.emit(
             EventType.QUESTION_ANALYZED,
@@ -241,12 +268,55 @@ def build_graph(ctx: RunContext) -> Any:
             ambiguities=analysis.ambiguities,
         )
         limitations = [f"Ambiguity: {a}" for a in analysis.ambiguities]
-        return {"analysis": analysis, "limitations": limitations}
+        if query_mapping is not None and not query_mapping.confident:
+            limitations = [f"The question was not executed because {query_mapping.explanation}."]
+        return {
+            "analysis": analysis,
+            "query_mapping": query_mapping,
+            "limitations": limitations,
+        }
 
     # -------------------------------------------------------- plan_analysis
     async def plan_analysis(state: AnalysisState) -> dict[str, Any]:
         if state.get("stopped_reason"):
             return {}
+        mapping = state.get("query_mapping")
+        if mapping is not None:
+            if not mapping.confident:
+                return _abort(
+                    f"the question could not be mapped safely: {mapping.explanation}", None, ctx
+                )
+            task = AnalysisTask(
+                task_id="task_01",
+                objective="Compute the accepted query contract",
+                analysis_type=state["analysis"].analysis_type,
+                preferred_tool="aggregate_for_question",
+                priority=1,
+                table=mapping.table,
+                variables={
+                    "question": state["question"],
+                    "query_contract": mapping.as_dict(),
+                },
+            )
+            tasks = [task]
+            ctx.events.emit(
+                EventType.PLAN_GENERATED,
+                task_count=1,
+                contract_hash=mapping.contract_hash,
+                interpretation=mapping.interpretation,
+                tasks=[
+                    {
+                        "task_id": task.task_id,
+                        "objective": task.objective,
+                        "analysis_type": task.analysis_type,
+                        "preferred_tool": task.preferred_tool,
+                        "metrics": [mapping.measure] if mapping.measure else [],
+                        "dimensions": [mapping.dimension] if mapping.dimension else [],
+                        "priority": task.priority,
+                    }
+                ],
+            )
+            return {"plan": AnalysisPlan(tasks=tasks), "pending_tasks": tasks}
         try:
             tasks = await analyst.plan_analysis(
                 ctx.provider,
@@ -409,7 +479,9 @@ def build_graph(ctx: RunContext) -> Any:
         # answer it whatever the model says. `None` for the governed
         # warehouse and for anything that cannot be mapped, where the
         # intent check abstains.
-        question_mapping = _resolve_intent(ctx, state.get("question", ""))
+        question_mapping = state.get("query_mapping") or _resolve_intent(
+            ctx, state.get("question", "")
+        )
 
         for outcome in state.get("task_outcomes", []):
             for finding in outcome.findings:
@@ -711,8 +783,16 @@ def build_graph(ctx: RunContext) -> Any:
 
 
 def _abort(reason: str, exc: BaseException | None, ctx: RunContext) -> dict[str, Any]:
-    """Stop the run cleanly, with a reason a user can read."""
+    """Stop the graph cleanly, with a reason a user can read.
+
+    This node still lets the graph assemble its report.  Emitting
+    ``RUN_FAILED`` here made the browser treat the stream as terminal before
+    :func:`run_analysis` had stored that report, so a safe refusal could leave
+    the visitor on an empty screen.  ``RUN_FAILED`` is reserved for a run
+    which actually crashed; a graceful stop is represented in the timeline as
+    a failed analysis stage and ends with the runner's single terminal event.
+    """
     detail = f"{reason}: {exc}" if exc else reason
     log.warning("run_aborted", reason=reason, error=str(exc) if exc else None)
-    ctx.events.emit(EventType.RUN_FAILED, reason=detail)
+    ctx.events.emit(EventType.ANALYSIS_TASK_FAILED, reason=detail)
     return {"stopped_reason": reason, "errors": [detail], "limitations": [detail]}

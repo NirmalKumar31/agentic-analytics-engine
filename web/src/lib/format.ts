@@ -47,6 +47,20 @@ export function kindLabel(kind: string): string {
   return KIND_LABELS[kind] ?? kind
 }
 
+/** A readable label for an engine identifier; never expose its opaque suffix. */
+export function humanizeIdentifier(value: string): string {
+  return value.replace(/[_:-]+/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())
+}
+
+/** Tool names are API identifiers internally, but prose in the interface. */
+export function toolLabel(tool: string): string {
+  const named: Record<string, string> = {
+    aggregate_for_question: 'Requested calculation',
+    profile_table: 'Table profile',
+  }
+  return named[tool] ?? humanizeIdentifier(tool)
+}
+
 /** Display name for an agent role, used in both the activity log and the drawer. */
 export function agentLabel(raw: string): string {
   const named: Record<string, string> = {
@@ -57,5 +71,5 @@ export function agentLabel(raw: string): string {
     visualizer: 'Visualisation Agent',
     reporter: 'Report Agent',
   }
-  return named[raw] ?? raw.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())
+  return named[raw] ?? humanizeIdentifier(raw)
 }

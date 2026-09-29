@@ -75,6 +75,7 @@ def test_a_run_that_published_nothing_is_still_complete() -> None:
         ("This AI run reached its input token limit.", "budget_exhausted"),
         ("the run exhausted its budget", "budget_exhausted"),
         ("the language model declined to answer", "refused"),
+        ("the question could not be mapped safely: ambiguous measure", "refused"),
         ("the dataset was closed", "cancelled"),
         ("no analysis task produced a usable result", "failed"),
     ],

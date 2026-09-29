@@ -5,10 +5,17 @@ from __future__ import annotations
 from typing import Any
 
 from agentic_analytics.agents.base import ask_into, bullet_list
-from agentic_analytics.agents.prompts import PLANNER, QUESTION_ANALYST
-from agentic_analytics.agents.schemas import AnalysisPlan, AnalysisTask, QuestionAnalysis
+from agentic_analytics.agents.prompts import PLANNER, QUESTION_ANALYST, UPLOAD_QUERY_PLANNER
+from agentic_analytics.agents.schemas import (
+    AnalysisPlan,
+    AnalysisTask,
+    AnalysisType,
+    QuestionAnalysis,
+    UploadQueryPlan,
+)
 from agentic_analytics.agents.timescope import comparison_window as _comparison_window
 from agentic_analytics.agents.timescope import parse_time_scope
+from agentic_analytics.analytics import upload_plan
 from agentic_analytics.llm.base import LLMProvider
 
 # Tools that do not require a metric from the semantic layer. A dataset with
@@ -30,6 +37,116 @@ def _metric_lines(metrics: list[dict[str, Any]]) -> str:
         f"- {m['name']} ({m['format']}): {m['description']} "
         f"[dimensions: {', '.join(m['valid_dimensions']) or 'none'}]"
         for m in metrics
+    )
+
+
+def _upload_plan_fixture(question: str, mapping: upload_plan.QuestionMapping) -> dict[str, Any]:
+    """The scripted provider's contract-shaped answer.
+
+    Live providers never see ``context``.  The fixture lets the deterministic
+    stand-in exercise the same response schema without reparsing a prose
+    prompt, which is the purpose of that provider's structured context.
+    """
+    return {
+        "table": mapping.table,
+        "operation": mapping.operation,
+        "operation_source": question,
+        "measure": mapping.measure,
+        "measure_source": question if mapping.measure else "",
+        "dimension": mapping.dimension,
+        "dimension_source": question if mapping.dimension else "",
+        "filters": [
+            {
+                "column": item["column"],
+                "operator": item["operator"],
+                "value": "" if item.get("value") is None else str(item.get("value")),
+                "source_text": item.get("source_text") or question,
+            }
+            for item in (f.as_dict() for f in mapping.filters)
+        ],
+        "time_field": mapping.time_field or mapping.period_field,
+        "period_start": mapping.period[0] if mapping.period else None,
+        "period_end": mapping.period[1] if mapping.period else None,
+        "ascending": mapping.ascending,
+        "confident": mapping.confident,
+        "ambiguity": "" if mapping.confident else mapping.explanation,
+    }
+
+
+async def resolve_upload_query(
+    provider: LLMProvider,
+    question: str,
+    schema: dict[str, Any],
+) -> upload_plan.QuestionMapping:
+    """Resolve one upload question, using AI for language and rules for authority."""
+    deterministic = upload_plan.resolve_question(question, schema)
+    if not provider.remote_inference:
+        return deterministic
+
+    fields = [
+        {
+            "name": str(field.get("name", "")),
+            "type": str(field.get("data_type") or field.get("type") or ""),
+        }
+        for field in schema.get("fields", [])
+    ]
+    roles = {
+        "measures": list(schema.get("measures", [])),
+        "dimensions": list(schema.get("dimensions", [])),
+        "time_fields": list(schema.get("time_fields", [])),
+        "aggregatable_if_named": list(schema.get("aggregatable_if_named", [])),
+    }
+    user = f"""\
+QUESTION
+{question}
+
+SCHEMA
+table: {schema.get("table")}
+columns:
+{bullet_list([f"{field['name']} ({field['type']})" for field in fields])}
+measures: {", ".join(roles["measures"]) or "(none)"}
+dimensions: {", ".join(roles["dimensions"]) or "(none)"}
+time fields: {", ".join(roles["time_fields"]) or "(none)"}
+
+Return the grounded upload query plan."""
+    planned = await ask_into(
+        provider,
+        UploadQueryPlan,
+        role="upload_query_planner",
+        system=UPLOAD_QUERY_PLANNER,
+        user=user,
+        context={
+            "question": question,
+            "schema": {"table": schema.get("table"), "fields": fields, **roles},
+            "candidate_plan": _upload_plan_fixture(question, deterministic),
+        },
+    )
+    return upload_plan.mapping_from_plan(question, schema, planned)
+
+
+def analysis_from_upload_mapping(
+    question: str, mapping: upload_plan.QuestionMapping
+) -> QuestionAnalysis:
+    """One brief derived from the accepted contract, without reinterpreting it."""
+    if mapping.operation == "trend":
+        analysis_type: AnalysisType = "timeseries"
+    elif mapping.dimension or mapping.operation == "rank":
+        analysis_type = "segmentation"
+    elif mapping.operation == "profile":
+        analysis_type = "profiling"
+    else:
+        analysis_type = "composition"
+    period = ""
+    if mapping.period:
+        period = f"{mapping.period[0]} to {mapping.period[1]}"
+    ambiguities = [] if mapping.confident else [mapping.explanation]
+    return QuestionAnalysis(
+        intent=question,
+        analysis_type=analysis_type,
+        target_metrics=[mapping.measure] if mapping.measure else [],
+        dimensions=[mapping.dimension] if mapping.dimension else [],
+        time_scope=period or None,
+        ambiguities=ambiguities,
     )
 
 

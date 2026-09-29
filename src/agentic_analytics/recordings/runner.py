@@ -10,7 +10,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-from agentic_analytics.config import get_settings
+from agentic_analytics.config import Settings, get_settings
 from agentic_analytics.graph.runner import run_analysis
 from agentic_analytics.mcp_layer.server import build_server
 from agentic_analytics.recordings.record import build_recording, write_recording
@@ -50,9 +50,17 @@ DEMOS: list[dict[str, str | int]] = [
 ]
 
 
-async def record_demos(directory: Path) -> list[tuple[Path, dict[str, Any]]]:
-    """Run every demo question and write the recordings that pass."""
-    cfg = get_settings()
+async def record_demos(
+    directory: Path, settings: Settings | None = None
+) -> list[tuple[Path, dict[str, Any]]]:
+    """Run every demo question and write the recordings that pass.
+
+    Recordings are reproducible deterministic evidence.  They are never a
+    shortcut to run a configured cloud provider, even when a developer has a
+    key in their local environment for a separate smoke test.
+    """
+    source_cfg = settings or get_settings()
+    cfg = source_cfg.model_copy(update={"provider_mode": "fake"})
     manager = SessionManager()
     server = build_server(manager, cfg)
     written: list[tuple[Path, dict[str, Any]]] = []

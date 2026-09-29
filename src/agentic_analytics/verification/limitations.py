@@ -53,6 +53,19 @@ _REASONS: tuple[tuple[str, str], ...] = (
         "the question could not be mapped to this dataset's columns without guessing",
     ),
     (
+        "missing_required_filter",
+        "the executed result did not apply every row restriction in the question",
+    ),
+    (
+        "missing_required_dimension",
+        "the executed result omitted a requested breakdown",
+    ),
+    ("wrong_measure", "the executed result measured a different field from the one requested"),
+    ("wrong_operation", "the executed result used a different calculation from the one requested"),
+    ("missing_required_period", "the executed result did not apply the requested time period"),
+    ("wrong_period", "the executed result covered a different time period"),
+    ("wrong_output_shape", "the executed result did not have the requested answer shape"),
+    (
         "critic",
         "the verifier judged the cited results not to support them",
     ),

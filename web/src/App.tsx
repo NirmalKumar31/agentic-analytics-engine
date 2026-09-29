@@ -25,6 +25,17 @@ import { useRunEvents } from './lib/useRunEvents'
 
 type Stage = 'dataset' | 'ask' | 'running' | 'report'
 
+/** Which finding's working to show, and which run it belongs to.
+ *
+ * Compare Both runs two independent analyses and each assigns finding ids
+ * within itself, so an id alone does not identify a finding. Carrying the
+ * side makes the drawer resolve against the run the user actually clicked.
+ */
+type ProvenanceTarget = {
+  side: 'deterministic' | 'ai'
+  findingId: string
+}
+
 export function App() {
   const [config, setConfig] = useState<ServerConfig | null>(null)
   const [configError, setConfigError] = useState<string | null>(null)
@@ -35,7 +46,12 @@ export function App() {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [showTrace, setShowTrace] = useState(false)
-  const [openFinding, setOpenFinding] = useState<string | null>(null)
+  // Which finding, and *whose*. A bare id was ambiguous: Compare Both
+  // runs two independent analyses whose finding ids are assigned per run,
+  // so the same id can exist on both sides meaning different things. The
+  // drawer resolved from the deterministic run regardless, so AI "Show
+  // work" opened deterministic evidence for an AI claim, or nothing.
+  const [target, setTarget] = useState<ProvenanceTarget | null>(null)
   const [replay, setReplay] = useState<RecordingSummary | null>(null)
   // Deterministic by default. The server decides what else is on offer.
   const [uiMode, setUiMode] = useState<UiMode>('deterministic')
@@ -179,7 +195,7 @@ export function App() {
     setRun(null)
     setRunId(null)
     setReplay(null)
-    setOpenFinding(null)
+    setTarget(null)
     setComparison(null)
     setAiRun(null)
     setAiError(null)
@@ -197,13 +213,18 @@ export function App() {
       setRun(null)
       setRunId(null)
       setReplay(null)
-      setOpenFinding(null)
+      setTarget(null)
       setQuestion('')
       setBusy(false)
     }
   }, [session])
 
-  const finding = run?.findings.find((f) => f.finding_id === openFinding) ?? null
+  // The run the target names -- never a fallback to the other one. A
+  // drawer showing the wrong run's SQL is worse than a drawer showing
+  // nothing, because it looks like provenance.
+  const provenanceRun = target ? (target.side === 'ai' ? aiRun : run) : null
+  const finding =
+    provenanceRun?.findings.find((f) => f.finding_id === target?.findingId) ?? null
   const catalog = run?.dataset ?? session?.catalog ?? null
   const metrics: MetricInfo[] = session?.metrics ?? []
   const usedMetrics = useMemo(
@@ -355,7 +376,8 @@ export function App() {
                     rejected={run.rejected}
                     charts={run.charts}
                     results={run.results}
-                    onShowWork={setOpenFinding}
+                    queryContract={run.query_contract}
+                    onShowWork={(id) => setTarget({ side: 'deterministic', findingId: id })}
                   />
                 ) : null,
               }}
@@ -374,7 +396,8 @@ export function App() {
                     rejected={aiRun.rejected}
                     charts={aiRun.charts}
                     results={aiRun.results}
-                    onShowWork={setOpenFinding}
+                    queryContract={aiRun.query_contract}
+                    onShowWork={(id) => setTarget({ side: 'ai', findingId: id })}
                   />
                 ) : null,
               }}
@@ -388,7 +411,8 @@ export function App() {
                 rejected={run.rejected}
                 charts={run.charts}
                 results={run.results}
-                onShowWork={setOpenFinding}
+                queryContract={run.query_contract}
+                onShowWork={(id) => setTarget({ side: 'deterministic', findingId: id })}
               />
             )
           )}
@@ -403,20 +427,34 @@ export function App() {
           runMetrics={run?.metrics ?? null}
           onOpenResult={(resultId) => {
             const match = run?.findings.find((f) => f.result_ids.includes(resultId))
-            if (match) setOpenFinding(match.finding_id)
+            if (match) setTarget({ side: 'deterministic', findingId: match.finding_id })
           }}
         />
       </main>
 
-      {finding && run && (
+      {finding && provenanceRun && (
         <ProvenanceDrawer
           finding={finding}
-          results={run.results}
-          tasks={run.tasks}
-          trace={run.mcp_trace}
-          datasetFingerprint={run.dataset.dataset_fingerprint}
-          onClose={() => setOpenFinding(null)}
+          results={provenanceRun.results}
+          tasks={provenanceRun.tasks}
+          trace={provenanceRun.mcp_trace}
+          onClose={() => setTarget(null)}
         />
+      )}
+      {target && !finding && (
+        <div className="drawer" role="dialog" aria-label="Provenance unavailable">
+          <div className="drawer-head">
+            <h3>Provenance unavailable</h3>
+            <button type="button" onClick={() => setTarget(null)}>
+              Close
+            </button>
+          </div>
+          <p>
+            This finding is no longer part of the{' '}
+            {target.side === 'ai' ? 'AI' : 'deterministic'} run, so its working cannot be
+            shown. Re-run the question to inspect it.
+          </p>
+        </div>
       )}
     </div>
   )

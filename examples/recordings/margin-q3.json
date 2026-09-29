@@ -4,16 +4,16 @@
   "title": "Revenue up, margin down in Q3",
   "demonstrates": "Parallel time-series, discount and product-mix analysis, with the quarter named in the question driving the comparison window.",
   "order": 1,
-  "recorded_at": "2026-09-27T19:28:20Z",
+  "recorded_at": "2026-09-29T21:28:12Z",
   "provider": "fake",
   "provider_kind": "scripted-deterministic",
   "run_kind": "recorded deterministic engine run",
   "engine_version": "0.1.0",
-  "git_commit": "380fbb70cc3e341bc1d546b049094d3bc285e098",
+  "git_commit": "f755bf04063d18ead9bca7ee8149370a827cd938",
   "git_dirty": true,
   "dataset_seed": 20260924,
   "metrics_definition_hash": "sha256:d0871593bfda4f61",
-  "run_id": "run_1a0e456f8ef",
+  "run_id": "run_1a0ef116f22",
   "task_count": 6,
   "mcp_tool_calls": 6,
   "published_findings": 6,
@@ -289,7 +289,7 @@
   },
   "report": {
     "question": "Revenue increased in Q3 2025, but gross margin fell. What caused it?",
-    "executive_summary": "6 finding(s) passed the publication checks: 6 read from the results. Each is listed once below with the results it was checked against.",
+    "executive_summary": "Each finding below passed the publication checks and is listed once, with the results it was checked against.",
     "key_findings": [
       "revenue rose from 1,412,235 in 2025-04-01 to 1,710,010 in 2025-07-01 (297,774.67).",
       "gross_margin_pct fell from 40.87% in 2025-04-01 to 33.24% in 2025-07-01, a change of 7.63 percentage points.",
@@ -302,12 +302,12 @@
       {
         "heading": "What the numbers show",
         "finding_ids": [
-          "fin_e356670a",
-          "fin_3f67f4a2",
-          "fin_e789f02d",
-          "fin_21b25a1a",
-          "fin_aa7c25f7",
-          "fin_4bc797fb"
+          "task_01:fin_7c015ed8:0",
+          "task_02:fin_cd318900:0",
+          "task_03:fin_90ad2d33:0",
+          "task_04:fin_f66093a4:0",
+          "task_05:fin_0227a168:0",
+          "task_06:fin_319c489d:0"
         ]
       }
     ],
@@ -320,23 +320,23 @@
   },
   "findings": [
     {
-      "finding_id": "fin_e356670a",
+      "finding_id": "task_01:fin_7c015ed8:0",
       "text": "revenue rose from 1,412,235 in 2025-04-01 to 1,710,010 in 2025-07-01 (297,774.67).",
       "kind": "calculated_fact",
       "task_id": "task_01",
       "result_ids": [
-        "res_c970ea1a6010"
+        "res_a0d7f2013dcf"
       ],
       "evidence_cells": [
         {
-          "result_id": "res_c970ea1a6010",
+          "result_id": "res_a0d7f2013dcf",
           "row": 1,
           "column": "revenue",
           "value": 1412234.8600000022,
           "label": "revenue at 2025-04-01"
         },
         {
-          "result_id": "res_c970ea1a6010",
+          "result_id": "res_a0d7f2013dcf",
           "row": 2,
           "column": "revenue",
           "value": 1710009.5299999989,
@@ -356,19 +356,19 @@
           {
             "stated": 1412235.0,
             "matched": true,
-            "source": "res_c970ea1a6010[1].revenue",
+            "source": "res_a0d7f2013dcf[1].revenue",
             "computed": 1412234.8600000022
           },
           {
             "stated": 1710010.0,
             "matched": true,
-            "source": "res_c970ea1a6010[2].revenue",
+            "source": "res_a0d7f2013dcf[2].revenue",
             "computed": 1710009.5299999989
           },
           {
             "stated": 297774.67,
             "matched": true,
-            "source": "res_c970ea1a6010[2].change_abs",
+            "source": "res_a0d7f2013dcf[2].change_abs",
             "computed": 297774.67
           },
           {
@@ -391,23 +391,23 @@
       }
     },
     {
-      "finding_id": "fin_3f67f4a2",
+      "finding_id": "task_02:fin_cd318900:0",
       "text": "gross_margin_pct fell from 40.87% in 2025-04-01 to 33.24% in 2025-07-01, a change of 7.63 percentage points.",
       "kind": "calculated_fact",
       "task_id": "task_02",
       "result_ids": [
-        "res_96f04b6719e8"
+        "res_a5fc974ca8b9"
       ],
       "evidence_cells": [
         {
-          "result_id": "res_96f04b6719e8",
+          "result_id": "res_a5fc974ca8b9",
           "row": 1,
           "column": "gross_margin_pct",
           "value": 40.87141072271814,
           "label": "gross_margin_pct at 2025-04-01"
         },
         {
-          "result_id": "res_96f04b6719e8",
+          "result_id": "res_a5fc974ca8b9",
           "row": 2,
           "column": "gross_margin_pct",
           "value": 33.24105567996417,
@@ -427,19 +427,19 @@
           {
             "stated": 40.87,
             "matched": true,
-            "source": "res_96f04b6719e8[0].gross_margin_pct",
+            "source": "res_a5fc974ca8b9[0].gross_margin_pct",
             "computed": 40.83779090176022
           },
           {
             "stated": 33.24,
             "matched": true,
-            "source": "res_96f04b6719e8[2].gross_margin_pct",
+            "source": "res_a5fc974ca8b9[2].gross_margin_pct",
             "computed": 33.24105567996417
           },
           {
             "stated": 7.63,
             "matched": true,
-            "source": "res_96f04b6719e8[1].gross_margin_pct - res_96f04b6719e8[2].gross_margin_pct",
+            "source": "res_a5fc974ca8b9[1].gross_margin_pct - res_a5fc974ca8b9[2].gross_margin_pct",
             "computed": 7.630355042753969
           },
           {
@@ -462,23 +462,23 @@
       }
     },
     {
-      "finding_id": "fin_e789f02d",
+      "finding_id": "task_03:fin_90ad2d33:0",
       "text": "Across category, Apparel has the highest revenue at 1,522,302 and Toys & Games the lowest at 825,693.",
       "kind": "calculated_fact",
       "task_id": "task_03",
       "result_ids": [
-        "res_983b346eac99"
+        "res_6b922fe91078"
       ],
       "evidence_cells": [
         {
-          "result_id": "res_983b346eac99",
+          "result_id": "res_6b922fe91078",
           "row": 0,
           "column": "revenue",
           "value": 1522302.4600000014,
           "label": "revenue for Apparel"
         },
         {
-          "result_id": "res_983b346eac99",
+          "result_id": "res_6b922fe91078",
           "row": 5,
           "column": "revenue",
           "value": 825693.4100000001,
@@ -498,13 +498,13 @@
           {
             "stated": 1522302.0,
             "matched": true,
-            "source": "res_983b346eac99[0].revenue",
+            "source": "res_6b922fe91078[0].revenue",
             "computed": 1522302.4600000014
           },
           {
             "stated": 825693.0,
             "matched": true,
-            "source": "res_983b346eac99[5].revenue",
+            "source": "res_6b922fe91078[5].revenue",
             "computed": 825693.4100000001
           },
           {
@@ -527,26 +527,26 @@
       }
     },
     {
-      "finding_id": "fin_21b25a1a",
+      "finding_id": "task_04:fin_f66093a4:0",
       "text": "Across acquisition_channel, affiliate has the highest revenue at 1,511,561 and referral the lowest at 832,817.",
       "kind": "calculated_fact",
       "task_id": "task_04",
       "result_ids": [
-        "res_74f7c81f7864"
+        "res_25c3ad52603a"
       ],
       "evidence_cells": [
         {
-          "result_id": "res_74f7c81f7864",
+          "result_id": "res_25c3ad52603a",
           "row": 0,
           "column": "revenue",
-          "value": 1511560.819999998,
+          "value": 1511560.8199999915,
           "label": "revenue for affiliate"
         },
         {
-          "result_id": "res_74f7c81f7864",
+          "result_id": "res_25c3ad52603a",
           "row": 5,
           "column": "revenue",
-          "value": 832816.9400000009,
+          "value": 832816.94,
           "label": "revenue for referral"
         }
       ],
@@ -563,20 +563,20 @@
           {
             "stated": 1511561.0,
             "matched": true,
-            "source": "res_74f7c81f7864[0].revenue",
-            "computed": 1511560.819999998
+            "source": "res_25c3ad52603a[0].revenue",
+            "computed": 1511560.8199999915
           },
           {
             "stated": 832817.0,
             "matched": true,
-            "source": "res_74f7c81f7864[5].revenue",
-            "computed": 832816.9400000009
+            "source": "res_25c3ad52603a[5].revenue",
+            "computed": 832816.94
           },
           {
             "stated": 678743.88,
             "matched": true,
             "source": "recomputed difference from cited cells",
-            "computed": 678743.8799999971
+            "computed": 678743.8799999915
           }
         ],
         "claimed_change_discarded": false
@@ -586,29 +586,29 @@
       "relevance_reason": "Reports a metric the question is about: revenue.",
       "claimed_change": {
         "type": "difference",
-        "from": 832816.9400000009,
-        "to": 1511560.819999998,
+        "from": 832816.94,
+        "to": 1511560.8199999915,
         "stated": 678743.88
       }
     },
     {
-      "finding_id": "fin_aa7c25f7",
+      "finding_id": "task_05:fin_0227a168:0",
       "text": "Electronics accounts for 80.3% of the change in revenue, the largest single contribution across category.",
       "kind": "calculated_fact",
       "task_id": "task_05",
       "result_ids": [
-        "res_6e909c61e071"
+        "res_128f24efb0b1"
       ],
       "evidence_cells": [
         {
-          "result_id": "res_6e909c61e071",
+          "result_id": "res_128f24efb0b1",
           "row": 0,
           "column": "contribution_pct",
           "value": 80.278,
           "label": "Electronics share of the change"
         },
         {
-          "result_id": "res_6e909c61e071",
+          "result_id": "res_128f24efb0b1",
           "row": 0,
           "column": "change",
           "value": 239047.45,
@@ -628,7 +628,7 @@
           {
             "stated": 80.3,
             "matched": true,
-            "source": "res_6e909c61e071[0].contribution_pct",
+            "source": "res_128f24efb0b1[0].contribution_pct",
             "computed": 80.278
           }
         ],
@@ -640,23 +640,23 @@
       "claimed_change": null
     },
     {
-      "finding_id": "fin_4bc797fb",
+      "finding_id": "task_06:fin_319c489d:0",
       "text": "Of the -7.63 point change in gross_margin_pct, -3.76 comes from rate movement within category values and -3.67 from the mix shifting between them; within-segment rate movement is the larger part.",
       "kind": "calculated_fact",
       "task_id": "task_06",
       "result_ids": [
-        "res_a94502c2a7e0"
+        "res_5be846d4c4bd"
       ],
       "evidence_cells": [
         {
-          "result_id": "res_a94502c2a7e0",
+          "result_id": "res_5be846d4c4bd",
           "row": 0,
           "column": "rate_effect",
           "value": -0.64908,
           "label": "rate effect for Apparel"
         },
         {
-          "result_id": "res_a94502c2a7e0",
+          "result_id": "res_5be846d4c4bd",
           "row": 0,
           "column": "mix_effect",
           "value": -1.310684,
@@ -676,19 +676,19 @@
           {
             "stated": -7.63,
             "matched": true,
-            "source": "res_a94502c2a7e0.observed_change",
+            "source": "res_5be846d4c4bd.observed_change",
             "computed": -7.630355
           },
           {
             "stated": -3.76,
             "matched": true,
-            "source": "res_a94502c2a7e0[2].rate_change",
+            "source": "res_5be846d4c4bd[2].rate_change",
             "computed": -3.757198
           },
           {
             "stated": -3.67,
             "matched": true,
-            "source": "res_a94502c2a7e0.mix_effect_total",
+            "source": "res_5be846d4c4bd.mix_effect_total",
             "computed": -3.673472
           }
         ],
@@ -703,11 +703,11 @@
   "rejected": [],
   "charts": [
     {
-      "chart_id": "cht_b78bc313",
+      "chart_id": "cht_775f9e91",
       "title": "revenue by quarter",
-      "result_id": "res_c970ea1a6010",
+      "result_id": "res_a0d7f2013dcf",
       "finding_ids": [
-        "fin_e356670a"
+        "task_01:fin_7c015ed8:0"
       ],
       "spec": {
         "$schema": "https://vega.github.io/schema/vega-lite/v5.json",
@@ -799,11 +799,11 @@
       }
     },
     {
-      "chart_id": "cht_a59e9474",
+      "chart_id": "cht_1b50ab90",
       "title": "gross_margin_pct by quarter",
-      "result_id": "res_96f04b6719e8",
+      "result_id": "res_a5fc974ca8b9",
       "finding_ids": [
-        "fin_3f67f4a2"
+        "task_02:fin_cd318900:0"
       ],
       "spec": {
         "$schema": "https://vega.github.io/schema/vega-lite/v5.json",
@@ -895,11 +895,11 @@
       }
     },
     {
-      "chart_id": "cht_f4f74d70",
+      "chart_id": "cht_8fd75f3e",
       "title": "revenue by category",
-      "result_id": "res_983b346eac99",
+      "result_id": "res_6b922fe91078",
       "finding_ids": [
-        "fin_e789f02d"
+        "task_03:fin_90ad2d33:0"
       ],
       "spec": {
         "$schema": "https://vega.github.io/schema/vega-lite/v5.json",
@@ -1008,11 +1008,11 @@
       }
     },
     {
-      "chart_id": "cht_f592750a",
+      "chart_id": "cht_ecc57ae2",
       "title": "revenue by acquisition_channel",
-      "result_id": "res_74f7c81f7864",
+      "result_id": "res_25c3ad52603a",
       "finding_ids": [
-        "fin_21b25a1a"
+        "task_04:fin_f66093a4:0"
       ],
       "spec": {
         "$schema": "https://vega.github.io/schema/vega-lite/v5.json",
@@ -1021,42 +1021,42 @@
           "values": [
             {
               "acquisition_channel": "affiliate",
-              "revenue": 1511560.819999998,
+              "revenue": 1511560.8199999915,
               "share_of_total_pct": 20.5462,
               "diff_vs_best": 0.0,
               "rank_desc": 1
             },
             {
               "acquisition_channel": "organic",
-              "revenue": 1508439.9800000002,
+              "revenue": 1508439.9800000025,
               "share_of_total_pct": 20.5038,
               "diff_vs_best": -3120.84,
               "rank_desc": 2
             },
             {
               "acquisition_channel": "paid_search",
-              "revenue": 1432183.5800000129,
+              "revenue": 1432183.5799999991,
               "share_of_total_pct": 19.4673,
               "diff_vs_best": -79377.24,
               "rank_desc": 3
             },
             {
               "acquisition_channel": "social",
-              "revenue": 1093947.3700000062,
+              "revenue": 1093947.370000001,
               "share_of_total_pct": 14.8697,
               "diff_vs_best": -417613.45,
               "rank_desc": 4
             },
             {
               "acquisition_channel": "email",
-              "revenue": 977931.3299999987,
+              "revenue": 977931.3300000001,
               "share_of_total_pct": 13.2927,
               "diff_vs_best": -533629.49,
               "rank_desc": 5
             },
             {
               "acquisition_channel": "referral",
-              "revenue": 832816.9400000009,
+              "revenue": 832816.94,
               "share_of_total_pct": 11.3202,
               "diff_vs_best": -678743.88,
               "rank_desc": 6
@@ -1127,23 +1127,23 @@
       "status": "succeeded",
       "findings": [
         {
-          "finding_id": "fin_e356670a",
+          "finding_id": "task_01:fin_7c015ed8:0",
           "text": "revenue rose from 1,412,235 in 2025-04-01 to 1,710,010 in 2025-07-01 (297,774.67).",
           "kind": "calculated_fact",
           "task_id": "task_01",
           "result_ids": [
-            "res_c970ea1a6010"
+            "res_a0d7f2013dcf"
           ],
           "evidence_cells": [
             {
-              "result_id": "res_c970ea1a6010",
+              "result_id": "res_a0d7f2013dcf",
               "row": 1,
               "column": "revenue",
               "value": 1412234.8600000022,
               "label": "revenue at 2025-04-01"
             },
             {
-              "result_id": "res_c970ea1a6010",
+              "result_id": "res_a0d7f2013dcf",
               "row": 2,
               "column": "revenue",
               "value": 1710009.5299999989,
@@ -1162,7 +1162,7 @@
         }
       ],
       "result_ids": [
-        "res_c970ea1a6010"
+        "res_a0d7f2013dcf"
       ],
       "tool_calls": 1,
       "error": null,
@@ -1183,23 +1183,23 @@
       "status": "succeeded",
       "findings": [
         {
-          "finding_id": "fin_3f67f4a2",
+          "finding_id": "task_02:fin_cd318900:0",
           "text": "gross_margin_pct fell from 40.87% in 2025-04-01 to 33.24% in 2025-07-01, a change of 7.63 percentage points.",
           "kind": "calculated_fact",
           "task_id": "task_02",
           "result_ids": [
-            "res_96f04b6719e8"
+            "res_a5fc974ca8b9"
           ],
           "evidence_cells": [
             {
-              "result_id": "res_96f04b6719e8",
+              "result_id": "res_a5fc974ca8b9",
               "row": 1,
               "column": "gross_margin_pct",
               "value": 40.87141072271814,
               "label": "gross_margin_pct at 2025-04-01"
             },
             {
-              "result_id": "res_96f04b6719e8",
+              "result_id": "res_a5fc974ca8b9",
               "row": 2,
               "column": "gross_margin_pct",
               "value": 33.24105567996417,
@@ -1218,7 +1218,7 @@
         }
       ],
       "result_ids": [
-        "res_96f04b6719e8"
+        "res_a5fc974ca8b9"
       ],
       "tool_calls": 1,
       "error": null,
@@ -1239,23 +1239,23 @@
       "status": "succeeded",
       "findings": [
         {
-          "finding_id": "fin_e789f02d",
+          "finding_id": "task_03:fin_90ad2d33:0",
           "text": "Across category, Apparel has the highest revenue at 1,522,302 and Toys & Games the lowest at 825,693.",
           "kind": "calculated_fact",
           "task_id": "task_03",
           "result_ids": [
-            "res_983b346eac99"
+            "res_6b922fe91078"
           ],
           "evidence_cells": [
             {
-              "result_id": "res_983b346eac99",
+              "result_id": "res_6b922fe91078",
               "row": 0,
               "column": "revenue",
               "value": 1522302.4600000014,
               "label": "revenue for Apparel"
             },
             {
-              "result_id": "res_983b346eac99",
+              "result_id": "res_6b922fe91078",
               "row": 5,
               "column": "revenue",
               "value": 825693.4100000001,
@@ -1274,7 +1274,7 @@
         }
       ],
       "result_ids": [
-        "res_983b346eac99"
+        "res_6b922fe91078"
       ],
       "tool_calls": 1,
       "error": null,
@@ -1295,26 +1295,26 @@
       "status": "succeeded",
       "findings": [
         {
-          "finding_id": "fin_21b25a1a",
+          "finding_id": "task_04:fin_f66093a4:0",
           "text": "Across acquisition_channel, affiliate has the highest revenue at 1,511,561 and referral the lowest at 832,817.",
           "kind": "calculated_fact",
           "task_id": "task_04",
           "result_ids": [
-            "res_74f7c81f7864"
+            "res_25c3ad52603a"
           ],
           "evidence_cells": [
             {
-              "result_id": "res_74f7c81f7864",
+              "result_id": "res_25c3ad52603a",
               "row": 0,
               "column": "revenue",
-              "value": 1511560.819999998,
+              "value": 1511560.8199999915,
               "label": "revenue for affiliate"
             },
             {
-              "result_id": "res_74f7c81f7864",
+              "result_id": "res_25c3ad52603a",
               "row": 5,
               "column": "revenue",
-              "value": 832816.9400000009,
+              "value": 832816.94,
               "label": "revenue for referral"
             }
           ],
@@ -1323,14 +1323,14 @@
           ],
           "claimed_change": {
             "type": "difference",
-            "from": 832816.9400000009,
-            "to": 1511560.819999998,
+            "from": 832816.94,
+            "to": 1511560.8199999915,
             "stated": 678743.88
           }
         }
       ],
       "result_ids": [
-        "res_74f7c81f7864"
+        "res_25c3ad52603a"
       ],
       "tool_calls": 1,
       "error": null,
@@ -1351,23 +1351,23 @@
       "status": "succeeded",
       "findings": [
         {
-          "finding_id": "fin_aa7c25f7",
+          "finding_id": "task_05:fin_0227a168:0",
           "text": "Electronics accounts for 80.3% of the change in revenue, the largest single contribution across category.",
           "kind": "calculated_fact",
           "task_id": "task_05",
           "result_ids": [
-            "res_6e909c61e071"
+            "res_128f24efb0b1"
           ],
           "evidence_cells": [
             {
-              "result_id": "res_6e909c61e071",
+              "result_id": "res_128f24efb0b1",
               "row": 0,
               "column": "contribution_pct",
               "value": 80.278,
               "label": "Electronics share of the change"
             },
             {
-              "result_id": "res_6e909c61e071",
+              "result_id": "res_128f24efb0b1",
               "row": 0,
               "column": "change",
               "value": 239047.45,
@@ -1381,7 +1381,7 @@
         }
       ],
       "result_ids": [
-        "res_6e909c61e071"
+        "res_128f24efb0b1"
       ],
       "tool_calls": 1,
       "error": null,
@@ -1402,23 +1402,23 @@
       "status": "succeeded",
       "findings": [
         {
-          "finding_id": "fin_4bc797fb",
+          "finding_id": "task_06:fin_319c489d:0",
           "text": "Of the -7.63 point change in gross_margin_pct, -3.76 comes from rate movement within category values and -3.67 from the mix shifting between them; within-segment rate movement is the larger part.",
           "kind": "calculated_fact",
           "task_id": "task_06",
           "result_ids": [
-            "res_a94502c2a7e0"
+            "res_5be846d4c4bd"
           ],
           "evidence_cells": [
             {
-              "result_id": "res_a94502c2a7e0",
+              "result_id": "res_5be846d4c4bd",
               "row": 0,
               "column": "rate_effect",
               "value": -0.64908,
               "label": "rate effect for Apparel"
             },
             {
-              "result_id": "res_a94502c2a7e0",
+              "result_id": "res_5be846d4c4bd",
               "row": 0,
               "column": "mix_effect",
               "value": -1.310684,
@@ -1432,7 +1432,7 @@
         }
       ],
       "result_ids": [
-        "res_a94502c2a7e0"
+        "res_5be846d4c4bd"
       ],
       "tool_calls": 1,
       "error": null,
@@ -1450,8 +1450,8 @@
     }
   ],
   "results": {
-    "res_c970ea1a6010": {
-      "result_id": "res_c970ea1a6010",
+    "res_a0d7f2013dcf": {
+      "result_id": "res_a0d7f2013dcf",
       "tool_name": "analyze_timeseries",
       "task_id": "task_01",
       "sql": "WITH base AS (\nSELECT date_trunc('quarter', order_date) AS period, SUM(quantity * unit_price) AS \"revenue\"\nFROM (\nSELECT\n  o.order_id,\n  o.order_date,\n  o.customer_id,\n  o.channel            AS order_channel,\n  o.discount_rate,\n  o.shipping_cost,\n  o.status,\n  o.is_first_order,\n  i.order_item_id,\n  i.product_id,\n  i.quantity,\n  i.unit_price,\n  i.unit_cost,\n  i.list_price,\n  i.discount_amount,\n  p.category,\n  p.brand,\n  c.region,\n  c.customer_segment,\n  c.acquisition_channel,\n  CASE WHEN r.return_id IS NULL THEN 0 ELSE 1 END AS is_returned,\n  COALESCE(r.refund_amount, 0)                    AS refund_amount,\n  r.return_reason\nFROM orders o\nJOIN order_items i ON i.order_id = o.order_id\nJOIN products p    ON p.product_id = i.product_id\nJOIN customers c   ON c.customer_id = o.customer_id\nLEFT JOIN returns r ON r.order_item_id = i.order_item_id\n) AS m WHERE \"order_date\" BETWEEN '2025-01-01' AND '2025-12-31'\nGROUP BY date_trunc('quarter', order_date)\nORDER BY date_trunc('quarter', order_date)\n)\nSELECT period, \"revenue\",\n  LAG(\"revenue\") OVER (ORDER BY period) AS prev_period,\n  ROUND(\"revenue\" - LAG(\"revenue\") OVER (ORDER BY period), 6) AS change_abs,\n  ROUND(100.0 * (\"revenue\" - LAG(\"revenue\") OVER (ORDER BY period))\n        / NULLIF(ABS(LAG(\"revenue\") OVER (ORDER BY period)), 0), 4) AS change_pct\nFROM base\nORDER BY period",
@@ -1495,8 +1495,8 @@
       "row_count": 4,
       "truncated": false,
       "dataset_fingerprint": "sha256:8e9ad9348f7dc18660d78ed3cd4d4b32",
-      "started_at": 1790537300.2408059,
-      "duration_ms": 14.683,
+      "started_at": 1790717292.35747,
+      "duration_ms": 14.576,
       "parameters": {
         "metric": "revenue",
         "grain": "quarter",
@@ -1515,10 +1515,18 @@
       "warnings": [],
       "statistical_result": null,
       "decomposition": null,
-      "withhold_cells": false
+      "withhold_cells": false,
+      "column_types": {
+        "period": "TIMESTAMP",
+        "revenue": "DOUBLE",
+        "prev_period": "DOUBLE",
+        "change_abs": "DOUBLE",
+        "change_pct": "DOUBLE"
+      },
+      "column_lineage": {}
     },
-    "res_96f04b6719e8": {
-      "result_id": "res_96f04b6719e8",
+    "res_a5fc974ca8b9": {
+      "result_id": "res_a5fc974ca8b9",
       "tool_name": "analyze_timeseries",
       "task_id": "task_02",
       "sql": "WITH base AS (\nSELECT date_trunc('quarter', order_date) AS period, 100.0 * (SUM(quantity * unit_price) - SUM(quantity * unit_cost)) / NULLIF(SUM(quantity * unit_price), 0) AS \"gross_margin_pct\"\nFROM (\nSELECT\n  o.order_id,\n  o.order_date,\n  o.customer_id,\n  o.channel            AS order_channel,\n  o.discount_rate,\n  o.shipping_cost,\n  o.status,\n  o.is_first_order,\n  i.order_item_id,\n  i.product_id,\n  i.quantity,\n  i.unit_price,\n  i.unit_cost,\n  i.list_price,\n  i.discount_amount,\n  p.category,\n  p.brand,\n  c.region,\n  c.customer_segment,\n  c.acquisition_channel,\n  CASE WHEN r.return_id IS NULL THEN 0 ELSE 1 END AS is_returned,\n  COALESCE(r.refund_amount, 0)                    AS refund_amount,\n  r.return_reason\nFROM orders o\nJOIN order_items i ON i.order_id = o.order_id\nJOIN products p    ON p.product_id = i.product_id\nJOIN customers c   ON c.customer_id = o.customer_id\nLEFT JOIN returns r ON r.order_item_id = i.order_item_id\n) AS m WHERE \"order_date\" BETWEEN '2025-01-01' AND '2025-12-31'\nGROUP BY date_trunc('quarter', order_date)\nORDER BY date_trunc('quarter', order_date)\n)\nSELECT period, \"gross_margin_pct\",\n  LAG(\"gross_margin_pct\") OVER (ORDER BY period) AS prev_period,\n  ROUND(\"gross_margin_pct\" - LAG(\"gross_margin_pct\") OVER (ORDER BY period), 6) AS change_abs,\n  ROUND(100.0 * (\"gross_margin_pct\" - LAG(\"gross_margin_pct\") OVER (ORDER BY period))\n        / NULLIF(ABS(LAG(\"gross_margin_pct\") OVER (ORDER BY period)), 0), 4) AS change_pct\nFROM base\nORDER BY period",
@@ -1562,8 +1570,8 @@
       "row_count": 4,
       "truncated": false,
       "dataset_fingerprint": "sha256:8e9ad9348f7dc18660d78ed3cd4d4b32",
-      "started_at": 1790537300.2414348,
-      "duration_ms": 34.905,
+      "started_at": 1790717292.358017,
+      "duration_ms": 84.636,
       "parameters": {
         "metric": "gross_margin_pct",
         "grain": "quarter",
@@ -1582,10 +1590,18 @@
       "warnings": [],
       "statistical_result": null,
       "decomposition": null,
-      "withhold_cells": false
+      "withhold_cells": false,
+      "column_types": {
+        "period": "TIMESTAMP",
+        "gross_margin_pct": "DOUBLE",
+        "prev_period": "DOUBLE",
+        "change_abs": "DOUBLE",
+        "change_pct": "DOUBLE"
+      },
+      "column_lineage": {}
     },
-    "res_983b346eac99": {
-      "result_id": "res_983b346eac99",
+    "res_6b922fe91078": {
+      "result_id": "res_6b922fe91078",
       "tool_name": "compare_segments",
       "task_id": "task_03",
       "sql": "WITH base AS (\nSELECT \"category\" AS \"category\", SUM(quantity * unit_price) AS \"revenue\"\nFROM (\nSELECT\n  o.order_id,\n  o.order_date,\n  o.customer_id,\n  o.channel            AS order_channel,\n  o.discount_rate,\n  o.shipping_cost,\n  o.status,\n  o.is_first_order,\n  i.order_item_id,\n  i.product_id,\n  i.quantity,\n  i.unit_price,\n  i.unit_cost,\n  i.list_price,\n  i.discount_amount,\n  p.category,\n  p.brand,\n  c.region,\n  c.customer_segment,\n  c.acquisition_channel,\n  CASE WHEN r.return_id IS NULL THEN 0 ELSE 1 END AS is_returned,\n  COALESCE(r.refund_amount, 0)                    AS refund_amount,\n  r.return_reason\nFROM orders o\nJOIN order_items i ON i.order_id = o.order_id\nJOIN products p    ON p.product_id = i.product_id\nJOIN customers c   ON c.customer_id = o.customer_id\nLEFT JOIN returns r ON r.order_item_id = i.order_item_id\n) AS m WHERE \"order_date\" BETWEEN '2025-01-01' AND '2025-12-31'\nGROUP BY \"category\"\nORDER BY \"category\"\n)\nSELECT \"category\", \"revenue\",\n  CASE WHEN MIN(\"revenue\") OVER () >= 0 THEN\n    ROUND(100.0 * \"revenue\" / NULLIF(SUM(\"revenue\") OVER (), 0), 4)\n  END AS share_of_total_pct,\n  ROUND(\"revenue\" - MAX(\"revenue\") OVER (), 6) AS diff_vs_best,\n  ROW_NUMBER() OVER (ORDER BY \"revenue\" DESC NULLS LAST) AS rank_desc\nFROM base\nORDER BY \"revenue\" DESC NULLS LAST",
@@ -1643,8 +1659,8 @@
       "row_count": 6,
       "truncated": false,
       "dataset_fingerprint": "sha256:8e9ad9348f7dc18660d78ed3cd4d4b32",
-      "started_at": 1790537300.241677,
-      "duration_ms": 88.255,
+      "started_at": 1790717292.358322,
+      "duration_ms": 102.786,
       "parameters": {
         "metric": "revenue",
         "dimension": "category",
@@ -1663,10 +1679,18 @@
       "warnings": [],
       "statistical_result": null,
       "decomposition": null,
-      "withhold_cells": false
+      "withhold_cells": false,
+      "column_types": {
+        "category": "VARCHAR",
+        "revenue": "DOUBLE",
+        "share_of_total_pct": "DOUBLE",
+        "diff_vs_best": "DOUBLE",
+        "rank_desc": "BIGINT"
+      },
+      "column_lineage": {}
     },
-    "res_74f7c81f7864": {
-      "result_id": "res_74f7c81f7864",
+    "res_25c3ad52603a": {
+      "result_id": "res_25c3ad52603a",
       "tool_name": "compare_segments",
       "task_id": "task_04",
       "sql": "WITH base AS (\nSELECT \"acquisition_channel\" AS \"acquisition_channel\", SUM(quantity * unit_price) AS \"revenue\"\nFROM (\nSELECT\n  o.order_id,\n  o.order_date,\n  o.customer_id,\n  o.channel            AS order_channel,\n  o.discount_rate,\n  o.shipping_cost,\n  o.status,\n  o.is_first_order,\n  i.order_item_id,\n  i.product_id,\n  i.quantity,\n  i.unit_price,\n  i.unit_cost,\n  i.list_price,\n  i.discount_amount,\n  p.category,\n  p.brand,\n  c.region,\n  c.customer_segment,\n  c.acquisition_channel,\n  CASE WHEN r.return_id IS NULL THEN 0 ELSE 1 END AS is_returned,\n  COALESCE(r.refund_amount, 0)                    AS refund_amount,\n  r.return_reason\nFROM orders o\nJOIN order_items i ON i.order_id = o.order_id\nJOIN products p    ON p.product_id = i.product_id\nJOIN customers c   ON c.customer_id = o.customer_id\nLEFT JOIN returns r ON r.order_item_id = i.order_item_id\n) AS m WHERE \"order_date\" BETWEEN '2025-01-01' AND '2025-12-31'\nGROUP BY \"acquisition_channel\"\nORDER BY \"acquisition_channel\"\n)\nSELECT \"acquisition_channel\", \"revenue\",\n  CASE WHEN MIN(\"revenue\") OVER () >= 0 THEN\n    ROUND(100.0 * \"revenue\" / NULLIF(SUM(\"revenue\") OVER (), 0), 4)\n  END AS share_of_total_pct,\n  ROUND(\"revenue\" - MAX(\"revenue\") OVER (), 6) AS diff_vs_best,\n  ROW_NUMBER() OVER (ORDER BY \"revenue\" DESC NULLS LAST) AS rank_desc\nFROM base\nORDER BY \"revenue\" DESC NULLS LAST",
@@ -1680,42 +1704,42 @@
       "rows": [
         [
           "affiliate",
-          1511560.819999998,
+          1511560.8199999915,
           20.5462,
           0.0,
           1
         ],
         [
           "organic",
-          1508439.9800000002,
+          1508439.9800000025,
           20.5038,
           -3120.84,
           2
         ],
         [
           "paid_search",
-          1432183.5800000129,
+          1432183.5799999991,
           19.4673,
           -79377.24,
           3
         ],
         [
           "social",
-          1093947.3700000062,
+          1093947.370000001,
           14.8697,
           -417613.45,
           4
         ],
         [
           "email",
-          977931.3299999987,
+          977931.3300000001,
           13.2927,
           -533629.49,
           5
         ],
         [
           "referral",
-          832816.9400000009,
+          832816.94,
           11.3202,
           -678743.88,
           6
@@ -1724,8 +1748,8 @@
       "row_count": 6,
       "truncated": false,
       "dataset_fingerprint": "sha256:8e9ad9348f7dc18660d78ed3cd4d4b32",
-      "started_at": 1790537300.2419682,
-      "duration_ms": 109.252,
+      "started_at": 1790717292.358582,
+      "duration_ms": 124.881,
       "parameters": {
         "metric": "revenue",
         "dimension": "acquisition_channel",
@@ -1744,10 +1768,18 @@
       "warnings": [],
       "statistical_result": null,
       "decomposition": null,
-      "withhold_cells": false
+      "withhold_cells": false,
+      "column_types": {
+        "acquisition_channel": "VARCHAR",
+        "revenue": "DOUBLE",
+        "share_of_total_pct": "DOUBLE",
+        "diff_vs_best": "DOUBLE",
+        "rank_desc": "BIGINT"
+      },
+      "column_lineage": {}
     },
-    "res_6e909c61e071": {
-      "result_id": "res_6e909c61e071",
+    "res_128f24efb0b1": {
+      "result_id": "res_128f24efb0b1",
       "tool_name": "decompose_change",
       "task_id": null,
       "sql": null,
@@ -1805,7 +1837,7 @@
       "row_count": 6,
       "truncated": false,
       "dataset_fingerprint": "sha256:8e9ad9348f7dc18660d78ed3cd4d4b32",
-      "started_at": 1790537300.367517,
+      "started_at": 1790717292.4984179,
       "duration_ms": 0.0,
       "parameters": {
         "metric": "revenue",
@@ -1833,10 +1865,12 @@
         "residual": -0.0,
         "reconciled": true
       },
-      "withhold_cells": false
+      "withhold_cells": false,
+      "column_types": {},
+      "column_lineage": {}
     },
-    "res_a94502c2a7e0": {
-      "result_id": "res_a94502c2a7e0",
+    "res_5be846d4c4bd": {
+      "result_id": "res_5be846d4c4bd",
       "tool_name": "decompose_change",
       "task_id": null,
       "sql": null,
@@ -1908,7 +1942,7 @@
       "row_count": 6,
       "truncated": false,
       "dataset_fingerprint": "sha256:8e9ad9348f7dc18660d78ed3cd4d4b32",
-      "started_at": 1790537300.374933,
+      "started_at": 1790717292.506036,
       "duration_ms": 0.0,
       "parameters": {
         "metric": "gross_margin_pct",
@@ -1939,7 +1973,9 @@
         "mix_effect_total": -3.673472,
         "interaction_total": -0.196863
       },
-      "withhold_cells": false
+      "withhold_cells": false,
+      "column_types": {},
+      "column_lineage": {}
     }
   },
   "mcp_trace": [
@@ -1962,8 +1998,8 @@
         ],
         "task_id": "task_01"
       },
-      "duration_ms": 103.87,
-      "result_id": "res_c970ea1a6010",
+      "duration_ms": 106.12,
+      "result_id": "res_a0d7f2013dcf",
       "row_count": 4,
       "ok": true,
       "error": null
@@ -1987,8 +2023,8 @@
         ],
         "task_id": "task_02"
       },
-      "duration_ms": 105.39,
-      "result_id": "res_96f04b6719e8",
+      "duration_ms": 107.73,
+      "result_id": "res_a5fc974ca8b9",
       "row_count": 4,
       "ok": true,
       "error": null
@@ -2012,8 +2048,8 @@
         ],
         "task_id": "task_03"
       },
-      "duration_ms": 111.11,
-      "result_id": "res_983b346eac99",
+      "duration_ms": 113.84,
+      "result_id": "res_6b922fe91078",
       "row_count": 6,
       "ok": true,
       "error": null
@@ -2037,8 +2073,8 @@
         ],
         "task_id": "task_04"
       },
-      "duration_ms": 113.29,
-      "result_id": "res_74f7c81f7864",
+      "duration_ms": 129.16,
+      "result_id": "res_25c3ad52603a",
       "row_count": 6,
       "ok": true,
       "error": null
@@ -2056,8 +2092,8 @@
         "current_end": "2025-09-30",
         "filters": []
       },
-      "duration_ms": 133.4,
-      "result_id": "res_6e909c61e071",
+      "duration_ms": 147.64,
+      "result_id": "res_128f24efb0b1",
       "row_count": 6,
       "ok": true,
       "error": null
@@ -2075,8 +2111,8 @@
         "current_end": "2025-09-30",
         "filters": []
       },
-      "duration_ms": 135.48,
-      "result_id": "res_a94502c2a7e0",
+      "duration_ms": 150.09,
+      "result_id": "res_5be846d4c4bd",
       "row_count": 6,
       "ok": true,
       "error": null
@@ -2084,22 +2120,22 @@
   ],
   "events": [
     {
-      "event_id": "ev_b2d1f33a66e8",
+      "event_id": "ev_ec38c0b4e47b",
       "seq": 1,
       "type": "run_started",
-      "at": 1790537300.207923,
+      "at": 1790717292.322803,
       "data": {
-        "run_id": "run_1a0e456f8ef",
+        "run_id": "run_1a0ef116f22",
         "question": "Revenue increased in Q3 2025, but gross margin fell. What caused it?",
         "provider": "fake",
-        "session_id": "ses_YqOVVZgUfMfHlE1L"
+        "session_id": "ses_m3BesWwA9ihLoyAP"
       }
     },
     {
-      "event_id": "ev_754ffc8d9827",
+      "event_id": "ev_345e71e80857",
       "seq": 2,
       "type": "dataset_loaded",
-      "at": 1790537300.228977,
+      "at": 1790717292.345851,
       "data": {
         "dataset_kind": "demo",
         "source": "Commerce demo warehouse",
@@ -2159,10 +2195,10 @@
       }
     },
     {
-      "event_id": "ev_a1003693b6f7",
+      "event_id": "ev_d5b8d2557a38",
       "seq": 3,
       "type": "question_analyzed",
-      "at": 1790537300.2309408,
+      "at": 1790717292.347865,
       "data": {
         "intent": "Revenue increased in Q3 2025, but gross margin fell. What caused it?",
         "analysis_type": "timeseries",
@@ -2178,10 +2214,10 @@
       }
     },
     {
-      "event_id": "ev_5c8f6dd52d82",
+      "event_id": "ev_d55c5580c61b",
       "seq": 4,
       "type": "plan_generated",
-      "at": 1790537300.233279,
+      "at": 1790717292.3501701,
       "data": {
         "task_count": 6,
         "tasks": [
@@ -2263,10 +2299,10 @@
       }
     },
     {
-      "event_id": "ev_3657248b57aa",
+      "event_id": "ev_ef879cdfbc02",
       "seq": 5,
       "type": "analysis_task_started",
-      "at": 1790537300.2349892,
+      "at": 1790717292.351729,
       "data": {
         "task_id": "task_01",
         "objective": "Track revenue over time to locate when it moved",
@@ -2279,10 +2315,10 @@
       }
     },
     {
-      "event_id": "ev_2953cfe174b4",
+      "event_id": "ev_c650ff020322",
       "seq": 6,
       "type": "mcp_tool_called",
-      "at": 1790537300.23559,
+      "at": 1790717292.352264,
       "data": {
         "tool_name": "analyze_timeseries",
         "agent": "analysis_worker",
@@ -2311,10 +2347,10 @@
       }
     },
     {
-      "event_id": "ev_ac0d25a533cf",
+      "event_id": "ev_be9a883e2275",
       "seq": 7,
       "type": "analysis_task_started",
-      "at": 1790537300.236531,
+      "at": 1790717292.3532422,
       "data": {
         "task_id": "task_02",
         "objective": "Track gross_margin_pct over the same period for comparison",
@@ -2327,10 +2363,10 @@
       }
     },
     {
-      "event_id": "ev_e9c67c144dcb",
+      "event_id": "ev_07e24776d823",
       "seq": 8,
       "type": "mcp_tool_called",
-      "at": 1790537300.2371352,
+      "at": 1790717292.353821,
       "data": {
         "tool_name": "analyze_timeseries",
         "agent": "analysis_worker",
@@ -2359,10 +2395,10 @@
       }
     },
     {
-      "event_id": "ev_87c3e9a03ce6",
+      "event_id": "ev_a60e0f0cbb92",
       "seq": 9,
       "type": "analysis_task_started",
-      "at": 1790537300.2374551,
+      "at": 1790717292.3541381,
       "data": {
         "task_id": "task_03",
         "objective": "Compare revenue across category to find where the change concentrates",
@@ -2377,10 +2413,10 @@
       }
     },
     {
-      "event_id": "ev_bb3114a1a996",
+      "event_id": "ev_e2719738d3f6",
       "seq": 10,
       "type": "mcp_tool_called",
-      "at": 1790537300.237885,
+      "at": 1790717292.354547,
       "data": {
         "tool_name": "compare_segments",
         "agent": "analysis_worker",
@@ -2409,10 +2445,10 @@
       }
     },
     {
-      "event_id": "ev_bf9bcd180cb1",
+      "event_id": "ev_82d25e905435",
       "seq": 11,
       "type": "analysis_task_started",
-      "at": 1790537300.238179,
+      "at": 1790717292.354841,
       "data": {
         "task_id": "task_04",
         "objective": "Compare revenue across acquisition_channel to find where the change concentrates",
@@ -2427,10 +2463,10 @@
       }
     },
     {
-      "event_id": "ev_7061a41575fc",
+      "event_id": "ev_ac2c0c2e5dd2",
       "seq": 12,
       "type": "mcp_tool_called",
-      "at": 1790537300.238668,
+      "at": 1790717292.35532,
       "data": {
         "tool_name": "compare_segments",
         "agent": "analysis_worker",
@@ -2459,10 +2495,10 @@
       }
     },
     {
-      "event_id": "ev_6e94ec29d077",
+      "event_id": "ev_924fbf297134",
       "seq": 13,
       "type": "analysis_task_started",
-      "at": 1790537300.2389429,
+      "at": 1790717292.3555908,
       "data": {
         "task_id": "task_05",
         "objective": "Attribute the change in revenue across category",
@@ -2477,10 +2513,10 @@
       }
     },
     {
-      "event_id": "ev_8917c6b56612",
+      "event_id": "ev_ddb209cf5b59",
       "seq": 14,
       "type": "mcp_tool_called",
-      "at": 1790537300.2393532,
+      "at": 1790717292.3559859,
       "data": {
         "tool_name": "decompose_change",
         "agent": "analysis_worker",
@@ -2503,10 +2539,10 @@
       }
     },
     {
-      "event_id": "ev_67d085ac9818",
+      "event_id": "ev_b8adbe2ee6fe",
       "seq": 15,
       "type": "analysis_task_started",
-      "at": 1790537300.239624,
+      "at": 1790717292.356246,
       "data": {
         "task_id": "task_06",
         "objective": "Attribute the change in gross_margin_pct across category",
@@ -2521,10 +2557,10 @@
       }
     },
     {
-      "event_id": "ev_c0222d2d70dd",
+      "event_id": "ev_0b2c05fe8316",
       "seq": 16,
       "type": "mcp_tool_called",
-      "at": 1790537300.240083,
+      "at": 1790717292.35669,
       "data": {
         "tool_name": "decompose_change",
         "agent": "analysis_worker",
@@ -2547,10 +2583,10 @@
       }
     },
     {
-      "event_id": "ev_dfcd5bc0b0a6",
+      "event_id": "ev_f23b5e39dfec",
       "seq": 17,
       "type": "mcp_tool_completed",
-      "at": 1790537300.3395112,
+      "at": 1790717292.4584582,
       "data": {
         "tool_name": "analyze_timeseries",
         "agent": "analysis_worker",
@@ -2570,33 +2606,33 @@
           ],
           "task_id": "task_01"
         },
-        "duration_ms": 103.87,
-        "result_id": "res_c970ea1a6010",
+        "duration_ms": 106.12,
+        "result_id": "res_a0d7f2013dcf",
         "row_count": 4,
         "ok": true,
         "error": null
       }
     },
     {
-      "event_id": "ev_fee16109ab7a",
+      "event_id": "ev_d1d5047d680c",
       "seq": 18,
       "type": "finding_proposed",
-      "at": 1790537300.341614,
+      "at": 1790717292.460591,
       "data": {
-        "finding_id": "fin_e356670a",
+        "finding_id": "task_01:fin_7c015ed8:0",
         "task_id": "task_01",
         "kind": "calculated_fact",
         "text": "revenue rose from 1,412,235 in 2025-04-01 to 1,710,010 in 2025-07-01 (297,774.67).",
         "result_ids": [
-          "res_c970ea1a6010"
+          "res_a0d7f2013dcf"
         ]
       }
     },
     {
-      "event_id": "ev_ea2926e6d7a5",
+      "event_id": "ev_481e123db701",
       "seq": 19,
       "type": "analysis_task_completed",
-      "at": 1790537300.341641,
+      "at": 1790717292.460617,
       "data": {
         "task_id": "task_01",
         "objective": "Track revenue over time to locate when it moved",
@@ -2604,15 +2640,15 @@
         "findings": 1,
         "tool_calls": 1,
         "result_ids": [
-          "res_c970ea1a6010"
+          "res_a0d7f2013dcf"
         ]
       }
     },
     {
-      "event_id": "ev_998450ed024f",
+      "event_id": "ev_98a70ec28039",
       "seq": 20,
       "type": "mcp_tool_completed",
-      "at": 1790537300.34255,
+      "at": 1790717292.4615839,
       "data": {
         "tool_name": "analyze_timeseries",
         "agent": "analysis_worker",
@@ -2632,33 +2668,33 @@
           ],
           "task_id": "task_02"
         },
-        "duration_ms": 105.39,
-        "result_id": "res_96f04b6719e8",
+        "duration_ms": 107.73,
+        "result_id": "res_a5fc974ca8b9",
         "row_count": 4,
         "ok": true,
         "error": null
       }
     },
     {
-      "event_id": "ev_912456e57f3f",
+      "event_id": "ev_a0f45a9aa0da",
       "seq": 21,
       "type": "finding_proposed",
-      "at": 1790537300.344376,
+      "at": 1790717292.4634151,
       "data": {
-        "finding_id": "fin_3f67f4a2",
+        "finding_id": "task_02:fin_cd318900:0",
         "task_id": "task_02",
         "kind": "calculated_fact",
         "text": "gross_margin_pct fell from 40.87% in 2025-04-01 to 33.24% in 2025-07-01, a change of 7.63 percentage points.",
         "result_ids": [
-          "res_96f04b6719e8"
+          "res_a5fc974ca8b9"
         ]
       }
     },
     {
-      "event_id": "ev_387f4904ee3d",
+      "event_id": "ev_67cb587da95d",
       "seq": 22,
       "type": "analysis_task_completed",
-      "at": 1790537300.344397,
+      "at": 1790717292.4634361,
       "data": {
         "task_id": "task_02",
         "objective": "Track gross_margin_pct over the same period for comparison",
@@ -2666,15 +2702,15 @@
         "findings": 1,
         "tool_calls": 1,
         "result_ids": [
-          "res_96f04b6719e8"
+          "res_a5fc974ca8b9"
         ]
       }
     },
     {
-      "event_id": "ev_90fea61b2589",
+      "event_id": "ev_246ca000cb03",
       "seq": 23,
       "type": "mcp_tool_completed",
-      "at": 1790537300.349021,
+      "at": 1790717292.4684072,
       "data": {
         "tool_name": "compare_segments",
         "agent": "analysis_worker",
@@ -2694,33 +2730,33 @@
           ],
           "task_id": "task_03"
         },
-        "duration_ms": 111.11,
-        "result_id": "res_983b346eac99",
+        "duration_ms": 113.84,
+        "result_id": "res_6b922fe91078",
         "row_count": 6,
         "ok": true,
         "error": null
       }
     },
     {
-      "event_id": "ev_69b8ffcc11d3",
+      "event_id": "ev_e668dc5d5357",
       "seq": 24,
       "type": "finding_proposed",
-      "at": 1790537300.3507469,
+      "at": 1790717292.470122,
       "data": {
-        "finding_id": "fin_e789f02d",
+        "finding_id": "task_03:fin_90ad2d33:0",
         "task_id": "task_03",
         "kind": "calculated_fact",
         "text": "Across category, Apparel has the highest revenue at 1,522,302 and Toys & Games the lowest at 825,693.",
         "result_ids": [
-          "res_983b346eac99"
+          "res_6b922fe91078"
         ]
       }
     },
     {
-      "event_id": "ev_1d0a791ee900",
+      "event_id": "ev_4e7aec4bc879",
       "seq": 25,
       "type": "analysis_task_completed",
-      "at": 1790537300.350765,
+      "at": 1790717292.4701388,
       "data": {
         "task_id": "task_03",
         "objective": "Compare revenue across category to find where the change concentrates",
@@ -2728,15 +2764,15 @@
         "findings": 1,
         "tool_calls": 1,
         "result_ids": [
-          "res_983b346eac99"
+          "res_6b922fe91078"
         ]
       }
     },
     {
-      "event_id": "ev_e2d9ea1f1217",
+      "event_id": "ev_629c57f66420",
       "seq": 26,
       "type": "mcp_tool_completed",
-      "at": 1790537300.351986,
+      "at": 1790717292.484509,
       "data": {
         "tool_name": "compare_segments",
         "agent": "analysis_worker",
@@ -2756,33 +2792,33 @@
           ],
           "task_id": "task_04"
         },
-        "duration_ms": 113.29,
-        "result_id": "res_74f7c81f7864",
+        "duration_ms": 129.16,
+        "result_id": "res_25c3ad52603a",
         "row_count": 6,
         "ok": true,
         "error": null
       }
     },
     {
-      "event_id": "ev_31a0fa3e35b1",
+      "event_id": "ev_3a31693ec339",
       "seq": 27,
       "type": "finding_proposed",
-      "at": 1790537300.353812,
+      "at": 1790717292.486431,
       "data": {
-        "finding_id": "fin_21b25a1a",
+        "finding_id": "task_04:fin_f66093a4:0",
         "task_id": "task_04",
         "kind": "calculated_fact",
         "text": "Across acquisition_channel, affiliate has the highest revenue at 1,511,561 and referral the lowest at 832,817.",
         "result_ids": [
-          "res_74f7c81f7864"
+          "res_25c3ad52603a"
         ]
       }
     },
     {
-      "event_id": "ev_581b61a7cb71",
+      "event_id": "ev_de9febaf4af9",
       "seq": 28,
       "type": "analysis_task_completed",
-      "at": 1790537300.353832,
+      "at": 1790717292.486455,
       "data": {
         "task_id": "task_04",
         "objective": "Compare revenue across acquisition_channel to find where the change concentrates",
@@ -2790,15 +2826,15 @@
         "findings": 1,
         "tool_calls": 1,
         "result_ids": [
-          "res_74f7c81f7864"
+          "res_25c3ad52603a"
         ]
       }
     },
     {
-      "event_id": "ev_d975b352b594",
+      "event_id": "ev_78eed3f12b90",
       "seq": 29,
       "type": "mcp_tool_completed",
-      "at": 1790537300.372782,
+      "at": 1790717292.503674,
       "data": {
         "tool_name": "decompose_change",
         "agent": "analysis_worker",
@@ -2812,33 +2848,33 @@
           "current_end": "2025-09-30",
           "filters": []
         },
-        "duration_ms": 133.4,
-        "result_id": "res_6e909c61e071",
+        "duration_ms": 147.64,
+        "result_id": "res_128f24efb0b1",
         "row_count": 6,
         "ok": true,
         "error": null
       }
     },
     {
-      "event_id": "ev_9d77131b8c4a",
+      "event_id": "ev_3bd1e6073f42",
       "seq": 30,
       "type": "finding_proposed",
-      "at": 1790537300.374683,
+      "at": 1790717292.505625,
       "data": {
-        "finding_id": "fin_aa7c25f7",
+        "finding_id": "task_05:fin_0227a168:0",
         "task_id": "task_05",
         "kind": "calculated_fact",
         "text": "Electronics accounts for 80.3% of the change in revenue, the largest single contribution across category.",
         "result_ids": [
-          "res_6e909c61e071"
+          "res_128f24efb0b1"
         ]
       }
     },
     {
-      "event_id": "ev_a27308311d35",
+      "event_id": "ev_deb61833a93e",
       "seq": 31,
       "type": "analysis_task_completed",
-      "at": 1790537300.3747048,
+      "at": 1790717292.505646,
       "data": {
         "task_id": "task_05",
         "objective": "Attribute the change in revenue across category",
@@ -2846,15 +2882,15 @@
         "findings": 1,
         "tool_calls": 1,
         "result_ids": [
-          "res_6e909c61e071"
+          "res_128f24efb0b1"
         ]
       }
     },
     {
-      "event_id": "ev_9417be13b65b",
+      "event_id": "ev_c5fc71e5f57c",
       "seq": 32,
       "type": "mcp_tool_completed",
-      "at": 1790537300.3755882,
+      "at": 1790717292.506807,
       "data": {
         "tool_name": "decompose_change",
         "agent": "analysis_worker",
@@ -2868,33 +2904,33 @@
           "current_end": "2025-09-30",
           "filters": []
         },
-        "duration_ms": 135.48,
-        "result_id": "res_a94502c2a7e0",
+        "duration_ms": 150.09,
+        "result_id": "res_5be846d4c4bd",
         "row_count": 6,
         "ok": true,
         "error": null
       }
     },
     {
-      "event_id": "ev_b80cdee5fb26",
+      "event_id": "ev_0a0e71ba8754",
       "seq": 33,
       "type": "finding_proposed",
-      "at": 1790537300.3776808,
+      "at": 1790717292.5086799,
       "data": {
-        "finding_id": "fin_4bc797fb",
+        "finding_id": "task_06:fin_319c489d:0",
         "task_id": "task_06",
         "kind": "calculated_fact",
         "text": "Of the -7.63 point change in gross_margin_pct, -3.76 comes from rate movement within category values and -3.67 from the mix shifting between them; within-segment rate movement is the larger part.",
         "result_ids": [
-          "res_a94502c2a7e0"
+          "res_5be846d4c4bd"
         ]
       }
     },
     {
-      "event_id": "ev_752209a520ee",
+      "event_id": "ev_87ec278a16ca",
       "seq": 34,
       "type": "analysis_task_completed",
-      "at": 1790537300.377698,
+      "at": 1790717292.508697,
       "data": {
         "task_id": "task_06",
         "objective": "Attribute the change in gross_margin_pct across category",
@@ -2902,17 +2938,17 @@
         "findings": 1,
         "tool_calls": 1,
         "result_ids": [
-          "res_a94502c2a7e0"
+          "res_5be846d4c4bd"
         ]
       }
     },
     {
-      "event_id": "ev_0a3f042b7c5b",
+      "event_id": "ev_4b25eae2f5d5",
       "seq": 35,
       "type": "finding_verified",
-      "at": 1790537300.379812,
+      "at": 1790717292.51101,
       "data": {
-        "finding_id": "fin_e356670a",
+        "finding_id": "task_01:fin_7c015ed8:0",
         "task_id": "task_01",
         "status": "supported",
         "reason": "The wording matches the values in the cited result.",
@@ -2920,12 +2956,12 @@
       }
     },
     {
-      "event_id": "ev_861547c61967",
+      "event_id": "ev_8065fc12da58",
       "seq": 36,
       "type": "finding_verified",
-      "at": 1790537300.380468,
+      "at": 1790717292.5120919,
       "data": {
-        "finding_id": "fin_3f67f4a2",
+        "finding_id": "task_02:fin_cd318900:0",
         "task_id": "task_02",
         "status": "supported",
         "reason": "The wording matches the values in the cited result.",
@@ -2933,12 +2969,12 @@
       }
     },
     {
-      "event_id": "ev_3f13e8fee4f1",
+      "event_id": "ev_4d47169b7ab3",
       "seq": 37,
       "type": "finding_verified",
-      "at": 1790537300.381092,
+      "at": 1790717292.512772,
       "data": {
-        "finding_id": "fin_e789f02d",
+        "finding_id": "task_03:fin_90ad2d33:0",
         "task_id": "task_03",
         "status": "supported",
         "reason": "The wording matches the values in the cited result.",
@@ -2946,12 +2982,12 @@
       }
     },
     {
-      "event_id": "ev_cb73eb6b859d",
+      "event_id": "ev_ea225de315f9",
       "seq": 38,
       "type": "finding_verified",
-      "at": 1790537300.381681,
+      "at": 1790717292.513431,
       "data": {
-        "finding_id": "fin_21b25a1a",
+        "finding_id": "task_04:fin_f66093a4:0",
         "task_id": "task_04",
         "status": "supported",
         "reason": "The wording matches the values in the cited result.",
@@ -2959,12 +2995,12 @@
       }
     },
     {
-      "event_id": "ev_a320e4137e3d",
+      "event_id": "ev_eafc5663d1d8",
       "seq": 39,
       "type": "finding_verified",
-      "at": 1790537300.382268,
+      "at": 1790717292.514074,
       "data": {
-        "finding_id": "fin_aa7c25f7",
+        "finding_id": "task_05:fin_0227a168:0",
         "task_id": "task_05",
         "status": "supported",
         "reason": "The wording matches the values in the cited result.",
@@ -2972,12 +3008,12 @@
       }
     },
     {
-      "event_id": "ev_e2b329e9a879",
+      "event_id": "ev_11713dd69973",
       "seq": 40,
       "type": "finding_verified",
-      "at": 1790537300.383044,
+      "at": 1790717292.514773,
       "data": {
-        "finding_id": "fin_4bc797fb",
+        "finding_id": "task_06:fin_319c489d:0",
         "task_id": "task_06",
         "status": "supported",
         "reason": "The wording matches the values in the cited result.",
@@ -2985,79 +3021,79 @@
       }
     },
     {
-      "event_id": "ev_6569c7de5c4e",
+      "event_id": "ev_1caf129072ab",
       "seq": 41,
       "type": "chart_created",
-      "at": 1790537300.384437,
+      "at": 1790717292.5163991,
       "data": {
-        "chart_id": "cht_b78bc313",
-        "result_id": "res_c970ea1a6010",
+        "chart_id": "cht_775f9e91",
+        "result_id": "res_a0d7f2013dcf",
         "title": "revenue by quarter",
         "mark": "line",
         "finding_ids": [
-          "fin_e356670a"
+          "task_01:fin_7c015ed8:0"
         ]
       }
     },
     {
-      "event_id": "ev_b8f0df9cde32",
+      "event_id": "ev_ea53ee89e632",
       "seq": 42,
       "type": "chart_created",
-      "at": 1790537300.3849459,
+      "at": 1790717292.516941,
       "data": {
-        "chart_id": "cht_a59e9474",
-        "result_id": "res_96f04b6719e8",
+        "chart_id": "cht_1b50ab90",
+        "result_id": "res_a5fc974ca8b9",
         "title": "gross_margin_pct by quarter",
         "mark": "line",
         "finding_ids": [
-          "fin_3f67f4a2"
+          "task_02:fin_cd318900:0"
         ]
       }
     },
     {
-      "event_id": "ev_ffc77b9dca9c",
+      "event_id": "ev_de5db5eeffdd",
       "seq": 43,
       "type": "chart_created",
-      "at": 1790537300.38544,
+      "at": 1790717292.517578,
       "data": {
-        "chart_id": "cht_f4f74d70",
-        "result_id": "res_983b346eac99",
+        "chart_id": "cht_8fd75f3e",
+        "result_id": "res_6b922fe91078",
         "title": "revenue by category",
         "mark": "bar",
         "finding_ids": [
-          "fin_e789f02d"
+          "task_03:fin_90ad2d33:0"
         ]
       }
     },
     {
-      "event_id": "ev_cb379ce813a3",
+      "event_id": "ev_7b1367c66ef7",
       "seq": 44,
       "type": "chart_created",
-      "at": 1790537300.385924,
+      "at": 1790717292.5180721,
       "data": {
-        "chart_id": "cht_f592750a",
-        "result_id": "res_74f7c81f7864",
+        "chart_id": "cht_ecc57ae2",
+        "result_id": "res_25c3ad52603a",
         "title": "revenue by acquisition_channel",
         "mark": "bar",
         "finding_ids": [
-          "fin_21b25a1a"
+          "task_04:fin_f66093a4:0"
         ]
       }
     },
     {
-      "event_id": "ev_fc2229dc8a0e",
+      "event_id": "ev_3076ec6dfc72",
       "seq": 45,
       "type": "report_started",
-      "at": 1790537300.3863208,
+      "at": 1790717292.518519,
       "data": {
         "finding_count": 6
       }
     },
     {
-      "event_id": "ev_31eae8b75a56",
+      "event_id": "ev_c8557e6f5b0d",
       "seq": 46,
       "type": "report_completed",
-      "at": 1790537300.387629,
+      "at": 1790717292.5200481,
       "data": {
         "finding_count": 6,
         "rejected_count": 0,
@@ -3068,13 +3104,13 @@
       }
     },
     {
-      "event_id": "ev_d490739ff003",
+      "event_id": "ev_30625c0a738c",
       "seq": 47,
       "type": "run_completed",
-      "at": 1790537300.388331,
+      "at": 1790717292.52078,
       "data": {
-        "run_id": "run_1a0e456f8ef",
-        "runtime_seconds": 0.18,
+        "run_id": "run_1a0ef116f22",
+        "runtime_seconds": 0.198,
         "provider": "fake",
         "analysis_tasks": 6,
         "tasks_succeeded": 6,
@@ -3089,13 +3125,13 @@
         "provider_request_attempts": 31,
         "provider_successful_responses": 31,
         "llm_calls": 31,
-        "input_tokens": 29450,
-        "output_tokens": 2403
+        "input_tokens": 29455,
+        "output_tokens": 2422
       }
     }
   ],
   "metrics": {
-    "runtime_seconds": 0.18,
+    "runtime_seconds": 0.198,
     "provider": "fake",
     "analysis_tasks": 6,
     "tasks_succeeded": 6,
@@ -3110,8 +3146,8 @@
     "provider_request_attempts": 31,
     "provider_successful_responses": 31,
     "llm_calls": 31,
-    "input_tokens": 29450,
-    "output_tokens": 2403,
+    "input_tokens": 29455,
+    "output_tokens": 2422,
     "by_role": {
       "question_analyst": 1,
       "planner": 1,

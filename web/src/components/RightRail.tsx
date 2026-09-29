@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { formatDuration } from '../lib/format'
+import { formatDuration, toolLabel } from '../lib/format'
 import type {
   DatasetCatalog,
   MetricInfo,
@@ -67,9 +67,6 @@ export function RightRail({
                 </div>
               ))}
             </div>
-            <p className="small dim mono" style={{ margin: 0, overflowWrap: 'anywhere' }}>
-              {catalog.dataset_fingerprint}
-            </p>
           </div>
         </section>
       )}
@@ -96,9 +93,9 @@ export function RightRail({
             <h2>Analysis tasks</h2>
           </div>
           <div className="panel-body rail-list">
-            {tasks.map((task) => (
+            {tasks.map((task, index) => (
               <div className="rail-row" key={task.task_id}>
-                <span className="mono">{task.task_id}</span>
+                <span>Task {index + 1}</span>
                 <span className={`tag ${task.status === 'succeeded' ? 'supported' : task.status === 'failed' ? 'rejected' : 'partially_supported'}`}>
                   {task.status}
                 </span>
@@ -121,7 +118,7 @@ export function RightRail({
                 onClick={() => onOpenResult(result.result_id)}
                 style={{ background: 'none', border: 'none', padding: '2px 0', textAlign: 'left' }}
               >
-                <span className="mono">{result.tool_name}</span>
+                <span>{toolLabel(result.tool_name)}</span>
                 <span className="mono">{formatDuration(result.duration_ms)}</span>
               </button>
             ))}

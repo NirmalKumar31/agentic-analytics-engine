@@ -1,4 +1,4 @@
-import { agentLabel, formatDuration } from '../lib/format'
+import { agentLabel, formatDuration, toolLabel } from '../lib/format'
 import type { RunEvent, TraceCall } from '../lib/types'
 
 interface Props {
@@ -61,7 +61,7 @@ export function ActivityLog({ events, trace, showTrace, onToggleTrace, running }
           agent: agentLabel(String(data.agent ?? 'Analysis Agent')),
           detail: (
             <>
-              → MCP: <span className="mono">{String(data.tool_name)}</span>
+              → {toolLabel(String(data.tool_name))}
               {showTrace && (
                 <span className="dim mono"> {summariseArgs(data.arguments)}</span>
               )}
@@ -79,8 +79,8 @@ export function ActivityLog({ events, trace, showTrace, onToggleTrace, running }
             tone: 'tool',
             agent: '',
             detail: (
-              <span className="dim mono">
-                ← {String(data.result_id)} · {String(data.row_count ?? 0)} rows
+              <span className="dim">
+                ← {String(data.row_count ?? 0)} rows returned
               </span>
             ),
             meta: formatDuration(Number(data.duration_ms ?? 0)),
@@ -94,7 +94,7 @@ export function ActivityLog({ events, trace, showTrace, onToggleTrace, running }
           agent: agentLabel(String(data.agent ?? 'Analysis Agent')),
           detail: (
             <>
-              → <span className="mono">{String(data.tool_name)}</span> failed:{' '}
+              → {toolLabel(String(data.tool_name))} failed:{' '}
               {String(data.error ?? '').slice(0, 120)}
             </>
           ),
@@ -126,7 +126,10 @@ export function ActivityLog({ events, trace, showTrace, onToggleTrace, running }
           key: event.event_id,
           tone: 'failed',
           agent: 'Analysis Worker',
-          detail: <>→ task {String(data.task_id)} failed: {String(data.error ?? '')}</>,
+          detail: <>
+            → {data.task_id ? 'an analytical task failed' : 'analysis was stopped'}:{' '}
+            {String(data.error ?? data.reason ?? '')}
+          </>,
         })
         break
       case 'followup_round_started':

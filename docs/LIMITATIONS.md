@@ -162,12 +162,13 @@ coroutine.
     grouping if its values repeat, and a text column with a different value
     on almost every row is an identifier however it is named, because one
     row per group is a label rather than a category.
-- **Question interpretation for an uploaded file is a set of rules, not
-  understanding.** `aggregate_for_question` recognises five operations --
-  count, total, average, ranking, trend -- matches column names as whole
-  tokens (with simple pluralisation), and reads an explicit `by <column>`
-  grouping. It resolves a column the question did not name only when the
-  schema offers exactly one candidate of the right role.
+- **Question interpretation for an uploaded file remains bounded, not a
+  general semantic layer.** Deterministic Analytics uses rules; AI Analytics
+  may propose a typed contract. The latter is not trusted: all identifiers,
+  operations, filters, periods and source excerpts are checked against the
+  local schema and original question. This fixes silent loss of explicit row
+  restrictions, but it does not make arbitrary synonyms or business concepts
+  reliably understandable.
 - Everything outside that is **refused with a reason**, and the profile is
   offered instead. "Why did revenue fall?" names no operation and gets no
   answer. That is deliberate, but it means the deterministic demo answers a
@@ -206,9 +207,11 @@ coroutine.
 
 ## 5a. What the upload corpus proves, and what it does not
 
-There is an acceptance corpus of 230 cases: every one of 40 domains, all 24
-structural families, all 10 question kinds, nine domains with the full
-matrix, both CSV and Parquet. It runs in CI with no credentials.
+There is an acceptance corpus of 266 cases: every one of 40 domains, all 24
+structural families and 19 question kinds, both CSV and Parquet. It runs in
+CI with no credentials. The added restriction families cover numeric bounds,
+categorical equality, nullity, compositions and contradictions across at
+least three unrelated domains each.
 
 The newest family is `interval_grained_rows`, where a row describes a
 *span* rather than a point -- a drill-core depth interval, a
@@ -241,12 +244,11 @@ column so that a foreign key sharing its value space with the identifier
 it references is not reported as a leak.
 
 **What it does not establish.** That an arbitrary file gets a good answer.
-The corpus is 230 questions the authors chose, against datasets the authors
+The corpus is 266 questions the authors chose, against datasets the authors
 generated. It demonstrates the committed cases and the *shape* of the
 failure behaviour -- refusal rather than guessing -- not coverage of every
-file a visitor might upload. Three of the ten question kinds are satisfied
-by a refusal, and a large share of the corpus is deliberately
-unanswerable.
+file a visitor might upload. Some question kinds are satisfied by a refusal,
+and a large share of the corpus is deliberately unanswerable.
 
 **Acceptance is about what must never happen**, not what must always
 happen. Zero unsupported publications, zero irrelevant publications, zero

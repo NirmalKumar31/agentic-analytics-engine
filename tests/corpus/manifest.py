@@ -32,6 +32,22 @@ from tests.corpus.kinds import Domain, Family, Outcome, QuestionKind
 #: other kind has at least two honest outcomes, because refusing early and
 #: running-then-publishing-nothing are both correct ways to decline.
 ALLOWED: dict[QuestionKind, frozenset[Outcome]] = {
+    # ── row restrictions ────────────────────────────────────────────────
+    # A resolvable restriction must be answered, because the alternative
+    # the engine used to choose -- answering without it -- is the defect
+    # these kinds exist to catch.
+    QuestionKind.NUMERIC_RANGE: frozenset({Outcome.VERIFIED_ANSWER}),
+    QuestionKind.STRICT_BOUND: frozenset({Outcome.VERIFIED_ANSWER}),
+    QuestionKind.CATEGORY_FILTER: frozenset({Outcome.VERIFIED_ANSWER, Outcome.NO_FINDINGS}),
+    QuestionKind.MULTI_FILTER: frozenset({Outcome.VERIFIED_ANSWER, Outcome.NO_FINDINGS}),
+    QuestionKind.FILTER_AND_PERIOD: frozenset({Outcome.VERIFIED_ANSWER, Outcome.NO_FINDINGS}),
+    # No qualifying rows is an honest empty result, never an invented zero.
+    QuestionKind.EMPTY_POPULATION: frozenset({Outcome.NO_FINDINGS, Outcome.SAFE_REFUSAL}),
+    # These three must refuse: a restriction that cannot be resolved may
+    # not be quietly dropped.
+    QuestionKind.ABSENT_FILTER_COLUMN: frozenset({Outcome.SAFE_REFUSAL, Outcome.NO_FINDINGS}),
+    QuestionKind.AMBIGUOUS_FILTER: frozenset({Outcome.SAFE_REFUSAL, Outcome.NO_FINDINGS}),
+    QuestionKind.MALFORMED_CONSTRAINT: frozenset({Outcome.SAFE_REFUSAL, Outcome.NO_FINDINGS}),
     QuestionKind.ANSWERABLE: frozenset({Outcome.VERIFIED_ANSWER}),
     QuestionKind.AMBIGUOUS: frozenset({Outcome.SAFE_REFUSAL, Outcome.NO_FINDINGS}),
     QuestionKind.IRRELEVANT: frozenset({Outcome.SAFE_REFUSAL, Outcome.NO_FINDINGS}),
@@ -443,6 +459,134 @@ _QUESTIONS: dict[str, dict[QuestionKind, str]] = {
     },
 }
 
+#: Row-restriction questions, spread across domains and structural
+#: families.
+#:
+#: Kept apart from `_QUESTIONS` because they exercise a different thing.
+#: The other kinds ask whether the engine maps a question to the right
+#: columns; these ask whether a restriction it mapped actually reached the
+#: query. That failure is invisible in the output -- a dropped filter
+#: returns real numbers for a population nobody asked about -- so each
+#: case here is either answered with the restriction applied or refused.
+_FILTER_QUESTIONS: dict[str, dict[QuestionKind, str]] = {
+    "retail_orders": {
+        QuestionKind.NUMERIC_RANGE: "average gross_amount by product_line for units_sold 2 to 8",
+        QuestionKind.STRICT_BOUND: "average gross_amount by store_code where units_sold over 5",
+        QuestionKind.EMPTY_POPULATION: (
+            "average gross_amount by store_code where units_sold at least 99999"
+        ),
+        QuestionKind.ABSENT_FILTER_COLUMN: (
+            "average gross_amount by store_code for loyalty_points 10 to 20"
+        ),
+        QuestionKind.MALFORMED_CONSTRAINT: (
+            "average gross_amount by store_code for units_sold 8 to 2"
+        ),
+    },
+    "support_tickets": {
+        QuestionKind.NUMERIC_RANGE: (
+            "average resolution_hours by queue for satisfaction_score 3 to 5"
+        ),
+        QuestionKind.CATEGORY_FILTER: "average resolution_hours by queue where priority is high",
+        QuestionKind.MULTI_FILTER: (
+            "average resolution_hours by queue where satisfaction_score at least 3 "
+            "and first_response_minutes under 60"
+        ),
+        QuestionKind.EMPTY_POPULATION: (
+            "average resolution_hours by queue where first_response_minutes at least 99999"
+        ),
+        QuestionKind.ABSENT_FILTER_COLUMN: (
+            "average resolution_hours by queue for backlog_days 1 to 5"
+        ),
+        QuestionKind.MALFORMED_CONSTRAINT: (
+            "average resolution_hours by queue for satisfaction_score 5 to 1"
+        ),
+    },
+    "hr_headcount": {
+        QuestionKind.NUMERIC_RANGE: (
+            "average annual_salary by department for tenure_months 12 to 60"
+        ),
+        QuestionKind.MULTI_FILTER: (
+            "average annual_salary by department where tenure_months at least 12 "
+            "and annual_salary under 200000"
+        ),
+        QuestionKind.FILTER_AND_PERIOD: (
+            "average annual_salary by department in 2025 for tenure_months 12 to 60"
+        ),
+        QuestionKind.EMPTY_POPULATION: (
+            "average annual_salary by department where tenure_months at least 99999"
+        ),
+        QuestionKind.MALFORMED_CONSTRAINT: (
+            "average annual_salary by department for tenure_months 60 to 12"
+        ),
+        QuestionKind.STRICT_BOUND: (
+            "average annual_salary by job_family where tenure_months over 24"
+        ),
+        QuestionKind.CATEGORY_FILTER: ("average annual_salary by job_family where grade is G5"),
+    },
+    "saas_accounts": {
+        QuestionKind.NUMERIC_RANGE: "average mrr_gbp by plan_tier for seats 5 to 50",
+        QuestionKind.FILTER_AND_PERIOD: ("average mrr_gbp by plan_tier in 2025 for seats 5 to 50"),
+    },
+    "aviation_flight_legs": {
+        QuestionKind.NUMERIC_RANGE: (
+            "average delay_minutes by origin_airport for passengers 50 to 150"
+        ),
+        # Two numeric columns are equally close to the bound, so the
+        # engine must say which it cannot choose rather than pick one.
+        QuestionKind.AMBIGUOUS_FILTER: (
+            "average passengers by origin_airport where minutes 10 to 40"
+        ),
+        QuestionKind.EMPTY_POPULATION: (
+            "average delay_minutes by origin_airport where passengers at least 99999"
+        ),
+    },
+    "logistics_denormalised": {
+        QuestionKind.NUMERIC_RANGE: (
+            "average transit_hours by carrier_name for distance_km 100 to 500"
+        ),
+        QuestionKind.MULTI_FILTER: (
+            "average transit_hours by carrier_name where distance_km at least 100 "
+            "and transit_hours under 48"
+        ),
+        QuestionKind.FILTER_AND_PERIOD: (
+            "average transit_hours by carrier_name in 2025 for distance_km 100 to 500"
+        ),
+        QuestionKind.ABSENT_FILTER_COLUMN: (
+            "average transit_hours by carrier_name for fuel_litres 10 to 50"
+        ),
+        QuestionKind.CATEGORY_FILTER: (
+            "average transit_hours by carrier_name where carrier_tier is standard"
+        ),
+    },
+    "geology_core_assays": {
+        # Three depth-like columns: the bound belongs to the one named.
+        QuestionKind.NUMERIC_RANGE: (
+            "average gold_gpt by lithology_code for interval_length_m 1 to 3"
+        ),
+        # "depth" names two bound columns equally well.
+        QuestionKind.AMBIGUOUS_FILTER: ("average gold_gpt by lithology_code for depth 1 to 3"),
+        QuestionKind.ABSENT_FILTER_COLUMN: (
+            "average gold_gpt by lithology_code for silver_gpt 1 to 3"
+        ),
+    },
+    "education_enrolment": {
+        QuestionKind.NUMERIC_RANGE: (
+            "average assessment_score by course_code for attendance_pct 80 to 100"
+        ),
+        QuestionKind.STRICT_BOUND: (
+            "average assessment_score by term where attendance_pct at least 90"
+        ),
+        QuestionKind.AMBIGUOUS_FILTER: ("average assessment_score by term where score 40 to 60"),
+        QuestionKind.MALFORMED_CONSTRAINT: (
+            "average assessment_score by term for attendance_pct 100 to 80"
+        ),
+        QuestionKind.CATEGORY_FILTER: (
+            "average assessment_score by course_code where term is Autumn"
+        ),
+    },
+}
+
+
 #: Datasets read as Parquet rather than CSV. Spread across families so the
 #: reader is exercised on more than one shape.
 _PARQUET = frozenset(
@@ -463,12 +607,28 @@ _PARQUET = frozenset(
 )
 
 
+def _merged_filters() -> dict[str, dict[QuestionKind, str]]:
+    """Filter questions folded in per dataset.
+
+    A dataset may appear in both tables -- `retail_orders` has a full
+    ten-kind matrix and five filter questions -- and both sets must
+    survive, so the inner dicts are merged rather than replaced.
+    """
+    merged: dict[str, dict[QuestionKind, str]] = {}
+    for dataset, questions in _FILTER_QUESTIONS.items():
+        merged.setdefault(dataset, {}).update(questions)
+    for dataset, questions in _QUESTIONS.items():
+        if dataset in merged:
+            merged[dataset] = {**questions, **merged[dataset]}
+    return merged
+
+
 def cases() -> list[Case]:
     """Every case, built from the per-dataset question sets."""
     from tests.corpus.generators import build
 
     out: list[Case] = []
-    for dataset, questions in _QUESTIONS.items():
+    for dataset, questions in {**_QUESTIONS, **_merged_filters()}.items():
         shape = build(dataset)
         for kind, question in questions.items():
             out.append(

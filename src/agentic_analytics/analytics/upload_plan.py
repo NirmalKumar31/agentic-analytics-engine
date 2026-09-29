@@ -27,9 +27,14 @@ catalogue. No model writes it, and it is still guarded before it executes.
 
 from __future__ import annotations
 
+import hashlib
+import json
 import re
 from dataclasses import dataclass, field
+from datetime import date
 from typing import Any, Literal
+
+from agentic_analytics.analytics.row_filters import filters_from_plan, parse_filters
 
 Operation = Literal["count", "sum", "average", "trend", "rank", "profile"]
 
@@ -151,10 +156,44 @@ class QuestionMapping:
     #: the silent guess the upload corpus caught most often.
     period: tuple[str, str] | None = None
     period_field: str | None = None
+    #: Row restrictions the question stated, already resolved to real
+    #: columns and finite values. Empty is "no restriction asked for",
+    #: never "one was asked for and dropped" -- that case refuses.
+    filters: tuple[Any, ...] = ()
     ascending: bool = False
     confident: bool = True
     explanation: str = ""
     named_columns: list[str] = field(default_factory=list)
+    #: Who interpreted the wording.  This changes provenance, not arithmetic;
+    #: the canonical contract deliberately excludes it.
+    interpretation: str = "rule-based"
+
+    def canonical_dict(self) -> dict[str, Any]:
+        """The semantic contract, stable across planner implementations."""
+        filters = [f.as_dict() for f in self.filters]
+        filters.sort(
+            key=lambda f: json.dumps(
+                {k: v for k, v in f.items() if k != "source_text"},
+                sort_keys=True,
+                separators=(",", ":"),
+            )
+        )
+        return {
+            "operation": self.operation,
+            "table": self.table,
+            "measure": self.measure,
+            "dimension": self.dimension,
+            "time_field": self.time_field,
+            "period": list(self.period) if self.period else None,
+            "period_field": self.period_field,
+            "filters": [{k: v for k, v in item.items() if k != "source_text"} for item in filters],
+            "ascending": self.ascending,
+        }
+
+    @property
+    def contract_hash(self) -> str:
+        blob = json.dumps(self.canonical_dict(), sort_keys=True, separators=(",", ":"))
+        return hashlib.sha256(blob.encode("utf-8")).hexdigest()
 
     def as_dict(self) -> dict[str, Any]:
         return {
@@ -163,13 +202,16 @@ class QuestionMapping:
             "measure": self.measure,
             "period": list(self.period) if self.period else None,
             "period_field": self.period_field,
+            "filters": [f.as_dict() for f in self.filters],
             "dimension": self.dimension,
             "time_field": self.time_field,
             "ascending": self.ascending,
             "confident": self.confident,
             "explanation": self.explanation,
             "named_columns": list(self.named_columns),
-            "interpretation": "rule-based",
+            "interpretation": self.interpretation,
+            "contract_hash": self.contract_hash,
+            "canonical_contract": self.canonical_dict(),
         }
 
 
@@ -258,6 +300,221 @@ def _pick(
     )
 
 
+def _source_is_in_question(source: str, question: str) -> bool:
+    """A model may map an excerpt, but it may not invent one."""
+    wanted = _normalise(source)
+    return bool(wanted) and wanted in _normalise(question)
+
+
+def mapping_from_plan(question: str, schema: dict[str, Any], plan: Any) -> QuestionMapping:
+    """Validate an AI upload plan and turn it into the governed mapping.
+
+    The provider supplies language interpretation only.  Identifiers, types,
+    values, source excerpts and every rule-detectable constraint are checked
+    here before the ordinary SQL compiler sees the result.
+    """
+    payload = plan.model_dump() if hasattr(plan, "model_dump") else dict(plan)
+    table = str(schema.get("table", ""))
+
+    def refuse(reason: str) -> QuestionMapping:
+        return QuestionMapping(
+            operation="profile",
+            table=table,
+            confident=False,
+            explanation=reason,
+            interpretation="ai-grounded",
+        )
+
+    if not payload.get("confident", True):
+        return refuse(
+            str(payload.get("ambiguity") or "the AI planner could not resolve the question")
+        )
+    if str(payload.get("table", "")) != table:
+        return refuse("the AI plan named a table that is not the uploaded table")
+
+    operation = str(payload.get("operation", ""))
+    if operation not in {"count", "sum", "average", "trend", "rank", "profile"}:
+        return refuse(f"the AI plan requested unsupported operation {operation!r}")
+    if not _source_is_in_question(str(payload.get("operation_source", "")), question):
+        return refuse("the AI plan did not ground its operation in the question")
+
+    fields = {
+        str(f.get("name", "")): str(f.get("data_type") or f.get("type") or "")
+        for f in schema.get("fields", [])
+    }
+    measures, _dimensions, time_fields = _roles(schema)
+    aggregatable = {str(c) for c in schema.get("aggregatable_if_named", [])}
+    measure = payload.get("measure")
+    dimension = payload.get("dimension")
+    time_field = payload.get("time_field")
+
+    if measure is not None:
+        measure = str(measure)
+        if measure not in fields or measure not in set(measures) | aggregatable:
+            return refuse(f"the AI plan named {measure!r} as a measure, but it is not aggregatable")
+        if not _source_is_in_question(str(payload.get("measure_source", "")), question):
+            return refuse("the AI plan did not ground its measure in the question")
+    if operation in {"sum", "average", "rank"} and measure is None:
+        return refuse(f"the {operation} operation needs a measure")
+
+    if dimension is not None:
+        dimension = str(dimension)
+        # A named numeric column can be a grouping even when the inference
+        # layer did not classify it as a dimension.  The source excerpt is
+        # the authority that the visitor actually asked for it.
+        if dimension not in fields:
+            return refuse(
+                f"the AI plan named a grouping column this table does not have: {dimension!r}"
+            )
+        if not _source_is_in_question(str(payload.get("dimension_source", "")), question):
+            return refuse("the AI plan did not ground its grouping in the question")
+    if measure is not None and dimension == measure:
+        return refuse("the AI plan cannot aggregate a column by that same column")
+
+    if time_field is not None:
+        time_field = str(time_field)
+        if time_field not in time_fields:
+            return refuse(f"the AI plan named {time_field!r} as a time field, but it is not one")
+
+    filter_specs = [
+        item.model_dump() if hasattr(item, "model_dump") else dict(item)
+        for item in payload.get("filters", [])
+    ]
+    for item in filter_specs:
+        if not _source_is_in_question(str(item.get("source_text", "")), question):
+            return refuse(
+                "the AI plan proposed a filter on "
+                f"{item.get('column')!r} without an exact source excerpt"
+            )
+    resolution = filters_from_plan(filter_specs, schema)
+    if resolution.refusal:
+        return refuse(resolution.refusal)
+
+    # Anything the rule parser can see is a lower bound on what the model
+    # must preserve.  This catches a cloud plan that simply omits "aged 30
+    # to 40" while still allowing it to ground a safe synonym the rules do
+    # not understand.
+    deterministic_filters = parse_filters(question, schema)
+    if deterministic_filters.constraint_detected:
+        if deterministic_filters.refusal and not resolution.filters:
+            return refuse(deterministic_filters.refusal)
+        wanted = {
+            json.dumps(
+                {k: v for k, v in f.as_dict().items() if k != "source_text"},
+                sort_keys=True,
+            )
+            for f in deterministic_filters.filters
+        }
+        have = {
+            json.dumps(
+                {k: v for k, v in f.as_dict().items() if k != "source_text"},
+                sort_keys=True,
+            )
+            for f in resolution.filters
+        }
+        if not wanted <= have:
+            return refuse("the AI plan omitted a row restriction stated in the question")
+
+    start = payload.get("period_start")
+    end = payload.get("period_end")
+    period: tuple[str, str] | None = None
+    if start is not None or end is not None:
+        if not (start and end and time_field):
+            return refuse("the AI plan supplied only part of a time restriction")
+        try:
+            start_date = date.fromisoformat(str(start))
+            end_date = date.fromisoformat(str(end))
+        except ValueError:
+            return refuse("the AI plan supplied an invalid ISO date")
+        if start_date > end_date:
+            return refuse("the AI plan supplied a reversed time period")
+        period = (str(start), str(end))
+
+    # Protect explicit rule-resolved components from being reinterpreted.
+    rules = resolve_question(question, schema)
+    if rules.confident:
+        if operation != rules.operation:
+            return refuse("the AI plan changed the operation explicitly requested in the question")
+        if rules.measure in rules.named_columns and measure != rules.measure:
+            return refuse("the AI plan changed the measure explicitly named in the question")
+        if rules.dimension in rules.named_columns and dimension != rules.dimension:
+            return refuse("the AI plan changed the grouping explicitly named in the question")
+
+    return QuestionMapping(
+        operation=operation,  # type: ignore[arg-type]
+        table=table,
+        measure=measure,
+        dimension=dimension,
+        time_field=time_field,
+        period=period,
+        period_field=time_field if period else None,
+        filters=resolution.filters,
+        ascending=bool(payload.get("ascending", False)),
+        confident=True,
+        # A confident plan's free-text note is not evidence and must not
+        # become user-facing explanation.  The structured contract below is
+        # the explanation a visitor can inspect.
+        explanation="validated schema-grounded AI plan",
+        named_columns=[c for c in fields if _mentions(_normalise(question), c) >= 0],
+        interpretation="ai-grounded",
+    )
+
+
+def mapping_from_contract(
+    question: str, schema: dict[str, Any], contract: dict[str, Any]
+) -> QuestionMapping:
+    """Revalidate an engine-accepted contract at the MCP boundary."""
+    period_value = contract.get("period")
+    if period_value is None:
+        period = [None, None]
+    elif isinstance(period_value, list) and len(period_value) == 2:
+        period = period_value
+    else:
+        return QuestionMapping(
+            operation="profile",
+            table=str(schema.get("table", "")),
+            confident=False,
+            explanation="the accepted query contract has an invalid period",
+            interpretation="ai-grounded",
+        )
+    plan = {
+        "table": contract.get("table"),
+        "operation": contract.get("operation"),
+        "operation_source": question,
+        "measure": contract.get("measure"),
+        "measure_source": question if contract.get("measure") else "",
+        "dimension": contract.get("dimension"),
+        "dimension_source": question if contract.get("dimension") else "",
+        "filters": [
+            {
+                "column": item.get("column"),
+                "operator": item.get("operator"),
+                "value": "" if item.get("value") is None else str(item.get("value")),
+                "source_text": item.get("source_text") or question,
+            }
+            for item in (contract.get("filters") or [])
+        ],
+        "time_field": contract.get("time_field") or contract.get("period_field"),
+        "period_start": period[0],
+        "period_end": period[1],
+        "ascending": bool(contract.get("ascending", False)),
+        "confident": bool(contract.get("confident", True)),
+        "ambiguity": str(contract.get("explanation") or ""),
+    }
+    mapping = mapping_from_plan(question, schema, plan)
+    wanted_hash = str(contract.get("contract_hash") or "")
+    if mapping.confident and (not wanted_hash or mapping.contract_hash != wanted_hash):
+        return QuestionMapping(
+            operation="profile",
+            table=str(schema.get("table", "")),
+            confident=False,
+            explanation="the accepted query contract changed before execution",
+            interpretation="ai-grounded",
+        )
+    mapping.interpretation = str(contract.get("interpretation") or mapping.interpretation)
+    return mapping
+
+
 def resolve_question(question: str, schema: dict[str, Any]) -> QuestionMapping:
     """Decide, from rules alone, what to compute for this question.
 
@@ -302,6 +559,42 @@ def resolve_question(question: str, schema: dict[str, Any]) -> QuestionMapping:
             )
         named_period = (window.start, window.end)
         period_field = time_fields[0]
+
+    # Row restrictions, resolved before anything else is decided.
+    #
+    # A question that restricts its population and is answered over every
+    # row is not a slightly worse answer, it is an answer to a different
+    # question -- and the old planner returned one confidently, because it
+    # had no way to represent the restriction and therefore no way to
+    # notice it had dropped one. An unresolvable restriction refuses here
+    # rather than falling through.
+    resolution = parse_filters(question, schema)
+    if resolution.refusal is not None:
+        return QuestionMapping(
+            operation="profile",
+            table=table,
+            confident=False,
+            explanation=resolution.refusal,
+            named_columns=[],
+            period=named_period,
+            period_field=period_field,
+        )
+    row_filters = resolution.filters
+    if resolution.constraint_detected and not row_filters:
+        return QuestionMapping(
+            operation="profile",
+            table=table,
+            confident=False,
+            explanation=(
+                "the question restricts which rows to include, and that restriction "
+                "could not be mapped to a column of this table; name the column and "
+                "the bound, for example 'age between 30 and 40'"
+            ),
+            named_columns=[],
+            period=named_period,
+            period_field=period_field,
+        )
+
     text = _normalise(question)
 
     def refuse(reason: str) -> QuestionMapping:
@@ -348,6 +641,7 @@ def resolve_question(question: str, schema: dict[str, Any]) -> QuestionMapping:
             operation="profile",
             table=table,
             confident=True,
+            filters=row_filters,
             explanation="the question asked what the table contains",
             named_columns=named,
             period=named_period,
@@ -396,6 +690,7 @@ def resolve_question(question: str, schema: dict[str, Any]) -> QuestionMapping:
             measure=measure,
             time_field=time_field,
             confident=True,
+            filters=row_filters,
             explanation=(
                 f"monthly {'total of ' + measure if measure else 'row count'} over {time_field}"
             ),
@@ -410,6 +705,7 @@ def resolve_question(question: str, schema: dict[str, Any]) -> QuestionMapping:
             table=table,
             dimension=dimension,
             confident=True,
+            filters=row_filters,
             explanation=(f"row count by {dimension}" if dimension else "total row count"),
             named_columns=named,
             period=named_period,
@@ -438,6 +734,7 @@ def resolve_question(question: str, schema: dict[str, Any]) -> QuestionMapping:
                 dimension=dimension,
                 ascending=bool(_ASCENDING.search(question)),
                 confident=True,
+                filters=row_filters,
                 explanation=f"{dimension} values ranked by how often they occur",
                 named_columns=named,
             )
@@ -456,6 +753,7 @@ def resolve_question(question: str, schema: dict[str, Any]) -> QuestionMapping:
             dimension=rank_dimension,
             ascending=bool(_ASCENDING.search(question)),
             confident=True,
+            filters=row_filters,
             explanation=(
                 f"{'lowest' if _ASCENDING.search(question) else 'highest'} total "
                 f"{measure} by {rank_dimension}"
@@ -472,6 +770,7 @@ def resolve_question(question: str, schema: dict[str, Any]) -> QuestionMapping:
         measure=measure,
         dimension=dimension,
         confident=True,
+        filters=row_filters,
         explanation=(f"{verb} {measure} by {dimension}" if dimension else f"{verb} {measure}"),
         named_columns=named,
         period=named_period,
@@ -566,6 +865,25 @@ def _quote(identifier: str) -> str:
     return '"' + identifier.replace('"', '""') + '"'
 
 
+def _where(mapping: QuestionMapping) -> str:
+    """Everything restricting the rows: the named period and the row
+    filters, joined.
+
+    One place, so a new query shape cannot pick up the period and forget
+    the filters -- which is the shape of the defect this replaces.
+    """
+    from agentic_analytics.analytics.row_filters import where_clause
+
+    parts: list[str] = []
+    period = _period_filter(mapping).strip()
+    if period:
+        parts.append(period.removeprefix("WHERE ").strip())
+    rows = where_clause(tuple(mapping.filters), _quote)
+    if rows:
+        parts.append(rows)
+    return f" WHERE {' AND '.join(parts)} " if parts else ""
+
+
 def _period_filter(mapping: QuestionMapping) -> str:
     """A `WHERE` fragment for a named period, or an empty string."""
     if not mapping.period or not mapping.period_field:
@@ -587,7 +905,7 @@ def build_sql(mapping: QuestionMapping) -> str | None:
     if not mapping.confident or mapping.operation == "profile":
         return None
     table = _quote(mapping.table)
-    where = _period_filter(mapping)
+    where = _where(mapping)
 
     if mapping.operation == "trend":
         if mapping.time_field is None:

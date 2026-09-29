@@ -75,6 +75,12 @@ function Pane({ side }: { side: Side }) {
 }
 
 export function ComparisonView({ question, deterministic, ai }: Props) {
+  const leftContract = deterministic.run?.query_contract
+  const rightContract = ai.run?.query_contract
+  const comparable = Boolean(leftContract && rightContract)
+  const sameContract =
+    comparable && leftContract?.contract_hash === rightContract?.contract_hash
+
   return (
     <div className="stack">
       <section className="panel">
@@ -90,6 +96,17 @@ export function ComparisonView({ question, deterministic, ai }: Props) {
             verification and the same publication checks, against the same dataset. The
             results are shown independently and are not ranked.
           </p>
+          {comparable ? (
+            <div
+              className={`notice ${sameContract ? 'success' : 'warn'}`}
+              role="status"
+              data-testid="contract-comparison"
+            >
+              {sameContract
+                ? 'Same governed interpretation: both panes executed the same measure, grouping, filters and period.'
+                : 'Different governed interpretations: these panes are not a like-for-like comparison. Review the applied analysis in each report.'}
+            </div>
+          ) : null}
         </div>
       </section>
 

@@ -225,6 +225,15 @@ async def run_task(
             break
 
         arguments = dict(choice.arguments)
+        # The accepted upload contract belongs to the engine, not to the
+        # worker's next-tool wording.  A model may choose the governed tool;
+        # it may not omit or rewrite the contract that tool must execute.
+        if choice.tool == "aggregate_for_question" and task.variables.get("query_contract"):
+            arguments = {
+                "table": task.table,
+                "question": str(task.variables.get("question", "")),
+                "contract": task.variables["query_contract"],
+            }
         # Each branch below consumes one decision, so a worker that keeps
         # proposing bad calls still terminates.
         calls += 1
@@ -459,7 +468,7 @@ def _tool_choice_prompt(
             "This dataset has NO metric layer, so `compute_metric`, "
             "`compare_segments`, `analyze_timeseries`, `decompose_change`, "
             "`compare_periods` and `rank_contributors` will all fail. Use "
-            "`aggregate_for_question` (pass `table` and `question`) to answer "
+            "`aggregate_for_question` to answer "
             "the question, `profile_table` to describe the columns, "
             "`statistical_test` to compare two groups, or `run_readonly_sql` "
             "for a shape none of those express."
