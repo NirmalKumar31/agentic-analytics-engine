@@ -326,6 +326,42 @@ def test_public_api_documentation_can_be_withdrawn(warehouse_dir: Path, tmp_path
             assert response.headers["cache-control"] == "no-store", path
 
 
+def test_oversized_json_is_rejected_before_validation(warehouse_dir: Path, tmp_path: Path) -> None:
+    with TestClient(create_app(_settings(warehouse_dir, tmp_path))) as client:
+        response = client.post(
+            "/api/analyses",
+            content=b"x" * (32 * 1024),
+            headers={"Content-Type": "application/json"},
+        )
+    assert response.status_code == 413
+    assert response.json() == {
+        "error": "request_too_large",
+        "detail": "request body is too large",
+    }
+
+
+def test_streamed_bytes_override_a_false_small_content_length(
+    warehouse_dir: Path, tmp_path: Path
+) -> None:
+    with TestClient(create_app(_settings(warehouse_dir, tmp_path))) as client:
+        response = client.post(
+            "/api/analyses",
+            content=b"x" * (32 * 1024),
+            headers={"Content-Type": "application/json", "Content-Length": "1"},
+        )
+    assert response.status_code == 413
+
+
+def test_invalid_content_length_is_rejected(warehouse_dir: Path, tmp_path: Path) -> None:
+    with TestClient(create_app(_settings(warehouse_dir, tmp_path))) as client:
+        response = client.post(
+            "/api/analyses",
+            content=b"{}",
+            headers={"Content-Type": "application/json", "Content-Length": "not-a-number"},
+        )
+    assert response.status_code == 400
+
+
 def test_the_csp_does_not_restrict_scripts(warehouse_dir: Path, tmp_path: Path) -> None:
     """Vega compiles expressions with `new Function`.
 

@@ -84,6 +84,102 @@ from agentic_analytics.warehouse.upload import (
 
 log = get_logger(__name__)
 
+# A question and its session handle serialize to well under 16 KiB. Enforce
+# this below the framework so an invalid request cannot become an arbitrary
+# memory allocation before Pydantic gets a chance to reject it.
+_MAX_JSON_BODY_BYTES = 16 * 1024
+_MULTIPART_OVERHEAD_BYTES = 64 * 1024
+
+
+class _RequestBodyLimitMiddleware:
+    """Bound declared and streamed request bytes before framework parsing.
+
+    Uploads get their configured file ceiling plus a small, fixed multipart
+    envelope. Every other body-bearing route gets the JSON ceiling. Responses
+    are buffered only for these body-bearing requests so a dishonest streamed
+    body can be replaced with a 413 before the application starts a response;
+    GET event streams remain streaming.
+    """
+
+    def __init__(
+        self,
+        app: Any,
+        *,
+        json_max_bytes: int,
+        upload_max_bytes: int,
+    ) -> None:
+        self.app = app
+        self.json_max_bytes = json_max_bytes
+        self.upload_max_bytes = upload_max_bytes
+
+    async def __call__(self, scope: Any, receive: Any, send: Any) -> None:
+        if scope.get("type") != "http" or scope.get("method") not in {
+            "POST",
+            "PUT",
+            "PATCH",
+        }:
+            await self.app(scope, receive, send)
+            return
+
+        is_upload = scope.get("path") == "/api/datasets/upload"
+        limit = self.upload_max_bytes if is_upload else self.json_max_bytes
+        too_large_error = "upload_rejected" if is_upload else "request_too_large"
+        headers = {k.decode("latin-1").lower(): v for k, v in scope.get("headers", [])}
+        declared = headers.get("content-length")
+        if declared is not None:
+            try:
+                declared_bytes = int(declared)
+            except ValueError:
+                await self._error(send, 400, "invalid_request", "invalid Content-Length")
+                return
+            if declared_bytes < 0:
+                await self._error(send, 400, "invalid_request", "invalid Content-Length")
+                return
+            if declared_bytes > limit:
+                await self._error(send, 413, too_large_error, "request body is too large")
+                return
+
+        received = 0
+        exceeded = False
+        pending_response: list[dict[str, Any]] = []
+
+        async def counting_receive() -> Any:
+            nonlocal received, exceeded
+            message = await receive()
+            if message.get("type") == "http.request":
+                received += len(message.get("body", b""))
+                if received > limit:
+                    exceeded = True
+                    return {"type": "http.disconnect"}
+            return message
+
+        async def buffering_send(message: dict[str, Any]) -> None:
+            pending_response.append(message)
+
+        await self.app(scope, counting_receive, buffering_send)
+        if exceeded:
+            await self._error(send, 413, too_large_error, "request body is too large")
+            return
+        for message in pending_response:
+            await send(message)
+
+    @staticmethod
+    async def _error(send: Any, status: int, error: str, detail: str) -> None:
+        body = json.dumps({"error": error, "detail": detail}, separators=(",", ":")).encode()
+        await send(
+            {
+                "type": "http.response.start",
+                "status": status,
+                "headers": [
+                    (b"content-type", b"application/json"),
+                    (b"content-length", str(len(body)).encode()),
+                    (b"cache-control", b"no-store"),
+                ],
+            }
+        )
+        await send({"type": "http.response.body", "body": body})
+
+
 DEMO_QUESTIONS: list[dict[str, str]] = [
     {
         "id": "margin",
@@ -236,6 +332,11 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         docs_url="/api/docs" if cfg.api_docs_enabled else None,
         redoc_url="/api/redoc" if cfg.api_docs_enabled else None,
         openapi_url="/api/openapi.json" if cfg.api_docs_enabled else None,
+    )
+    app.add_middleware(
+        _RequestBodyLimitMiddleware,
+        json_max_bytes=_MAX_JSON_BODY_BYTES,
+        upload_max_bytes=cfg.budgets.max_upload_bytes + _MULTIPART_OVERHEAD_BYTES,
     )
 
     @app.middleware("http")

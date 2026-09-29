@@ -251,6 +251,16 @@ def main(argv: list[str]) -> int:
     checks.ok("live analysis is enabled", config.get("live_analytics_enabled") is True)
     checks.ok("uploads are enabled", config.get("uploads_enabled") is True)
 
+    # Refused below request parsing: this must not create a session, take a
+    # capacity slot or reach either provider path.
+    oversized = json.dumps({"question": "x" * (32 * 1024)}).encode()
+    status, _, raw = client.request("/api/analyses", "POST", oversized, "application/json")
+    checks.ok(
+        "an oversized JSON body is refused before parsing",
+        status == 413,
+        f"HTTP {status}: {raw[:80]!r}",
+    )
+
     # --------------------------------------------------------- recordings
     status, listing = client.json("/api/recordings")
     recordings = listing.get("recordings", []) if status == 200 else []
