@@ -324,9 +324,16 @@ def main(argv: list[str]) -> int:
     checks.ok("a referrer policy is set", bool(headers.get("referrer-policy")))
     checks.ok(
         "unused browser capabilities are disabled",
-        headers.get("permissions-policy")
-        == "camera=(), microphone=(), geolocation=(), payment=(), usb=()",
+        all(
+            capability in headers.get("permissions-policy", "")
+            for capability in ("camera=()", "microphone=()", "geolocation=()", "payment=()")
+        ),
         headers.get("permissions-policy", "(absent)"),
+    )
+    checks.ok(
+        "browser opener isolation is enabled",
+        headers.get("cross-origin-opener-policy") == "same-origin",
+        headers.get("cross-origin-opener-policy", "(absent)"),
     )
     if expect_secure:
         hsts = headers.get("strict-transport-security", "")

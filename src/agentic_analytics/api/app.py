@@ -84,6 +84,43 @@ from agentic_analytics.warehouse.upload import (
 
 log = get_logger(__name__)
 
+# Same-origin application and SSE. Vega compiles chart expressions at runtime,
+# so `unsafe-eval` is the one explicit exception; restricting script origins
+# still blocks third-party script execution and is materially stronger than
+# omitting `script-src` altogether.
+_CSP = "; ".join(
+    [
+        "default-src 'self'",
+        "script-src 'self' 'unsafe-eval'",
+        "style-src 'self' 'unsafe-inline'",
+        "img-src 'self' data:",
+        "font-src 'self' data:",
+        "connect-src 'self'",
+        "object-src 'none'",
+        "base-uri 'self'",
+        "form-action 'none'",
+        "frame-ancestors 'none'",
+    ]
+)
+_PERMISSIONS_POLICY = ", ".join(
+    f"{feature}=()"
+    for feature in (
+        "accelerometer",
+        "autoplay",
+        "camera",
+        "display-capture",
+        "encrypted-media",
+        "geolocation",
+        "gyroscope",
+        "magnetometer",
+        "microphone",
+        "midi",
+        "payment",
+        "usb",
+        "xr-spatial-tracking",
+    )
+)
+
 # A question and its session handle serialize to well under 16 KiB. Enforce
 # this below the framework so an invalid request cannot become an arbitrary
 # memory allocation before Pydantic gets a chance to reject it.
@@ -350,10 +387,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         deliberately left alone; they are public and immutable, and caching
         them is the point.
 
-        The CSP here restricts framing and base URIs only. A `script-src`
-        policy would need `unsafe-eval` for Vega, which compiles chart
-        expressions with `new Function`, and a CSP that has to allow eval to
-        work is not buying protection worth the risk of breaking charts.
+        Vega requires `unsafe-eval` for compiled chart expressions. That
+        exception is limited to scripts; sources, connections, objects,
+        framing, forms and base URIs remain explicitly constrained.
         """
         response: Response = await call_next(request)
         if request.url.path.startswith("/api/") and "cache-control" not in response.headers:
@@ -362,17 +398,13 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         response.headers.setdefault("X-Content-Type-Options", "nosniff")
         response.headers.setdefault("Referrer-Policy", "same-origin")
         response.headers.setdefault("X-Frame-Options", "DENY")
-        response.headers.setdefault(
-            "Permissions-Policy",
-            "camera=(), microphone=(), geolocation=(), payment=(), usb=()",
-        )
+        response.headers.setdefault("Permissions-Policy", _PERMISSIONS_POLICY)
+        response.headers.setdefault("Cross-Origin-Opener-Policy", "same-origin")
         if cfg.session_cookie_secure:
             # Do not includeSubDomains: onrender.com is a shared parent that
             # this service neither owns nor controls.
             response.headers.setdefault("Strict-Transport-Security", "max-age=31536000")
-        response.headers.setdefault(
-            "Content-Security-Policy", "frame-ancestors 'none'; base-uri 'self'"
-        )
+        response.headers.setdefault("Content-Security-Policy", _CSP)
         return response
 
     # No CORS middleware. The frontend is served from this same origin, so

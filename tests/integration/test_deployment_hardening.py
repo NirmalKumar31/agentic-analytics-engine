@@ -300,9 +300,9 @@ def test_browser_security_headers_are_set(warehouse_dir: Path, tmp_path: Path) -
     assert headers["x-content-type-options"] == "nosniff"
     assert headers["referrer-policy"] == "same-origin"
     assert headers["x-frame-options"] == "DENY"
-    assert headers["permissions-policy"] == (
-        "camera=(), microphone=(), geolocation=(), payment=(), usb=()"
-    )
+    for capability in ("camera=()", "microphone=()", "geolocation=()", "payment=()"):
+        assert capability in headers["permissions-policy"]
+    assert headers["cross-origin-opener-policy"] == "same-origin"
     assert "frame-ancestors 'none'" in headers["content-security-policy"]
 
 
@@ -362,17 +362,19 @@ def test_invalid_content_length_is_rejected(warehouse_dir: Path, tmp_path: Path)
     assert response.status_code == 400
 
 
-def test_the_csp_does_not_restrict_scripts(warehouse_dir: Path, tmp_path: Path) -> None:
+def test_the_csp_limits_vegas_eval_exception(warehouse_dir: Path, tmp_path: Path) -> None:
     """Vega compiles expressions with `new Function`.
 
-    A `script-src` policy would need `unsafe-eval` to keep charts working,
-    which buys nothing. This asserts the policy stays out of that business
-    rather than silently breaking rendering.
+    Keep that exception, but only alongside a same-origin script policy and
+    explicit restrictions on every other browser capability the app uses.
     """
     with TestClient(create_app(_settings(warehouse_dir, tmp_path))) as client:
         policy = client.get("/api/health").headers["content-security-policy"]
-    assert "script-src" not in policy
-    assert "unsafe-eval" not in policy
+    assert "default-src 'self'" in policy
+    assert "script-src 'self' 'unsafe-eval'" in policy
+    assert "connect-src 'self'" in policy
+    assert "object-src 'none'" in policy
+    assert "form-action 'none'" in policy
 
 
 def test_there_is_no_wildcard_cors(warehouse_dir: Path, tmp_path: Path) -> None:
