@@ -42,12 +42,14 @@ FILTERED = QuestionMapping(
 
 def snapshot(**params: object) -> ResultSnapshot:
     """A result carrying the plan it was executed with."""
+    parameters: dict[str, object] = {"operation": "average"}
+    parameters.update(params)
     return ResultSnapshot(
         tool_name="aggregate_for_question",
         columns=["territory", "average_spend", "row_count"],
         rows=[["North", 100.0, 10]],
         row_count=1,
-        parameters=dict(params),
+        parameters=parameters,
     )
 
 
@@ -219,6 +221,7 @@ async def _verdict_for(filters_applied: list[dict[str, object]]):
         column_types={"territory": "VARCHAR", "average_spend": "DOUBLE", "row_count": "BIGINT"},
         parameters={
             "table": "uploaded_data",
+            "operation": "average",
             "measure": "spend",
             "dimension": "territory",
             "filters": filters_applied,

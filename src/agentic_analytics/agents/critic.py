@@ -31,7 +31,7 @@ from agentic_analytics.events import EventBus, EventType
 from agentic_analytics.llm.base import LLMError, LLMProvider
 from agentic_analytics.logging import get_logger
 from agentic_analytics.verification.claims import check_claim
-from agentic_analytics.verification.constraints import check_constraints
+from agentic_analytics.verification.coverage import check_answer_coverage
 from agentic_analytics.verification.intent import check_intent
 from agentic_analytics.verification.numeric import verify_numbers
 from agentic_analytics.verification.typing import as_number
@@ -135,6 +135,21 @@ async def verify_finding(
         _emit(events, finding, verdict)
         return verdict, numeric.as_dict()
 
+    coverage = check_answer_coverage(mapping, cited)
+    if coverage.applicable and not coverage.complete:
+        verdict = Verdict(
+            finding_id=finding.finding_id,
+            status="unsupported",
+            reason=coverage.reason,
+            rule=coverage.rule,
+            numeric_check=numeric.as_dict() | {"answer_coverage": coverage.as_dict()},
+            evidence_supported=True,
+            answers_question=False,
+            relevance_reason=coverage.reason,
+        )
+        _emit(events, finding, verdict)
+        return verdict, verdict.numeric_check
+
     try:
         payload = await ask_into(
             provider,
@@ -201,21 +216,6 @@ async def verify_finding(
     # Deterministic, and placed before the model's opinion can matter,
     # because an unfiltered result must be incapable of publishing for a
     # filtered question however confident a critic is.
-    constraints = check_constraints(finding, mapping, cited)
-    if evidence_supported and constraints.applicable and not constraints.preserved:
-        verdict = Verdict(
-            finding_id=finding.finding_id,
-            status="unsupported",
-            reason=constraints.reason,
-            rule=constraints.rule,
-            numeric_check=numeric.as_dict(),
-            evidence_supported=True,
-            answers_question=False,
-            relevance_reason=constraints.reason,
-        )
-        _emit(events, finding, verdict)
-        return verdict, numeric.as_dict()
-
     intent = check_intent(finding.text, mapping)
     if evidence_supported and intent.applicable and not intent.answers:
         status = "unsupported"

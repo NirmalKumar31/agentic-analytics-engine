@@ -223,7 +223,7 @@ def remote_observations(tmp_path_factory: pytest.TempPathFactory) -> list[Observ
 def test_no_prompt_ever_contains_a_withheld_cell(
     remote_observations: list[Observation],
 ) -> None:
-    """The privacy boundary, across all 230 cases.
+    """The privacy boundary, across all 266 cases.
 
     A grouping column's labels are part of any aggregate over it, so they
     are not counted. Identifiers, near-unique text and free text are: a

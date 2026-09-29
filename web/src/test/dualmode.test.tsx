@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from 'vitest'
 
 import { ComparisonView } from '../components/ComparisonView'
 import { ModeSelector } from '../components/ModeSelector'
-import type { Capabilities } from '../lib/types'
+import type { Capabilities, QueryContract, RunPayload } from '../lib/types'
 
 const BOTH_AVAILABLE: Capabilities = {
   modes: [
@@ -195,5 +195,45 @@ describe('ComparisonView', () => {
     expect(text).toContain('rule-based planning')
     expect(text).toContain('same analytics engine')
     expect(text).toContain('same publication checks')
+  })
+
+  const contract: QueryContract = {
+    operation: 'average',
+    table: 'uploaded_data',
+    measure: 'annual_revenue',
+    dimension: 'region',
+    filters: [{ column: 'age', operator: '>=', value: 30 }],
+    ascending: false,
+    confident: true,
+    explanation: 'validated',
+    interpretation: 'rule-based',
+    contract_hash: 'same-hash',
+  }
+
+  const runWith = (queryContract: QueryContract): RunPayload =>
+    ({ query_contract: queryContract } as RunPayload)
+
+  it('confirms when both panes execute the same canonical contract', () => {
+    render(
+      <ComparisonView
+        question="Q"
+        deterministic={side({ run: runWith(contract) })}
+        ai={side({ run: runWith({ ...contract, interpretation: 'ai-grounded' }) })}
+      />,
+    )
+    expect(screen.getByTestId('contract-comparison')).toHaveTextContent(
+      /same governed interpretation/i,
+    )
+  })
+
+  it('warns instead of presenting unlike contracts as equivalent', () => {
+    render(
+      <ComparisonView
+        question="Q"
+        deterministic={side({ run: runWith(contract) })}
+        ai={side({ run: runWith({ ...contract, contract_hash: 'different-hash' }) })}
+      />,
+    )
+    expect(screen.getByTestId('contract-comparison')).toHaveTextContent(/not a like-for-like/i)
   })
 })

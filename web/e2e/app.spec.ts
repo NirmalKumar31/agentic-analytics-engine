@@ -61,6 +61,20 @@ test.describe('a recorded run', () => {
     await drawer.getByRole('button', { name: 'Close' }).click()
     await expect(drawer).toBeHidden()
   })
+
+  test('prints a complete report as a browser PDF', async ({ page, browserName }) => {
+    test.skip(browserName !== 'chromium', 'Playwright PDF generation is Chromium-only.')
+    await page.goto('/')
+    await recordingButtons(page).first().click()
+    await waitForReport(page)
+
+    await page.emulateMedia({ media: 'print' })
+    await expect(page.getByRole('button', { name: /Print \/ Save PDF/ })).toBeHidden()
+    await expect(page.getByRole('heading', { name: 'Key findings' })).toBeVisible()
+    const pdf = await page.pdf({ format: 'A4', landscape: true, printBackground: true })
+    expect(pdf.subarray(0, 4).toString()).toBe('%PDF')
+    expect(pdf.byteLength).toBeGreaterThan(1_000)
+  })
 })
 
 test.describe('the demo warehouse', () => {
@@ -72,7 +86,7 @@ test.describe('the demo warehouse', () => {
     // Deterministic mode must say that interpretation is rule-based. Read
     // from the selector rather than the badge: before a run the selector is
     // what holds the choice, and the badge deliberately says nothing yet.
-    const deterministic = page.getByRole('radio', { name: /Deterministic/i })
+    const deterministic = page.getByRole('radio', { name: /^Deterministic Analytics/ })
     if (await deterministic.isChecked()) {
       await expect(page.getByTestId('interpretation-notice')).toContainText(
         /rule-based/i,

@@ -222,12 +222,14 @@ def active_response_schemas() -> dict[str, dict[str, Any]]:
     from agentic_analytics.agents.analyst import AnalysisPlan, QuestionAnalysis
     from agentic_analytics.agents.critic import CriticVerdict
     from agentic_analytics.agents.reporter import ReportPlan
+    from agentic_analytics.agents.schemas import UploadQueryPlan
     from agentic_analytics.agents.visualizer import ChartChoice
     from agentic_analytics.agents.worker import FindingList, ToolChoice
 
     models: tuple[type[BaseModel], ...] = (
         QuestionAnalysis,
         AnalysisPlan,
+        UploadQueryPlan,
         ToolChoice,
         FindingList,
         CriticVerdict,

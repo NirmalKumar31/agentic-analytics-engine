@@ -457,10 +457,17 @@ It takes a different route:
    rows for a value to have had the chance to repeat.
 4. **Ask when it matters.** Two columns that could both be revenue produce a
    clarifying question rather than a guess.
-5. **Analyse.** Profile the table, then compose a grouped aggregate from the
-   columns the profile reported. The second call is a genuine bounded loop —
-   the SQL cannot be written until the profile comes back — and the composed
-   statement still passes the guard.
+5. **Interpret and analyse.** Deterministic Analytics derives a bounded query
+   contract; AI Analytics may propose a typed one. In either case the engine
+   validates table and column identifiers, operation, filters, inclusive or
+   exclusive bounds, period and source excerpts before composing one governed
+   aggregate. A rule-detectable restriction is never optional. The executed
+   result records that contract, and direct findings are withheld unless their
+   cited aggregate preserved it.
+
+For Compare Both the contract has a canonical hash that excludes planner
+provenance and filter order. Matching hashes mean both panes executed the same
+semantic request; a mismatch is disclosed rather than hidden.
 
 An inferred measure is not a governed metric, and the UI says so.
 

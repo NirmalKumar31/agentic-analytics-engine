@@ -21,6 +21,25 @@ test.describe('choosing a mode', () => {
   })
 
   test('AI and Compare are disabled, with a stated reason, when AI is off', async ({ page }) => {
+    // The test must not inherit a developer's local cloud configuration.
+    // It exercises the unavailable contract, so make that server response
+    // explicit rather than relying on the process environment.
+    await page.route('**/api/config', async (route) => {
+      const response = await route.fetch()
+      const body = await response.json()
+      body.capabilities.modes = body.capabilities.modes.map((mode: { mode: string }) =>
+        mode.mode === 'ai'
+          ? {
+              ...mode,
+              available: false,
+              reason: 'ai_disabled',
+              message: 'AI Analytics is turned off for this deployment.',
+            }
+          : mode,
+      )
+      body.capabilities.compare_available = false
+      await route.fulfill({ response, json: body })
+    })
     await openDemo(page)
     const ai = page.getByRole('radio', { name: /^AI Analytics/ })
     await expect(ai).toBeDisabled()
@@ -173,5 +192,131 @@ test.describe('AI and Compare, with the API intercepted', () => {
     for (const leak of ['sk-', 'redis://', 'Traceback']) {
       expect(text).not.toContain(leak)
     }
+  })
+
+  test('Show work resolves evidence from the pane the visitor clicked', async ({ page }) => {
+    await page.route('**/api/config', async (route) => {
+      const response = await route.fetch()
+      const body = await response.json()
+      body.capabilities.modes = body.capabilities.modes.map((mode: { mode: string }) =>
+        mode.mode === 'ai' ? { ...mode, available: true, reason: '', message: '' } : mode,
+      )
+      body.capabilities.compare_available = true
+      body.capabilities.ai_limits = {
+        runs_per_session: 3,
+        max_model_calls_per_run: 24,
+        max_runtime_seconds: 180,
+      }
+      await route.fulfill({ response, json: body })
+    })
+
+    await page.route('**/api/comparisons', async (route) => {
+      const request = route.request().postDataJSON() as { session_id: string; question: string }
+      const started = await route.fetch({
+        url: new URL('/api/analyses', page.url()).toString(),
+        method: 'POST',
+        postData: JSON.stringify({ ...request, mode: 'deterministic' }),
+        headers: { 'content-type': 'application/json' },
+      })
+      const { run_id } = (await started.json()) as { run_id: string }
+      await route.fulfill({
+        status: 202,
+        json: {
+          comparison_id: 'cmp_provenance',
+          session_id: request.session_id,
+          question: request.question,
+          deterministic_run_id: run_id,
+          ai_run_id: 'run_ai_provenance',
+        },
+      })
+    })
+
+    await page.route('**/api/analyses/run_ai_provenance', async (route) => {
+      await route.fulfill({
+        status: 200,
+        json: {
+          run_id: 'run_ai_provenance',
+          session_id: 'session_ai',
+          question: 'What is total revenue?',
+          status: 'completed',
+          created_at: Date.now() / 1000,
+          mode: 'ai',
+          provider_kind: 'cloud',
+          dataset: {
+            dataset_kind: 'demo',
+            source: 'test',
+            dataset_fingerprint: 'sha256:ai-pane-only',
+            tables: [],
+            metrics_available: [],
+          },
+          report: null,
+          findings: [
+            {
+              finding_id: 'f1',
+              text: 'AI PANE ONLY: total revenue is 123.',
+              kind: 'calculated_fact',
+              task_id: 'task_ai',
+              result_ids: ['res_ai'],
+              evidence_cells: [
+                { result_id: 'res_ai', row: 0, column: 'total_revenue', value: 123, label: 'AI total' },
+              ],
+              metric_ids: [],
+              verification_status: 'supported',
+              verifier_reason: 'Test fixture.',
+              numeric_check: null,
+              claimed_change: null,
+            },
+          ],
+          rejected: [],
+          charts: [],
+          tasks: [
+            {
+              task_id: 'task_ai',
+              status: 'succeeded',
+              findings: [],
+              result_ids: ['res_ai'],
+              tool_calls: 1,
+              error: null,
+              notes: [],
+            },
+          ],
+          results: {
+            res_ai: {
+              result_id: 'res_ai',
+              tool_name: 'aggregate_for_question',
+              task_id: 'task_ai',
+              sql: 'SELECT 123 AS total_revenue',
+              columns: ['total_revenue'],
+              rows: [[123]],
+              row_count: 1,
+              truncated: false,
+              dataset_fingerprint: 'sha256:ai-pane-only',
+              duration_ms: 1,
+              parameters: {},
+              warnings: [],
+              statistical_result: null,
+            },
+          },
+          mcp_trace: [],
+          events: [],
+          metrics: {},
+          stopped_reason: '',
+        },
+      })
+    })
+
+    await openDemo(page)
+    await page.getByRole('radio', { name: /^Compare Both/ }).click()
+    await page.getByLabel('Business question').fill('What is total revenue?')
+    await page.getByRole('button', { name: /Run both/ }).click()
+
+    const aiPane = page.getByRole('region', { name: 'AI Analytics' })
+    await expect(aiPane.getByText('AI PANE ONLY: total revenue is 123.')).toBeVisible()
+    await aiPane.getByRole('button', { name: 'Show work →' }).click()
+
+    const drawer = page.getByRole('dialog', { name: 'How this was derived' })
+    await expect(drawer).toContainText('AI PANE ONLY: total revenue is 123.')
+    await expect(drawer).toContainText('res_ai')
+    await expect(drawer).not.toContainText('res_abc123')
   })
 })

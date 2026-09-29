@@ -38,6 +38,53 @@ AnalysisType = Literal[
     "profiling",
 ]
 
+UploadOperation = Literal["count", "sum", "average", "trend", "rank", "profile"]
+UploadFilterOperator = Literal["=", "!=", ">", ">=", "<", "<=", "IS NULL", "IS NOT NULL"]
+
+
+class UploadFilterPlan(BaseModel):
+    """One model-proposed restriction, still untrusted.
+
+    Values are strings on purpose.  The engine, not the provider, decides
+    whether a value is a finite number, a permitted category or no value at
+    all.  Keeping one representation also gives strict Structured Outputs a
+    schema it can express without a union of scalar types.
+    """
+
+    column: str
+    operator: UploadFilterOperator
+    value: str = ""
+    source_text: str
+
+    model_config = {"extra": "forbid"}
+
+
+class UploadQueryPlan(BaseModel):
+    """A cloud planner's schema-grounded reading of one upload question.
+
+    This is not executable.  Every identifier, type, source excerpt and
+    constraint is checked against the local schema and original question
+    before it can become a :class:`QuestionMapping`.
+    """
+
+    table: str
+    operation: UploadOperation
+    operation_source: str
+    measure: str | None = None
+    measure_source: str = ""
+    dimension: str | None = None
+    dimension_source: str = ""
+    filters: list[UploadFilterPlan] = Field(default_factory=list, max_length=6)
+    time_field: str | None = None
+    period_start: str | None = None
+    period_end: str | None = None
+    ascending: bool = False
+    confident: bool = True
+    ambiguity: str = ""
+
+    model_config = {"extra": "forbid"}
+
+
 PREFERRED_TOOLS = (
     "compute_metric",
     "compare_segments",

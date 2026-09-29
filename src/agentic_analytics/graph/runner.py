@@ -62,6 +62,9 @@ class RunResult:
     mcp_trace: list[dict[str, Any]] = field(default_factory=list)
     events: list[dict[str, Any]] = field(default_factory=list)
     metrics: dict[str, Any] = field(default_factory=dict)
+    #: The accepted meaning of an uploaded-data question.  It contains
+    #: schema identifiers and user-stated restrictions, never raw cells.
+    query_contract: dict[str, Any] | None = None
     stopped_reason: str = ""
     #: Set from the stop reason, or explicitly on the failure path. A caller
     #: must not infer success from the existence of this object.
@@ -93,6 +96,7 @@ class RunResult:
             "mcp_trace": self.mcp_trace,
             "events": self.events,
             "metrics": self.metrics,
+            "query_contract": self.query_contract,
             "stopped_reason": self.stopped_reason,
             "outcome": self.outcome,
         }
@@ -119,6 +123,9 @@ _STOP_OUTCOMES: tuple[tuple[str, RunOutcome], ...] = (
     ("token limit", "budget_exhausted"),
     ("budget", "budget_exhausted"),
     ("declined", "refused"),
+    ("could not be grounded", "refused"),
+    ("could not be mapped safely", "refused"),
+    ("no executable task for this dataset", "refused"),
     ("cancelled", "cancelled"),
     ("dataset was closed", "cancelled"),
 )
@@ -259,6 +266,9 @@ async def run_analysis(
             "charts": len(charts),
             **llm.usage.as_dict(),
         },
+        query_contract=(
+            state["query_mapping"].as_dict() if state.get("query_mapping") is not None else None
+        ),
         stopped_reason=state.get("stopped_reason", ""),
         outcome=_outcome_from_reason(state.get("stopped_reason", "")),
     )

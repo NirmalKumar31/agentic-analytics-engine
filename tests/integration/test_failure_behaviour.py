@@ -82,7 +82,10 @@ async def test_a_failed_question_analysis_stops_the_run_cleanly(setup) -> None: 
     result = await run_analysis(QUESTION, session, server, provider=DeadProvider(), events=bus)
     assert result.stopped_reason
     assert result.published == []
-    assert EventType.RUN_FAILED in {e.type for e in bus.history}
+    # A graceful stop still assembles a report, so it must not publish a
+    # terminal failure before the final payload exists for the browser.
+    assert EventType.ANALYSIS_TASK_FAILED in {e.type for e in bus.history}
+    assert EventType.RUN_COMPLETED in {e.type for e in bus.history}
     # A report is still produced, and it says why there is nothing in it.
     assert result.report is not None
     assert any("could not" in limitation for limitation in result.report.limitations)
@@ -190,11 +193,11 @@ async def test_an_uploaded_table_is_analysed_without_a_metric_layer(
     assert result.report is not None
     assert result.published, "the upload produced no finding"
 
-    # Two bounded tasks: describe the table, and answer the question by
-    # mapping it onto the inferred schema. Workers run concurrently, so the
-    # trace order is not fixed.
+    # One governed task executes the accepted contract.  The old parallel
+    # profile task produced true-but-irrelevant column facts that competed
+    # with the direct answer in the report.
     tools = [call["tool_name"] for call in result.mcp_trace]
-    assert sorted(tools) == ["aggregate_for_question", "profile_table"], tools
+    assert tools == ["aggregate_for_question"]
 
     # The aggregate is correct: West is 10 + 30 = 40, the largest.
     text = " ".join(f.text for f in result.published)

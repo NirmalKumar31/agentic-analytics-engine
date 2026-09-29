@@ -11,6 +11,7 @@ from typing import Any
 
 import pytest
 
+from agentic_analytics.config import Settings
 from agentic_analytics.data.generator import GeneratorConfig, generate_warehouse
 from agentic_analytics.evaluation.cases import CASES, EXPECTED_PATTERNS
 from agentic_analytics.evaluation.harness import run_benchmark
@@ -40,6 +41,15 @@ async def test_the_artefact_states_what_it_measures(report: dict[str, Any]) -> N
     assert summary["provider_mode"] == "fake"
     assert "planning quality" in summary["does_not_measure"]
     assert "excludes model inference latency" in summary["deterministic_engine_seconds_note"]
+
+
+async def test_benchmark_never_inherits_cloud_mode(benchmark_warehouse: Path) -> None:
+    """A local benchmark command must never turn a configured key into spend."""
+    report = await run_benchmark(
+        benchmark_warehouse,
+        Settings(provider_mode="cloud", cloud_api_key="not-used-by-this-test"),
+    )
+    assert report["summary"]["provider_mode"] == "fake"
 
 
 async def test_all_injected_patterns_are_recovered(report: dict[str, Any]) -> None:

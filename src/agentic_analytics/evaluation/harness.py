@@ -376,8 +376,14 @@ async def run_benchmark(
     warehouse_dir: Path | None = None, settings: Settings | None = None
 ) -> dict[str, Any]:
     """Run every case and return the scored report."""
-    cfg = settings or get_settings()
-    directory = warehouse_dir or cfg.demo_warehouse_dir
+    source_cfg = settings or get_settings()
+    directory = warehouse_dir or source_cfg.demo_warehouse_dir
+    # This is a deterministic benchmark, not a real-model evaluation.  It
+    # must remain reproducible and credential-free even when a developer has
+    # cloud mode configured in `.env` for a separate smoke test.  Keep every
+    # other relevant setting (paths, budgets, SQL limits) while forcing the
+    # only provider the benchmark is allowed to use.
+    cfg = source_cfg.model_copy(update={"provider_mode": "fake"})
     manager = SessionManager(max_sessions=len(CASES) + 2)
     server = build_server(manager, cfg)
     started = time.monotonic()

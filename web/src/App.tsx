@@ -376,6 +376,7 @@ export function App() {
                     rejected={run.rejected}
                     charts={run.charts}
                     results={run.results}
+                    queryContract={run.query_contract}
                     onShowWork={(id) => setTarget({ side: 'deterministic', findingId: id })}
                   />
                 ) : null,
@@ -395,6 +396,7 @@ export function App() {
                     rejected={aiRun.rejected}
                     charts={aiRun.charts}
                     results={aiRun.results}
+                    queryContract={aiRun.query_contract}
                     onShowWork={(id) => setTarget({ side: 'ai', findingId: id })}
                   />
                 ) : null,
@@ -409,6 +411,7 @@ export function App() {
                 rejected={run.rejected}
                 charts={run.charts}
                 results={run.results}
+                queryContract={run.query_contract}
                 onShowWork={(id) => setTarget({ side: 'deterministic', findingId: id })}
               />
             )

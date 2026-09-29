@@ -155,6 +155,7 @@ export interface RunPayload {
   engine_version?: string
   dataset_fingerprint?: string
   usage?: RunUsage
+  query_contract?: QueryContract | null
 
   run_id: string
   question: string
@@ -172,6 +173,29 @@ export interface RunPayload {
   status?: string
   title?: string
   demonstrates?: string
+}
+
+export interface QueryFilter {
+  column: string
+  operator: string
+  value: string | number | null
+  source_text?: string
+}
+
+export interface QueryContract {
+  operation: string
+  table: string
+  measure?: string | null
+  dimension?: string | null
+  time_field?: string | null
+  period?: [string, string] | null
+  period_field?: string | null
+  filters: QueryFilter[]
+  ascending: boolean
+  confident: boolean
+  explanation: string
+  interpretation: string
+  contract_hash: string
 }
 
 export type EventType =

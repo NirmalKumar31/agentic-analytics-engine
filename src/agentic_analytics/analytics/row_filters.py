@@ -614,6 +614,77 @@ def _restricts(text: str, consumed: list[tuple[int, int]]) -> bool:
     return False
 
 
+def filters_from_plan(specs: list[dict[str, Any]], schema: dict[str, Any]) -> FilterResolution:
+    """Validate a model's filter plan against the local schema.
+
+    A cloud planner is useful for language, not authority.  It returns exact
+    column identifiers and string values; this function independently checks
+    both before constructing the same immutable filter objects the rule parser
+    produces.  No provider-supplied SQL or operator outside the closed set can
+    reach the compiler.
+    """
+    if len(specs) > MAX_FILTERS:
+        return FilterResolution(
+            constraint_detected=True,
+            refusal=f"the plan contains more than {MAX_FILTERS} row restrictions",
+        )
+    columns = _all_columns(schema)
+    out: list[Filter] = []
+    for spec in specs:
+        column = str(spec.get("column", ""))
+        operator = str(spec.get("operator", ""))
+        source_text = str(spec.get("source_text", "")).strip()
+        raw = str(spec.get("value", "")).strip()
+        if column not in columns:
+            return FilterResolution(
+                constraint_detected=True,
+                refusal=f"the planned filter names a column this table does not have: {column!r}",
+            )
+        if operator in {"IS NULL", "IS NOT NULL"}:
+            if raw:
+                return FilterResolution(
+                    constraint_detected=True,
+                    refusal=f"{operator} on {column!r} must not carry a value",
+                )
+            out.append(
+                NullFilter(column, negated=operator == "IS NOT NULL", source_text=source_text)
+            )
+            continue
+
+        numeric = _base_type(columns[column]) in _NUMERIC_TYPES
+        if numeric:
+            if operator not in {"=", ">", ">=", "<", "<="}:
+                return FilterResolution(
+                    constraint_detected=True,
+                    refusal=f"operator {operator!r} is not supported for numeric column {column!r}",
+                )
+            value = _number(raw)
+            if value is None:
+                return FilterResolution(
+                    constraint_detected=True,
+                    refusal=f"the planned value for {column!r} is not a finite number",
+                )
+            out.append(RowFilter(column, operator, value, source_text=source_text))
+            continue
+
+        if operator not in {"=", "!="}:
+            return FilterResolution(
+                constraint_detected=True,
+                refusal=f"operator {operator!r} is not supported for text column {column!r}",
+            )
+        if not _SAFE_VALUE.fullmatch(raw):
+            return FilterResolution(
+                constraint_detected=True,
+                refusal=f"the planned category for {column!r} contains unsafe characters",
+            )
+        out.append(CategoryFilter(column, raw, negated=operator == "!=", source_text=source_text))
+
+    contradiction = _contradiction(out)
+    if contradiction is not None:
+        return FilterResolution(constraint_detected=True, refusal=contradiction)
+    return FilterResolution(tuple(_deduplicate(out)), constraint_detected=bool(out))
+
+
 def where_clause(filters: tuple[Filter, ...], quote: Any) -> str:
     """The SQL these filters become.
 

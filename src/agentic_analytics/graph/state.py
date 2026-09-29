@@ -57,6 +57,9 @@ class AnalysisState(TypedDict, total=False):
 
     # Stages
     analysis: QuestionAnalysis
+    # The validated uploaded-data contract.  Kept as Any because the graph
+    # state schema must not import the analytics compiler's dataclass.
+    query_mapping: Any
     plan: AnalysisPlan
     pending_tasks: list[AnalysisTask]
     task_outcomes: Annotated[list[TaskOutcome], merge_outcomes]

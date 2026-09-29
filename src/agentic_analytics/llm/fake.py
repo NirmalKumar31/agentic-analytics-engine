@@ -117,6 +117,15 @@ class FakeProvider(LLMProvider):
 
     # ------------------------------------------------------------- analyst
 
+    def _role_upload_query_planner(self, ctx: dict[str, Any]) -> dict[str, Any]:
+        """Return the locally prepared contract through the provider schema.
+
+        The scripted provider is not a language model.  Its job here is to
+        exercise the same strict response contract and downstream validation
+        as a cloud plan without pretending to add semantic understanding.
+        """
+        return dict(ctx.get("candidate_plan") or {})
+
     def _role_question_analyst(self, ctx: dict[str, Any]) -> dict[str, Any]:
         question: str = ctx.get("question", "")
         available: list[str] = list(ctx.get("metrics", []))
