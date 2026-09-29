@@ -300,7 +300,30 @@ def test_browser_security_headers_are_set(warehouse_dir: Path, tmp_path: Path) -
     assert headers["x-content-type-options"] == "nosniff"
     assert headers["referrer-policy"] == "same-origin"
     assert headers["x-frame-options"] == "DENY"
+    assert headers["permissions-policy"] == (
+        "camera=(), microphone=(), geolocation=(), payment=(), usb=()"
+    )
     assert "frame-ancestors 'none'" in headers["content-security-policy"]
+
+
+def test_hsts_is_only_sent_for_a_tls_deployment(warehouse_dir: Path, tmp_path: Path) -> None:
+    with TestClient(create_app(_settings(warehouse_dir, tmp_path))) as local:
+        assert "strict-transport-security" not in local.get("/api/health").headers
+
+    secure_cfg = _settings(warehouse_dir, tmp_path, session_cookie_secure=True)
+    with TestClient(create_app(secure_cfg)) as secure:
+        value = secure.get("/api/health").headers["strict-transport-security"]
+    assert value == "max-age=31536000"
+    assert "includesubdomains" not in value.lower()
+
+
+def test_public_api_documentation_can_be_withdrawn(warehouse_dir: Path, tmp_path: Path) -> None:
+    cfg = _settings(warehouse_dir, tmp_path, api_docs_enabled=False)
+    with TestClient(create_app(cfg)) as client:
+        for path in ("/api/docs", "/api/redoc", "/api/openapi.json"):
+            response = client.get(path)
+            assert response.status_code == 404, path
+            assert response.headers["cache-control"] == "no-store", path
 
 
 def test_the_csp_does_not_restrict_scripts(warehouse_dir: Path, tmp_path: Path) -> None:

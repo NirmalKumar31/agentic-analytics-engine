@@ -233,8 +233,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         title="Agentic Analytics Engine",
         version=__version__,
         lifespan=lifespan,
-        docs_url="/api/docs",
-        openapi_url="/api/openapi.json",
+        docs_url="/api/docs" if cfg.api_docs_enabled else None,
+        redoc_url="/api/redoc" if cfg.api_docs_enabled else None,
+        openapi_url="/api/openapi.json" if cfg.api_docs_enabled else None,
     )
 
     @app.middleware("http")
@@ -260,6 +261,14 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         response.headers.setdefault("X-Content-Type-Options", "nosniff")
         response.headers.setdefault("Referrer-Policy", "same-origin")
         response.headers.setdefault("X-Frame-Options", "DENY")
+        response.headers.setdefault(
+            "Permissions-Policy",
+            "camera=(), microphone=(), geolocation=(), payment=(), usb=()",
+        )
+        if cfg.session_cookie_secure:
+            # Do not includeSubDomains: onrender.com is a shared parent that
+            # this service neither owns nor controls.
+            response.headers.setdefault("Strict-Transport-Security", "max-age=31536000")
         response.headers.setdefault(
             "Content-Security-Policy", "frame-ancestors 'none'; base-uri 'self'"
         )
@@ -1160,6 +1169,12 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         @app.get("/{full_path:path}", include_in_schema=False)
         async def spa(full_path: str) -> FileResponse:
             # Any non-API path serves the app shell; routing happens client side.
+            # Unknown or deliberately withdrawn API routes must remain JSON
+            # 404s. Serving the SPA for `/api/openapi.json` made disabled
+            # documentation look publicly available and made client errors
+            # indistinguishable from frontend navigation.
+            if full_path == "api" or full_path.startswith("api/"):
+                raise HTTPException(status_code=404, detail="not found")
             candidate = (frontend_dir / full_path).resolve()
             if (
                 full_path
