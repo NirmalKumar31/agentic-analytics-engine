@@ -438,7 +438,6 @@ export function App() {
           results={provenanceRun.results}
           tasks={provenanceRun.tasks}
           trace={provenanceRun.mcp_trace}
-          datasetFingerprint={provenanceRun.dataset.dataset_fingerprint}
           onClose={() => setTarget(null)}
         />
       )}

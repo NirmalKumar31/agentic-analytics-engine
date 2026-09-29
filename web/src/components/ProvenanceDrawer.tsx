@@ -1,6 +1,13 @@
 import { useEffect, useRef } from 'react'
 
-import { agentLabel, formatDuration, formatNumber, formatPValue, kindLabel } from '../lib/format'
+import {
+  agentLabel,
+  formatDuration,
+  formatNumber,
+  formatPValue,
+  kindLabel,
+  toolLabel,
+} from '../lib/format'
 import type { Finding, ResultSnapshot, TaskOutcome, TraceCall } from '../lib/types'
 import { ResultTable } from './ResultTable'
 
@@ -9,7 +16,6 @@ interface Props {
   results: Record<string, ResultSnapshot>
   tasks: TaskOutcome[]
   trace: TraceCall[]
-  datasetFingerprint: string
   onClose: () => void
 }
 
@@ -26,7 +32,6 @@ export function ProvenanceDrawer({
   results,
   tasks,
   trace,
-  datasetFingerprint,
   onClose,
 }: Props) {
   const closeRef = useRef<HTMLButtonElement>(null)
@@ -69,7 +74,6 @@ export function ProvenanceDrawer({
               <span className={`tag ${finding.verification_status}`}>
                 {finding.verification_status.replace('_', ' ')}
               </span>
-              <span className="mono small dim">{finding.finding_id}</span>
             </div>
             <p className="small muted" style={{ margin: 0 }}>
               <strong className="dim">Verifier: </strong>
@@ -82,7 +86,7 @@ export function ProvenanceDrawer({
               <h3>Analytical task</h3>
               <dl className="kv">
                 <dt>Task</dt>
-                <dd className="mono">{task.task_id}</dd>
+                <dd>Completed analytical task</dd>
                 <dt>Status</dt>
                 <dd>{task.status}</dd>
                 <dt>Tool calls</dt>
@@ -107,7 +111,7 @@ export function ProvenanceDrawer({
           {cited.map((snapshot) => (
             <section className="prov-section" key={snapshot.result_id}>
               <h3>
-                Query · {snapshot.tool_name} · {snapshot.result_id}
+                Query · {toolLabel(snapshot.tool_name)}
               </h3>
               {snapshot.sql ? (
                 <pre className="sql">{snapshot.sql}</pre>
@@ -184,7 +188,9 @@ export function ProvenanceDrawer({
                   <div className="row" key={index}>
                     <span>{formatNumber(check.stated)}</span>
                     <span className={check.matched ? 'ok' : undefined}>
-                      {check.matched ? `✓ ${check.source}` : '✗ not found in the cited results'}
+                      {check.matched
+                        ? `✓ ${readableCellSource(check.source)}`
+                        : '✗ not found in the cited results'}
                     </span>
                   </div>
                 ))}
@@ -201,8 +207,7 @@ export function ProvenanceDrawer({
                     <span className="activity-icon" />
                     <span className="activity-label">
                       <b>{agentLabel(call.agent)}</b> → MCP:{' '}
-                      <span className="mono">{call.tool_name}</span>
-                      {call.result_id ? <span className="dim"> → {call.result_id}</span> : null}
+                      <span>{toolLabel(call.tool_name)}</span>
                     </span>
                     <span className="activity-meta">{formatDuration(call.duration_ms)}</span>
                   </div>
@@ -211,16 +216,17 @@ export function ProvenanceDrawer({
             </section>
           )}
 
-          <section className="prov-section">
-            <h3>Dataset fingerprint</h3>
-            <p className="mono small dim" style={{ margin: 0, overflowWrap: 'anywhere' }}>
-              {datasetFingerprint}
-            </p>
-          </section>
         </div>
       </aside>
     </>
   )
+}
+
+/** Numeric verification stores an internal result id, but people need the cell. */
+function readableCellSource(source: string): string {
+  const match = source.match(/^[^\[]+\[(\d+)]\.(.+)$/)
+  if (!match) return source.replace(/_/g, ' ')
+  return `${match[2]!.replace(/_/g, ' ')} (row ${Number(match[1]) + 1})`
 }
 
 function StatisticalPanel({

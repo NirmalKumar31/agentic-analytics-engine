@@ -162,6 +162,7 @@ export function ReportView({
                   <div className="chip-row">
                     {section.finding_ids.map((id) => {
                       const finding = byId.get(id)
+                      const ordinal = finding ? findings.indexOf(finding) + 1 : null
                       return (
                         <button
                           key={id}
@@ -170,7 +171,7 @@ export function ReportView({
                           title={finding?.text}
                           style={{ cursor: 'pointer' }}
                         >
-                          {id}
+                          {ordinal ? `Finding ${ordinal}` : 'Finding'}
                         </button>
                       )
                     })}

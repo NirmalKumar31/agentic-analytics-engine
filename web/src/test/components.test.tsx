@@ -39,17 +39,16 @@ describe('ProvenanceDrawer', () => {
         results={{ [snapshot.result_id]: snapshot }}
         tasks={[task]}
         trace={trace}
-        datasetFingerprint="sha256:deadbeefdeadbeefdeadbeefdeadbeef"
         onClose={onClose}
       />,
     )
     return onClose
   }
 
-  it('shows the task, the SQL, the result and the cited cells', () => {
+  it('shows readable task context, the SQL and the cited cells', () => {
     open()
     const dialog = screen.getByRole('dialog')
-    expect(within(dialog).getByText('task_01')).toBeInTheDocument()
+    expect(within(dialog).getByText('Completed analytical task')).toBeInTheDocument()
     expect(within(dialog).getByText(/SELECT period, gross_margin_pct/)).toBeInTheDocument()
     expect(within(dialog).getByText(/gross_margin_pct at 2025-04-01/)).toBeInTheDocument()
     expect(document.querySelectorAll('td.cited')).toHaveLength(2)
@@ -63,14 +62,14 @@ describe('ProvenanceDrawer', () => {
     expect(screen.getAllByText('-7.67').length).toBeGreaterThanOrEqual(2)
   })
 
-  it('shows the dataset fingerprint', () => {
+  it('does not expose an opaque dataset fingerprint', () => {
     open()
-    expect(screen.getByText('sha256:deadbeefdeadbeefdeadbeefdeadbeef')).toBeInTheDocument()
+    expect(screen.queryByText(/sha256:/)).not.toBeInTheDocument()
   })
 
   it('shows the MCP tool path', () => {
     open()
-    expect(screen.getByText('analyze_timeseries')).toBeInTheDocument()
+    expect(screen.getByText('Analyze Timeseries')).toBeInTheDocument()
   })
 
   it('never displays model reasoning', () => {
@@ -137,8 +136,9 @@ describe('ActivityLog', () => {
     render(
       <ActivityLog events={events} trace={trace} showTrace={false} onToggleTrace={vi.fn()} running={false} />,
     )
-    expect(screen.getByText('Analysis Agent')).toBeInTheDocument()
-    expect(screen.getByText('compute_metric')).toBeInTheDocument()
+    const agent = screen.getByText('Analysis Agent')
+    expect(agent).toBeInTheDocument()
+    expect(agent.parentElement).toHaveTextContent('Compute Metric')
     expect(screen.getByText(/revenue by region/)).toBeInTheDocument()
   })
 
