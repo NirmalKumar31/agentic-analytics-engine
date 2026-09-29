@@ -65,7 +65,11 @@ _RANGE = re.compile(
 
 #: A comparison written out, with the column named before it.
 _COMPARISON = re.compile(
-    r"(?P<col>[A-Za-z_][\w ]{0,40}?)\s*"
+    # At most three words. An unbounded run of words and spaces swallowed
+    # whole clauses: in "where status is active and quantity at least 5"
+    # the column capture ran from "average" to "quantity", consuming the
+    # categorical filter's text so it could never be claimed.
+    r"(?P<col>[A-Za-z_]\w*(?:\s+\w+){0,2}?)\s*"
     r"(?P<op>>=|<=|>|<|==|=|\bis\s+at\s+least\b|\bis\s+at\s+most\b|"
     r"\bat\s+least\b|\bat\s+most\b|\bover\b|\bunder\b|\babove\b|\bbelow\b|"
     r"\bgreater\s+than\b|\bless\s+than\b|\bmore\s+than\b|\bfewer\s+than\b)\s*"
@@ -98,6 +102,38 @@ _WORD_OPS: dict[str, Operator] = {
     "fewer than": "<",
 }
 
+#: The most filters one question may carry. A bound, because each one is
+#: another predicate composed into the same statement and a question
+#: needing more than this is not one the deterministic parser should be
+#: guessing at.
+MAX_FILTERS = 6
+
+#: Text a categorical value may consist of. Deliberately narrow: the value
+#: is rendered into the statement, so anything outside letters, digits,
+#: spaces, underscores, hyphens and dots is refused rather than escaped.
+#: An escaping bug is a vulnerability; a refusal is an inconvenience.
+_SAFE_VALUE = re.compile(r"^[\w][\w .-]{0,62}$", re.UNICODE)
+
+#: `where status is active`, `for region Cairo`. The value is whatever
+#: follows, and it is checked against the column's own values before it
+#: becomes a predicate.
+_EQUALITY = re.compile(
+    r"\b(?:where|for|with|only)\s+(?P<col>[A-Za-z_][\w ]{0,40}?)\s+"
+    r"(?:is|=|equals|equal\s+to)\s+(?P<val>[\w][\w.-]{0,62})\b",
+    re.IGNORECASE,
+)
+
+#: `where value is missing` / `is not missing`.
+_NULLITY = re.compile(
+    r"\b(?:where|with)\s+(?P<col>[A-Za-z_][\w ]{0,40}?)\s+is\s+"
+    r"(?P<neg>not\s+)?(?:missing|null|empty|blank)\b",
+    re.IGNORECASE,
+)
+
+#: Disjunction is not supported. Detected so it refuses rather than being
+#: silently read as conjunction, which would widen the population.
+_DISJUNCTION = re.compile(r"\b(?:or|either)\b", re.IGNORECASE)
+
 #: Numeric column types a comparison is meaningful on.
 _NUMERIC_TYPES = frozenset(
     {
@@ -117,6 +153,62 @@ _NUMERIC_TYPES = frozenset(
         "NUMERIC",
     }
 )
+
+
+@dataclass(frozen=True)
+class CategoryFilter:
+    """An exact match on a non-numeric column.
+
+    The value is not a number, so it is rendered as a quoted literal --
+    which is why `_SAFE_VALUE` is narrow and a value outside it refuses.
+    """
+
+    column: str
+    value: str
+    negated: bool = False
+    source_text: str = ""
+
+    @property
+    def operator(self) -> str:
+        return "!=" if self.negated else "="
+
+    def as_dict(self) -> dict[str, Any]:
+        return {
+            "column": self.column,
+            "operator": self.operator,
+            "value": self.value,
+            "value_type": "text",
+            "source_text": self.source_text,
+        }
+
+    def describe(self) -> str:
+        word = "is not" if self.negated else "is"
+        return f"{self.column.replace('_', ' ')} {word} {self.value}"
+
+
+@dataclass(frozen=True)
+class NullFilter:
+    """`is missing` / `is not missing` on any column."""
+
+    column: str
+    negated: bool = False
+    source_text: str = ""
+
+    @property
+    def operator(self) -> str:
+        return "IS NOT NULL" if self.negated else "IS NULL"
+
+    def as_dict(self) -> dict[str, Any]:
+        return {
+            "column": self.column,
+            "operator": self.operator,
+            "value": None,
+            "value_type": "null",
+            "source_text": self.source_text,
+        }
+
+    def describe(self) -> str:
+        return f"{self.column.replace('_', ' ')} {'is present' if self.negated else 'is missing'}"
 
 
 @dataclass(frozen=True)
@@ -145,11 +237,15 @@ class RowFilter:
         return f"{pretty} {word.get(self.operator, self.operator)} {_plain(self.value)}"
 
 
+#: Any restriction a question can state. Three kinds, one compiler.
+Filter = RowFilter | CategoryFilter | NullFilter
+
+
 @dataclass(frozen=True)
 class FilterResolution:
     """What the wording asked for, and whether it could be honoured."""
 
-    filters: tuple[RowFilter, ...] = ()
+    filters: tuple[Filter, ...] = ()
     #: The wording restricts the population, whether or not a filter came
     #: out of it. The planner refuses when this is set and `filters` is
     #: empty, because the alternative is answering a different question.
@@ -196,8 +292,7 @@ def _numeric_columns(schema: dict[str, Any]) -> dict[str, str]:
     for field in schema.get("fields") or []:
         name = str(field.get("name", ""))
         declared = str(field.get("data_type") or field.get("type") or "")
-        base = declared.split("(")[0].strip().upper()
-        if name and base in _NUMERIC_TYPES:
+        if name and _base_type(declared) in _NUMERIC_TYPES:
             out[name] = declared
     return out
 
@@ -206,6 +301,21 @@ def _numeric_columns(schema: dict[str, Any]) -> dict[str, str]:
 #: spoken beside its value -- "people aged 30 to 40", "team size under 10"
 #: -- so a column named further back is describing something else.
 _LOCALITY = 2
+
+
+def _base_type(declared: str | None) -> str:
+    """`DECIMAL(18,2)` is a DECIMAL."""
+    return (declared or "").split("(")[0].strip().upper()
+
+
+def _all_columns(schema: dict[str, Any]) -> dict[str, str]:
+    """Every column and its declared type."""
+    out: dict[str, str] = {}
+    for field_ in schema.get("fields") or []:
+        name = str(field_.get("name", ""))
+        if name:
+            out[name] = str(field_.get("data_type") or field_.get("type") or "")
+    return out
 
 
 def _normalise(text: str) -> str:
@@ -305,7 +415,7 @@ def parse_filters(question: str, schema: dict[str, Any]) -> FilterResolution:
     # questions the engine answers correctly today.
     scannable = _QUARTER.sub(" ", _YEARLIKE.sub(" ", text))
 
-    filters: list[RowFilter] = []
+    filters: list[Filter] = []
     consumed: list[tuple[int, int]] = []
 
     # Ranges first: "aged 30 to 40" is one restriction, not two loose
@@ -382,8 +492,108 @@ def parse_filters(question: str, schema: dict[str, Any]) -> FilterResolution:
         filters.append(RowFilter(column, operator, value, match.group(0).strip()))
         consumed.append((match.start(), match.end()))
 
+    every = _all_columns(schema)
+
+    # Exact matches on a non-numeric column: "where status is active".
+    for match in _EQUALITY.finditer(scannable):
+        if any(s <= match.start() < e for s, e in consumed):
+            continue
+        column, ambiguous = _resolve_column(match.group("col"), every)
+        if ambiguous:
+            return FilterResolution(
+                constraint_detected=True,
+                refusal=(
+                    f"{match.group('col').strip()!r} could refer to more than one column "
+                    "of this table, so the filter was not applied"
+                ),
+            )
+        if column is None:
+            continue
+        if _base_type(every.get(column)) in _NUMERIC_TYPES:
+            # A number written as a word against a numeric column is a
+            # comparison, not a category, and `_COMPARISON` owns it.
+            continue
+        text_value = match.group("val").strip()
+        if not _SAFE_VALUE.match(text_value):
+            return FilterResolution(
+                constraint_detected=True,
+                refusal=(
+                    f"the value {text_value!r} contains characters this engine will not put "
+                    "into a query; quote a plain value"
+                ),
+            )
+        filters.append(CategoryFilter(column, text_value, source_text=match.group(0).strip()))
+        consumed.append((match.start(), match.end()))
+
+    # Presence and absence.
+    for match in _NULLITY.finditer(scannable):
+        if any(s <= match.start() < e for s, e in consumed):
+            continue
+        column, ambiguous = _resolve_column(match.group("col"), every)
+        if ambiguous or column is None:
+            continue
+        filters.append(
+            NullFilter(column, negated=bool(match.group("neg")), source_text=match.group(0).strip())
+        )
+        consumed.append((match.start(), match.end()))
+
+    # Disjunction is not supported, and must not be read as conjunction:
+    # "region Cairo or Delta" restricted to Cairo alone would answer a
+    # narrower question than the one asked.
+    if filters and _DISJUNCTION.search(scannable):
+        spans = [scannable[s:e] for s, e in consumed]
+        if not any(_DISJUNCTION.search(span) for span in spans):
+            return FilterResolution(
+                constraint_detected=True,
+                refusal=(
+                    "this engine combines filters with 'and' only; rewrite the question "
+                    "without 'or', or ask for each case separately"
+                ),
+            )
+
+    if len(filters) > MAX_FILTERS:
+        return FilterResolution(
+            constraint_detected=True,
+            refusal=(
+                f"the question states more than {MAX_FILTERS} restrictions, which is "
+                "more than this engine composes in one query"
+            ),
+        )
+
+    contradiction = _contradiction(filters)
+    if contradiction is not None:
+        return FilterResolution(constraint_detected=True, refusal=contradiction)
+
     detected = bool(filters) or _restricts(scannable, consumed)
-    return FilterResolution(tuple(filters), constraint_detected=detected)
+    return FilterResolution(tuple(_deduplicate(filters)), constraint_detected=detected)
+
+
+def _deduplicate(filters: list[Filter]) -> list[Filter]:
+    """The same restriction said twice is one restriction."""
+    seen: set[tuple[Any, ...]] = set()
+    out: list[Any] = []
+    for f in filters:
+        key = (f.column, f.operator, getattr(f, "value", None))
+        if key not in seen:
+            seen.add(key)
+            out.append(f)
+    return out
+
+
+def _contradiction(filters: list[Filter]) -> str | None:
+    """A pair that can never both hold selects nothing, and is far more
+    likely a misreading than a request for an empty answer."""
+    numeric = [f for f in filters if isinstance(f, RowFilter)]
+    for column in {f.column for f in numeric}:
+        lower = [f.value for f in numeric if f.column == column and f.operator in (">=", ">")]
+        upper = [f.value for f in numeric if f.column == column and f.operator in ("<=", "<")]
+        if lower and upper and max(lower) > min(upper):
+            pretty = column.replace("_", " ")
+            return (
+                f"the restrictions on {pretty} cannot both hold "
+                f"(at least {_plain(max(lower))} and at most {_plain(min(upper))})"
+            )
+    return None
 
 
 def _restricts(text: str, consumed: list[tuple[int, int]]) -> bool:
@@ -404,7 +614,7 @@ def _restricts(text: str, consumed: list[tuple[int, int]]) -> bool:
     return False
 
 
-def where_clause(filters: tuple[RowFilter, ...], quote: Any) -> str:
+def where_clause(filters: tuple[Filter, ...], quote: Any) -> str:
     """The SQL these filters become.
 
     The column goes through the caller's identifier guard and the value is
@@ -413,5 +623,17 @@ def where_clause(filters: tuple[RowFilter, ...], quote: Any) -> str:
     """
     if not filters:
         return ""
-    parts = [f"{quote(f.column)} {f.operator} {_plain(f.value)}" for f in filters]
+    parts: list[str] = []
+    for f in filters:
+        if isinstance(f, NullFilter):
+            parts.append(f"{quote(f.column)} {f.operator}")
+        elif isinstance(f, CategoryFilter):
+            # Already restricted to `_SAFE_VALUE`; the doubling is belt and
+            # braces for the one character that could still matter.
+            literal = f.value.replace("'", "''")
+            parts.append(f"{quote(f.column)} {f.operator} '{literal}'")
+        else:
+            parts.append(f"{quote(f.column)} {f.operator} {_plain(f.value)}")
+    # Conjunction only. `_DISJUNCTION` refuses anything that asked for OR,
+    # so joining with AND here cannot silently narrow a question.
     return " AND ".join(parts)

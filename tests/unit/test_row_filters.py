@@ -365,3 +365,98 @@ def test_the_executed_result_records_the_filters_it_applied() -> None:
         ("headcount", "<=", 40.0),
     }
     assert [f.as_dict() for f in mapping.filters] == recorded
+
+
+# ────────────────────────────── categories, nullity, and how they compose
+SHOP = schema(
+    price="DOUBLE",
+    quantity="BIGINT",
+    status="VARCHAR",
+    category="VARCHAR",
+    shipped_on="DATE",
+    discount="DOUBLE",
+)
+
+
+def kinds(question: str, sch: dict[str, object] | None = None):
+    resolution = parse_filters(question, sch or SHOP)
+    assert resolution.refusal is None, resolution.refusal
+    return [(f.column, f.operator, getattr(f, "value", None)) for f in resolution.filters]
+
+
+def test_an_exact_category_match_resolves() -> None:
+    assert kinds("total price where status is active") == [("status", "=", "active")]
+
+
+def test_a_category_value_is_quoted_not_interpolated() -> None:
+    from agentic_analytics.analytics.row_filters import CategoryFilter, where_clause
+
+    clause = where_clause((CategoryFilter("status", "active"),), lambda c: f'"{c}"')
+    assert clause == "\"status\" = 'active'"
+
+
+@pytest.mark.parametrize(
+    "value", ["act've", "act;ive", "act'--", "a' OR '1'='1", "${jndi}", "<script>"]
+)
+def test_an_unsafe_category_value_is_refused_not_escaped(value: str) -> None:
+    """Refused rather than escaped. An escaping bug is a vulnerability; a
+    refusal is an inconvenience."""
+    resolution = parse_filters(f"total price where status is {value}", SHOP)
+    assert not any(getattr(f, "value", None) == value for f in resolution.filters)
+
+
+def test_presence_and_absence_resolve() -> None:
+    assert kinds("count where discount is missing") == [("discount", "IS NULL", None)]
+    assert kinds("count where discount is not missing") == [("discount", "IS NOT NULL", None)]
+
+
+def test_a_numeric_and_a_categorical_filter_compose() -> None:
+    got = kinds("average price where status is active and quantity at least 5")
+    assert ("status", "=", "active") in got
+    assert ("quantity", ">=", 5.0) in got
+
+
+def test_filters_are_joined_with_and_not_or() -> None:
+    """Conjunction is the only composition. Reading "and" as "or" would
+    widen the population; the reverse would narrow it."""
+    from agentic_analytics.analytics.row_filters import where_clause
+
+    resolution = parse_filters("average price where quantity at least 5 and price under 100", SHOP)
+    clause = where_clause(resolution.filters, lambda c: f'"{c}"')
+    assert " AND " in clause
+    assert " OR " not in clause.upper()
+
+
+def test_disjunction_is_refused_rather_than_read_as_conjunction() -> None:
+    """ "status is active or pending" restricted to `active` alone answers
+    a narrower question than the one asked, silently."""
+    resolution = parse_filters("average price where status is active or pending", SHOP)
+    assert resolution.refusal is not None
+    assert "or" in resolution.refusal.lower()
+
+
+def test_contradictory_bounds_are_refused() -> None:
+    resolution = parse_filters(
+        "average price where quantity at least 90 and quantity under 5", SHOP
+    )
+    assert resolution.refusal is not None
+    assert "cannot both hold" in resolution.refusal
+
+
+def test_the_same_restriction_twice_is_one_restriction() -> None:
+    got = kinds("average price where quantity at least 5 and quantity at least 5")
+    assert got.count(("quantity", ">=", 5.0)) == 1
+
+
+def test_more_filters_than_the_engine_composes_are_refused() -> None:
+    from agentic_analytics.analytics.row_filters import MAX_FILTERS
+
+    clauses = " and ".join(f"quantity at least {i}" for i in range(MAX_FILTERS + 4))
+    resolution = parse_filters(f"average price where {clauses}", SHOP)
+    assert resolution.refusal is None or "more than" in resolution.refusal
+
+
+@pytest.mark.parametrize("value", ["-12.5", "0", "1000000", "3.25"])
+def test_decimal_and_negative_bounds_are_accepted(value: str) -> None:
+    got = kinds(f"average price where discount at least {value}")
+    assert got == [("discount", ">=", float(value))]
