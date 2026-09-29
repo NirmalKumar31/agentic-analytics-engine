@@ -36,7 +36,7 @@ working.
 | `AAE_AI_ANALYTICS_ENABLED` | `false` | Master switch. |
 | `AAE_CLOUD_API_KEY` | *(unset)* | Provider credential. Secret: dashboard only, never in a blueprint. |
 | `AAE_CLOUD_MODEL` | `gpt-6-luna` | Must match a pricing entry exactly. An unpriced model is refused. |
-| `AAE_AI_QUOTA_REDIS_URL` | *(unset)* | Redis-compatible durable ledger. Secret. Without it AI stays off: process-local counters reset on cold start and are not shared between instances. |
+| `AAE_AI_QUOTA_REDIS_URL` | *(unset)* | Redis-compatible shared ledger. Secret. The public Blueprint resolves it internally from `agentic-research-quota`; without a reachable store AI stays off. |
 | `AAE_CLOUD_BASE_URL` | `https://api.openai.com` | Provider endpoint. |
 | `AAE_CLOUD_TIMEOUT_SECONDS` | `120` | Application ceiling on one call, enforced independently of the HTTP client. |
 | `AAE_CLOUD_REASONING_EFFORT` | `low` | How much the model may reason before answering. Reasoning tokens are billed as output. No sampling parameter is configurable: the engine's determinism comes from the analytics layer, not from model decoding. |
@@ -64,6 +64,13 @@ second instance cannot reset them.
 | `AAE_AI_TOTAL_COST_MICRODOLLARS` | `4000000` | $4.00 lifetime, against a $5 provider hard limit. Contradictory ceilings are refused at startup. |
 
 ### What resets, and what does not
+
+The public analytics and research demos share one free Render Key Value
+instance because the workspace permits only one. Their keys cannot collide:
+analytics uses `aae:ai:*` and research uses `are:live-runs:*`. They do share a
+failure domain. A restart of the free datastore erases both projects'
+counters, so the provider's $5 hard limit remains the non-resetting external
+backstop.
 
 The daily counter is keyed by UTC date and expires on its own. The lifetime
 total is not keyed by anything and never expires: when it is reached, AI
@@ -168,8 +175,9 @@ Deterministic first. AI only after the deterministic service is healthy.
    `deterministic` available and `ai` unavailable with a reason, a demo
    question runs end to end, and `scripts/live_acceptance.py` passes with
    `--expect-api-docs-disabled`.
-3. **Key Value instance** — provision Redis-compatible storage in the same
-   region. Note the connection string; it is a secret.
+3. **Key Value instance** — the public Blueprint resolves the existing
+   `agentic-research-quota` connection internally. In another workspace,
+   replace that service reference with a same-region store you control.
 4. **Provider credential** — create the key with the smallest scope that
    works. Put it in the dashboard only.
 5. **Provider-side spend cap** — set a hard monthly cap on the account or
@@ -190,8 +198,9 @@ Deterministic first. AI only after the deterministic service is healthy.
     AI side consumed quota.
 13. **Quota exhaustion** — lower a ceiling temporarily and confirm the 429
     message, then confirm Deterministic Analytics still works.
-14. **Restart durability** — restart the service and confirm the daily
-    counter did not reset.
+14. **Web-restart durability** — restart the web service and confirm the
+    daily counter did not reset. This does not test a free Key Value restart,
+    which is documented to erase the store.
 
 ## Rollback
 

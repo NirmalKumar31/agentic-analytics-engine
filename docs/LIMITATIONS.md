@@ -274,9 +274,13 @@ cannot tell is not a ceiling.
 
 A run reports whether its total is complete. When it is not, the figure is
 a **floor built from reservations, not a measurement**, and the lifetime
-counter in Redis can therefore overstate real spend. It is never silently
-reset: compare it against the provider's own usage page rather than
-treating it as the truth.
+counter in Redis can therefore overstate real spend. The application never
+silently resets it, but the free Render Key Value plan loses every counter if
+the datastore itself restarts. The research and analytics demos share that
+store with structurally separate prefixes (`are:live-runs:*` and
+`aae:ai:*`), so values cannot collide but the restart/failure domain is
+shared. Compare the ledger against the provider's usage page, and rely on the
+provider-project hard limit as the non-resetting external backstop.
 
 **Cancellation retains both money and token allowance.** A cancelled call
 is not refunded and its output allowance is not returned to the run. The
