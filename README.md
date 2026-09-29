@@ -104,7 +104,7 @@ make dev          # build the frontend and serve on http://127.0.0.1:8000
 No `.env` required. `make verify` runs everything CI runs.
 
 ```bash
-make test         # 1,677 Python tests
+make test         # 1,678 Python tests
 make evaluate     # score the engine against the injected patterns
 make record       # re-record the three demo runs
 ```
@@ -557,13 +557,23 @@ The full list is in [docs/LIMITATIONS.md](docs/LIMITATIONS.md).
 
 ## Verified
 
-1,677 Python tests, 48 frontend tests, and 19 Chromium browser tests. Each
+1,678 Python tests, 48 frontend tests, and 19 Chromium browser tests. Each
 figure comes from its own run; they are never summed across overlapping
 suites. 89% branch coverage. The deployed deterministic path passes a
-58-check acceptance run plus an independent Parquet upload, analysis,
-provenance and cleanup check. `ruff`,
-`ruff format`, `mypy` (with `disallow_untyped_defs`), `pip-audit` and
-`npm audit` clean. Frontend production bundle about 380 kB gzipped, of which
-about 296 kB is the Vega chart engine in a lazily-loaded chunk.
+**55-check** credential-free acceptance run plus an independent Parquet
+upload, analysis, provenance and cleanup check.
+
+Both public modes are verified against the live service. One authorised
+Compare Both run published the correct total on the deterministic and the
+AI side alike — a figure computed independently before the run — for
+**$0.001160**, with every cited evidence cell resolving and no credential,
+internal endpoint or uploaded row appearing in any public response.
+`docs/RELEASE-EVIDENCE-v0.1.0.md` records the measurements and what they do
+not cover: Chromium only, no rehearsed AI-off rollback, and one paid run
+rather than a sample.
+
+`ruff`, `ruff format`, `mypy` (with `disallow_untyped_defs`), `pip-audit`
+and `npm audit` clean. Frontend production bundle about 380 kB gzipped, of
+which about 296 kB is the Vega chart engine in a lazily-loaded chunk.
 
 MIT licensed.
