@@ -202,6 +202,12 @@ def _numeric_columns(schema: dict[str, Any]) -> dict[str, str]:
     return out
 
 
+#: How many words before a number a column reference may sit. A filter is
+#: spoken beside its value -- "people aged 30 to 40", "team size under 10"
+#: -- so a column named further back is describing something else.
+_LOCALITY = 2
+
+
 def _normalise(text: str) -> str:
     return re.sub(r"[^a-z0-9]+", " ", text.lower()).strip()
 
@@ -237,19 +243,38 @@ def _resolve_column(phrase: str, columns: dict[str, str]) -> tuple[str | None, b
     tokens = want.split()
     positions: dict[str, int] = {}
     for column in columns:
-        normalised = _normalise(column)
+        parts = _normalise(column).split()
+        if not parts:
+            continue
         best = -1
-        for index, token in enumerate(tokens):
-            if (
-                token == normalised
-                or (index > 0 and f"{tokens[index - 1]} {token}" == normalised)
-                or _stem_match(normalised, [token])
-            ):
+        # Where this column's words last appear as a run. A column can be
+        # several words -- `monthly_ad_spend` is three -- so matching one
+        # token at a time can never find it.
+        for index in range(len(tokens)):
+            width = len(parts)
+            if index + 1 >= width and tokens[index + 1 - width : index + 1] == parts:
                 best = max(best, index)
+        if best < 0 and len(parts) == 1:
+            # A grammatical variant of a single-word column: `aged` names
+            # `age`. Restricted to one word so a stray token cannot claim
+            # a compound column.
+            for index, token in enumerate(tokens):
+                if _stem_match(parts[0], [token]):
+                    best = max(best, index)
         if best >= 0:
             positions[column] = best
     if not positions:
         return None, False
+
+    # And the mention has to sit next to the number, not merely somewhere
+    # before it. Without this, "average annual revenue for tenure 30 to 40"
+    # binds the range to `annual_revenue` -- the measure, named five words
+    # earlier -- because no `tenure` column exists to outrank it. Filtering
+    # revenue by 30 to 40 is a confidently wrong answer; refusing is right.
+    positions = {c: i for c, i in positions.items() if i >= len(tokens) - _LOCALITY}
+    if not positions:
+        return None, False
+
     nearest = max(positions.values())
     closest = sorted(c for c, i in positions.items() if i == nearest)
     if len(closest) == 1:
@@ -336,7 +361,11 @@ def parse_filters(question: str, schema: dict[str, Any]) -> FilterResolution:
         value = _number(match.group("val"))
         if value is None:
             continue
-        operator = _WORD_OPS.get(_normalise(match.group("op")))
+        # Symbols first, then words. `_normalise` strips punctuation, so
+        # looking up only the normalised form turned ">=" into "" and
+        # dropped every symbolic comparison silently.
+        raw = " ".join(match.group("op").lower().split())
+        operator = _WORD_OPS.get(raw) or _WORD_OPS.get(_normalise(match.group("op")))
         if operator is None:
             continue
         column, ambiguous = _resolve_column(match.group("col"), columns)
