@@ -471,34 +471,52 @@ developer's machine is not the constraint the deployment is.
 - Vega is 298 kB gzipped, lazily loaded on first chart render, and dominates
   the bundle.
 - Tested with Vitest and Testing Library for components, and with Playwright
-  for the assembled application: 12 browser tests covering the landing page,
-  a recorded run, a demo analysis, provenance, upload, refusal, session
-  deletion, cross-session isolation, cookie flags and the MCP endpoint
-  policy. They run against a real server, not a mock.
-- CI runs those tests on Chromium only. Firefox and WebKit are run against
-  the deployed URL at release time; between releases, a browser-specific
-  regression in either would not be caught.
+  for the assembled application: **19 browser tests** covering the landing
+  page, a recorded run, a demo analysis, provenance, upload, refusal,
+  session deletion, cross-session isolation, cookie flags, the MCP endpoint
+  policy, mode selection and Compare Both. They run against a real server,
+  not a mock.
+- **Chromium only.** That is true of CI and it was true of the v0.1.0
+  release: Firefox and WebKit were *not* run against the deployed build.
+  An earlier version of this section said they were run at release time;
+  they were not, and a browser-specific regression in either would not have
+  been caught.
 - The suite uploads several files per browser, which a deployment's per-IP
   hourly ceiling will legitimately refuse. Those tests skip with the reason
   rather than failing, so a rate-limited run reports fewer executed tests.
 
 ---
 
-## 10. Not yet deployed
+## 10. Deployed, and what the deployment has and has not shown
 
-At the time of writing there is **no live URL**. `render.yaml` is committed
-and complete and every check in this repository passes against a container
-built from the same Dockerfile, but nothing here is evidence that the service
-runs on Render. In particular these are untested until it does:
+Live at <https://agentic-analytics-engine.onrender.com>. Both public modes
+work there: credential-free acceptance passes **55 checks**, and a single
+authorised Compare Both run published the correct total on both the
+deterministic and the AI side for **$0.001160**. `docs/RELEASE-EVIDENCE-v0.1.0.md`
+carries the figures and the capture checksums.
 
-- behaviour behind a TLS-terminating proxy, which is the reason
-  `AAE_SESSION_COOKIE_SECURE` exists at all
-- the 384 MB / 1 thread envelope against a real 2 GB instance under load
-- cold-start latency on a free-tier-adjacent plan
-- Firefox and WebKit against the deployed build (they pass locally)
+Behaviour behind a TLS-terminating proxy is now exercised rather than
+assumed, which is what `AAE_SESSION_COOKIE_SECURE` existed for.
 
-This section is replaced with the deployment's actual details once the site
-is up and the acceptance run has passed against it.
+**Not shown by the deployment**, and stated here rather than left to
+inference:
+
+- **AI-off rollback has not been rehearsed against production.** Setting
+  `AAE_AI_ANALYTICS_ENABLED=false` and redeploying is covered by automated
+  isolation tests only. The procedure is documented in
+  `docs/DEPLOYMENT.md`; it has not been performed on this service.
+- **No production restart was performed**, so a Redis counter has not been
+  watched surviving one. Durability is a property of the store and is
+  tested locally; it has not been observed here. Separately, the free Key
+  Value plan can lose every counter if the datastore itself restarts —
+  see §5b.
+- **Firefox and WebKit are untested against this deployment.** Chromium
+  only. No claim is made about the other two.
+- **One paid run.** Everything known about the hosted AI path comes from a
+  single Compare Both request; it is evidence that the path works, not a
+  sample of how it behaves under variety or load.
+- The resource envelope has not been measured against the running instance
+  under load, and cold-start latency is unquantified.
 
 ---
 

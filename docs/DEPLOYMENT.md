@@ -202,6 +202,20 @@ Deterministic first. AI only after the deterministic service is healthy.
     daily counter did not reset. This does not test a free Key Value restart,
     which is documented to erase the store.
 
+## What the live deployment has been shown to do
+
+`docs/RELEASE-EVIDENCE-v0.1.0.md` records the v0.1.0 measurements: a
+55-check credential-free acceptance run against production, and one
+authorised Compare Both request whose deterministic and AI halves both
+published a total computed independently beforehand, for $0.001160.
+
+It also records what was *not* exercised, which matters more for anyone
+operating this: the rollback below has never been rehearsed against the
+running service, no production restart has been performed to watch a
+ledger counter survive one, and only Chromium was tested.
+
+---
+
 ## Rollback
 
 Set `AAE_AI_ANALYTICS_ENABLED=false` and redeploy. AI becomes unavailable
