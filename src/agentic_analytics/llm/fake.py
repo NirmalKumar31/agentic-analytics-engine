@@ -46,6 +46,14 @@ _DIMENSION_HINTS: list[tuple[str, str]] = [
     (r"carrier", "carrier"),
 ]
 
+#: A grouping the question states in words. Checked directly rather than
+#: through the warehouse's dimension list, which by construction cannot
+#: contain an uploaded dataset's columns.
+_NAMES_A_BREAKDOWN = re.compile(
+    r"\b(?:by|per|for\s+each|grouped\s+by|broken\s+down\s+by|across)\s+[a-z_]",
+    re.IGNORECASE,
+)
+
 _QUARTER = re.compile(r"\bq([1-4])\b", re.IGNORECASE)
 #: A question asking for one number rather than a decomposition.
 _ASKS_FOR_TOTAL = re.compile(
@@ -178,9 +186,17 @@ class FakeProvider(LLMProvider):
                 f"applied and the figures below cover the whole dataset. "
                 f"Add a year -- for example '{example}' -- to analyse that quarter."
             )
-        elif not time_scope:
+        elif not time_scope and analysis_type == "timeseries":
+            # Only when the question is actually about time. "The average
+            # revenue by region" is not a temporal question, and telling
+            # its reader that no time range was given is noise dressed as
+            # a caveat -- it describes the question, not the answer.
             ambiguities.append("No explicit time range; the full dataset period is used.")
-        if not dimensions:
+        if not dimensions and not _NAMES_A_BREAKDOWN.search(question):
+            # `dimensions` is drawn from the warehouse's known dimensions,
+            # so an uploaded column never appears in it. Claiming "no
+            # breakdown named" for a question that plainly says "by region"
+            # was false on every uploaded dataset.
             ambiguities.append(
                 "No breakdown named in the question; likely drivers are chosen by the planner."
             )
