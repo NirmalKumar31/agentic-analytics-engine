@@ -73,12 +73,47 @@ def test_both_file_formats_are_exercised() -> None:
     assert sum(1 for c in CASES if not c.parquet) >= 20
 
 
+#: The kinds every dataset can support, whatever its columns.
+#:
+#: The row-restriction kinds are deliberately excluded: they need a
+#: numeric or categorical column to restrict on, and a table with no
+#: trustworthy measure cannot host one. Requiring them everywhere would
+#: mean inventing columns to satisfy a checker.
+CORE_KINDS = frozenset(
+    {
+        QuestionKind.ANSWERABLE,
+        QuestionKind.AMBIGUOUS,
+        QuestionKind.IRRELEVANT,
+        QuestionKind.CAUSAL,
+        QuestionKind.NEEDS_MEASURE_AND_DIMENSION,
+        QuestionKind.PERIOD_SENSITIVE,
+        QuestionKind.SYNONYM,
+        QuestionKind.PHANTOM_COLUMN,
+        QuestionKind.EMPTY_RESULT,
+        QuestionKind.NULL_HEAVY,
+    }
+)
+
+
 def test_several_domains_have_the_full_question_matrix() -> None:
     """Pairwise coverage catches shallow gaps; a full matrix catches the
     interactions between kinds on one schema."""
-    counts = collections.Counter(c.dataset for c in CASES)
-    full = [name for name, n in counts.items() if n == len(list(QuestionKind))]
+    by_dataset: dict[str, set[QuestionKind]] = collections.defaultdict(set)
+    for case in CASES:
+        by_dataset[case.dataset].add(case.kind)
+    full = [name for name, kinds in by_dataset.items() if kinds >= CORE_KINDS]
     assert len(full) >= 6, full
+
+
+def test_every_row_restriction_kind_is_exercised() -> None:
+    """The filter kinds, which the released engine had no representation
+    for at all. Each must reach several domains, like every other kind."""
+    restriction_kinds = set(QuestionKind) - CORE_KINDS
+    by_kind: dict[QuestionKind, set[object]] = collections.defaultdict(set)
+    for case in CASES:
+        by_kind[case.kind].add(case.domain)
+    missing = sorted(k.value for k in restriction_kinds if len(by_kind[k]) < 3)
+    assert not missing, missing
 
 
 # ──────────────────────────────────────────── what the new shapes prove

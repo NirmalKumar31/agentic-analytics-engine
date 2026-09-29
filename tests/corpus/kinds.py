@@ -113,6 +113,19 @@ class QuestionKind(StrEnum):
     PHANTOM_COLUMN = "references_nonexistent_column"
     EMPTY_RESULT = "zero_matching_rows"
     NULL_HEAVY = "nulls_or_incomplete_groups"
+    #: A question that restricts the rows before aggregating. Its own kind
+    #: because the failure it guards against is invisible: a dropped
+    #: restriction returns real numbers for a population nobody asked
+    #: about, which looks exactly like an answer.
+    NUMERIC_RANGE = "numeric_range_filter"
+    STRICT_BOUND = "strictly_bounded_filter"
+    CATEGORY_FILTER = "categorical_equality_filter"
+    MULTI_FILTER = "several_filters_at_once"
+    FILTER_AND_PERIOD = "numeric_filter_with_period"
+    EMPTY_POPULATION = "filter_matches_no_rows"
+    ABSENT_FILTER_COLUMN = "filter_on_a_column_that_is_absent"
+    AMBIGUOUS_FILTER = "filter_column_cannot_be_chosen"
+    MALFORMED_CONSTRAINT = "constraint_cannot_be_read"
 
 
 class Outcome(StrEnum):

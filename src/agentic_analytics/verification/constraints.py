@@ -54,11 +54,32 @@ def _params(snapshot: Any) -> dict[str, Any]:
     return dict(getattr(snapshot, "parameters", None) or {})
 
 
+def _key(applied: dict[str, Any]) -> tuple[str, str, str]:
+    """One filter, as a comparable key.
+
+    Numbers are compared numerically so `30` and `30.0` are one
+    restriction; everything else is compared as text. Coercing
+    unconditionally is what crashed on a category value.
+    """
+    raw = applied.get("value")
+    if isinstance(raw, bool) or raw is None:
+        rendered = "" if raw is None else str(raw)
+    elif isinstance(raw, int | float):
+        rendered = repr(float(raw))
+    else:
+        try:
+            rendered = repr(float(str(raw)))
+        except (TypeError, ValueError):
+            rendered = str(raw)
+    return str(applied.get("column")), str(applied.get("operator")), rendered
+
+
 def _describe(filters: list[dict[str, Any]]) -> str:
     words = {">=": "at least", "<=": "at most", ">": "over", "<": "under", "=": "exactly"}
     return ", ".join(
         f"{f.get('column', '?').replace('_', ' ')} "
-        f"{words.get(str(f.get('operator')), str(f.get('operator')))} {f.get('value')}"
+        f"{words.get(str(f.get('operator')), str(f.get('operator')))} "
+        f"{'' if f.get('value') is None else f.get('value')}".strip()
         for f in filters
     )
 
@@ -128,12 +149,11 @@ def _compare(
 ) -> ConstraintVerdict | None:
     """`None` when this result carried the whole contract."""
     if required_filters:
-        wanted = {(f["column"], f["operator"], float(f["value"])) for f in required_filters}
-        have = {
-            (f.get("column"), f.get("operator"), float(f.get("value", "nan")))
-            for f in applied
-            if f.get("column") is not None
-        }
+        # Compared by type, not by coercion. A categorical filter's value
+        # is text -- `float("G5")` raised and took the whole verification
+        # down with it, which the expanded corpus found immediately.
+        wanted = {_key(f) for f in required_filters}
+        have = {_key(f) for f in applied if f.get("column") is not None}
         if not wanted <= have:
             return ConstraintVerdict(
                 applicable=True,
