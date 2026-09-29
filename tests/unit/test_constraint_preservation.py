@@ -179,3 +179,86 @@ def test_the_gate_abstains_when_there_is_no_contract_to_check(mapping: object) -
     """It must not fire on the governed warehouse or on an unrestricted
     question, or every one of them would refuse."""
     assert not check_constraints(None, mapping, [snapshot()]).applicable
+
+
+# ───────────────────────────────── the gate as wired, not the module alone
+class _PermissiveCritic:
+    """A model that approves everything.
+
+    The point of the gate is that it holds when the model is wrong, so
+    the model here is as wrong as it can be: it calls the claim supported
+    and says it answers the question.
+    """
+
+    remote_inference = True
+
+    async def complete_json(self, request: object) -> dict[str, object]:
+        return {
+            "finding_id": "",
+            "status": "supported",
+            "reason": "the figures match the cited result",
+            "answers_question": True,
+            "relevance_reason": "reports the requested averages",
+        }
+
+    async def aclose(self) -> None:
+        return None
+
+
+async def _verdict_for(filters_applied: list[dict[str, object]]):
+    from agentic_analytics.agents.critic import verify_finding
+    from agentic_analytics.agents.schemas import CandidateFinding
+    from agentic_analytics.analytics.results import EvidenceCell
+
+    snap = ResultSnapshot(
+        result_id="res_agg",
+        tool_name="aggregate_for_question",
+        columns=["territory", "average_spend", "row_count"],
+        rows=[["North", 100.0, 10]],
+        row_count=1,
+        column_types={"territory": "VARCHAR", "average_spend": "DOUBLE", "row_count": "BIGINT"},
+        parameters={
+            "table": "uploaded_data",
+            "measure": "spend",
+            "dimension": "territory",
+            "filters": filters_applied,
+        },
+    )
+    finding = CandidateFinding(
+        text="North has an average spend of 100.0.",
+        result_ids=[snap.result_id],
+        evidence_cells=[
+            EvidenceCell(result_id=snap.result_id, row=0, column="average_spend", value=100.0)
+        ],
+    )
+    verdict, _ = await verify_finding(
+        finding,
+        {snap.result_id: snap},
+        _PermissiveCritic(),  # type: ignore[arg-type]
+        None,
+        question="average spend by territory for headcount 30 to 40",
+        mapping=FILTERED,
+    )
+    return verdict
+
+
+async def test_the_critic_cannot_publish_an_unfiltered_result() -> None:
+    """End to end through `verify_finding`, with the model saying yes.
+
+    Testing `check_constraints` alone leaves the wiring unverified --
+    disabling the gate in the critic breaks nothing that a module-level
+    test can see.
+    """
+    verdict = await _verdict_for([])
+    assert verdict.status == "unsupported"
+    assert verdict.rule == MISSING_FILTER
+    assert verdict.answers_question is False
+    assert "restricts the rows" in verdict.reason
+
+
+async def test_the_critic_publishes_when_the_restriction_was_applied() -> None:
+    """The gate must not reject everything: the same claim, from a result
+    that did honour the restriction, is publishable."""
+    verdict = await _verdict_for([f.as_dict() for f in RANGE])
+    assert verdict.status == "supported"
+    assert verdict.rule != MISSING_FILTER

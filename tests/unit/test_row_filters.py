@@ -221,3 +221,131 @@ def test_an_unrestricted_question_detects_no_constraint() -> None:
         resolution = parse_filters(question, PEOPLE)
         assert not resolution.constraint_detected, question
         assert resolution.refusal is None
+
+
+# ───────────────────────── the compiled query, not just the parsed filter
+def _executed(question: str, rows: list[tuple[object, ...]], **columns: str):
+    """Build a table, ask the question, run what the planner compiles.
+
+    Parsing a filter correctly and *compiling* it are different things.
+    Tests that stop at the parser pass happily while the WHERE clause is
+    dropped on the way to SQL, which is exactly the defect being fixed --
+    so this executes and counts rows.
+    """
+    import tempfile
+    from pathlib import Path
+
+    from agentic_analytics.analytics import upload_plan
+    from agentic_analytics.analytics.execute import run_query
+    from agentic_analytics.analytics.semantic import infer_schema
+    from agentic_analytics.warehouse.session import SessionManager, open_upload_session
+
+    header = ",".join(columns)
+    body = "\n".join(",".join(str(v) for v in row) for row in rows)
+    manager = SessionManager()
+    with tempfile.TemporaryDirectory() as directory:
+        path = Path(directory) / "fixture.csv"
+        path.write_text(f"{header}\n{body}\n")
+        try:
+            session = manager.add(open_upload_session(path, path.name, "csv"))
+            schema = infer_schema(session, "uploaded_data").as_dict()
+            mapping = upload_plan.resolve_question(question, schema)
+            sql = upload_plan.build_sql(mapping)
+            if sql is None:
+                return mapping, None, None
+            # Parameters exactly as the MCP tool supplies them, because
+            # the constraint gate reads the plan back off the result.
+            snapshot = run_query(
+                session,
+                sql,
+                tool_name="aggregate_for_question",
+                parameters={"table": "uploaded_data", "question": question} | mapping.as_dict(),
+                guard=False,
+            )
+            return mapping, sql, snapshot
+        finally:
+            manager.close_all()
+
+
+#: Twelve rows spanning the boundaries, in two groups.
+ROWS = [
+    (28, "north", 100),
+    (29, "north", 100),
+    (30, "north", 200),
+    (31, "north", 200),
+    (40, "north", 200),
+    (41, "north", 100),
+    (42, "north", 100),
+    (30, "south", 400),
+    (35, "south", 400),
+    (40, "south", 400),
+    (25, "south", 100),
+    (45, "south", 100),
+]
+COLUMNS = {"headcount": "", "territory": "", "spend": ""}
+
+
+def test_the_compiled_query_actually_restricts_the_rows() -> None:
+    """Counted from the result, not read off the SQL string.
+
+    A test asserting the text of a WHERE clause passes against a build
+    that assembles the clause and never applies it.
+    """
+    _, sql, snapshot = _executed(
+        "average spend by territory for headcount 30 to 40", ROWS, **COLUMNS
+    )
+    assert snapshot is not None and sql is not None
+    counts = {
+        r[snapshot.columns.index("territory")]: r[snapshot.columns.index("row_count")]
+        for r in snapshot.rows
+    }
+    # north: 30, 31, 40 -> 3.  south: 30, 35, 40 -> 3.  Six of twelve.
+    assert counts == {"north": 3, "south": 3}
+    assert sum(counts.values()) == 6
+
+
+def test_both_boundary_rows_are_inside_an_inclusive_range() -> None:
+    """The rows at exactly 30 and exactly 40 are the ones an off-by-one
+    loses, and they change the average."""
+    _, _, snapshot = _executed("average spend by territory for headcount 30 to 40", ROWS, **COLUMNS)
+    assert snapshot is not None
+    averages = {
+        r[snapshot.columns.index("territory")]: round(
+            float(r[snapshot.columns.index("average_spend")]), 2
+        )
+        for r in snapshot.rows
+    }
+    assert averages == {"north": 200.0, "south": 400.0}
+
+
+def test_rows_outside_the_range_are_excluded() -> None:
+    _, _, snapshot = _executed("average spend by territory for headcount 41 to 50", ROWS, **COLUMNS)
+    assert snapshot is not None
+    counts = {
+        r[snapshot.columns.index("territory")]: r[snapshot.columns.index("row_count")]
+        for r in snapshot.rows
+    }
+    assert counts == {"north": 2, "south": 1}
+
+
+def test_an_empty_population_returns_nothing_rather_than_zero() -> None:
+    """No qualifying rows is an honest empty result, not an invented 0."""
+    _, _, snapshot = _executed("average spend by territory for headcount 90 to 99", ROWS, **COLUMNS)
+    assert snapshot is not None
+    assert snapshot.rows == []
+
+
+def test_the_executed_result_records_the_filters_it_applied() -> None:
+    """Provenance: the result carries the plan, so a later gate can check
+    the restriction was honoured rather than take it on trust."""
+    mapping, _, snapshot = _executed(
+        "average spend by territory for headcount 30 to 40", ROWS, **COLUMNS
+    )
+    assert snapshot is not None
+    recorded = snapshot.parameters.get("filters")
+    assert recorded, "the executed result must record its filters"
+    assert {(f["column"], f["operator"], f["value"]) for f in recorded} == {
+        ("headcount", ">=", 30.0),
+        ("headcount", "<=", 40.0),
+    }
+    assert [f.as_dict() for f in mapping.filters] == recorded
