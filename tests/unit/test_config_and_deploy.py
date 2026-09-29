@@ -3,6 +3,7 @@ set ceilings the application really reads."""
 
 from __future__ import annotations
 
+import tomllib
 from pathlib import Path
 
 import pytest
@@ -224,6 +225,23 @@ def test_dockerfile_runs_as_an_unprivileged_user() -> None:
     # The image must not default to live analysis.
     assert "AAE_LIVE_ANALYTICS_ENABLED=false" in dockerfile
     assert "AAE_PROVIDER_MODE=fake" in dockerfile
+
+
+def test_the_production_package_contains_the_durable_ledger_client() -> None:
+    """AI must not disappear only after the production image starts.
+
+    The development environment installs ``fakeredis``, which itself pulls
+    in ``redis``.  That once allowed every Python test and the deterministic
+    container smoke to pass while the production wheel lacked the client
+    needed by ``open_ledger``.  Pin both the declared runtime dependency and
+    the closure installed into the image.
+    """
+    project = tomllib.loads((REPO / "pyproject.toml").read_text())["project"]
+    dependencies = project["dependencies"]
+    assert any(dependency.startswith("redis>=") for dependency in dependencies)
+
+    constraints = (REPO / "constraints.txt").read_text().splitlines()
+    assert any(line.startswith("redis==") for line in constraints)
 
 
 def test_blueprints_mark_the_cookie_secure() -> None:
