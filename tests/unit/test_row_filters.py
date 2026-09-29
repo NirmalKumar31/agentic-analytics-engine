@@ -119,6 +119,22 @@ def test_the_column_nearest_the_number_wins() -> None:
     ]
 
 
+def test_of_two_candidates_the_one_beside_the_number_wins() -> None:
+    """Both columns sit close enough to be candidates, so the tie is
+    broken by proximity and not by chance.
+
+    "average revenue age 30 to 40" names `revenue` and `age` one word
+    apart. Binding the range to `revenue` would filter the measure by
+    30-40 and return a confident, wrong answer -- and the locality window
+    alone does not separate them here, so the ranking has to.
+    """
+    sch = schema(revenue="DOUBLE", age="BIGINT")
+    assert describe("average revenue age 30 to 40", sch) == [
+        ("age", ">=", 30.0),
+        ("age", "<=", 40.0),
+    ]
+
+
 def test_two_filters_in_one_question_both_apply() -> None:
     sch = schema(age="BIGINT", team_size="BIGINT", annual_revenue="DOUBLE")
     got = describe("average annual revenue where age is at least 30 and team size under 10", sch)
