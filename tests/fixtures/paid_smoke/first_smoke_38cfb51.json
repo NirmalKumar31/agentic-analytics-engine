@@ -1,0 +1,201 @@
+{
+  "claims": [
+    {
+      "claimed_change": {},
+      "evidence_cells": [
+        {
+          "column": "data_type",
+          "label": "net_value",
+          "result_id": "res_3306db43fa78",
+          "row": 5,
+          "value": "DOUBLE"
+        },
+        {
+          "column": "non_null",
+          "label": "net_value",
+          "result_id": "res_3306db43fa78",
+          "row": 5,
+          "value": 4000
+        },
+        {
+          "column": "null_pct",
+          "label": "net_value",
+          "result_id": "res_3306db43fa78",
+          "row": 5,
+          "value": 0.0
+        }
+      ],
+      "finding_id": "f1",
+      "kind": "calculated_fact",
+      "metric_ids": [],
+      "published": true,
+      "reason": "The cited profile reports `net_value` as `DOUBLE`, with 4,000 non-null values and a 0.0% null rate, matching the finding. It does not report the column's total.",
+      "resolved_cells": [
+        {
+          "actual_value": "DOUBLE",
+          "column": "data_type",
+          "resolved": true,
+          "result_id": "res_3306db43fa78",
+          "row": 5,
+          "stated_value": "DOUBLE"
+        },
+        {
+          "actual_value": 4000,
+          "column": "non_null",
+          "resolved": true,
+          "result_id": "res_3306db43fa78",
+          "row": 5,
+          "stated_value": 4000
+        },
+        {
+          "actual_value": 0.0,
+          "column": "null_pct",
+          "resolved": true,
+          "result_id": "res_3306db43fa78",
+          "row": 5,
+          "stated_value": 0.0
+        }
+      ],
+      "result_ids": [
+        "res_3306db43fa78"
+      ],
+      "rule": "critic",
+      "status": "supported",
+      "task_id": "profile_uploaded_data",
+      "text": "The `net_value` column is typed `DOUBLE` and has `4000` non-null values with a null rate of `0.0`."
+    },
+    {
+      "claimed_change": {},
+      "evidence_cells": [
+        {
+          "column": "distinct_count",
+          "label": "net_value",
+          "result_id": "res_3306db43fa78",
+          "row": 5,
+          "value": 2961
+        },
+        {
+          "column": "mean_value",
+          "label": "net_value",
+          "result_id": "res_3306db43fa78",
+          "row": 5,
+          "value": "44.2128"
+        }
+      ],
+      "finding_id": "f2",
+      "kind": "calculated_fact",
+      "metric_ids": [],
+      "published": false,
+      "reason": "The value(s) 44.2128 do not appear in, and cannot be derived from, the cited results.",
+      "resolved_cells": [
+        {
+          "actual_value": 2961,
+          "column": "distinct_count",
+          "resolved": true,
+          "result_id": "res_3306db43fa78",
+          "row": 5,
+          "stated_value": 2961
+        },
+        {
+          "actual_value": "44.2128",
+          "column": "mean_value",
+          "resolved": true,
+          "result_id": "res_3306db43fa78",
+          "row": 5,
+          "stated_value": "44.2128"
+        }
+      ],
+      "result_ids": [
+        "res_3306db43fa78"
+      ],
+      "rule": "numeric_mismatch",
+      "status": "unsupported",
+      "task_id": "profile_uploaded_data",
+      "text": "The `net_value` column has `2961` distinct values and a mean of `44.2128`."
+    },
+    {
+      "claimed_change": {},
+      "evidence_cells": [
+        {
+          "column": "total_net_value",
+          "label": null,
+          "result_id": "res_661facd3408f",
+          "row": 0,
+          "value": 176851.26
+        },
+        {
+          "column": "row_count",
+          "label": null,
+          "result_id": "res_661facd3408f",
+          "row": 0,
+          "value": 4000
+        }
+      ],
+      "finding_id": "finding_1",
+      "kind": "calculated_fact",
+      "metric_ids": [],
+      "published": false,
+      "reason": "The value 176851.26 is the sum across 4000 rows, but the query sums the source field net_value and labels the aggregate output total_net_value. The finding could be read as saying total_net_value is the source field.",
+      "resolved_cells": [
+        {
+          "actual_value": 176851.26,
+          "column": "total_net_value",
+          "resolved": true,
+          "result_id": "res_661facd3408f",
+          "row": 0,
+          "stated_value": 176851.26
+        },
+        {
+          "actual_value": 4000,
+          "column": "row_count",
+          "resolved": true,
+          "result_id": "res_661facd3408f",
+          "row": 0,
+          "stated_value": 4000
+        }
+      ],
+      "result_ids": [
+        "res_661facd3408f"
+      ],
+      "rule": "critic",
+      "status": "partially_supported",
+      "task_id": "total_net_value",
+      "text": "The sum of total_net_value is 176851.26 across 4000 rows."
+    }
+  ],
+  "correct_answer": {
+    "rows": 4000,
+    "total_net_value": 176851.26
+  },
+  "expectation": "sum of net_value",
+  "fixture_kind": "failed product-quality acceptance",
+  "model": "gpt-6-luna",
+  "note": "The first real-model smoke against gpt-6-luna on SHA 38cfb51. Transport and monetary accounting were correct; the published output was not. Preserved verbatim apart from path and credential sanitisation. It is NOT a successful quality validation and must not be presented as one.",
+  "provider_mode": "cloud",
+  "published_findings": 1,
+  "question": "What is the total net value?",
+  "recorded_outcome": {
+    "correct_answer_published": false,
+    "double_counted_quota_admission": true,
+    "false_numeric_rejection": 1,
+    "irrelevant_published": 1,
+    "unsupported_published": 0
+  },
+  "source_sha": "38cfb519cc26eaf7cc34c805f3ae0ec5429fec1f",
+  "usage_totals": {
+    "cache_write_tokens": null,
+    "cached_tokens": null,
+    "input_tokens": 18094,
+    "note": "cached/cache-write/reasoning were not captured by the harness at the time",
+    "output_tokens": 4104,
+    "provider_request_attempts": 19,
+    "provider_successful_responses": 19,
+    "reasoning_tokens": null,
+    "settled_microdollars": 3875
+  },
+  "withheld_findings": 2,
+  "withheld_rules": {
+    "critic": 1,
+    "numeric_mismatch": 1
+  }
+}

@@ -212,3 +212,129 @@ Needs a running Ollama server and no credential. Expect lower task completion
 and candidate support, and much longer runtimes. The interesting numbers there
 are the verification ones: they measure how often the engine catches a real
 model overstating its results.
+
+### Resuming, and the one rule that matters
+
+The real-model harness checkpoints after every question, so an interrupted
+sweep continues rather than restarting. A checkpoint is only reused when the
+model, the provider, the harness schema and the **git SHA** all match what
+produced it.
+
+`--resume-incompatible` overrides that check. It exists because interrupted
+*debugging* runs are real and re-running twenty minutes of questions to reach
+the one that crashed is wasted time. It must never produce a number anyone
+reports.
+
+The reason is not bookkeeping fussiness. The engine is the thing under
+evaluation. Resuming across SHAs puts questions answered by two different
+builds into one report and silently attributes all of them to the second, so
+a fix that improved question 30 appears to have improved questions 1 through
+29 as well. A sweep whose outcomes came from more than one build measures
+nothing, and nothing in the report would show it.
+
+A publishable evaluation therefore starts from zero in a fresh checkpoint
+directory on a single SHA. `tests/evaluation/test_real_model_harness.py`
+pins the defaults that enforce this.
+
+## Probing one agent role
+
+The full sweep tells you a run published nothing. It does not tell you which
+layer failed, and the layers fail for opposite reasons: a model that cannot
+meet the evidence contract needs a different schema, a model obstructed by
+the request needs a different prompt, and tool results that deserved no
+conclusion need neither.
+
+```bash
+AAE_PROVIDER_MODE=local AAE_OLLAMA_MODEL=qwen2.5:7b-instruct \
+  aae probe-worker-findings --out probe.json
+```
+
+The probe hands the `worker_findings` role five fixed results built in
+`evaluation/worker_probe.py` -- a simple aggregate, a grouped ranking, a
+trend, a real statistical test, and one thin result that supports no
+conclusion at all. Because the results are known-good, anything that goes
+wrong afterwards belongs to the role. For every claim it records reference
+integrity (does the result exist, the row exist, the column exist, and does
+a copied value match), then runs the three real gates unmodified.
+
+`--schema-variant` and `--prompt-variant` vary one thing at a time, so
+"the model cannot do this" and "we asked badly" can be told apart rather
+than guessed between. It is a diagnostic: no pass mark, no score, and never
+part of CI.
+
+## The 34-question local sweep is optional, not a gate
+
+`aae evaluate-real-model` without `--selection` runs all 34 questions against
+whichever local model is configured. It is an **extended behavioural
+evaluation, not a release gate**, and it has not been run to completion.
+Nothing in this repository reports a result from it, and no claim here rests
+on one.
+
+The reason is scope. A 34-question sweep of `qwen2.5:7b-instruct` mostly
+measures that model's limits, and that model is not the intended production
+reasoner. The seven-question Stage 1 already demonstrates what the
+architecture needed to show: real planning, real structured output, real
+tool selection, real DuckDB execution, real findings, real verification,
+real publication, and real failure modes including contention and budget
+exhaustion.
+
+Run it overnight if you want the longer record. Do not treat its absence as
+a missing result.
+
+## Local evaluation budgets are not product budgets
+
+The evaluation overrides two ceilings, and neither changes what a deployment
+does:
+
+    max_llm_calls        64    (product default stays 40)
+    max_runtime_seconds  1800  (product default stays 300)
+
+Measured, on the demo warehouse question. At 40 calls the run produced seven
+candidate findings and published **none**: all twelve critic calls were
+refused before dispatch, so verification was entirely starved and no report
+was written. At 64 the same question produced sixteen candidates, published
+eight, ran every critic call and wrote a report. The extra calls were spent
+on verification and reporting, not on more tool flailing.
+
+That is evaluation sizing for a slow local model. Product defaults are sized
+for a hosted model and a public service, and are unchanged.
+
+## Relevance is checked separately from arithmetic
+
+A finding passes four gates, not three. Claim shape, deterministic arithmetic
+and evidence support all ask whether a claim is *right*. None asks whether it
+answers the question.
+
+That gap was visible in the committed demonstrations: a revenue ranking by
+acquisition channel under "why did gross margin fall", a month-over-month
+refund total under "which customer segments drive returns". Every number
+verified. Neither answered what was asked.
+
+The critic now returns two judgements. `status` is whether the cited results
+support the wording. `answers_question` is whether the finding addresses the
+question or a sub-question the task objective names. They are recorded
+separately because they fail for different reasons: a claim can be perfectly
+evidenced and still be off-topic, and a reader needs to tell those apart. An
+accurate, off-topic claim is withheld under `irrelevant_to_question` rather
+than called unsupported.
+
+The gate fails closed. A critic that omits `answers_question` has not said
+the finding is relevant, and an unavailable critic withholds.
+
+## What publication-gate integrity does and does not mean
+
+`publication_gate_integrity` is an internal consistency metric: the fraction
+of published findings that carry a supporting verdict from the pipeline. A
+value of 1.000 means the gate emitted nothing it had not verified.
+
+It is not independent evidence that a published finding is true. Arithmetic
+verification proves a number appears in a cited result. It does not prove the
+sentence around that number is a correct reading of the data, that the units
+are named properly, or that a comparison the wording implies was actually
+made. The manual review in
+`examples/evaluations/local-qwen2.5-7b-instruct-stage1/manual-review.json`
+records seven findings that are numerically supported and semantically loose
+for exactly these reasons.
+
+Published findings are described as *numerically verified against cited
+results*. Never as true.

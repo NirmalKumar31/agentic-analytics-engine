@@ -274,3 +274,31 @@ def test_correlation_matrix_is_symmetric_with_a_unit_diagonal(
 def test_correlation_matrix_column_count_is_bounded(session: AnalysisSession) -> None:
     with pytest.raises(StatsError, match="between 2 and"):
         correlation_matrix(session, "sales", ["quantity"])
+
+
+def test_a_correlation_on_a_text_column_is_refused_not_attempted(session) -> None:  # type: ignore[no-untyped-def]
+    """It checked that a column exists and never that it was numeric.
+
+    The SQL casts every column to DOUBLE, so a text column reached DuckDB
+    and came back as `Conversion Error: Could not convert string 'North' to
+    DOUBLE` -- a database error where a governed refusal belongs. Three of
+    Stage 1's seventeen MCP failures were this.
+    """
+    import pytest
+
+    from agentic_analytics.analytics.stats import StatsError, correlation_matrix
+
+    with pytest.raises(StatsError) as raised:
+        correlation_matrix(session, "orders", ["shipping_cost", "status"])
+
+    message = str(raised.value)
+    assert "status" in message
+    assert "numeric" in message
+    assert "Conversion Error" not in message
+
+
+def test_a_correlation_between_numeric_columns_still_works(session) -> None:  # type: ignore[no-untyped-def]
+    from agentic_analytics.analytics.stats import correlation_matrix
+
+    snapshot = correlation_matrix(session, "orders", ["shipping_cost", "discount_rate"])
+    assert snapshot.row_count == 2

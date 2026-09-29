@@ -9,11 +9,25 @@ a report as if it were evidence.
 from __future__ import annotations
 
 import uuid
-from typing import Any, Literal
+from typing import Annotated, Any, Literal
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, BeforeValidator, Field, field_validator
 
 from agentic_analytics.analytics.results import EvidenceCell, EvidenceKind
+from agentic_analytics.llm.strict_schema import decode_json_object
+
+#: A field whose keys are not known in advance.
+#:
+#: Accepts the object itself or a string holding its JSON. The second form
+#: exists because OpenAI strict Structured Outputs cannot express an object
+#: with arbitrary keys -- `additionalProperties: false` is mandatory there,
+#: and on an object with no declared properties it permits only `{}`. The
+#: schema sent to that provider asks for a string; every other provider
+#: still answers with an object, and both validate here.
+#:
+#: See `agentic_analytics.llm.strict_schema`.
+JsonObject = Annotated[dict[str, Any], BeforeValidator(decode_json_object)]
+OptionalJsonObject = Annotated[dict[str, Any] | None, BeforeValidator(decode_json_object)]
 
 AnalysisType = Literal[
     "timeseries",
@@ -70,7 +84,7 @@ class AnalysisTask(BaseModel):
     analysis_type: AnalysisType = "segmentation"
     required_metrics: list[str] = Field(default_factory=list)
     dimensions: list[str] = Field(default_factory=list)
-    filters: list[dict[str, Any]] = Field(default_factory=list)
+    filters: list[JsonObject] = Field(default_factory=list)
     preferred_tool: str = "compute_metric"
     priority: int = 3
     depends_on: list[str] = Field(default_factory=list)
@@ -82,7 +96,7 @@ class AnalysisTask(BaseModel):
     # change *into* this period rather than the largest change anywhere.
     focus_period: str | None = None
     test_type: str | None = None
-    variables: dict[str, Any] = Field(default_factory=dict)
+    variables: JsonObject = Field(default_factory=dict)
     table: str | None = None
     columns: list[str] = Field(default_factory=list)
     # Two explicit windows for a driver decomposition.
@@ -118,7 +132,7 @@ class CandidateFinding(BaseModel):
     metric_ids: list[str] = Field(default_factory=list)
     # A worker may state the arithmetic it believes the cells imply. The
     # engine recomputes it; the claim is never taken on trust.
-    claimed_change: dict[str, Any] | None = None
+    claimed_change: OptionalJsonObject = None
 
     @field_validator("text")
     @classmethod
@@ -140,7 +154,16 @@ class Verdict(BaseModel):
     #: wording, which is written for a person and may change.
     rule: str = ""
     # Set when deterministic arithmetic, not the critic, settled the matter.
-    numeric_check: dict[str, Any] | None = None
+    numeric_check: OptionalJsonObject = None
+    #: Whether the cited results support the wording. Kept separate from
+    #: `answers_question` because they fail for different reasons and a
+    #: reader needs to know which: a claim can be well evidenced and still
+    #: not address what was asked.
+    evidence_supported: bool | None = None
+    #: Whether the claim materially answers the question, or a sub-question
+    #: the task objective names.
+    answers_question: bool | None = None
+    relevance_reason: str = ""
 
     @field_validator("reason")
     @classmethod
@@ -160,10 +183,18 @@ class PublishedFinding(BaseModel):
     metric_ids: list[str]
     verification_status: VerificationStatus
     verifier_reason: str
-    numeric_check: dict[str, Any] | None = None
+    #: Which gate accepted this, as a stable identifier. Reading the rule
+    #: out of `verifier_reason` would mean parsing prose written for a
+    #: person, which changes whenever the wording is improved.
+    verifier_rule: str = ""
+    numeric_check: OptionalJsonObject = None
+    #: What was actually checked, for UI copy that does not overstate it.
+    evidence_supported: bool | None = None
+    answers_question: bool | None = None
+    relevance_reason: str = ""
     # The arithmetic the worker stated, kept so the provenance drawer can
     # show the calculation next to the cells it was computed from.
-    claimed_change: dict[str, Any] | None = None
+    claimed_change: OptionalJsonObject = None
 
 
 class TaskOutcome(BaseModel):
@@ -176,6 +207,12 @@ class TaskOutcome(BaseModel):
     tool_calls: int = 0
     error: str | None = None
     notes: list[str] = Field(default_factory=list)
+    #: How the tool loop spent its attempts: dispatched, refused before
+    #: dispatch, or suppressed as a repeat of a call already known to fail.
+    #: Separate counts because "the model chose an invalid call" and "a
+    #: valid call reached MCP and the tool failed" are different failures
+    #: with different fixes, and one number cannot tell them apart.
+    tool_telemetry: dict[str, Any] = Field(default_factory=dict)
 
 
 class ChartSpec(BaseModel):
@@ -189,8 +226,16 @@ class ChartSpec(BaseModel):
 
 
 class ReportSection(BaseModel):
+    """A grouping of findings, by id.
+
+    There is no body. A section used to carry the findings' own sentences
+    joined together, which meant every factual sentence appeared three
+    times -- once in the executive summary, once in the findings list, once
+    here. A section says which findings belong together; the findings say
+    what they say, once.
+    """
+
     heading: str
-    body: str
     finding_ids: list[str] = Field(default_factory=list)
 
 
@@ -229,6 +274,9 @@ class AnalysisReport(BaseModel):
     """The written deliverable. Numbers come from findings, never from prose."""
 
     question: str
+    #: One sentence, written by the engine, carrying no claim of its own:
+    #: it describes the shape of the result so the factual sentences stay in
+    #: `key_findings`, where each appears exactly once.
     executive_summary: str
     key_findings: list[str] = Field(default_factory=list)
     sections: list[ReportSection] = Field(default_factory=list)

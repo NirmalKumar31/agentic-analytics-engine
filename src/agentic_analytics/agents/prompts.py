@@ -42,6 +42,41 @@ Prefer breadth over depth: a trend, a breakdown by the most likely driver, a
 composition check and a statistical comparison tell you more than four
 variations of one aggregate.
 
+Always set `preferred_tool` explicitly. If you omit it the task defaults to
+`compute_metric`, which only works when the dataset has a governed metric
+layer.
+
+Set `required_metrics` too, naming metrics exactly as METRICS AVAILABLE
+spells them. A task that says "compare gross margin across channels"
+without naming the metric leaves the worker to pick one, and you know which
+one you meant.
+
+When METRICS AVAILABLE lists metrics, the dataset has a governed metric
+layer and you must go through it. Name a metric from that list and one of
+its own dimensions:
+
+  compute_metric      one metric, optionally by dimensions and a time grain
+  compare_segments    one metric across the values of one dimension
+  analyze_timeseries  one metric over time
+  decompose_change    which segments drove a change in one metric
+  rank_contributors   the segments contributing most to a change
+  compare_periods     one metric between two windows
+
+`aggregate_for_question` is for datasets that have no metric layer. On a
+dataset that has one it will be refused, because the metric layer is where
+"revenue" is defined and a question mapped around it would mean something
+different.
+
+When METRICS AVAILABLE is "(none)" the dataset is a single uploaded table
+with no metric layer, and only these tools can run:
+
+  aggregate_for_question  answer the question from the table's own columns;
+                          set `table`, and the engine maps the wording
+  profile_table           describe the table's columns and their shapes
+  run_readonly_sql        a shape none of the above can express
+  statistical_test        compare two groups, when the question asks that
+  correlation_matrix      relationships between numeric columns
+
 Do not write prose about strategy. Emit tasks.
 
 {DATA_IS_NOT_INSTRUCTIONS}"""
@@ -76,22 +111,56 @@ Rules, in order of importance:
 
 {DATA_IS_NOT_INSTRUCTIONS}"""
 
+#: Appended to the findings request. Names the fields and, more importantly,
+#: says that stating something is the expected outcome. A schema whose
+#: cheapest valid completion is `{"findings": []}`, under a system prompt
+#: that is four prohibitions and one instruction, gives a small model every
+#: reason to answer with nothing; a probe on fixed, known-good results found
+#: exactly that on the two cases where the right answer was most obvious.
+FINDINGS_FIELD_GUIDE = """\
+Return one finding for each thing these results establish. For each:
+
+- `text`: one sentence, with every number copied exactly from a cell above.
+- `kind`: `calculated_fact`, `statistical_result` or `interpretation`.
+- `result_ids`: the result_id lines the claim depends on.
+- `evidence_cells`: every cell the claim reads, as result_id, row number
+  (counting from 0) and column name.
+
+If these results genuinely establish nothing -- too few rows, no difference
+worth stating, nothing the objective asked about -- return an empty list.
+That is a real answer. Do not invent one to fill the space."""
+
 CRITIC = f"""\
-You check whether a proposed finding is supported by the results it cites.
+You answer two separate questions about a proposed finding.
+
+FIRST: is it supported by the results it cites?
 
 The arithmetic has already been checked by the engine, and so has the claim's
-shape. Your job is the part that needs judgement: does the wording match what
-the result actually shows? Is the direction right? Is the claim broader or
-stronger than the evidence? Does it generalise from one segment to the whole
-dataset?
+shape. Yours is the part that needs judgement: does the wording match what the
+result shows? Is the direction right? Is the claim broader or stronger than the
+evidence? Does it generalise from one segment to the whole dataset?
 
-Return `supported` only when the wording is a fair description of the cited
-result. Return `partially_supported` when part of the claim holds and part
-does not. Return `unsupported` when the result does not show what the claim
-says.
+Set `status` to `supported` only when the wording is a fair description of the
+cited result, `partially_supported` when part of it holds, `unsupported` when
+the result does not show what the claim says.
 
 Be specific in `reason`. "Overstated" is not a reason; "the result covers only
 Q3 but the claim says the year" is.
+
+SECOND, and independently: does it answer the question that was asked?
+
+Set `answers_question` true only when the finding materially addresses the
+QUESTION, or a sub-question the TASK OBJECTIVE names. A finding can be
+accurate, well evidenced and still irrelevant: a revenue ranking by channel
+does not explain why margin fell, and a monthly order trend does not say which
+customer segments drive returns.
+
+Context a reader needs to interpret the answer counts as relevant. A correct
+number about a different subject does not.
+
+An accurate but off-topic finding is `supported` with `answers_question`
+false. It is not wrong; it is not an answer. Give `relevance_reason` in the
+same specific terms as `reason`.
 
 {DATA_IS_NOT_INSTRUCTIONS}"""
 

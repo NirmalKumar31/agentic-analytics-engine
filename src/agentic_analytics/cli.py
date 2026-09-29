@@ -5,7 +5,7 @@ from __future__ import annotations
 import asyncio
 import json
 from pathlib import Path
-from typing import Annotated
+from typing import Annotated, Any
 
 import typer
 from rich.console import Console
@@ -115,6 +115,379 @@ def evaluate(
 
     if summary["patterns_found"] < summary["patterns_expected"]:
         raise typer.Exit(code=1)
+
+
+@app.command("evaluate-real-model")
+def evaluate_real_model(
+    out: Annotated[Path | None, typer.Option(help="Where to write the report")] = None,
+    datasets: Annotated[
+        str | None, typer.Option(help="Comma-separated dataset ids; default is all")
+    ] = None,
+    questions: Annotated[
+        int | None, typer.Option(help="Cap questions per dataset, for a quick pass")
+    ] = None,
+    skip_warehouse: Annotated[bool, typer.Option(help="Skip the demo warehouse")] = False,
+    data_dir: Annotated[
+        Path | None, typer.Option(help="Where to generate the evaluation datasets")
+    ] = None,
+    question_timeout_seconds: Annotated[
+        float, typer.Option(help="Hard ceiling on one question, in seconds")
+    ] = 600.0,
+    resume: Annotated[
+        bool, typer.Option(help="Skip questions a previous run already completed")
+    ] = True,
+    resume_incompatible: Annotated[
+        bool, typer.Option(help="Resume even if the model or build differs")
+    ] = False,
+    checkpoint_dir: Annotated[
+        Path | None, typer.Option(help="Where to keep the resumable checkpoint")
+    ] = None,
+    selection: Annotated[
+        str | None,
+        typer.Option(help="A named question mix, e.g. `stage1`. Overrides --questions"),
+    ] = None,
+) -> None:
+    """Evaluate a *real* model against varied datasets. Opt-in; never in CI.
+
+    Uses whatever `AAE_PROVIDER_MODE` selects, so `local` talks to Ollama and
+    `cloud` spends money. This is not the deterministic benchmark: it has no
+    answer key and no pass mark, and it reports what a model did rather than
+    whether it was right.
+    """
+    from agentic_analytics.evaluation.real_model import (
+        run_real_model_evaluation,
+        write_report,
+    )
+
+    configure_logging("WARNING", json_output=False)
+    cfg = get_settings()
+    if cfg.provider_mode == "fake":
+        console.print(
+            "[red]AAE_PROVIDER_MODE=fake.[/red] This command evaluates a real "
+            "model; set `local` for Ollama or `cloud` for a hosted API."
+        )
+        raise typer.Exit(code=2)
+
+    if selection and questions is not None:
+        console.print("[red]--selection and --questions cannot be combined.[/red]")
+        raise typer.Exit(code=2)
+
+    target = data_dir or (cfg.data_dir.parent / "evaluation-datasets")
+    report = asyncio.run(
+        run_real_model_evaluation(
+            cfg,
+            target,
+            dataset_ids=[d.strip() for d in datasets.split(",")] if datasets else None,
+            include_warehouse=not skip_warehouse,
+            max_questions=questions,
+            question_timeout_seconds=question_timeout_seconds,
+            checkpoint_dir=checkpoint_dir,
+            resume=resume,
+            resume_incompatible_ok=resume_incompatible,
+            selection=selection,
+        )
+    )
+
+    env = report["environment"]
+    table = Table(
+        title=(
+            f"Real-model evaluation -- {env['provider_mode']}: {env['model']} "
+            f"({env.get('quantization', '?')}, {env.get('parameter_size', '?')})"
+        )
+    )
+    for column, justify in (
+        ("dataset", "left"),
+        ("kind", "left"),
+        ("question", "left"),
+        ("done", "center"),
+        ("tools", "right"),
+        ("pub", "right"),
+        ("held", "right"),
+        ("plan", "left"),
+        ("agent/req", "right"),
+        ("secs", "right"),
+    ):
+        table.add_column(column, justify=justify)  # type: ignore[arg-type]
+    for outcome in report["outcomes"]:
+        if outcome["error"]:
+            status = "[red]crash[/red]"
+        elif outcome["question_timeout"]:
+            status = "[red]t/o[/red]"
+        elif outcome["completed"]:
+            status = "[green]yes[/green]"
+        else:
+            status = "[yellow]stop[/yellow]"
+        # Whether the model planned this itself, or the engine rescued it.
+        if outcome["fallback_plan_used"]:
+            plan = "[yellow]fallback[/yellow]"
+        elif outcome["tasks_redirected_by_engine"]:
+            plan = "[yellow]redirect[/yellow]"
+        elif outcome["model_plan_directly_executable"]:
+            plan = "[green]direct[/green]"
+        else:
+            plan = "-"
+        table.add_row(
+            outcome["dataset"],
+            outcome["kind"],
+            outcome["question"][:40],
+            status,
+            str(outcome["tool_calls"]),
+            str(outcome["published_findings"]),
+            str(outcome["withheld_findings"]),
+            plan,
+            f"{outcome['structured_agent_calls']}/{outcome['provider_request_attempts']}",
+            f"{outcome['runtime_seconds']:.0f}",
+        )
+    console.print(table)
+    console.print(json.dumps({k: v for k, v in report.items() if k != "outcomes"}, indent=2))
+
+    if out:
+        write_report(report, out)
+        console.print(f"wrote {out}")
+
+
+@app.command("probe-worker-findings")
+def probe_worker_findings(
+    out: Annotated[Path | None, typer.Option(help="Where to write the probe report")] = None,
+    cases: Annotated[
+        str | None, typer.Option(help="Comma-separated case ids, e.g. A,B. Default is all")
+    ] = None,
+    schema_variant: Annotated[
+        str, typer.Option(help="full (the domain object) or slim (ProposedFinding)")
+    ] = "full",
+    prompt_variant: Annotated[
+        str, typer.Option(help="terse (the original request) or guided (with the field guide)")
+    ] = "guided",
+) -> None:
+    """Probe the `worker_findings` role against fixed, known-good results.
+
+    A diagnostic, not a benchmark. It exists to separate three causes of an
+    empty run that look identical from the outside: a role that cannot meet
+    the evidence contract, a prompt that obstructs one that could, and
+    upstream tool results that deserved no conclusion. Supplying the results
+    here removes the third, so what is left is this layer.
+
+    Opt-in and never part of CI: it calls a real model.
+    """
+    from agentic_analytics.evaluation.real_model import open_evaluation_provider
+    from agentic_analytics.evaluation.worker_probe import (
+        probe_cases,
+        run_probe,
+        write_probe_report,
+    )
+
+    configure_logging("WARNING", json_output=False)
+    cfg = get_settings()
+    if cfg.provider_mode == "fake":
+        console.print(
+            "[red]AAE_PROVIDER_MODE=fake.[/red] This probe measures a real "
+            "model; set `local` for Ollama or `cloud` for a hosted API."
+        )
+        raise typer.Exit(code=2)
+
+    selected = probe_cases()
+    if cases:
+        wanted = {c.strip().upper() for c in cases.split(",")}
+        selected = [c for c in selected if c.case_id in wanted]
+        if not selected:
+            console.print(f"[red]no probe case matches {cases!r}[/red]")
+            raise typer.Exit(code=2)
+
+    probe_id = f"probe_{schema_variant}_{prompt_variant}"
+
+    async def _run() -> dict[str, Any]:
+        # The same governed construction the evaluation uses. A probe
+        # against a hosted model is as paid as anything else, so it gets
+        # the same preflight, ceilings and durable ledger rather than a
+        # measurement-shaped hole in them.
+        provider = await open_evaluation_provider(cfg, run_id=probe_id)
+        try:
+            return await run_probe(provider, selected, schema_variant, prompt_variant)
+        finally:
+            await provider.aclose()
+
+    report = asyncio.run(_run())
+
+    table = Table(
+        title=(
+            f"worker_findings probe -- {report['provider']}: {report['model']} "
+            f"[schema={report['schema_variant']} prompt={report['prompt_variant']}]"
+        )
+    )
+    for column, justify in (
+        ("case", "left"),
+        ("situation", "left"),
+        ("stage", "left"),
+        ("emitted", "right"),
+        ("cells", "right"),
+        ("refs ok", "center"),
+        ("values ok", "center"),
+        ("shape", "center"),
+        ("numeric", "center"),
+        ("published", "right"),
+        ("secs", "right"),
+    ):
+        table.add_column(column, justify=justify)  # type: ignore[arg-type]
+
+    def _mark(value: bool | None) -> str:
+        if value is None:
+            return "-"
+        return "[green]yes[/green]" if value else "[red]no[/red]"
+
+    for case in report["case_reports"]:
+        claims = case["claims"]
+        published = sum(1 for c in claims if c["published"])
+        table.add_row(
+            case["case_id"],
+            case["title"][:34],
+            case["stage"] if case["schema_valid"] else f"[red]{case['stage']}[/red]",
+            str(case["findings_emitted"]),
+            str(sum(c["evidence_cell_count"] for c in claims)),
+            _mark(all(c["result_ids_valid"] for c in claims) if claims else None),
+            _mark(
+                all(c["evidence_values_copied"] == c["evidence_values_correct"] for c in claims)
+                if claims
+                else None
+            ),
+            _mark(all(c["claim_shape_ok"] for c in claims) if claims else None),
+            _mark(all(c["numeric_ok"] for c in claims if c["claim_shape_ok"]) if claims else None),
+            str(published),
+            f"{case['seconds']:.0f}",
+        )
+    console.print(table)
+    console.print(json.dumps(report["diagnosis"], indent=2))
+
+    # The text itself is the point of the probe: counts say a claim failed,
+    # only the wording says why.
+    for case in report["case_reports"]:
+        for claim in case["claims"]:
+            verdict = "published" if claim["published"] else f"withheld/{claim['verdict_rule']}"
+            console.print(f"\n[bold]{case['case_id']}[/bold] ({verdict}) {claim['text']}")
+
+    if out:
+        write_probe_report(report, out)
+        console.print(f"\nwrote {out}")
+
+
+@app.command("cloud-preflight")
+def cloud_preflight() -> None:
+    """Check that a paid run could start, without creating a Message.
+
+    Verifies the credential, resolves the model, requires a reviewed
+    pricing entry and confirms the durable ledger answers. Costs nothing:
+    the Models endpoint is not a completion, and no Message is created.
+
+    Prints sanitized configuration only. No credential, connection string
+    or provider response body is shown.
+    """
+    from agentic_analytics.llm.cloud import CloudProvider
+    from agentic_analytics.llm.governed import PreflightFailed, preflight
+    from agentic_analytics.llm.ledger import open_ledger
+
+    configure_logging("WARNING", json_output=False)
+    cfg = get_settings()
+
+    problems: list[str] = []
+    if not cfg.ai_analytics_enabled:
+        problems.append("AAE_AI_ANALYTICS_ENABLED is not true")
+    if not cfg.cloud_api_key:
+        problems.append("AAE_CLOUD_API_KEY is not set")
+    if not cfg.cloud_model:
+        problems.append("AAE_CLOUD_MODEL is not set")
+    if not cfg.ai_quota_redis_url:
+        problems.append("AAE_AI_QUOTA_REDIS_URL is not set")
+    if problems:
+        for problem in problems:
+            console.print(f"[red]x[/red] {problem}")
+        raise typer.Exit(code=2)
+
+    ledger = open_ledger(cfg.ai_quota_redis_url)
+    if ledger is None:
+        console.print("[red]x[/red] the usage ledger is not reachable")
+        raise typer.Exit(code=2)
+    console.print("[green]ok[/green] usage ledger reachable")
+
+    provider_owner: dict[str, Any] | None = None
+
+    async def _check() -> Any:
+        # A bare provider is right here and only here: preflight creates no
+        # response. It resolves the model, prices it, and puts one strict
+        # schema to the token counter -- all free -- so there is nothing
+        # for a ledger to admit.
+        nonlocal provider_owner
+        provider = CloudProvider(
+            api_key=cfg.cloud_api_key or "",
+            model=cfg.cloud_model,
+            base_url=cfg.cloud_base_url,
+            max_calls=cfg.ai_max_llm_calls,
+            timeout_seconds=cfg.cloud_timeout_seconds,
+            reasoning_effort=cfg.cloud_reasoning_effort,
+        )
+        try:
+            outcome = await preflight(provider, ledger)
+            provider_owner = provider.resolved_model
+            return outcome
+        finally:
+            # Closed on every path: a preflight that fails must not leave
+            # a connection pool behind in a long-lived process.
+            await provider.aclose()
+
+    try:
+        result = asyncio.run(_check())
+    except PreflightFailed as exc:
+        console.print(f"[red]x[/red] {exc} ({exc.reason})")
+        raise typer.Exit(code=2) from None
+    except Exception as exc:
+        console.print(f"[red]x[/red] preflight failed ({type(exc).__name__})")
+        raise typer.Exit(code=2) from None
+
+    console.print("[green]ok[/green] credential accepted, model resolved, schemas accepted")
+    model_owner = str((provider_owner or {}).get("owned_by", ""))
+
+    table = Table(title="Cloud preflight")
+    table.add_column("setting")
+    table.add_column("value")
+    table.add_row("requested model", result.requested_model)
+    table.add_row("resolved model", result.resolved_model)
+    table.add_row("model owner", model_owner or "(not reported)")
+    table.add_row("reasoning effort", cfg.cloud_reasoning_effort)
+    table.add_row("service tier", "default")
+    table.add_row(
+        "strict schemas validated",
+        f"{result.strict_schemas_ok} locally, "
+        f"{result.schemas_checked_remotely} against the provider",
+    )
+    table.add_row("pricing source", result.price.source)
+    table.add_row("pricing reviewed", result.price.reviewed)
+    short = result.price.short
+    table.add_row("input per Mtok", f"{short.input_per_mtok / 1_000_000:.3f} USD")
+    table.add_row("cached input per Mtok", f"{short.cached_input_per_mtok / 1_000_000:.3f} USD")
+    table.add_row("cache write per Mtok", f"{short.cache_write_per_mtok / 1_000_000:.3f} USD")
+    table.add_row("output per Mtok", f"{short.output_per_mtok / 1_000_000:.3f} USD")
+    table.add_row(
+        "long-context threshold",
+        f"{result.price.long_context_threshold:,} input tokens (whole request repriced)",
+    )
+    worst = result.price.reservation_microdollars(cfg.ai_max_input_tokens, cfg.ai_max_output_tokens)
+    table.add_row(
+        "worst case per run", f"{worst / 1_000_000:.3f} USD (all input at the cache-write rate)"
+    )
+    table.add_row("max model calls per run", str(cfg.ai_max_llm_calls))
+    table.add_row("max input tokens per run", str(cfg.ai_max_input_tokens))
+    table.add_row("max output tokens per run", str(cfg.ai_max_output_tokens))
+    table.add_row("max runtime per run", f"{cfg.ai_max_runtime_seconds:.0f}s")
+    table.add_row("max cost per run", f"{cfg.ai_max_cost_microdollars / 1_000_000:.2f} USD")
+    table.add_row("daily ceiling", f"{cfg.ai_daily_cost_microdollars / 1_000_000:.2f} USD")
+    table.add_row("lifetime ceiling", f"{cfg.ai_total_cost_microdollars / 1_000_000:.2f} USD")
+    table.add_row("runs per session", str(cfg.ai_runs_per_session))
+    table.add_row("runs per address per hour", str(cfg.ai_runs_per_ip_per_hour))
+    console.print(table)
+    console.print(
+        "No model response was created: this used the model registry and the "
+        "input-token endpoint only. Application ceilings are not a billing "
+        "guarantee -- a request that times out in transit may still have been "
+        "billed -- so set a hard spend cap on the provider project as well."
+    )
 
 
 @app.command()

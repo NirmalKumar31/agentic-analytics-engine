@@ -13,6 +13,8 @@ import decimal
 import math
 import threading
 import time
+from collections.abc import Iterator
+from contextlib import contextmanager
 from typing import Any
 
 import duckdb
@@ -46,6 +48,50 @@ def _coerce(value: Any) -> Scalar:
     if isinstance(value, bytes | bytearray | memoryview):
         return f"<{len(bytes(value))} bytes>"
     return str(value)
+
+
+#: How long a query waits for the session's connection before giving up.
+#: A ceiling, not a preference: see `held_connection`.
+LOCK_WAIT_SECONDS = 30.0
+
+
+@contextmanager
+def held_connection(
+    session: AnalysisSession, timeout_seconds: float | None = None
+) -> Iterator[None]:
+    """Take the session's connection lock, or fail rather than wait forever.
+
+    `with session.lock` looks harmless and is not. Tool calls run in
+    `anyio.to_thread` workers, which by default cannot be cancelled -- a
+    cancel scope waits for the thread to finish. So a worker blocked on an
+    unbounded `Lock.acquire()` is unreachable: the per-call timeout fires,
+    the per-question timeout fires, and neither can take effect because the
+    thread they are trying to cancel is not running Python at all.
+
+    That is not hypothetical. One evaluation run wedged for fifty-one
+    minutes with six idle sockets open, two seconds of CPU consumed, a 600s
+    call ceiling and a 2400s question ceiling both silently defeated. The
+    process did not even respond to SIGINT.
+
+    Bounding the wait turns an indefinite hang into a recoverable error the
+    agent can read and retry. The timer that interrupts a *running* query
+    still starts after the lock is held, because interrupting the
+    connection while another thread owns it would cancel that thread's
+    query instead of this one's.
+    """
+    # Read at call time rather than bound as a default argument, so the
+    # ceiling is one value that a deployment -- or a test proving the wait
+    # really is bounded -- can actually change.
+    timeout_seconds = LOCK_WAIT_SECONDS if timeout_seconds is None else timeout_seconds
+    if not session.lock.acquire(timeout=timeout_seconds):
+        raise QueryError(
+            f"the dataset was busy with another query for more than {timeout_seconds:g}s; "
+            "this query was not run. Try a narrower query, or fewer at once."
+        )
+    try:
+        yield
+    finally:
+        session.lock.release()
 
 
 def run_query(
@@ -89,12 +135,20 @@ def run_query(
     timer = threading.Timer(timeout_seconds, session.con.interrupt)
     timed_out = False
     try:
-        with session.lock:
+        with held_connection(session):
             timer.start()
             try:
                 cursor = session.con.execute(wrapped)
                 description = cursor.description or []
                 columns = [str(d[0]) for d in description]
+                # The engine's own declaration of what each output column
+                # holds. Recorded here, at the one place every result is
+                # made, so a numeric statistic that arrives as text can be
+                # read as a number and an identifier that looks numeric
+                # cannot.
+                column_types = {
+                    str(d[0]): str(d[1]) for d in description if len(d) > 1 and d[1] is not None
+                }
                 raw_rows = cursor.fetchall()
             finally:
                 timer.cancel()
@@ -125,6 +179,7 @@ def run_query(
         sql=sql_to_run,
         columns=columns,
         rows=rows,
+        column_types=column_types,
         row_count=len(rows),
         truncated=truncated,
         dataset_fingerprint=session.dataset_fingerprint,
@@ -147,7 +202,7 @@ def fetch_rows(
     """
     timer = threading.Timer(timeout_seconds, session.con.interrupt)
     try:
-        with session.lock:
+        with held_connection(session):
             timer.start()
             try:
                 cursor = session.con.execute(sql)

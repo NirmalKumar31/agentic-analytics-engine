@@ -38,6 +38,23 @@ _DATE_LIKE = re.compile(
 )
 _NUMBER = re.compile(r"[-+]?\d[\d,]*(?:\.\d+)?(?:[eE][-+]?\d+)?")
 
+# Digits glued to letters are part of a name, not a quantity. `Dept3`,
+# `Region2`, `SKU12`, `store_7` are category values, and an uploaded
+# dataset is full of them -- a third of real category columns seem to be
+# numbered. Read as claims they must appear in the cited results, they do
+# not, and a correct finding is withheld for a numeric mismatch it never
+# made. Requires a leading letter, so `8,120.55` and `-3.2` are untouched.
+_IDENTIFIER = re.compile(
+    # Contiguous: `Dept3`, `Region2`, `SKU12`.
+    r"\b[A-Za-z][A-Za-z_]*\d[A-Za-z0-9_]*\b"
+    # Hyphenated or dotted: `MATH-101`, `ORD-100042`, `P1.2`. The separator
+    # must touch both sides, so "revenue -101" keeps its number while
+    # "MATH-101" does not read as minus one hundred and one -- which is how
+    # a course code became a claimed negative value and failed a correct
+    # finding for a numeric mismatch it never made.
+    r"|\b[A-Za-z][A-Za-z_]*[-.][0-9][A-Za-z0-9_.-]*\b"
+)
+
 # Statistical boilerplate states a threshold, not a measurement. "significant
 # at the 5% level" is not a claim that something equals 5, and treating it as
 # one rejects correct findings.
@@ -81,12 +98,18 @@ class NumericVerdict:
     ok: bool
     reason: str = ""
     checks: list[NumericCheck] = field(default_factory=list)
+    #: True when the finding carried a `claimed_change` that could not be
+    #: read at all. The change asserts nothing in that state, so it is
+    #: discarded rather than counted against the finding -- but the caller
+    #: must clear it, so no unverified calculation is shown to a reader.
+    claimed_change_discarded: bool = False
 
     def as_dict(self) -> dict[str, Any]:
         return {
             "ok": self.ok,
             "reason": self.reason,
             "checks": [c.as_dict() for c in self.checks],
+            "claimed_change_discarded": self.claimed_change_discarded,
         }
 
 
@@ -95,8 +118,13 @@ def _close(a: float, b: float) -> bool:
 
 
 def extract_numbers(text: str) -> list[float]:
-    """Numbers stated in prose, with date-like tokens removed first."""
-    cleaned = _THRESHOLD.sub(" ", _DATE_LIKE.sub(" ", text))
+    """Numbers stated in prose.
+
+    Dates, statistical thresholds and identifiers are removed first: none
+    of them is a quantity the finding is claiming, and demanding they
+    appear in the cited results rejects correct findings.
+    """
+    cleaned = _IDENTIFIER.sub(" ", _THRESHOLD.sub(" ", _DATE_LIKE.sub(" ", text)))
     out: list[float] = []
     for match in _NUMBER.finditer(cleaned):
         token = match.group(0).replace(",", "")
@@ -198,10 +226,22 @@ def verify_numbers(
             value, label = match
             checks.append(NumericCheck(stated=stated, matched=True, source=label, computed=value))
 
+    discarded = False
     if claimed_change:
         verdict = _check_claimed_change(claimed_change, checks)
         if verdict is not None:
-            return verdict
+            if verdict.reason == _MALFORMED_CHANGE:
+                # An unreadable change is not a false claim, it is no claim.
+                # Rejecting the finding for it discards one whose every
+                # stated number checked out -- which is what a real model
+                # produced: correct figures, and a `claimed_change` missing
+                # its `from`/`to`. The numbers in the text are verified
+                # against the cited cells either way, so the guarantee is
+                # unchanged; the change itself is dropped so nothing
+                # unverified is displayed as a calculation.
+                discarded = True
+            else:
+                return verdict
 
     if unmatched:
         formatted = ", ".join(f"{n:g}" for n in unmatched[:3])
@@ -214,8 +254,24 @@ def verify_numbers(
             checks=checks,
         )
     return NumericVerdict(
-        ok=True, reason="Every stated number traces to a cited result.", checks=checks
+        ok=True,
+        reason=(
+            "Every stated number traces to a cited result."
+            + (
+                " A malformed change declaration was discarded and is not shown."
+                if discarded
+                else ""
+            )
+        ),
+        checks=checks,
+        claimed_change_discarded=discarded,
     )
+
+
+#: Distinguishes "this change is wrong" from "this change is unreadable".
+#: The first is a false claim and fails the finding; the second asserts
+#: nothing and is dropped.
+_MALFORMED_CHANGE = "The stated change is malformed and cannot be checked."
 
 
 def _check_claimed_change(
@@ -228,11 +284,7 @@ def _check_claimed_change(
         end = float(claimed["to"])
         stated = float(claimed["stated"])
     except (KeyError, TypeError, ValueError):
-        return NumericVerdict(
-            ok=False,
-            reason="The stated change is malformed and cannot be checked.",
-            checks=checks,
-        )
+        return NumericVerdict(ok=False, reason=_MALFORMED_CHANGE, checks=checks)
 
     if kind == "percent_change":
         if start == 0:

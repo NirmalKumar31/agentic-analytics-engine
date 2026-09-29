@@ -57,7 +57,7 @@ export function ReportView({
           <div className="panel-head">
             <h2>Charts</h2>
             <span className="spacer" />
-            <span className="small dim">built from verified results only</span>
+            <span className="small dim">built from cited query results</span>
           </div>
           <div className="panel-body stack">
             {charts.map((chart) => (
@@ -112,9 +112,6 @@ export function ReportView({
             {report.sections.map((section) => (
               <div key={section.heading} className="stack" style={{ gap: 6 }}>
                 <h3 style={{ margin: 0, fontSize: 14 }}>{section.heading}</h3>
-                <p className="muted" style={{ margin: 0 }}>
-                  {section.body}
-                </p>
                 {section.finding_ids.length > 0 && (
                   <div className="chip-row">
                     {section.finding_ids.map((id) => {

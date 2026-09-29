@@ -1,36 +1,96 @@
-/* Dark-first analytics workbench.
-   Colour is used to carry meaning (verification state, task state, evidence
-   kind) and nowhere else. Motion is used to show computation progressing and
-   nowhere else. */
+/* Two themes, one instrument.
+
+   The default is light, because this is a document about numbers and a
+   document about numbers should read like one. Dark is available and is a
+   real theme rather than an inversion -- both are tuned separately.
+
+   Colour carries meaning: verification state, task state, evidence kind.
+   Motion carries one meaning: that computation is progressing. Neither is
+   decoration, and all motion is withdrawn under `prefers-reduced-motion`.
+
+   Contrast is deliberate. Body text sits at or above 7:1 against its
+   surface in both themes, because the first version of this shipped muted
+   brown on near-black and was, correctly, called unreadable. */
 
 :root {
-  color-scheme: dark;
-
-  --bg: #0b0e13;
-  --bg-raised: #11151d;
-  --bg-panel: #141922;
-  --bg-inset: #0d1117;
-  --border: #222a36;
-  --border-strong: #2f3a4a;
-
-  --text: #e6eaf2;
-  --text-muted: #9aa5b8;
-  --text-dim: #6b7688;
-
-  --accent: #5b9cff;
-  --accent-dim: #2d4f85;
-  --supported: #3fbf8f;
-  --rejected: #e06c75;
-  --warning: #e5a44c;
-  --statistical: #a78bfa;
-  --interpretation: #4cc2d6;
-
-  --radius: 8px;
-  --radius-sm: 5px;
+  --radius: 10px;
+  --radius-sm: 6px;
   --mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
   --sans: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", Roboto, sans-serif;
+  --ease: cubic-bezier(0.22, 0.61, 0.36, 1);
+  --fast: 140ms;
+  --med: 260ms;
 
-  --shadow: 0 8px 28px rgb(0 0 0 / 45%);
+  /* Shared hues. Chosen to hold up on both a white and a dark surface, so
+     a verdict colour means the same thing whichever theme is on. */
+  --accent-rgb: 197 88 0;
+  --supported-rgb: 0 132 90;
+  --rejected-rgb: 194 42 42;
+  --warning-rgb: 158 100 0;
+  --statistical-rgb: 20 110 150;
+  --interpretation-rgb: 128 78 0;
+}
+
+/* ------------------------------------------------------------- light */
+:root, [data-theme='light'] {
+  color-scheme: light;
+
+  --bg: #f4f2ee;
+  --bg-raised: #ffffff;
+  --bg-panel: #ffffff;
+  --bg-inset: #f6f4f0;
+  --border: #ddd8d0;
+  --border-strong: #bdb6ab;
+
+  --text: #16130f;
+  --text-muted: #4a443c;
+  --text-dim: #6d6659;
+
+  --accent: #c55800;
+  --accent-dim: #e6a86b;
+  --supported: #00845a;
+  --rejected: #c22a2a;
+  --warning: #9e6400;
+  --statistical: #146e96;
+  --interpretation: #804e00;
+
+  --shadow: 0 1px 2px rgb(22 19 15 / 6%), 0 8px 24px -12px rgb(22 19 15 / 18%);
+  --glow: 0 0 0 3px rgb(var(--accent-rgb) / 16%);
+}
+
+/* -------------------------------------------------------------- dark */
+[data-theme='dark'] {
+  color-scheme: dark;
+
+  /* A lifted charcoal, not a void. The first attempt used near-black and
+     read as switched off rather than as a surface. */
+  --bg: #16181c;
+  --bg-raised: #1e2127;
+  --bg-panel: #1e2127;
+  --bg-inset: #191c21;
+  --border: #333840;
+  --border-strong: #4a515c;
+
+  --text: #f3f5f8;
+  --text-muted: #c2c8d2;
+  --text-dim: #949bA6;
+  --text-dim: #959daa;
+
+  --accent: #ff9e3d;
+  --accent-rgb: 255 158 61;
+  --supported: #3ddc9a;
+  --supported-rgb: 61 220 154;
+  --rejected: #ff7a6b;
+  --rejected-rgb: 255 122 107;
+  --warning: #ffcc5c;
+  --warning-rgb: 255 204 92;
+  --statistical: #5cc8e8;
+  --statistical-rgb: 92 200 232;
+  --interpretation: #e0b44a;
+  --interpretation-rgb: 224 180 74;
+
+  --shadow: 0 10px 34px rgb(0 0 0 / 50%);
+  --glow: 0 0 0 3px rgb(var(--accent-rgb) / 22%);
 }
 
 * { box-sizing: border-box; }
@@ -42,9 +102,10 @@ body {
   background: var(--bg);
   color: var(--text);
   font-family: var(--sans);
-  font-size: 14px;
-  line-height: 1.55;
+  font-size: 15.5px;
+  line-height: 1.6;
   -webkit-font-smoothing: antialiased;
+  transition: background-color var(--med) var(--ease), color var(--med) var(--ease);
 }
 
 button { font: inherit; color: inherit; cursor: pointer; }
@@ -102,7 +163,7 @@ code, pre, .mono { font-family: var(--mono); }
   border: 1px solid transparent;
   transition: color 160ms ease, border-color 160ms ease, background 160ms ease;
 }
-.step[data-state='active'] { color: var(--text); border-color: var(--accent-dim); background: rgb(91 156 255 / 8%); }
+.step[data-state='active'] { color: var(--text); border-color: var(--accent-dim); background: rgb(var(--accent-rgb) / 9%); }
 .step[data-state='done'] { color: var(--text-muted); }
 .step-index {
   width: 18px; height: 18px; border-radius: 50%;
@@ -110,20 +171,39 @@ code, pre, .mono { font-family: var(--mono); }
   font-size: 11px; font-variant-numeric: tabular-nums;
   border: 1px solid currentColor;
 }
-.step[data-state='done'] .step-index { background: var(--supported); border-color: var(--supported); color: #06231a; }
+.step[data-state='done'] .step-index { background: var(--supported); border-color: var(--supported); color: #04231a; }
 
 /* ------------------------------------------------------------------ layout */
 
-.main { flex: 1; display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 20px; padding: 22px; align-items: start; max-width: 1600px; width: 100%; margin: 0 auto; }
+.main {
+  flex: 1;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 330px;
+  gap: 22px;
+  padding: 26px 24px 48px;
+  align-items: start;
+  max-width: 1500px;
+  width: 100%;
+  margin: 0 auto;
+}
+
+/* No rail on this screen, so no column for one. Reserving 330px for an
+   empty aside is what left a dead strip down the right of the landing
+   page; the content is centred at a readable measure instead. */
+.main[data-rail='false'] {
+  grid-template-columns: minmax(0, 1fr);
+  max-width: 1020px;
+}
+
 @media (max-width: 1100px) { .main { grid-template-columns: minmax(0, 1fr); } .rail { order: -1; } }
 
 .column { display: flex; flex-direction: column; gap: 18px; min-width: 0; }
 
-.panel { background: var(--bg-panel); border: 1px solid var(--border); border-radius: var(--radius); }
-.panel-head { display: flex; align-items: center; gap: 10px; padding: 12px 16px; border-bottom: 1px solid var(--border); }
-.panel-head h2 { margin: 0; font-size: 13px; font-weight: 600; letter-spacing: 0.02em; text-transform: uppercase; color: var(--text-muted); }
+.panel { background: var(--bg-panel); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); }
+.panel-head { display: flex; align-items: center; gap: 10px; padding: 14px 18px; border-bottom: 1px solid var(--border); }
+.panel-head h2 { margin: 0; font-size: 12.5px; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase; color: var(--text-muted); }
 .panel-head .spacer { flex: 1; }
-.panel-body { padding: 16px; }
+.panel-body { padding: 18px; }
 
 /* ---------------------------------------------------------------- controls */
 
@@ -136,10 +216,10 @@ code, pre, .mono { font-family: var(--mono); }
   color: var(--text);
   transition: border-color 140ms ease, background 140ms ease;
 }
-.btn:hover:not(:disabled) { border-color: var(--accent-dim); background: #182031; }
+.btn:hover:not(:disabled) { border-color: var(--accent-dim); background: rgb(var(--accent-rgb) / 8%); }
 .btn:disabled { opacity: 0.45; cursor: not-allowed; }
-.btn.primary { background: var(--accent); border-color: var(--accent); color: #05101f; font-weight: 600; }
-.btn.primary:hover:not(:disabled) { background: #74acff; border-color: #74acff; }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: #1a1000; font-weight: 600; }
+.btn.primary:hover:not(:disabled) { background: #ffb257; border-color: #ffb257; }
 .btn.ghost { background: transparent; border-color: transparent; color: var(--text-muted); padding: 5px 9px; }
 .btn.ghost:hover:not(:disabled) { color: var(--text); background: var(--bg-inset); }
 .btn.small { padding: 4px 9px; font-size: 12px; }
@@ -154,7 +234,7 @@ code, pre, .mono { font-family: var(--mono); }
   font: inherit;
   resize: vertical;
 }
-.field:focus { outline: none; border-color: var(--accent-dim); box-shadow: 0 0 0 3px rgb(91 156 255 / 12%); }
+.field:focus { outline: none; border-color: var(--accent-dim); box-shadow: 0 0 0 3px rgb(var(--accent-rgb) / 13%); }
 .field::placeholder { color: var(--text-dim); }
 
 /* ---------------------------------------------------------------- dataset */
@@ -171,9 +251,9 @@ code, pre, .mono { font-family: var(--mono); }
   transition: border-color 140ms ease, transform 140ms ease;
 }
 .choice:hover:not(:disabled) { border-color: var(--accent-dim); transform: translateY(-1px); }
-.choice[aria-pressed='true'] { border-color: var(--accent); background: rgb(91 156 255 / 8%); }
+.choice[aria-pressed='true'] { border-color: var(--accent); background: rgb(var(--accent-rgb) / 9%); }
 .choice strong { font-size: 13.5px; }
-.choice span { color: var(--text-muted); font-size: 12.5px; }
+.choice span { color: var(--text-muted); font-size: 13.5px; }
 
 .example-list { display: flex; flex-direction: column; gap: 8px; }
 .example {
@@ -183,7 +263,7 @@ code, pre, .mono { font-family: var(--mono); }
   transition: border-color 140ms ease;
 }
 .example:hover { border-color: var(--accent-dim); }
-.example small { display: block; color: var(--text-dim); font-size: 12px; margin-top: 3px; }
+.example small { display: block; color: var(--text-muted); font-size: 13px; margin-top: 4px; }
 
 /* ------------------------------------------------------------------ flow */
 
@@ -192,7 +272,7 @@ code, pre, .mono { font-family: var(--mono); }
 
 .flow-node rect { fill: var(--bg-inset); stroke: var(--border-strong); stroke-width: 1; }
 .flow-node text { fill: var(--text-muted); font-size: 11px; font-family: var(--sans); }
-.flow-node.active rect { stroke: var(--accent); fill: rgb(91 156 255 / 10%); }
+.flow-node.active rect { stroke: var(--accent); fill: rgb(var(--accent-rgb) / 11%); }
 .flow-node.active text { fill: var(--text); }
 .flow-node.done rect { stroke: var(--supported); }
 .flow-node.done text { fill: var(--text); }
@@ -254,15 +334,17 @@ code, pre, .mono { font-family: var(--mono); }
   font-size: 11px; letter-spacing: 0.03em; text-transform: uppercase;
   border: 1px solid var(--border-strong); color: var(--text-muted);
 }
-.tag.supported { color: var(--supported); border-color: rgb(63 191 143 / 40%); }
-.tag.rejected, .tag.unsupported { color: var(--rejected); border-color: rgb(224 108 117 / 40%); }
-.tag.partially_supported { color: var(--warning); border-color: rgb(229 164 76 / 40%); }
+.tag.supported { color: var(--supported); border-color: rgb(var(--supported-rgb) / 42%); }
+.tag.rejected, .tag.unsupported { color: var(--rejected); border-color: rgb(var(--rejected-rgb) / 42%); }
+.tag.partially_supported { color: var(--warning); border-color: rgb(var(--warning-rgb) / 42%); }
 .tag.calculated_fact { color: var(--supported); }
-.tag.statistical_result { color: var(--statistical); border-color: rgb(167 139 250 / 40%); }
-.tag.interpretation { color: var(--interpretation); border-color: rgb(76 194 214 / 40%); }
+.tag.statistical_result { color: var(--statistical); border-color: rgb(var(--statistical-rgb) / 42%); }
+.tag.interpretation { color: var(--interpretation); border-color: rgb(var(--interpretation-rgb) / 42%); }
 
 .list { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 6px; }
 .list li { color: var(--text-muted); }
+.small { font-size: 13.5px; }
+.dim { color: var(--text-muted); }
 
 /* ------------------------------------------------------------------ table */
 
@@ -272,8 +354,8 @@ table.data th, table.data td { padding: 5px 10px; text-align: left; border-botto
 table.data th { position: sticky; top: 0; background: var(--bg-raised); color: var(--text-muted); font-weight: 500; z-index: 1; }
 table.data td { color: var(--text-muted); font-variant-numeric: tabular-nums; }
 table.data tr:last-child td { border-bottom: none; }
-table.data td.cited { background: rgb(91 156 255 / 14%); color: var(--text); outline: 1px solid var(--accent-dim); }
-table.data tr.cited-row td { background: rgb(91 156 255 / 6%); }
+table.data td.cited { background: rgb(var(--accent-rgb) / 15%); color: var(--text); outline: 1px solid var(--accent-dim); }
+table.data tr.cited-row td { background: rgb(var(--accent-rgb) / 7%); }
 
 pre.sql {
   margin: 0; padding: 12px 14px;
@@ -330,7 +412,7 @@ pre.sql {
 .calc .ok { color: var(--supported); }
 
 .cell-ref { display: flex; flex-wrap: wrap; gap: 6px; }
-.cell-chip { font-family: var(--mono); font-size: 11.5px; padding: 3px 8px; border-radius: 4px; background: rgb(91 156 255 / 12%); border: 1px solid var(--accent-dim); color: var(--text); }
+.cell-chip { font-family: var(--mono); font-size: 11.5px; padding: 3px 8px; border-radius: 4px; background: rgb(var(--accent-rgb) / 13%); border: 1px solid var(--accent-dim); color: var(--text); }
 
 /* ------------------------------------------------------------------- rail */
 
@@ -344,9 +426,9 @@ pre.sql {
 
 /* ------------------------------------------------------------------ misc */
 
-.notice { padding: 11px 14px; border-radius: var(--radius-sm); border: 1px solid var(--border-strong); background: var(--bg-inset); color: var(--text-muted); font-size: 13px; }
-.notice.error { border-color: rgb(224 108 117 / 45%); color: #f0a7ad; }
-.notice.warn { border-color: rgb(229 164 76 / 45%); color: #eec287; }
+.notice { padding: 12px 15px; border-radius: var(--radius-sm); border: 1px solid var(--border-strong); background: var(--bg-inset); color: var(--text); font-size: 14px; }
+.notice.error { border-color: rgb(var(--rejected-rgb) / 45%); color: #ffb0a5; }
+.notice.warn { border-color: rgb(var(--warning-rgb) / 45%); color: #ffdf9a; }
 .notice.info { border-color: var(--border-strong); }
 
 .chart-card { border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--bg-inset); padding: 12px; }
@@ -376,14 +458,411 @@ pre.sql {
 
 .choice.dropping {
   border-color: var(--accent);
-  background: rgb(91 156 255 / 12%);
+  background: rgb(var(--accent-rgb) / 13%);
 }
 
 .tag.role-time { color: var(--accent); border-color: var(--accent-dim); }
-.tag.role-measure { color: var(--supported); border-color: rgb(63 191 143 / 40%); }
-.tag.role-dimension { color: var(--statistical); border-color: rgb(167 139 250 / 40%); }
+.tag.role-measure { color: var(--supported); border-color: rgb(var(--supported-rgb) / 42%); }
+.tag.role-dimension { color: var(--statistical); border-color: rgb(var(--statistical-rgb) / 42%); }
 .tag.role-identifier { color: var(--text-dim); }
 .tag.role-ignored { color: var(--text-dim); opacity: 0.7; }
 
 /* Role tags sit inside a monospace table, so they need to stay compact. */
 table.data .tag { font-size: 10px; padding: 1px 6px; }
+
+/* ---------------------------------------------------- mode selection */
+
+.mode-selector {
+  border: 1px solid var(--line, #2a2f3a);
+  border-radius: 10px;
+  padding: 12px 14px;
+  margin: 0;
+}
+
+.mode-selector legend {
+  padding: 0 6px;
+}
+
+.mode-options {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 10px;
+}
+
+.mode-option {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  border: 1px solid var(--line, #2a2f3a);
+  border-radius: 8px;
+  padding: 10px 12px;
+}
+
+.mode-option.selected {
+  border-color: var(--accent, #6ea8fe);
+}
+
+/* Availability is carried by the disabled control and its text, not by
+   colour alone. */
+.mode-option.unavailable {
+  opacity: 0.65;
+}
+
+.mode-option label {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  cursor: pointer;
+}
+
+.mode-option input[disabled] + label {
+  cursor: not-allowed;
+}
+
+.mode-option-label {
+  font-weight: 600;
+}
+
+.mode-option input:focus-visible,
+.mode-selector input:focus-visible {
+  outline: 2px solid var(--accent, #6ea8fe);
+  outline-offset: 2px;
+}
+
+.mode-note {
+  margin: 10px 0 0;
+}
+
+/* ------------------------------------------------------- comparison */
+
+.compare-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  align-items: start;
+}
+
+/* Narrow screens stack in a defined order rather than shrinking two
+   columns into unreadable ones. */
+@media (max-width: 900px) {
+  .compare-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.compare-pane {
+  border: 1px solid var(--line, #2a2f3a);
+  border-radius: 10px;
+  padding: 12px 14px;
+  min-width: 0;
+}
+
+.compare-subtitle {
+  margin: 4px 0 10px;
+}
+
+.compare-body {
+  min-width: 0;
+}
+
+.usage-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  margin: 0 0 10px;
+}
+
+.usage-summary div {
+  display: flex;
+  gap: 6px;
+}
+
+.usage-summary dt::after {
+  content: ':';
+}
+
+.usage-summary dd {
+  margin: 0;
+}
+
+/* ------------------------------------------------------------ instrument
+
+   Texture and motion. Everything below is decoration in the sense that no
+   information depends on it, and none of it is decoration in the sense
+   that it fires at random: each animation is bound to a state the engine
+   is actually in. The whole section is switched off at the bottom for
+   anyone who has asked for less motion. */
+
+/* The field the instrument sits on.
+
+   A plot grid that drifts, plus two slow colour fields. It is doing the
+   job a blank background cannot: giving the panels somewhere to be. Two
+   layers rather than one so the drift does not move the colour with it. */
+body::before {
+  content: '';
+  position: fixed;
+  inset: -40px;
+  z-index: 0;
+  pointer-events: none;
+  background-image:
+    linear-gradient(to right, currentColor 1px, transparent 1px),
+    linear-gradient(to bottom, currentColor 1px, transparent 1px);
+  background-size: 46px 46px;
+  color: var(--border);
+  opacity: 0.5;
+  animation: grid-drift 32s linear infinite;
+  mask-image: radial-gradient(ellipse 120% 85% at 50% 0%, #000 35%, transparent 78%);
+}
+body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background-image:
+    radial-gradient(ellipse 60% 45% at 12% 8%, rgb(var(--accent-rgb) / 10%), transparent 70%),
+    radial-gradient(ellipse 55% 45% at 88% 82%, rgb(var(--statistical-rgb) / 9%), transparent 70%);
+  animation: field-breathe 22s var(--ease) infinite;
+}
+@keyframes grid-drift {
+  from { transform: translate3d(0, 0, 0); }
+  to { transform: translate3d(46px, 46px, 0); }
+}
+@keyframes field-breathe {
+  0%, 100% { opacity: 0.75; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.06); }
+}
+.shell { position: relative; z-index: 1; }
+
+/* Panels arrive rather than appear. Staggered by position so a column
+   reads top-down, which is the order the engine produced it in. */
+.panel {
+  animation: rise var(--med) var(--ease) both;
+  transition: border-color var(--fast) var(--ease), box-shadow var(--med) var(--ease);
+}
+.column > .panel:nth-child(2) { animation-delay: 40ms; }
+.column > .panel:nth-child(3) { animation-delay: 80ms; }
+.column > .panel:nth-child(4) { animation-delay: 120ms; }
+.column > .panel:nth-child(n+5) { animation-delay: 160ms; }
+@keyframes rise {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: none; }
+}
+
+/* Interactive surfaces warm slightly. Amber on hover is the whole
+   language of the theme: the thing under the cursor is powered. */
+.panel:hover { border-color: var(--border-strong); }
+.btn, .choice, .example { transition:
+  border-color var(--fast) var(--ease),
+  background-color var(--fast) var(--ease),
+  transform var(--fast) var(--ease),
+  box-shadow var(--fast) var(--ease); }
+.btn:hover:not(:disabled), .example:hover { box-shadow: var(--glow); }
+.btn:active:not(:disabled) { transform: translateY(1px); }
+.choice:hover:not(:disabled) { box-shadow: var(--glow); }
+.choice[aria-pressed='true'] { box-shadow: inset 0 0 0 1px rgb(var(--accent-rgb) / 35%); }
+
+/* The flow diagram. An active node is emitting; a run in progress sends a
+   signal along the edges rather than spinning a generic spinner, because
+   the edge that is lit is the dependency that is actually being waited on. */
+.flow-node rect { transition: stroke var(--med) var(--ease), fill var(--med) var(--ease); }
+.flow-node.active rect { animation: node-emit 1.9s ease-in-out infinite; }
+@keyframes node-emit {
+  0%, 100% { filter: drop-shadow(0 0 0 rgb(var(--accent-rgb) / 0%)); }
+  50% { filter: drop-shadow(0 0 7px rgb(var(--accent-rgb) / 55%)); }
+}
+.flow-node.done rect { fill: rgb(var(--supported-rgb) / 7%); }
+.flow-node.failed rect { fill: rgb(var(--rejected-rgb) / 8%); }
+.flow-edge { transition: stroke var(--med) var(--ease); }
+.flow-edge.running { filter: drop-shadow(0 0 4px rgb(var(--accent-rgb) / 40%)); }
+
+/* The live badge breathes only while a run is live. */
+.mode-pill.live .dot { animation: beacon 2.1s ease-in-out infinite; }
+@keyframes beacon {
+  0%, 100% { box-shadow: 0 0 0 0 rgb(var(--supported-rgb) / 45%); }
+  60% { box-shadow: 0 0 0 5px rgb(var(--supported-rgb) / 0%); }
+}
+
+/* Findings land one after another, so a report reads as being assembled
+   rather than pasted. Capped so a long report does not crawl. */
+.finding { animation: land var(--med) var(--ease) both; }
+.finding:nth-child(2) { animation-delay: 45ms; }
+.finding:nth-child(3) { animation-delay: 90ms; }
+.finding:nth-child(4) { animation-delay: 135ms; }
+.finding:nth-child(n+5) { animation-delay: 170ms; }
+@keyframes land {
+  from { opacity: 0; transform: translateY(6px) scale(0.995); }
+  to { opacity: 1; transform: none; }
+}
+.finding { transition: border-color var(--fast) var(--ease), background-color var(--fast) var(--ease); }
+.finding:hover { background: rgb(var(--accent-rgb) / 4%); }
+
+/* A verified tag gets one confirming flash the moment it mounts. */
+.tag.supported { animation: confirm 620ms var(--ease) both; }
+@keyframes confirm {
+  0% { background: rgb(var(--supported-rgb) / 30%); }
+  100% { background: transparent; }
+}
+
+/* Numbers are measurements: tabular, so they do not jitter as they update. */
+.metric-value, .activity-meta, .rail-row .mono, table.data td { font-variant-numeric: tabular-nums; }
+
+/* A cited cell is the point of the whole provenance feature, so it says so
+   once when the drawer links to it. */
+table.data td.cited { animation: cite 900ms var(--ease) both; }
+@keyframes cite {
+  0% { background: rgb(var(--accent-rgb) / 42%); }
+  100% { background: rgb(var(--accent-rgb) / 15%); }
+}
+
+/* Activity rows stream in as the engine emits them. */
+.activity-row { animation: stream 200ms var(--ease) both; }
+@keyframes stream {
+  from { opacity: 0; transform: translateX(-4px); }
+  to { opacity: 1; transform: none; }
+}
+
+/* Focus is always visible and always amber. Keyboard users get the same
+   affordance the pointer gets, which is the minimum for this to be usable. */
+:where(button, a, input, select, textarea, [tabindex]):focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+
+/* Everything above, withdrawn. Transitions are kept at a length short
+   enough to be imperceptible rather than removed, so state changes still
+   settle rather than snapping. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 1ms !important;
+    scroll-behavior: auto !important;
+  }
+  body::before { display: none; }
+}
+
+/* A disclosure that is available without being a wall.
+
+   This paragraph used to be five dense lines every visitor scrolled past,
+   which is a worse outcome than a summary they can open: text nobody reads
+   is not disclosure. The headline obligation stays visible; the detail is
+   one click away. */
+.disclosure { display: inline; }
+.disclosure > summary {
+  display: inline;
+  cursor: pointer;
+  color: var(--accent);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.disclosure > summary::-webkit-details-marker { display: none; }
+.disclosure[open] { display: block; margin-top: 8px; }
+.disclosure[open] > summary { display: block; margin-bottom: 6px; }
+
+.theme-toggle { font-variant-numeric: tabular-nums; min-width: 74px; }
+
+/* --------------------------------------------------------------- effects */
+
+/* Panels lift toward the pointer. Cheap, and it makes a dense page feel
+   like objects rather than regions. */
+.panel:hover { transform: translateY(-1px); box-shadow: var(--shadow), var(--glow); }
+
+/* A run is happening: the panel it is happening in gets a sweep, the way
+   an instrument shows a channel is being read. Bound to the class the
+   runner sets, so it cannot fire on a static page. */
+.panel[data-busy='true'] { position: relative; overflow: hidden; }
+.panel[data-busy='true']::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(
+    100deg,
+    transparent 30%,
+    rgb(var(--accent-rgb) / 14%) 50%,
+    transparent 70%
+  );
+  background-size: 220% 100%;
+  animation: sweep 2.4s var(--ease) infinite;
+}
+@keyframes sweep {
+  from { background-position: 180% 0; }
+  to { background-position: -80% 0; }
+}
+
+/* Buttons acknowledge the press with a ring that leaves. */
+.btn { position: relative; overflow: hidden; }
+.btn::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: radial-gradient(circle at center, rgb(var(--accent-rgb) / 34%), transparent 62%);
+  opacity: 0;
+  transform: scale(0.4);
+}
+.btn:active:not(:disabled)::after { animation: ripple 460ms var(--ease); }
+@keyframes ripple {
+  from { opacity: 1; transform: scale(0.4); }
+  to { opacity: 0; transform: scale(1.7); }
+}
+
+/* The stepper is a progress instrument, so it reads like one: the active
+   step glows, and completed steps fill from the left. */
+.step { position: relative; transition: color var(--med) var(--ease), border-color var(--med) var(--ease); }
+.step[data-state='active'] { box-shadow: var(--glow); }
+.step[data-state='active'] .step-index { animation: node-emit 1.9s ease-in-out infinite; }
+.step[data-state='done'] .step-index { animation: confirm 620ms var(--ease) both; }
+
+/* The brand mark draws itself once, like a trace being plotted. */
+.brand-mark path, .brand-mark polyline {
+  stroke-dasharray: 64;
+  animation: trace 1.5s var(--ease) both;
+}
+@keyframes trace {
+  from { stroke-dashoffset: 64; }
+  to { stroke-dashoffset: 0; }
+}
+
+/* Charts and tables arrive rather than blink in. */
+.chart-card, .table-wrap { animation: rise var(--med) var(--ease) both; }
+
+/* A withheld finding is dimmer and says so by leaning back slightly. */
+.finding[data-withheld='true'] { opacity: 0.86; }
+
+/* Evidence chips pulse once when the drawer links to them, so the eye
+   finds the cell the sentence is actually about. */
+.cell-chip { transition: transform var(--fast) var(--ease), box-shadow var(--fast) var(--ease); }
+.cell-chip:hover { transform: translateY(-1px); box-shadow: var(--glow); }
+
+/* Skeleton shimmer while a run is producing nothing to show yet. */
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    var(--bg-inset) 25%,
+    rgb(var(--accent-rgb) / 9%) 37%,
+    var(--bg-inset) 63%
+  );
+  background-size: 400% 100%;
+  animation: shimmer 1.5s linear infinite;
+  border-radius: var(--radius-sm);
+}
+@keyframes shimmer {
+  from { background-position: 100% 0; }
+  to { background-position: -100% 0; }
+}
+
+/* The mode selector: the chosen option is lit, not merely checked. */
+.mode-option { transition: all var(--fast) var(--ease); }
+.mode-option[aria-checked='true'] {
+  box-shadow: var(--glow);
+  border-color: var(--accent);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  body::before, body::after { animation: none; }
+  .panel:hover { transform: none; }
+  .panel[data-busy='true']::after { animation: none; opacity: 0; }
+}

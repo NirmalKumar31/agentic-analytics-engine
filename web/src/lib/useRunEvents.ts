@@ -31,7 +31,13 @@ export function useRunEvents(runId: string | null): {
         if (typeof parsed.seq !== 'number' || seen.current.has(parsed.seq)) return
         seen.current.add(parsed.seq)
         setEvents((current) => [...current, parsed])
-        if (parsed.type === 'run_completed' || parsed.type === 'run_failed') {
+        // `run_cancelled` is terminal too: the dataset went away, so no
+        // further event is coming and the stream must stop being awaited.
+        if (
+          parsed.type === 'run_completed' ||
+          parsed.type === 'run_failed' ||
+          parsed.type === 'run_cancelled'
+        ) {
           setFinished(true)
         }
       } catch {
@@ -90,4 +96,5 @@ const EVENT_TYPES = [
   'budget_exceeded',
   'run_completed',
   'run_failed',
+  'run_cancelled',
 ] as const

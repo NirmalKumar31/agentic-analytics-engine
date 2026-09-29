@@ -33,7 +33,7 @@ from __future__ import annotations
 
 import json
 
-from agentic_analytics.agents.base import ask, bullet_list, parse_into, schema_of
+from agentic_analytics.agents.base import ask_into, bullet_list
 from agentic_analytics.agents.prompts import REPORTER
 from agentic_analytics.agents.schemas import (
     AnalysisReport,
@@ -42,6 +42,7 @@ from agentic_analytics.agents.schemas import (
     ReportPlanSection,
     ReportSection,
 )
+from agentic_analytics.agents.scope import suggestion_in_scope
 from agentic_analytics.analytics.results import ResultSnapshot
 from agentic_analytics.llm.base import LLMError, LLMProvider
 from agentic_analytics.logging import get_logger
@@ -68,24 +69,49 @@ KIND_HEADINGS: dict[str, str] = {
 FALLBACK_HEADING = "Findings"
 
 
+def assemble_without_model(
+    question: str,
+    findings: list[PublishedFinding],
+    limitations: list[str],
+) -> AnalysisReport:
+    """The report the engine can write with no model at all.
+
+    Used when the run has spent its time or call budget before reaching the
+    reporter. The alternative was a stub saying the report could not be
+    written, which throws away findings that passed every gate because the
+    *presentation* step ran out of budget. Organising is the only thing the
+    model does here, and the engine can group by evidence kind without it.
+
+    Every factual sentence is still a `PublishedFinding.text`, unchanged.
+    """
+    if not findings:
+        return _empty_report(question, limitations)
+    return _assemble(question, findings, _default_plan(findings), limitations)
+
+
 async def write_report(
     question: str,
     findings: list[PublishedFinding],
     results: dict[str, ResultSnapshot],
     limitations: list[str],
     provider: LLMProvider,
+    vocabulary: set[str] | None = None,
 ) -> AnalysisReport:
-    """Ask for a plan, then build the report from verified text."""
+    """Ask for a plan, then build the report from verified text.
+
+    `vocabulary` is the dataset's own words, used to keep the model's
+    suggested follow-up questions on the subject.
+    """
     if not findings:
         return _empty_report(question, limitations)
 
     try:
-        payload = await ask(
+        payload = await ask_into(
             provider,
+            ReportPlan,
             role="reporter",
             system=REPORTER,
             user=_prompt(question, findings, limitations),
-            schema=schema_of(ReportPlan),
             context={
                 "question": question,
                 "findings": [json.loads(f.model_dump_json()) for f in findings],
@@ -93,12 +119,14 @@ async def write_report(
             },
             max_tokens=1024,
         )
-        plan = parse_into(ReportPlan, payload, "reporter")
+        plan = payload
     except LLMError as exc:
         log.warning("report_plan_failed", error=str(exc))
-        return _assemble(question, findings, _default_plan(findings), [*limitations, str(exc)])
+        return _assemble(
+            question, findings, _default_plan(findings), [*limitations, str(exc)], vocabulary
+        )
 
-    return _assemble(question, findings, plan, limitations)
+    return _assemble(question, findings, plan, limitations, vocabulary)
 
 
 def _default_plan(findings: list[PublishedFinding]) -> ReportPlan:
@@ -121,6 +149,7 @@ def _assemble(
     findings: list[PublishedFinding],
     plan: ReportPlan,
     limitations: list[str],
+    vocabulary: set[str] | None = None,
 ) -> AnalysisReport:
     """Build the report. Every factual sentence comes from a finding.
 
@@ -133,7 +162,7 @@ def _assemble(
     selected = _resolve(plan.executive_finding_ids, by_id)
     if not selected:
         selected = findings[:DEFAULT_SUMMARY_FINDINGS]
-    executive_summary = " ".join(f.text for f in selected)
+    executive_summary = SUMMARY_LINE
 
     sections: list[ReportSection] = []
     used: set[str] = set()
@@ -147,8 +176,6 @@ def _assemble(
         sections.append(
             ReportSection(
                 heading=_heading_for(members),
-                # The body is the findings' own text, joined. Nothing else.
-                body=" ".join(f.text for f in members),
                 finding_ids=[f.finding_id for f in members],
             )
         )
@@ -163,8 +190,23 @@ def _assemble(
         # Engine-owned. The model is never asked for a limitation, so it
         # cannot state one that is really a conclusion.
         limitations=list(dict.fromkeys(limitations)),
-        next_questions=_safe_questions(plan.next_questions),
+        next_questions=_safe_questions(plan.next_questions, vocabulary),
     )
+
+
+#: The executive summary. A fixed sentence, carrying no claim about the
+#: data at all.
+#:
+#: It used to be the first few findings' sentences joined together, which
+#: printed each of them again under Key findings and a third time in its
+#: section. Anything generated here -- even a count -- is prose the
+#: publication gate cannot check, so the summary describes the document
+#: rather than the dataset and every factual sentence lives in exactly one
+#: place.
+SUMMARY_LINE = (
+    "Each finding below passed the publication checks and is listed once, "
+    "with the results it was checked against."
+)
 
 
 def _resolve(finding_ids: list[str], by_id: dict[str, PublishedFinding]) -> list[PublishedFinding]:
@@ -194,11 +236,17 @@ def _heading_for(members: list[PublishedFinding]) -> str:
     return KIND_HEADINGS.get(dominant, FALLBACK_HEADING)
 
 
-def _safe_questions(questions: list[str]) -> list[str]:
+def _safe_questions(questions: list[str], vocabulary: set[str] | None = None) -> list[str]:
     """Keep questions that ask something; drop ones that assert something.
 
     "Why did late delivery cause churn?" presupposes the causal claim the
     critic exists to reject, so the same detector is applied here.
+
+    These suggestions are the only model-written sentences that reach a
+    visitor -- everything else on the page is a verified finding's own text
+    -- so they are also held to the subject. A suggestion naming nothing in
+    the dataset is dropped, which closes the one path by which a run could
+    put arbitrary text on the page.
     """
     kept: list[str] = []
     for question in questions[:5]:
@@ -206,7 +254,10 @@ def _safe_questions(questions: list[str]) -> list[str]:
         if not text:
             continue
         if extract_numbers(text) or is_causal(text):
-            log.info("report_question_dropped", question=text)
+            log.info("report_question_dropped", reason="asserts")
+            continue
+        if vocabulary and not suggestion_in_scope(text, vocabulary):
+            log.info("report_question_dropped", reason="off_dataset")
             continue
         kept.append(text[:200])
     return kept

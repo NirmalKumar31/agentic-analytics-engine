@@ -15,7 +15,9 @@ import json
 import shutil
 import tempfile
 import uuid
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Iterator
+from contextlib import contextmanager
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
@@ -25,23 +27,42 @@ from fastapi.staticfiles import StaticFiles
 from mcp.server.transport_security import TransportSecuritySettings
 
 from agentic_analytics import __version__
+from agentic_analytics.agents.scope import check_scope
 from agentic_analytics.analytics.semantic import infer_schema
 from agentic_analytics.api.limits import Capacity, RateLimit, client_key
 from agentic_analytics.api.models import (
+    AILimits,
     AnalysisRequest,
     AnalysisStarted,
+    Capabilities,
+    ComparisonRequest,
+    ComparisonStarted,
     ErrorResponse,
     HealthResponse,
+    ModeCapability,
     ReadinessResponse,
     ServerConfig,
     SessionResponse,
     execution_mode,
 )
-from agentic_analytics.api.runs import RunRegistry
+from agentic_analytics.api.modes import (
+    ModeUnavailable,
+    RunMode,
+    ai_availability,
+    build_provider_for_mode,
+    provider_kind,
+)
+from agentic_analytics.api.runs import RunRecord, RunRegistry
 from agentic_analytics.config import Settings, get_settings
 from agentic_analytics.events import EventType
 from agentic_analytics.graph.runner import run_analysis
-from agentic_analytics.llm.registry import build_provider
+from agentic_analytics.llm.base import LLMProvider
+from agentic_analytics.llm.governed import (
+    AIBudgetExceeded,
+    PreflightFailed,
+    open_governed_cloud_provider,
+)
+from agentic_analytics.llm.ledger import open_ledger
 from agentic_analytics.logging import configure_logging, get_logger
 from agentic_analytics.mcp_layer.server import build_server
 from agentic_analytics.recordings.store import RecordingStore
@@ -98,6 +119,11 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     upload_limiter = RateLimit(cfg.uploads_per_ip_per_hour, 3600.0)
     analysis_limiter = RateLimit(cfg.analyses_per_ip_per_hour, 3600.0)
     analysis_capacity = Capacity(cfg.max_concurrent_analyses)
+    # Opened once. `None` means AI is not offered -- there is deliberately no
+    # in-memory fallback, because process-local counters are exactly the
+    # control the durable ledger exists to replace.
+    ledger = open_ledger(cfg.ai_quota_redis_url) if cfg.ai_analytics_enabled else None
+    ai_capacity = Capacity(cfg.ai_concurrent_runs)
     # Uploaded bytes live here, never in the repository or the working
     # directory, and every session's directory is removed when it ends.
     upload_root = cfg.upload_dir
@@ -109,7 +135,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         max_metadata_bytes=cfg.budgets.max_parquet_metadata_bytes,
         max_uncompressed_bytes=cfg.budgets.max_parquet_uncompressed_bytes,
     )
-    mode = execution_mode(cfg.live_analytics_enabled, cfg.provider_mode)
+    # One source for both: the badge and the privacy claim must not be able
+    # to disagree with the mode selector beside them.
+    _ai_offered = ai_availability(cfg, ledger_ready=ledger is not None).available
+    mode = execution_mode(cfg.live_analytics_enabled, _ai_offered)
     # Identifies this application object for the life of the process. An
     # external checker compares it across a load test: the same id means the
     # process it started with is the process it finished with, which is how
@@ -158,6 +187,16 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         while True:
             await asyncio.sleep(cfg.session_sweep_seconds)
             try:
+                # Ask which sessions are due, cancel their runs, and only
+                # then close them. Expiring a session out from under a live
+                # analysis is the same use-after-close as deleting one.
+                # Sessions whose close was deferred because a run was
+                # still alive. Retried first, so a stuck teardown finishes
+                # as soon as its work does rather than waiting for a TTL.
+                for session_id in sessions.closing_session_ids():
+                    await _close_session(session_id, "the dataset was closed")
+                for session_id in sessions.stale_session_ids():
+                    await _close_session(session_id, "the dataset session expired")
                 closed = sessions.expire_stale()
             except Exception:  # pragma: no cover - defensive
                 log.exception("session_sweep_failed")
@@ -313,7 +352,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             provider_mode=cfg.provider_mode,
             execution_mode=mode,
             # Only an actual language model sends anything off this server.
-            model_inference_remote=cfg.provider_mode == "cloud",
+            model_inference_remote=_ai_offered,
             live_analytics_enabled=cfg.live_analytics_enabled,
             uploads_enabled=cfg.uploads_enabled and cfg.live_analytics_enabled,
             mcp_remote_enabled=mcp_enabled,
@@ -324,6 +363,57 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             budgets=cfg.budgets.model_dump(),
             demo_questions=DEMO_QUESTIONS,
             recordings=recordings.index(),
+            capabilities=_capabilities(),
+        )
+
+    def _capabilities() -> Capabilities:
+        """What the mode selector may offer, recomputed per request.
+
+        Cheap and side-effect free. Whether the *model* resolves is a
+        separate cached preflight; this says whether the deployment is
+        configured to try.
+        """
+        availability = ai_availability(cfg, ledger_ready=ledger is not None)
+        deterministic = ModeCapability(
+            mode=str(RunMode.DETERMINISTIC),
+            available=cfg.live_analytics_enabled,
+            label="Deterministic Analytics",
+            description=(
+                "Agent decisions come from a scripted provider, so the same "
+                "question produces the same plan every time. No external "
+                "language model is used and nothing leaves this server."
+            ),
+            reason="" if cfg.live_analytics_enabled else "live_analytics_disabled",
+            message=(
+                ""
+                if cfg.live_analytics_enabled
+                else "Live analysis is disabled on this server; open a recorded run."
+            ),
+        )
+        ai = ModeCapability(
+            mode=str(RunMode.AI),
+            available=availability.available and cfg.live_analytics_enabled,
+            label="AI Analytics",
+            description=(
+                "A cloud language model interprets the question and chooses "
+                "which analyses to run. The computation, the verification and "
+                "the publication checks stay deterministic."
+            ),
+            reason=availability.reason,
+            message=availability.message,
+        )
+        return Capabilities(
+            modes=[deterministic, ai],
+            compare_available=deterministic.available and ai.available,
+            ai_limits=(
+                AILimits(
+                    runs_per_session=cfg.ai_runs_per_session,
+                    max_model_calls_per_run=cfg.ai_max_llm_calls,
+                    max_runtime_seconds=cfg.ai_max_runtime_seconds,
+                )
+                if ai.available
+                else None
+            ),
         )
 
     # ------------------------------------------------------- session cookie
@@ -366,7 +456,39 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             secure=cfg.session_cookie_secure,
         )
 
-    def _retire_previous(request: Request) -> None:
+    async def _close_session(session_id: str, reason: str) -> bool:
+        """Stop the session's runs, then close it. Never the other way round.
+
+        Returns True when the session was actually destroyed.
+
+        This is the teardown contract in one place, and the ordering is the
+        contract. An analysis holds the `AnalysisSession` and therefore its
+        DuckDB connection; closing the session while a run can still make a
+        tool call hands that run a closed connection.
+
+        The session is marked *closing* first, so it stops accepting new
+        analyses while cancellation is in flight. Then every run is
+        cancelled and awaited. If any run is still alive when the grace
+        period expires, the session stays open and stays closing: the
+        janitor retries. Closing anyway -- which is what suppressing the
+        timeout amounted to -- is the use-after-close this exists to stop.
+        """
+        sessions.begin_closing(session_id)
+        result = await runs.cancel_session_detailed(
+            session_id, reason=reason, grace_seconds=cfg.session_cancel_grace_seconds
+        )
+        if not result.all_terminal:
+            log.warning(
+                "session_close_deferred",
+                session_id=session_id,
+                active_run_ids=result.active_run_ids,
+                timed_out=result.timed_out,
+            )
+            return False
+        sessions.drop(session_id)
+        return True
+
+    async def _retire_previous(request: Request) -> None:
         """End whatever session this browser already holds.
 
         Opening a second dataset replaces the capability cookie, so the first
@@ -374,11 +496,23 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         and, for an upload, the rows themselves. A visitor clicking through
         four datasets would leave three of those behind until the TTL caught
         them. Keyed on the capability, so it can only ever close a session
-        the caller could already reach.
+        the caller could already reach -- and any analysis still running in
+        it is cancelled before it is closed.
         """
-        retired = sessions.drop_by_key(request.cookies.get(cfg.session_cookie_name))
-        if retired:
-            log.info("previous_session_retired", count=retired)
+        key = request.cookies.get(cfg.session_cookie_name)
+        for session_id in sessions.session_ids_for_key(key):
+            await _close_session(session_id, "the dataset was replaced")
+
+    async def _make_room_for_a_session() -> None:
+        """Cancel the runs of whichever session is about to be evicted.
+
+        `SessionManager.add` evicts the least recently used session when it
+        is full. Left alone that closes a session an analysis may still be
+        using, so the candidate is asked for first and its runs stopped.
+        """
+        candidate = sessions.next_eviction_candidate()
+        if candidate is not None:
+            await _close_session(candidate, "the demo reached its session limit")
 
     def _session_or_404(session_id: str, request: Request) -> AnalysisSession:
         """Resolve a session from its handle plus the capability cookie.
@@ -411,7 +545,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     async def open_demo(request: Request, response: Response) -> SessionResponse:
         if not _warehouse_ready(cfg):
             raise DatasetError("the demo warehouse has not been generated on this server")
-        _retire_previous(request)
+        await _retire_previous(request)
+        await _make_room_for_a_session()
         session = sessions.add(open_demo_session(cfg.demo_warehouse_dir, limits=engine_limits))
         _issue(response, session)
         return SessionResponse(
@@ -442,7 +577,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 detail="too many uploads from this address; try again shortly",
                 headers={"Retry-After": str(int(retry_after) + 1)},
             )
-        _retire_previous(request)
+        await _retire_previous(request)
+        await _make_room_for_a_session()
         if sessions.upload_count() >= cfg.max_active_upload_sessions:
             raise HTTPException(
                 status_code=429,
@@ -516,9 +652,22 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         session by guessing a handle.
         """
         _session_or_404(session_id, request)
-        sessions.drop(session_id)
+        destroyed = await _close_session(session_id, "the dataset was deleted")
         _clear(response)
-        return {"status": "deleted"}
+        if destroyed:
+            return {"status": "deleted"}
+        # Honest about what happened. The analysis is cancelled and the
+        # session accepts nothing new, but its rows are still resident
+        # because a run has not finished letting go of them. Saying
+        # "deleted" here would be a claim about data that still exists.
+        response.status_code = 202
+        return {
+            "status": "closing",
+            "detail": (
+                "the dataset is closing: its analysis was cancelled and no new "
+                "work is accepted, and the data is removed once that finishes"
+            ),
+        }
 
     # ------------------------------------------------------------ analyses
     @app.post("/api/analyses", response_model=AnalysisStarted, status_code=202)
@@ -539,44 +688,380 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 detail="too many analyses from this address; try again shortly",
                 headers={"Retry-After": str(int(retry_after) + 1)},
             )
+        mode = request.mode
         session = _session_or_404(request.session_id, http_request)
+        if not session.accepts_new_work:
+            # Closing or closed. Starting an analysis here would attach a
+            # new run to a connection that is on its way out.
+            raise HTTPException(
+                status_code=409,
+                detail="this dataset is closing and cannot accept new analyses",
+            )
         if runs.session_run_count(session.session_id) >= cfg.analyses_per_session:
             raise HTTPException(
                 status_code=429,
                 detail="this session has reached its analysis limit; start a new one",
             )
-        if not analysis_capacity.acquire():
+        # Before a model call, before a slot, before anything billable: is
+        # this a question about the data at all? A public demo that
+        # dispatches a model on anything it is handed spends a shared quota
+        # on runs that cannot produce a finding, which takes the tool away
+        # from people it could have served.
+        verdict = check_scope(
+            request.question,
+            session.catalog(),
+            session.registry.describe_all() if session.registry else [],
+        )
+        if not verdict.in_scope:
             raise HTTPException(
-                status_code=429,
-                detail="the demo is currently at capacity; please try again shortly",
+                status_code=422,
+                detail=verdict.message,
+                headers={"X-AAE-Reason": verdict.reason},
             )
-        record = runs.create(session.session_id, request.question)
+        # Every side-effect-free check happens before anything is acquired.
+        # Acquiring first and refusing afterwards leaked a slot on each
+        # unavailable request, so a deployment with AI misconfigured lost
+        # capacity to visitors who never got a run.
+        if mode is RunMode.AI:
+            availability = ai_availability(cfg, ledger_ready=ledger is not None)
+            if not availability.available:
+                raise HTTPException(
+                    status_code=503,
+                    detail=availability.message,
+                    headers={"X-AAE-Reason": availability.reason},
+                )
+
+        with _admission(mode) as permits:
+            if not permits.ok:
+                raise HTTPException(
+                    status_code=429,
+                    detail=(
+                        "AI Analytics is at capacity; please try again shortly"
+                        if mode is RunMode.AI
+                        else "the demo is currently at capacity; please try again shortly"
+                    ),
+                )
+            record = _launch(session, request.question, mode, client_id=client)
+            permits.keep()
+        return AnalysisStarted(
+            run_id=record.run_id, session_id=session.session_id, question=request.question
+        )
+
+    @dataclass
+    class _Permits:
+        """The slots one run holds, with exactly one release path."""
+
+        general: bool
+        ai: bool
+        mode: RunMode
+        kept: bool = False
+
+        @property
+        def ok(self) -> bool:
+            return self.general and self.ai
+
+        def keep(self) -> None:
+            """Hand ownership to the run task, which releases them."""
+            self.kept = True
+
+    def _release(mode: RunMode) -> None:
+        """Return both permits. One place, so neither is forgotten."""
+        if mode is RunMode.AI:
+            ai_capacity.release()
+        analysis_capacity.release()
+
+    async def _with_ai_deadline(mode: RunMode, coro: Any) -> Any:
+        """A hard ceiling on a whole AI run.
+
+        Node-boundary checks are not enough on their own: one slow provider
+        call can outlast the run's own budget, and the ceiling has to bound
+        the run rather than the gaps between its steps.
+        """
+        if mode is not RunMode.AI:
+            return await coro
+        async with asyncio.timeout(cfg.ai_max_runtime_seconds):
+            return await coro
+
+    @contextmanager
+    def _admission(mode: RunMode) -> Iterator[_Permits]:
+        """Acquire what a run needs, releasing unless the task takes over.
+
+        Refusing after acquiring used to leak a slot on every unavailable
+        request, so a deployment with AI misconfigured lost capacity to
+        visitors who never got a run.
+        """
+        general = analysis_capacity.acquire()
+        ai = ai_capacity.acquire() if general and mode is RunMode.AI else True
+        permits = _Permits(general=general, ai=ai, mode=mode)
+        try:
+            yield permits
+        finally:
+            if not permits.kept:
+                if permits.ai and mode is RunMode.AI:
+                    ai_capacity.release()
+                if permits.general:
+                    analysis_capacity.release()
+
+    def _launch(
+        session: AnalysisSession,
+        question: str,
+        mode: RunMode,
+        comparison_id: str | None = None,
+        client_id: str = "",
+    ) -> RunRecord:
+        """Start one run. Capacity for it has already been acquired.
+
+        Shared by `/api/analyses` and `/api/comparisons` so a comparison
+        child is an ordinary run -- same registry, same event bus, same
+        cancellation and teardown -- rather than a second orchestration path
+        that would have to reimplement all of it.
+        """
+        record = runs.create(
+            session.session_id,
+            question,
+            mode=str(mode),
+            provider_kind=provider_kind(mode),
+            comparison_id=comparison_id,
+        )
+        record.engine_version = __version__
+        record.dataset_fingerprint = session.dataset_fingerprint
+        if mode is RunMode.AI:
+            record.requested_model = cfg.cloud_model
 
         async def execute() -> None:
-            provider = build_provider(cfg)
+            provider: LLMProvider | None = None
             try:
-                record.result = await run_analysis(
-                    request.question,
-                    session,
-                    mcp,
-                    settings=cfg,
-                    provider=provider,
-                    events=record.bus,
+                if mode is RunMode.AI:
+                    # The one governed construction site. Preflight runs
+                    # here -- ledger health, model resolution, an exact
+                    # pricing entry -- so a run that cannot be bounded is
+                    # refused before its first billable request.
+                    assert ledger is not None
+                    provider = await open_governed_cloud_provider(
+                        cfg,
+                        run_id=record.run_id,
+                        session_id=session.session_id,
+                        client_id=client_id,
+                        ledger=ledger,
+                    )
+                    result = provider.preflight_result
+                    record.requested_model = result.requested_model
+                    record.resolved_model = result.resolved_model
+                    record.pricing_source = result.price.source
+                    record.pricing_reviewed = result.price.reviewed
+                else:
+                    provider = build_provider_for_mode(cfg, mode)
+            except (ModeUnavailable, PreflightFailed, AIBudgetExceeded) as exc:
+                record.error = str(exc)
+                record.bus.emit(EventType.RUN_FAILED, reason=record.error)
+                record.bus.close()
+                _release(mode)
+                return
+            except Exception as exc:
+                # Any other construction failure must also return the slots.
+                log.warning(
+                    "provider_construction_failed",
                     run_id=record.run_id,
+                    error_type=type(exc).__name__,
                 )
+                record.error = "the analysis could not be started"
+                record.bus.emit(EventType.RUN_FAILED, reason=record.error)
+                record.bus.close()
+                _release(mode)
+                return
+            try:
+                record.result = await _with_ai_deadline(
+                    mode,
+                    run_analysis(
+                        question,
+                        session,
+                        mcp,
+                        settings=cfg,
+                        provider=provider,
+                        events=record.bus,
+                        run_id=record.run_id,
+                    ),
+                )
+            except TimeoutError:
+                record.error = "This AI run reached its time limit."
+                record.bus.emit(EventType.RUN_FAILED, reason=record.error)
+                record.bus.close()
+            except asyncio.CancelledError:
+                # The dataset was deleted, replaced or expired. Mark it and
+                # end the stream, so a browser waiting on SSE is told rather
+                # than left hanging -- then re-raise, or the task is never
+                # actually cancelled and `cancel_session` waits for a run
+                # that has decided to continue.
+                record.cancelled = True
+                record.error = record.error or "the dataset was closed"
+                record.bus.emit(EventType.RUN_CANCELLED, reason=record.error)
+                record.bus.close()
+                raise
             except Exception as exc:
                 log.exception("analysis_failed", run_id=record.run_id)
                 record.error = f"the analysis failed ({type(exc).__name__})"
                 record.bus.emit(EventType.RUN_FAILED, reason=record.error)
                 record.bus.close()
             finally:
-                await provider.aclose()
-                analysis_capacity.release()
+                # Runs on every path, cancellation included: the provider is
+                # closed and the capacity slot returned, or one visitor
+                # deleting a dataset mid-run costs the demo a slot forever.
+                record.input_tokens = int(getattr(provider.usage, "input_tokens", 0))
+                record.output_tokens = int(getattr(provider.usage, "output_tokens", 0))
+                record.provider_attempts = int(getattr(provider.usage, "attempts", 0))
+                resolved = getattr(provider, "resolved_model", None)
+                if isinstance(resolved, dict):
+                    record.resolved_model = str(resolved.get("id", "")) or None
+                if record.provider_kind == "cloud" and ledger is not None:
+                    record.cost_microdollars = ledger.spent_microdollars(record.run_id)
+                if provider is not None:
+                    await provider.aclose()
+                _release(mode)
 
         record.task = asyncio.create_task(execute())
-        return AnalysisStarted(
-            run_id=record.run_id, session_id=session.session_id, question=request.question
+        return record
+
+    @app.post("/api/comparisons", response_model=ComparisonStarted, status_code=202)
+    async def start_comparison(
+        request: ComparisonRequest, http_request: Request
+    ) -> ComparisonStarted:
+        """One question, both decision paths, one dataset.
+
+        The two runs share a session, so they read the same tables at the
+        same fingerprint. Uploading twice would give each side its own
+        snapshot and make the comparison meaningless.
+
+        Only the AI side consumes cloud quota. If AI cannot be admitted the
+        deterministic run is still started, because a visitor who asked for
+        a comparison and can only have half of it is better served with
+        half than with an error.
+        """
+        if not cfg.live_analytics_enabled:
+            raise HTTPException(
+                status_code=403,
+                detail="live analysis is disabled on this server; open a recorded run",
+            )
+        client = client_key(
+            http_request.headers.get("x-forwarded-for"),
+            http_request.client.host if http_request.client else None,
         )
+        allowed, retry_after = analysis_limiter.check(client)
+        if not allowed:
+            raise HTTPException(
+                status_code=429,
+                detail="too many analyses from this address; try again shortly",
+                headers={"Retry-After": str(int(retry_after) + 1)},
+            )
+
+        session = _session_or_404(request.session_id, http_request)
+        verdict = check_scope(
+            request.question,
+            session.catalog(),
+            session.registry.describe_all() if session.registry else [],
+        )
+        if not verdict.in_scope:
+            raise HTTPException(
+                status_code=422,
+                detail=verdict.message,
+                headers={"X-AAE-Reason": verdict.reason},
+            )
+
+        availability = ai_availability(cfg, ledger_ready=ledger is not None)
+        if not availability.available:
+            raise HTTPException(
+                status_code=503,
+                detail=availability.message,
+                headers={"X-AAE-Reason": availability.reason},
+            )
+
+        if not session.accepts_new_work:
+            raise HTTPException(
+                status_code=409,
+                detail="this dataset is closing and cannot accept new analyses",
+            )
+        # Two runs, so two slots against the session ceiling.
+        if runs.session_run_count(session.session_id) + 2 > cfg.analyses_per_session:
+            raise HTTPException(
+                status_code=429,
+                detail="this session has reached its analysis limit; start a new one",
+            )
+        comparison_id = f"cmp_{uuid.uuid4().hex[:12]}"
+        # Both children go through the same admission as a lone run. A
+        # second hand-rolled acquire/release here is how the slot leak this
+        # guards against got written the first time, and `_launch` raising
+        # after a bare `acquire()` would leak one every attempt.
+        with _admission(RunMode.DETERMINISTIC) as permits:
+            if not permits.ok:
+                raise HTTPException(
+                    status_code=429,
+                    detail="the demo is currently at capacity; please try again shortly",
+                )
+            deterministic = _launch(
+                session,
+                request.question,
+                RunMode.DETERMINISTIC,
+                comparison_id,
+                client_id=client,
+            )
+            permits.keep()
+
+        # The AI side needs its own capacity slot and its own analysis slot.
+        # Failing to get either leaves the deterministic run untouched.
+        ai_record: RunRecord | None = None
+        with _admission(RunMode.AI) as ai_permits:
+            if ai_permits.ok:
+                # The caller's identity, not the anonymous default. Without
+                # it the AI half of a comparison is charged to an empty
+                # client bucket, and the per-address hourly ceiling is
+                # bypassed by asking for Compare Both instead of AI.
+                ai_record = _launch(
+                    session,
+                    request.question,
+                    RunMode.AI,
+                    comparison_id,
+                    client_id=client,
+                )
+                ai_permits.keep()
+
+        if ai_record is None:
+            ai_record = runs.create(
+                session.session_id,
+                request.question,
+                mode=str(RunMode.AI),
+                provider_kind="cloud",
+                comparison_id=comparison_id,
+            )
+            ai_record.error = "AI Analytics is at capacity; please try again shortly"
+            ai_record.bus.emit(EventType.RUN_FAILED, reason=ai_record.error)
+            ai_record.bus.close()
+
+        return ComparisonStarted(
+            comparison_id=comparison_id,
+            session_id=session.session_id,
+            question=request.question,
+            deterministic_run_id=deterministic.run_id,
+            ai_run_id=ai_record.run_id,
+        )
+
+    @app.get("/api/comparisons/{comparison_id}")
+    async def comparison(comparison_id: str, request: Request) -> dict[str, Any]:
+        """Both sides, reported separately.
+
+        No merged verdict and no ranking: the two differ in how the analysis
+        was planned, which is not evidence that either is more accurate.
+        """
+        children = runs.by_comparison(comparison_id)
+        if not children:
+            raise HTTPException(status_code=404, detail="unknown comparison")
+        _session_or_404(children[0].session_id, request)
+        payload: dict[str, Any] = {
+            "comparison_id": comparison_id,
+            "session_id": children[0].session_id,
+            "question": children[0].question,
+        }
+        for record in children:
+            payload[f"{record.mode}_run"] = record.public()
+        return payload
 
     @app.get("/api/analyses/{run_id}")
     async def analysis(run_id: str, request: Request) -> dict[str, Any]:

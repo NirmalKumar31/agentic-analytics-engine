@@ -6,24 +6,33 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, Field, field_validator
 
+from agentic_analytics.api.modes import RunMode
+
 MAX_QUESTION_LENGTH = 500
 
 
 ExecutionMode = Literal["recorded", "deterministic_live", "ai_live"]
 
 
-def execution_mode(live_enabled: bool, provider_mode: str) -> ExecutionMode:
-    """Which of the three modes the server is actually in.
+def execution_mode(live_enabled: bool, ai_available: bool) -> ExecutionMode:
+    """The strongest kind of run this deployment can produce.
 
     The distinction matters: a run driven by the scripted provider executes
     the same graph, MCP calls, SQL and verification as one driven by a
-    language model, but the planning decisions are deterministic rules. The
-    UI labels these differently so a scripted run is never presented as a
-    model-driven one.
+    language model, but the planning decisions are deterministic rules, and
+    presenting a scripted run as a model-driven one would be false.
+
+    Derived from what the deployment can offer, not from
+    `AAE_PROVIDER_MODE`. The mode is chosen per run now, so a process
+    setting describes nothing a visitor can act on -- and reading it here
+    contradicted the capabilities published beside it: a deployment with
+    AI enabled and the process default left at `fake` reported
+    `deterministic_live` while offering AI runs, and told visitors nothing
+    derived from their upload left the server.
     """
     if not live_enabled:
         return "recorded"
-    return "deterministic_live" if provider_mode == "fake" else "ai_live"
+    return "ai_live" if ai_available else "deterministic_live"
 
 
 class HealthResponse(BaseModel):
@@ -64,8 +73,11 @@ class ServerConfig(BaseModel):
     provider_mode: str
     #: recorded | deterministic_live | ai_live. Drives the badge in the UI.
     execution_mode: ExecutionMode
-    #: True only when a language model makes the agent decisions. When false,
-    #: derived schema and results never leave this server.
+    #: Whether a run on this deployment *can* send prompts to a third-party
+    #: model. False is the strong claim -- nothing derived from a dataset
+    #: leaves this server, in any mode a visitor can pick -- so it is taken
+    #: from the published capabilities rather than from a process setting
+    #: that no longer decides what a run does.
     model_inference_remote: bool
     live_analytics_enabled: bool
     uploads_enabled: bool
@@ -83,6 +95,42 @@ class ServerConfig(BaseModel):
     budgets: dict[str, Any]
     demo_questions: list[dict[str, str]]
     recordings: list[dict[str, Any]]
+    #: What the mode selector should offer. Replaces inferring availability
+    #: from `provider_mode`, which described the process rather than the
+    #: choices a visitor has.
+    capabilities: Capabilities
+
+
+class ModeCapability(BaseModel):
+    """Whether one execution mode can be offered, and why not if it cannot.
+
+    `reason` is a stable identifier and `message` is the sentence a visitor
+    reads. Neither ever carries a credential, a URL, an exception string or
+    any deployment detail.
+    """
+
+    mode: str
+    available: bool
+    label: str
+    description: str
+    reason: str = ""
+    message: str = ""
+
+
+class AILimits(BaseModel):
+    """The public ceilings on AI Analytics, safe to disclose."""
+
+    runs_per_session: int
+    max_model_calls_per_run: int
+    max_runtime_seconds: float
+
+
+class Capabilities(BaseModel):
+    """What this deployment can actually do, for the mode selector."""
+
+    modes: list[ModeCapability]
+    compare_available: bool
+    ai_limits: AILimits | None = None
 
 
 class SessionResponse(BaseModel):
@@ -104,6 +152,11 @@ class SessionResponse(BaseModel):
 class AnalysisRequest(BaseModel):
     session_id: str
     question: str
+    #: Which decision-maker drives this run. A closed set of two public
+    #: names: the browser cannot name a provider class, a model, an endpoint
+    #: or any provider configuration, because a request that could would be
+    #: a request that could aim the server's credential somewhere else.
+    mode: RunMode = RunMode.DETERMINISTIC
 
     @field_validator("question")
     @classmethod
@@ -114,6 +167,38 @@ class AnalysisRequest(BaseModel):
         if len(text) > MAX_QUESTION_LENGTH:
             raise ValueError(f"the question must be under {MAX_QUESTION_LENGTH} characters")
         return text
+
+
+class ComparisonRequest(BaseModel):
+    """One question, both decision paths, one dataset."""
+
+    session_id: str
+    question: str
+
+    @field_validator("question")
+    @classmethod
+    def _question_is_reasonable(cls, v: str) -> str:
+        text = " ".join(v.split())
+        if not text:
+            raise ValueError("a question is required")
+        if len(text) > MAX_QUESTION_LENGTH:
+            raise ValueError(f"the question must be under {MAX_QUESTION_LENGTH} characters")
+        return text
+
+
+class ComparisonStarted(BaseModel):
+    """Two ordinary runs, each independently auditable.
+
+    Deliberately not a merged result. The two sides are different planning
+    strategies over the same governed engine, and combining them would
+    invent an authority neither has.
+    """
+
+    comparison_id: str
+    session_id: str
+    question: str
+    deterministic_run_id: str
+    ai_run_id: str
 
 
 class AnalysisStarted(BaseModel):

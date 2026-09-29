@@ -73,7 +73,7 @@ START
   │       │
   │       └─ followup_round   at most once, guarded by a counter in state
   │
-  ├─ build_visualizations from verified results only
+  ├─ build_visualizations from cited query results
   ├─ write_report         from verified findings only
   ├─ verify_publication   strip any reference that did not survive
   └─ finalize
@@ -358,8 +358,9 @@ degrades the run rather than failing it.
 
 The **Default** column is the code's default, which is what a local run
 gets. The public deployment overrides several of them downwards --
-15 MB and 750,000 rows rather than 25 MB and 2,000,000 -- because it is
-sized for a 1 CPU / 2 GB (`1c-2g`) instance; see `render.yaml`.
+10 MB and 400,000 rows rather than 25 MB and 2,000,000 -- because it is
+sized for a 512 MB (`free`) instance admitting three sessions; see
+`render.yaml`, where the measurements behind those numbers are recorded.
 
 `max_sample_rows` has a hard ceiling of 20 in the schema. Raw row disclosure
 is the only path by which unaggregated user data reaches a prompt, so it

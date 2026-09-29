@@ -17,7 +17,6 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
-import pytest
 import yaml
 from fastapi.testclient import TestClient
 
@@ -127,9 +126,8 @@ def test_readiness_is_not_cacheable(warehouse_dir: Path, tmp_path: Path) -> None
     assert headers["cache-control"] == "no-store"
 
 
-@pytest.mark.parametrize("name", ["render.yaml", "deploy/render-live.yaml"])
-def test_the_blueprints_health_check_uses_readiness(name: str) -> None:
-    service = yaml.safe_load((REPO / name).read_text())["services"][0]
+def test_the_blueprint_health_check_uses_readiness() -> None:
+    service = yaml.safe_load((REPO / "render.yaml").read_text())["services"][0]
     assert service["healthCheckPath"] == "/api/ready"
 
 

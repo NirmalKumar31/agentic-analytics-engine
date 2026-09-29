@@ -6,6 +6,8 @@ opens a network connection or reads a credential.
 
 from __future__ import annotations
 
+from typing import Any
+
 import httpx
 import pytest
 
@@ -82,17 +84,96 @@ async def test_llm_call_budget_is_enforced() -> None:
         await provider.complete_json(request(question="q", metrics=[], dimensions=[]))
 
 
+async def test_failed_attempts_exhaust_the_budget_too() -> None:
+    """Two timeouts must consume the ceiling, not zero of it."""
+    import httpx
+
+    from agentic_analytics.llm.ollama import OllamaProvider
+
+    def times_out(_request: httpx.Request) -> httpx.Response:
+        raise httpx.ReadTimeout("")
+
+    provider = OllamaProvider("http://x", "m", max_calls=2)
+    provider._client = httpx.AsyncClient(
+        transport=httpx.MockTransport(times_out), base_url="http://x"
+    )
+    try:
+        for _ in range(2):
+            with pytest.raises(LLMError):
+                await provider.complete_json(request(question="q", metrics=[], dimensions=[]))
+        assert provider.usage.attempts == 2
+        assert provider.usage.successes == 0
+        # The third is refused before anything is dispatched.
+        with pytest.raises(BudgetError, match="ceiling of 2"):
+            await provider.complete_json(request(question="q", metrics=[], dimensions=[]))
+    finally:
+        await provider.aclose()
+
+
+async def test_a_mix_of_success_and_failure_exhausts_the_budget() -> None:
+    from agentic_analytics.llm.fake import FakeProvider as _Fake
+
+    class _FlakyOnce(_Fake):
+        def __init__(self) -> None:
+            super().__init__(max_calls=2)
+            self.seen = 0
+
+        async def complete_json(self, req: Any) -> dict[str, Any]:
+            self.seen += 1
+            if self.seen == 2:
+                self._check_budget(req.role)
+                raise LLMError("transient", kind="transport_error")
+            return await super().complete_json(req)
+
+    provider = _FlakyOnce()
+    await provider.complete_json(request(question="q", metrics=[], dimensions=[]))
+    with pytest.raises(LLMError):
+        await provider.complete_json(request(question="q", metrics=[], dimensions=[]))
+    assert provider.usage.attempts == 2
+    assert provider.usage.successes == 1
+    with pytest.raises(BudgetError):
+        await provider.complete_json(request(question="q", metrics=[], dimensions=[]))
+
+
 def test_usage_accounting() -> None:
+    """Attempts and successes are counted separately.
+
+    `start` reserves an attempt before dispatch; `record` marks the one that
+    came back. A provider that fails leaves the two numbers apart, which is
+    what makes the ceiling a ceiling.
+    """
     usage = LLMUsage()
-    usage.record("planner", input_tokens=10, output_tokens=3)
-    usage.record("planner", input_tokens=5, output_tokens=2)
-    usage.record("critic")
+    for role, tokens in (("planner", (10, 3)), ("planner", (5, 2)), ("critic", (0, 0))):
+        usage.start(role)
+        usage.record(role, input_tokens=tokens[0], output_tokens=tokens[1])
     assert usage.as_dict() == {
+        "provider_request_attempts": 3,
+        "provider_successful_responses": 3,
         "llm_calls": 3,
         "input_tokens": 15,
         "output_tokens": 5,
         "by_role": {"planner": 2, "critic": 1},
     }
+
+
+def test_a_failed_attempt_still_counts_against_the_ceiling() -> None:
+    """The defect this closes.
+
+    The budget was checked against *successes*, so a provider that only ever
+    timed out consumed no budget and a run could retry forever. Against a
+    paid endpoint that is not a ceiling, it is a suggestion.
+    """
+    usage = LLMUsage()
+    usage.start("planner")  # dispatched, never answered
+    usage.start("planner")
+    usage.record("planner", input_tokens=4, output_tokens=1)
+
+    assert usage.attempts == 2
+    assert usage.successes == 1
+    assert usage.as_dict()["provider_request_attempts"] == 2
+    assert usage.as_dict()["provider_successful_responses"] == 1
+    # Tokens follow the response, not the attempt.
+    assert usage.input_tokens == 4
 
 
 async def test_unknown_role_raises_rather_than_returning_nothing() -> None:
@@ -161,9 +242,23 @@ def test_registry_builds_the_local_provider_without_a_credential() -> None:
     assert provider.requires_credentials is False
 
 
-def test_cloud_mode_without_a_key_is_refused() -> None:
-    with pytest.raises(LLMError, match="requires AAE_CLOUD_API_KEY"):
-        build_provider(Settings(provider_mode="cloud", cloud_api_key=None))
+def test_cloud_mode_cannot_be_built_unmetered() -> None:
+    """The registry has no path to a bare cloud provider.
+
+    A `CloudProvider` built here would spend without reserving. The only
+    way to a paid endpoint is the governed factory, which preflights the
+    model and charges every call against the durable ledger.
+    """
+    with pytest.raises(LLMError, match="governed"):
+        build_provider(Settings(provider_mode="cloud", cloud_api_key="k"))
+
+
+def test_the_refusal_names_what_a_paid_run_requires() -> None:
+    with pytest.raises(LLMError) as raised:
+        build_provider(Settings(provider_mode="cloud"))
+    message = str(raised.value)
+    for required in ("AAE_AI_ANALYTICS_ENABLED", "AAE_AI_QUOTA_REDIS_URL", "pricing"):
+        assert required in message
 
 
 def test_registry_honours_the_llm_call_budget() -> None:
@@ -225,51 +320,6 @@ async def test_ollama_errors_are_sanitised() -> None:
 # ------------------------------------------------------------------- cloud
 
 
-async def test_cloud_provider_uses_a_forced_tool_call() -> None:
-    from agentic_analytics.llm.cloud import RESPONSE_TOOL, CloudProvider
-
-    def handler(req: httpx.Request) -> httpx.Response:
-        payload = httpx.Request("POST", req.url, content=req.read()).read().decode()
-        assert RESPONSE_TOOL in payload
-        assert req.headers["x-api-key"] == "test-key"
-        return httpx.Response(
-            200,
-            json={
-                "content": [{"type": "tool_use", "name": RESPONSE_TOOL, "input": {"intent": "ok"}}],
-                "usage": {"input_tokens": 11, "output_tokens": 3},
-            },
-        )
-
-    provider = CloudProvider(api_key="test-key", model="m")
-    provider._client = httpx.AsyncClient(
-        base_url="http://cloud",
-        transport=httpx.MockTransport(handler),
-        headers={"x-api-key": "test-key"},
-    )
-    try:
-        assert (await provider.complete_json(request()))["intent"] == "ok"
-        assert provider.usage.input_tokens == 11
-    finally:
-        await provider.aclose()
-
-
-async def test_cloud_provider_rejects_a_response_with_no_tool_call() -> None:
-    from agentic_analytics.llm.cloud import CloudProvider
-
-    def handler(_: httpx.Request) -> httpx.Response:
-        return httpx.Response(200, json={"content": [{"type": "text", "text": "hi"}], "usage": {}})
-
-    provider = CloudProvider(api_key="k", model="m")
-    provider._client = httpx.AsyncClient(
-        base_url="http://cloud", transport=httpx.MockTransport(handler)
-    )
-    try:
-        with pytest.raises(LLMError, match="did not return a structured answer"):
-            await provider.complete_json(request())
-    finally:
-        await provider.aclose()
-
-
 def test_cloud_provider_refuses_to_construct_without_a_key() -> None:
     from agentic_analytics.llm.cloud import CloudProvider
 
@@ -280,3 +330,28 @@ def test_cloud_provider_refuses_to_construct_without_a_key() -> None:
 def test_base_provider_is_abstract() -> None:
     with pytest.raises(TypeError):
         LLMProvider()  # type: ignore[abstract]
+
+
+# ------------------------------------------------- cloud: the hard ceiling
+
+
+async def test_the_cloud_ceiling_is_configured_not_hardcoded() -> None:
+    from agentic_analytics.llm.cloud import CloudProvider
+
+    provider = CloudProvider(api_key="k", model="m", timeout_seconds=7.5)
+    try:
+        assert provider.call_timeout_seconds == 7.5
+    finally:
+        await provider.aclose()
+
+
+def test_the_cloud_ceiling_is_configurable(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A setting nothing reads is a comment with a type annotation."""
+    monkeypatch.setenv("AAE_CLOUD_TIMEOUT_SECONDS", "33")
+    assert Settings().cloud_timeout_seconds == 33.0
+
+
+def test_the_cloud_ceiling_must_be_positive(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("AAE_CLOUD_TIMEOUT_SECONDS", "0")
+    with pytest.raises(ValueError):
+        Settings()

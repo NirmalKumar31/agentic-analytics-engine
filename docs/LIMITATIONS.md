@@ -139,22 +139,29 @@ coroutine.
 - CSV or Parquet only. No Excel, JSON, SQLite, archives or URL ingestion.
 - **Two different sets of limits, and the public one is the tighter.** The
   code's defaults are 25 MB and 2,000,000 rows; the public Render deployment
-  sets 15 MB and 750,000 rows, because it is sized for a 1 CPU / 2 GB
-  instance shared by up to six uploads. 200 columns in both. Anything
-  quoting one of these numbers should say which deployment it means.
+  sets 10 MB and 400,000 rows, because it is sized for a 512 MB instance
+  admitting three sessions. 200 columns in both. Anything quoting one of
+  these numbers should say which deployment it means.
 - **An oversized file is refused, never truncated.** Parquet is rejected from
   its metadata before any data is read; CSV is read to one row past the
-  limit and rejected if that row exists. Returning the first 750,000 rows of
+  limit and rejected if that row exists. Returning the first 400,000 rows of
   a larger file as though it were the whole thing would make every number in
   the analysis wrong without anything looking wrong.
 - **CSV validation is not format validation.** CSV has no magic bytes. The
   file is screened against signatures of formats it is definitely not, its
   header is bounded, and DuckDB's parser is the real arbiter. Parquet is
   genuinely validated through its metadata before any data is read.
-- The inferred semantic schema is heuristic: roles come from column types and
-  cardinality. It is marked `inferred` everywhere and will misclassify —
-  a numeric code with few distinct values reads as a dimension, a text column
-  with one value per row is dropped as ungroupable.
+- The inferred semantic schema is heuristic: roles come from column types,
+  cardinality and, as a tiebreak, the column's name. It is marked `inferred`
+  everywhere and will misclassify. Two rules exist because the obvious
+  version of each got it wrong:
+  - a numeric column with few distinct values reads as a dimension, *unless
+    the question names it as the thing to aggregate* -- a question naming a
+    column is an instruction, not something to infer around;
+  - a text column named like a key (`store_code`, `account_no`) is still a
+    grouping if its values repeat, and a text column with a different value
+    on almost every row is an identifier however it is named, because one
+    row per group is a label rather than a category.
 - **Question interpretation for an uploaded file is a set of rules, not
   understanding.** `aggregate_for_question` recognises five operations --
   count, total, average, ranking, trend -- matches column names as whole
@@ -168,14 +175,197 @@ coroutine.
   where the interesting analysis lives.
 - The rules are literal. A question that says "turnover" about a column
   called `revenue` is refused, because synonym matching would be guessing.
-- **Raw cells of an uploaded file are not sent to a remote model**, and this
-  is scoped precisely. `sample_rows` is refused and profile extrema are
-  withheld. What is *not* claimed: an aggregate over a group of one row
-  equals that row's value, so a sum by a near-unique dimension can reproduce
-  a cell. That is inherent to aggregation, not a hole in the redaction, and
-  nothing in the design prevents it.
-- The restriction applies only when inference is remote (`cloud`). In `fake`
-  and `local` mode nothing leaves the machine, so nothing is withheld.
+  The refusal says which column to name instead, which is the most a rule
+  system can honestly offer.
+- **A named period is applied or the question is refused.** "Total revenue in
+  1998" filters to 1998 and reports nothing if no row falls there. On a table
+  with no date column it is refused, rather than answered over every row --
+  which is what it used to do.
+- **A grouping that names no column is refused**, quoting the name back.
+  "Total revenue by loyalty_tier" on a table without that column used to
+  return an ungrouped total, presented confidently as the answer.
+- **What an AI run discloses, stated precisely**, because the short version
+  overclaims. Column names, inferred roles, aggregate values **and the
+  labels of a column you group by** are sent: a total by department cannot
+  be reported without naming the departments, and those labels are cells of
+  the file.
+- What is withheld is unaggregated data: `sample_rows` is refused,
+  row-returning SQL over an upload is refused rather than filtered, a
+  profile's per-column minimum and maximum are withheld, and a near-unique
+  column is classified as an identifier so it can never become a group key.
+  That last rule is what stops a column of names travelling as labels.
+- What is *not* claimed: an aggregate over a group of one row equals that
+  row's value, so a sum by a low-cardinality dimension with a thin group can
+  reproduce a cell. That is inherent to aggregation, not a hole in the
+  redaction, and nothing in the design prevents it.
+- The restriction follows the **run**, not the process. Compare Both puts a
+  local run and a cloud run on one session; the cloud half withholds and the
+  local half does not, and `AAE_PROVIDER_MODE` does not decide it.
+
+---
+
+## 5a. What the upload corpus proves, and what it does not
+
+There is an acceptance corpus of 230 cases: every one of 40 domains, all 24
+structural families, all 10 question kinds, nine domains with the full
+matrix, both CSV and Parquet. It runs in CI with no credentials.
+
+The newest family is `interval_grained_rows`, where a row describes a
+*span* rather than a point -- a drill-core depth interval, a
+departure-to-arrival window. It is there because the bound columns read as
+ordinary numbers and dates: nothing about `from_depth_m` marks it as a
+coordinate rather than a quantity, so a question asking for "total depth"
+has three columns to choose between and must refuse rather than pick.
+Flight legs add a shape nothing else has, where the row is an *edge* and
+two columns are drawn from one vocabulary, so "by airport" names neither
+`origin_airport` nor `destination_airport` and must not be answered with
+whichever appears first.
+
+**What it establishes.** Across those cases, no published finding was
+unsupported or irrelevant, nothing failed unexpectedly, no measure,
+dimension, unit or time field was silently guessed, and no run cited
+another run's results. Every case's outcome was one the manifest allows.
+
+Every case also runs a second time against a provider that declares itself
+remote and retains its prompts, and **no prompt contained a withheld
+cell**. The boundary for that count is derived from each dataset's own
+cardinality rather than from the schema classifier: a column whose values
+repeat is a category, and its labels are legitimately part of an aggregate
+grouped by it, while a near-unique or free-text column's values are not.
+Reading the classifier's verdict instead made the measurement blind to the
+one leak it exists for -- reintroducing the defect reclassified those
+columns as groupings and the check excused them in the same instant. ISO
+dates are excluded because the engine derives period bounds from the
+question, and legitimate values are subtracted by value rather than by
+column so that a foreign key sharing its value space with the identifier
+it references is not reported as a leak.
+
+**What it does not establish.** That an arbitrary file gets a good answer.
+The corpus is 230 questions the authors chose, against datasets the authors
+generated. It demonstrates the committed cases and the *shape* of the
+failure behaviour -- refusal rather than guessing -- not coverage of every
+file a visitor might upload. Three of the ten question kinds are satisfied
+by a refusal, and a large share of the corpus is deliberately
+unanswerable.
+
+**Acceptance is about what must never happen**, not what must always
+happen. Zero unsupported publications, zero irrelevant publications, zero
+silent guesses, zero cross-run leaks, zero unexpected failures. A case may
+answer, refuse, or complete with nothing published; the manifest records
+which of those are honest for each question.
+
+---
+
+## 5b. Exact versus conservative cost
+
+Two different numbers, and the distinction is load-bearing.
+
+**Exact settled cost** is charged from the usage the provider reported:
+ordinary input, cached input, cache-write input and output tokens, each at
+its own rate. This is what a normal call produces.
+
+**Conservatively retained cost** is charged when a call's outcome is
+ambiguous -- the usage could not be read, or the request left the process
+and no usable answer came back. The full worst-case reservation stands: the
+counted input at the dearest input rate plus the whole output allowance the
+call was permitted. Nothing is refunded, because a request that was sent
+may have been billed, and a spend ceiling that guesses "free" when it
+cannot tell is not a ceiling.
+
+A run reports whether its total is complete. When it is not, the figure is
+a **floor built from reservations, not a measurement**, and the lifetime
+counter in Redis can therefore overstate real spend. It is never silently
+reset: compare it against the provider's own usage page rather than
+treating it as the truth.
+
+**Cancellation retains both money and token allowance.** A cancelled call
+is not refunded and its output allowance is not returned to the run. The
+request may have reached the provider and been billed, and the tokens it
+was permitted may already have been generated; a ceiling that hands both
+back on cancellation can be crossed by cancelling. So a run that cancels
+work reports a total at or above what was really spent, and has less
+allowance left than an uncancelled run would -- conservative in the
+direction that cannot overspend.
+
+**Provider enforcement is not instantaneous.** OpenAI documents that a hard
+spend limit can process a small amount of extra usage while the limit state
+propagates, so recorded spend can slightly exceed the configured amount.
+The application ceiling is therefore set below the provider's ($4 against
+$5), and contradictory ceilings are refused at startup rather than
+discovered mid-run.
+
+---
+
+## 5b-i. Minimum and maximum are still text
+
+The profile query emits one `UNION ALL` across every column of a table,
+so its `min_value` and `max_value` must share a single type and that type
+is text. `mean_value` does not have to, and no longer does -- it was cast
+to text, which made a correct claim about it unverifiable, and it is now
+numeric where it is produced.
+
+The two range columns remain a gap. **A finding citing the minimum or
+maximum of a numeric column is reported as numerically unsupported**,
+because the verifier reads a cell's number only when the column declares
+itself numeric and those columns declare VARCHAR. Coercing them would
+mean trusting numeric-looking text on a column that says it is not
+numeric, which is the rule that keeps an order reference like `0012345`
+from being read as a quantity.
+
+---
+
+## 5c. How the cost and mapping invariants are checked
+
+The invariants that money and mapping rest on are checked by **deterministic
+sweep, not by a property-generation engine**. For each one the test walks a
+fixed grid -- token counts either side of both context tiers, every split of
+input across the three billing categories, six schema shapes against nine
+questions -- and asserts the property at every point. Several thousand
+combinations, reproducible exactly, no new dependency in a pinned install.
+
+What that buys and what it does not:
+
+* the grid covers the corners that matter (zero, one, the tier boundary and
+  the token either side of it, an empty schema, a schema with no measure),
+  because those were chosen deliberately rather than sampled;
+* it does **not** search for a counterexample outside the grid. A defect
+  reachable only at, say, 3,912 cached tokens against a seven-column schema
+  would not be found here.
+
+Each property was checked against a deliberately broken build before being
+trusted: rounding reversed; the reservation priced at the cached rate
+instead of the dearest; the long-context threshold moved out of reach, and
+separately off by one; the settlement receipt left in place; run admission
+made non-idempotent; the session quota off by one; the confidence gate
+removed from `build_sql`; the period filter dropped from the `WHERE`
+clause; an unresolved grouping answered instead of refused; the resolver
+made to invent a column. **Eleven mutations, eleven caught.** Two of them
+were caught only after the tests were strengthened: one property
+had read the context threshold off the object it was meant to pin, so it
+moved with the mutation, and the sweep never produced an unconfident
+mapping with a real operation, leaving the `build_sql` confidence guard
+unreachable and its assertion vacuous. Both are now pinned and exercised
+directly. The number worth reporting is not "the properties pass" but
+"a broken build fails them," and that is what was measured.
+
+The governed-boundary suite is counted the same way and stated precisely,
+because the loose version of the sentence overclaims. **All 27 tests pass
+against the current code, and 26 of the 27 reproduce a defect found by
+audit of 959ebd9.** The 27th, `[cache exceeds total]`, passes against
+959ebd9 as well: the coherence check already rejected a cached count
+larger than the input containing it. It guards the same settlement path
+and is worth keeping, but it is a broader invariant rather than an
+original-defect reproduction, so it is not counted as one and the suite is
+not described as 27 of 27. That figure was also mismeasured once -- an
+editable install leaked current code into the checkout of the old
+revision and produced 25 of 27, which is why the measurement now runs
+against a copy of 959ebd9 on `PYTHONPATH`.
+
+The upload corpus carries two further injections of its own, recorded in
+§5a: the near-unique-text leak, which the disclosure check must catch, and
+the two mapping guards the interval-grained family was added for -- a
+measure taken from the first of several candidates, and a grouping matched
+by substring so that "by airport" silently becomes `origin_airport`.
 
 ---
 
@@ -308,7 +498,44 @@ is up and the acceptance run has passed against it.
 
 ---
 
-## 11. Deliberately out of scope
+## 11. Real-model evaluation, and what it has and has not shown
+
+The deterministic benchmark measures the engine, not a model. A separate
+opt-in evaluation (`make`-less: `evaluate-real-model`) drives an actual model
+over seven datasets with deliberately unrelated vocabularies. It has no
+answer key and no pass mark; it records what a model *did*, including which
+gate withheld what.
+
+**The qwen3:4b run is a pre-fix, incomplete diagnostic — not a model
+evaluation.** It published nothing and withheld 17 of 17 findings, but the
+run was contaminated by five defects it exposed, and it deadlocked before
+finishing. It should not be cited as evidence about that model. What it
+established is that the engine had: a thinking model exhausting its output
+budget before answering, a planner whose output was silently discarded on
+metric-free datasets, a worker prompt that named no tables, a verifier that
+rejected findings whose numbers were correct, and a provider that could hang
+indefinitely. All five are fixed.
+
+**What the evaluation can now distinguish**, and previously could not:
+
+- *transport failure* from *JSON failure* from *schema failure*. Watching
+  only the provider call recorded "returned a dict" as success, so a model
+  breaking its contract looked identical to one honouring it, and a timeout
+  was counted as a format error.
+- *the model planned this* from *the engine rescued it*. A fallback plan is
+  good for the product and hides weak planning, so redirects and fallbacks
+  are counted separately and a rescued run is never reported as a planning
+  success.
+- *failure* from *safe refusal*. An unanswerable question that produces no
+  finding is the desired behaviour, and is flagged as such.
+
+Runs are checkpointed per question and resumable, with a status file so a
+stalled sweep is diagnosable while it runs. There is a whole-question
+timeout as well as a per-call one.
+
+---
+
+## 12. Deliberately out of scope
 
 No authentication, billing, multi-tenant persistence or scheduled jobs. No
 arbitrary Python or notebook execution by the model. No vector database, RAG

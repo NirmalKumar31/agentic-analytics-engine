@@ -43,7 +43,7 @@ from agentic_analytics.analytics.semantic import infer_schema
 from agentic_analytics.config import Budgets, Settings, get_settings
 from agentic_analytics.logging import get_logger
 from agentic_analytics.warehouse.metrics import load_registry
-from agentic_analytics.warehouse.session import AnalysisSession, SessionManager
+from agentic_analytics.warehouse.session import AnalysisSession, DisclosurePolicy, SessionManager
 
 log = get_logger(__name__)
 
@@ -168,10 +168,16 @@ def build_server(manager: SessionManager, settings: Settings | None = None) -> M
     """
     cfg = settings or get_settings()
     budgets: Budgets = cfg.budgets
-    #: Raw-cell disclosure for uploaded data. Permitted when inference stays
-    #: on this machine (`fake`, `local`) and otherwise only when a deployment
-    #: opts in explicitly. See `sample_rows`.
-    _raw_rows_allowed = cfg.provider_mode != "cloud" or cfg.allow_upload_row_disclosure
+    #: A deployment-wide opt-in, not the policy itself. Whether raw uploaded
+    #: cells may be disclosed is decided per run: one process now serves a
+    #: deterministic run and an AI run against the same session, so a policy
+    #: read from `AAE_PROVIDER_MODE` would hand the AI side the local answer.
+    _row_disclosure_opt_in = cfg.allow_upload_row_disclosure
+    #: The floor under that per-run decision. A process configured to infer
+    #: in the cloud has no local run to protect, so every call is remote
+    #: whatever the caller injected. Without this the flag is fail-open: a
+    #: caller that simply omits it gets the disclosing answer.
+    _remote_inference_floor = cfg.provider_mode == "cloud"
     mcp: MCPServer = MCPServer(
         name=SERVER_NAME,
         version="0.1.0",
@@ -190,11 +196,21 @@ def build_server(manager: SessionManager, settings: Settings | None = None) -> M
             session = manager.get(session_id, session_key)
         except KeyError as exc:
             raise ToolError(str(exc)) from None
-        # Applied on resolution rather than at session construction, so the
-        # policy follows this server's configuration for every session it is
-        # asked about, however that session was opened.
-        session.withhold_raw_cells = session.kind == "upload" and not _raw_rows_allowed
         return session
+
+    def _policy(session: AnalysisSession, remote_inference: bool) -> DisclosurePolicy:
+        """The disclosure policy for one call, from that call's own run.
+
+        `remote_inference` is injected by the MCP client alongside the
+        capability and is not something a model can set. It can only widen
+        the remote set, never narrow it below what the deployment already
+        is, so omitting it withholds rather than discloses.
+        """
+        return DisclosurePolicy(
+            remote_inference=bool(remote_inference) or _remote_inference_floor,
+            dataset_kind=session.kind,
+            allow_upload_row_disclosure=_row_disclosure_opt_in,
+        )
 
     def _public_session(session_id: str) -> AnalysisSession:
         """Resolve a session for a resource read, demo datasets only.
@@ -226,6 +242,8 @@ def build_server(manager: SessionManager, settings: Settings | None = None) -> M
         """
         try:
             return fn(*args, **kwargs)
+        except ToolError:
+            raise
         except (
             QueryError,
             FilterError,
@@ -237,6 +255,27 @@ def build_server(manager: SessionManager, settings: Settings | None = None) -> M
         ) as exc:
             message = exc.args[0] if exc.args else str(exc)
             raise ToolError(str(message)) from None
+        except Exception as exc:
+            # Anything else is a defect in the engine rather than a bad call,
+            # but the model still has to be told something it can act on. Left
+            # to escape, the SDK replaces it with "Error executing tool X",
+            # which is what a real run saw eight times in one question: the
+            # worker could not tell a broken argument from a broken tool, and
+            # neither could the operator reading the artifact afterwards.
+            log.exception("tool_failed_unexpectedly", tool=getattr(fn, "__name__", "?"))
+            raise ToolError(f"the tool failed internally ({type(exc).__name__})") from None
+
+    def _filters(raw: Any) -> Any:
+        """Coerce filters *inside* the guard.
+
+        Every tool called `_filters(filters)` in its argument list, so
+        the `FilterError` it raises happened before `_guarded` was entered
+        and escaped it -- in all eight tools that take filters. A model
+        writing `{"field": ..., "operator": ...}` instead of
+        `{"column": ..., "op": ...}` therefore got the SDK's generic message
+        rather than the one naming the shape it should have used.
+        """
+        return _guarded(coerce_filters, raw)
 
     # ---------------------------------------------------------------- tools
 
@@ -250,7 +289,11 @@ def build_server(manager: SessionManager, settings: Settings | None = None) -> M
         )
 
     @mcp.tool(description="Describe one table: its columns, types and row count.")
-    def describe_table(session_id: str, session_key: str, table: str) -> TableDescription:
+    def describe_table(
+        session_id: str, session_key: str, table: str, remote_inference: bool = False
+    ) -> TableDescription:
+        # Column names and types are schema, not cells, so this needs no
+        # policy: it discloses the shape of the data and never its values.
         session = _session(session_id, session_key)
         described = _guarded(catalog_tools.describe_table, session, table)
         return TableDescription(
@@ -267,14 +310,21 @@ def build_server(manager: SessionManager, settings: Settings | None = None) -> M
             "yourself before writing SQL."
         )
     )
-    def profile_table(session_id: str, session_key: str, table: str) -> ToolResult:
+    def profile_table(
+        session_id: str, session_key: str, table: str, remote_inference: bool = False
+    ) -> ToolResult:
         session = _session(session_id, session_key)
+        policy = _policy(session, remote_inference)
         snapshot = _guarded(
             catalog_tools.profile_table,
             session,
             table,
             timeout_seconds=budgets.query_timeout_seconds,
         )
+        # On the snapshot, not on the session. Two runs share a session, so
+        # a flag stored there is one the other run can change underneath
+        # this one.
+        snapshot.withhold_cells = policy.withhold_raw_cells
         return ToolResult.of(snapshot)
 
     @mcp.tool(
@@ -283,9 +333,16 @@ def build_server(manager: SessionManager, settings: Settings | None = None) -> M
             f"{budgets.max_sample_rows} rows; use aggregates for anything larger."
         )
     )
-    def sample_rows(session_id: str, session_key: str, table: str, limit: int = 10) -> ToolResult:
+    def sample_rows(
+        session_id: str,
+        session_key: str,
+        table: str,
+        limit: int = 10,
+        remote_inference: bool = False,
+    ) -> ToolResult:
         session = _session(session_id, session_key)
-        if session.kind == "upload" and not _raw_rows_allowed:
+        policy = _policy(session, remote_inference)
+        if policy.withhold_raw_cells:
             # Raw cells are the only path by which unaggregated user data
             # reaches a prompt, and a prompt in this configuration goes to a
             # third party. Somebody trying a spreadsheet in a demo has not
@@ -312,8 +369,23 @@ def build_server(manager: SessionManager, settings: Settings | None = None) -> M
             "question."
         )
     )
-    def run_readonly_sql(session_id: str, session_key: str, sql: str) -> ToolResult:
+    def run_readonly_sql(
+        session_id: str, session_key: str, sql: str, remote_inference: bool = False
+    ) -> ToolResult:
         session = _session(session_id, session_key)
+        policy = _policy(session, remote_inference)
+        if not policy.allow_row_returning_sql:
+            # `SELECT name, city FROM uploaded_data LIMIT 20` is ordinary
+            # read-only SQL and the guard permits it, so for an uploaded
+            # file under remote inference this is a disclosure path. It is
+            # refused rather than filtered: proving a query is
+            # aggregation-only is a larger thing than this needs, and a
+            # filter that is nearly right leaks.
+            raise ToolError(
+                "arbitrary SQL over an uploaded dataset is not available while "
+                "model inference is remote; use profile_table, "
+                "aggregate_for_question or a governed metric tool instead"
+            )
         snapshot = _guarded(
             run_query,
             session,
@@ -367,7 +439,7 @@ def build_server(manager: SessionManager, settings: Settings | None = None) -> M
             session,
             metric,
             dimensions or [],
-            coerce_filters(filters),
+            _filters(filters),
             time_grain,
             task_id=task_id,
             max_rows=budgets.max_result_rows,
@@ -398,7 +470,7 @@ def build_server(manager: SessionManager, settings: Settings | None = None) -> M
             metric,
             dimension,
             segments,
-            coerce_filters(filters),
+            _filters(filters),
             task_id=task_id,
             max_rows=budgets.max_result_rows,
             timeout_seconds=budgets.query_timeout_seconds,
@@ -428,7 +500,7 @@ def build_server(manager: SessionManager, settings: Settings | None = None) -> M
             metric,
             grain,
             time_column,
-            coerce_filters(filters),
+            _filters(filters),
             task_id=task_id,
             max_rows=budgets.max_result_rows,
             timeout_seconds=budgets.query_timeout_seconds,
@@ -460,7 +532,7 @@ def build_server(manager: SessionManager, settings: Settings | None = None) -> M
             metric,
             (baseline_start, baseline_end),
             (current_start, current_end),
-            coerce_filters(filters),
+            _filters(filters),
             task_id=task_id,
             timeout_seconds=budgets.query_timeout_seconds,
         )
@@ -498,7 +570,7 @@ def build_server(manager: SessionManager, settings: Settings | None = None) -> M
             dimension,
             (baseline_start, baseline_end),
             (current_start, current_end),
-            coerce_filters(filters),
+            _filters(filters),
             task_id=task_id,
             max_rows=budgets.max_result_rows,
             timeout_seconds=budgets.query_timeout_seconds,
@@ -533,7 +605,7 @@ def build_server(manager: SessionManager, settings: Settings | None = None) -> M
             (baseline_start, baseline_end),
             (current_start, current_end),
             top_n,
-            coerce_filters(filters),
+            _filters(filters),
             task_id=task_id,
             timeout_seconds=budgets.query_timeout_seconds,
         )
@@ -548,12 +620,15 @@ def build_server(manager: SessionManager, settings: Settings | None = None) -> M
             "cardinality, not governed definitions."
         )
     )
-    def profile_dataset(session_id: str, session_key: str, table: str) -> DatasetProfile:
+    def profile_dataset(
+        session_id: str, session_key: str, table: str, remote_inference: bool = False
+    ) -> DatasetProfile:
         session = _session(session_id, session_key)
+        policy = _policy(session, remote_inference)
         name = _guarded(catalog_tools.resolve_table, session, table)
         schema = _guarded(infer_schema, session, name)
         payload = schema.as_dict()
-        if session.withhold_raw_cells:
+        if policy.withhold_raw_cells:
             # A column's range is two cells of the visitor's file, not a
             # summary of it, so it does not travel to a remote model.
             payload["fields"] = [
@@ -597,6 +672,9 @@ def build_server(manager: SessionManager, settings: Settings | None = None) -> M
             max_sql_length=budgets.max_sql_length,
             extra_warnings=[f"question interpreted by rule, not by a model: {mapping.explanation}"],
         )
+        # Where each output column came from, so an alias cannot be read
+        # as a column of the uploaded file.
+        snapshot.column_lineage = upload_plan.sql_lineage(mapping)
         return ToolResult.of(snapshot)
 
     @mcp.tool(
@@ -620,7 +698,7 @@ def build_server(manager: SessionManager, settings: Settings | None = None) -> M
             session,
             table,
             columns,
-            coerce_filters(filters),
+            _filters(filters),
             task_id=task_id,
             timeout_seconds=budgets.query_timeout_seconds,
         )
@@ -653,7 +731,7 @@ def build_server(manager: SessionManager, settings: Settings | None = None) -> M
             session,
             test_type,
             variables,
-            coerce_filters(filters),
+            _filters(filters),
             task_id=task_id,
             timeout_seconds=budgets.query_timeout_seconds,
         )
@@ -665,9 +743,17 @@ def build_server(manager: SessionManager, settings: Settings | None = None) -> M
             "finding can be re-checked against the exact rows it cites."
         )
     )
-    def get_result(session_id: str, session_key: str, result_id: str) -> ToolResult:
+    def get_result(
+        session_id: str, session_key: str, result_id: str, remote_inference: bool = False
+    ) -> ToolResult:
         session = _session(session_id, session_key)
         snapshot = _guarded(session.results.get, result_id)
+        # Re-decided for *this* call rather than read off the snapshot. The
+        # stored flag is whatever the run that computed it was allowed, and
+        # a session is shared: without this, re-reading a local run's
+        # profile would hand a cloud run the cells it may not see.
+        policy = _policy(session, remote_inference)
+        snapshot.withhold_cells = policy.withhold_raw_cells
         return ToolResult.of(snapshot)
 
     # ------------------------------------------------------------ resources

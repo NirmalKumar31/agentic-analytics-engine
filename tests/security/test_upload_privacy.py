@@ -222,3 +222,168 @@ def test_no_agent_renders_raw_snapshot_rows() -> None:
         "prompts must use snapshot.agent_rows(); annotate a non-prompt use "
         "with a `# raw-rows-ok:` comment saying why:\n" + "\n".join(offenders)
     )
+
+
+# --- Per-run disclosure ------------------------------------------------
+#
+# The policy moved from the process (`AAE_PROVIDER_MODE`) to the run, so
+# that Compare Both can put a local run and a cloud run on one session. The
+# tests below cover what that move put at risk: a run whose flag is never
+# injected, and a run that is remote in a process configured as local.
+
+
+class RemoteProvider(RecordingProvider):
+    """A provider whose prompts leave the machine, in any process."""
+
+    remote_inference = True
+
+
+async def test_an_omitted_flag_withholds_rather_than_discloses(
+    uploaded: Path,
+) -> None:
+    """The per-run flag fails closed against the deployment.
+
+    `remote_inference` is a default argument on every tool, so a caller that
+    simply never sets it used to get the disclosing answer from a server
+    configured for cloud inference -- the flag was fail-open. A tool call is
+    made here with no flag at all, exactly as an un-updated client would.
+    """
+    cfg = Settings(provider_mode="cloud", live_analytics_enabled=True)
+    manager = SessionManager()
+    session = manager.add(open_upload_session(uploaded, "people.csv", "csv"))
+    server = build_server(manager, cfg)
+    try:
+        async with AnalyticsToolset(
+            server,
+            session_id=session.session_id,
+            session_key=session.session_key,
+            remote_inference=False,
+        ) as toolset:
+            with pytest.raises(ToolCallFailed, match="not disclosed"):
+                await toolset.call("sample_rows", {"table": "uploaded_data", "limit": 5})
+    finally:
+        manager.close_all()
+
+
+async def test_a_remote_run_withholds_inside_a_local_process(
+    uploaded: Path,
+) -> None:
+    """The run decides, not the process.
+
+    This is the Compare Both case: the process is configured `fake`, so a
+    policy read from settings would disclose, but this run holds a provider
+    that sends prompts off the machine.
+    """
+    cfg = Settings(provider_mode="fake", live_analytics_enabled=True)
+    manager = SessionManager()
+    session = manager.add(open_upload_session(uploaded, "people.csv", "csv"))
+    server = build_server(manager, cfg)
+    provider = RemoteProvider()
+    try:
+        await run_analysis(
+            "What is the total amount by city?",
+            session,
+            server,
+            settings=cfg,
+            provider=provider,
+        )
+    finally:
+        await provider.aclose()
+        manager.close_all()
+
+    sent = provider.everything_sent()
+    for secret in SECRETS:
+        assert secret not in sent, f"{secret!r} reached a remote prompt from a local process"
+
+
+async def test_row_returning_sql_over_an_upload_is_refused_when_remote(
+    uploaded: Path,
+) -> None:
+    """The disclosure path that is not `sample_rows`.
+
+    Selecting columns is ordinary read-only SQL, so the SQL guard passes it
+    and the row limit does not help: twenty rows of a name column is still
+    twenty names.
+    """
+    cfg = Settings(provider_mode="cloud", live_analytics_enabled=True)
+    manager = SessionManager()
+    session = manager.add(open_upload_session(uploaded, "people.csv", "csv"))
+    server = build_server(manager, cfg)
+    try:
+        async with AnalyticsToolset(
+            server,
+            session_id=session.session_id,
+            session_key=session.session_key,
+            remote_inference=True,
+        ) as toolset:
+            with pytest.raises(ToolCallFailed):
+                await toolset.call(
+                    "run_readonly_sql",
+                    {"sql": "SELECT full_name, city, reference FROM uploaded_data LIMIT 20"},
+                )
+    finally:
+        manager.close_all()
+
+
+async def test_a_local_run_still_gets_its_own_rows(uploaded: Path) -> None:
+    """The converse of the Compare Both case.
+
+    The restriction is about third-party disclosure, so the deterministic
+    half of a comparison must not be degraded by the AI half beside it.
+    """
+    cfg = Settings(provider_mode="fake", live_analytics_enabled=True)
+    manager = SessionManager()
+    session = manager.add(open_upload_session(uploaded, "people.csv", "csv"))
+    server = build_server(manager, cfg)
+    try:
+        async with AnalyticsToolset(
+            server,
+            session_id=session.session_id,
+            session_key=session.session_key,
+            remote_inference=False,
+        ) as toolset:
+            payload = await toolset.call(
+                "run_readonly_sql",
+                {"sql": "SELECT full_name FROM uploaded_data LIMIT 3"},
+            )
+    finally:
+        manager.close_all()
+    assert payload["rows"]
+
+
+async def test_aggregate_sql_over_an_upload_still_runs_when_remote(
+    uploaded: Path,
+) -> None:
+    """The refusal must be a disclosure rule, not a ban on analysis.
+
+    If remote inference could not query an uploaded file at all, the AI mode
+    would have nothing to say about it and the restriction would be a
+    disguised outage.
+    """
+    cfg = Settings(provider_mode="cloud", live_analytics_enabled=True)
+    manager = SessionManager()
+    session = manager.add(open_upload_session(uploaded, "people.csv", "csv"))
+    server = build_server(manager, cfg)
+    try:
+        async with AnalyticsToolset(
+            server,
+            session_id=session.session_id,
+            session_key=session.session_key,
+            remote_inference=True,
+        ) as toolset:
+            payload = await toolset.call("profile_table", {"table": "uploaded_data"})
+    finally:
+        manager.close_all()
+    assert payload["columns"]
+
+
+def test_a_non_loopback_ollama_host_counts_as_remote() -> None:
+    """A local model means a local machine, not a local vendor.
+
+    An Ollama host on another machine is a third party for this purpose.
+    """
+    from agentic_analytics.llm.ollama import OllamaProvider
+
+    assert OllamaProvider("http://localhost:11434", "m").remote_inference is False
+    assert OllamaProvider("http://127.0.0.1:11434", "m").remote_inference is False
+    assert OllamaProvider("https://ollama.example.com", "m").remote_inference is True

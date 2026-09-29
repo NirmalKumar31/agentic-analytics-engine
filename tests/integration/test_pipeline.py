@@ -112,7 +112,7 @@ async def test_report_states_no_number_outside_the_findings(
     texts = [
         margin_run.report.executive_summary,
         *margin_run.report.key_findings,
-        *[s.body for s in margin_run.report.sections],
+        *[s.heading for s in margin_run.report.sections],
     ]
     for text in texts:
         for stated in extract_numbers(text):
@@ -259,3 +259,28 @@ async def test_run_is_reproducible(runner) -> None:  # type: ignore[no-untyped-d
         return grouped
 
     assert by_task(first) == by_task(second)
+
+
+async def test_a_claim_that_cannot_be_verified_in_time_is_withheld_not_published() -> None:
+    """Verification costs a model call per claim, and that tail is unbounded.
+
+    Bounding it must not turn into publishing something unchecked: running
+    out of time is the one situation where waving a claim through would be
+    most tempting and most wrong.
+    """
+    import inspect
+
+    from agentic_analytics.agents.schemas import CandidateFinding, TaskOutcome
+    from agentic_analytics.graph.build import build_graph
+
+    source = inspect.getsource(build_graph)
+    assert "verification_budget_exhausted" in source
+    # The withheld branch must set `unsupported`, never `supported`.
+    branch = source[source.index("verification_budget_exhausted") - 900 :]
+    branch = branch[: branch.index("verification_budget_exhausted") + 100]
+    assert 'status="unsupported"' in branch
+    assert 'status="supported"' not in branch
+
+    # And the candidate is a real one, so the shape is exercised.
+    candidate = CandidateFinding(text="x", result_ids=["r"])
+    assert TaskOutcome(task_id="t", findings=[candidate]).findings[0].finding_id

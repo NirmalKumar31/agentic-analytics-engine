@@ -19,7 +19,7 @@ from __future__ import annotations
 import json
 from typing import Any
 
-from agentic_analytics.agents.base import ask, parse_into, schema_of
+from agentic_analytics.agents.base import ask_into
 from agentic_analytics.agents.prompts import CRITIC
 from agentic_analytics.agents.schemas import (
     CandidateFinding,
@@ -31,13 +31,24 @@ from agentic_analytics.events import EventBus, EventType
 from agentic_analytics.llm.base import LLMError, LLMProvider
 from agentic_analytics.logging import get_logger
 from agentic_analytics.verification.claims import check_claim
+from agentic_analytics.verification.intent import check_intent
 from agentic_analytics.verification.numeric import verify_numbers
+from agentic_analytics.verification.typing import as_number
 
 log = get_logger(__name__)
 
 
+#: Stable rejection rule for a claim that is accurate and off-topic.
+IRRELEVANT = "irrelevant_to_question"
+
+
 class CriticVerdict(Verdict):
-    """What the critic model returns (finding_id is filled in by the engine)."""
+    """What the critic model returns (finding_id is filled in by the engine).
+
+    `answers_question` defaults to `None`, which the engine treats as "the
+    critic did not answer" and refuses, rather than as consent. A model that
+    omits the field must not thereby publish.
+    """
 
     finding_id: str = ""
 
@@ -60,9 +71,14 @@ def _resolve_cells(
             value = snapshot.cell(cell.row, cell.column)
         except (KeyError, IndexError):
             continue
-        if isinstance(value, bool) or not isinstance(value, int | float):
+        # Read through the declared type rather than the Python type. A
+        # profile statistic that arrived as text used to be skipped here,
+        # and the arithmetic check then reported the claim's own correct
+        # number as underivable from the result it came from.
+        number = as_number(value, declared_type=snapshot.declared_type(cell.column))
+        if number is None:
             continue
-        out.append((float(value), f"{cell.result_id}[{cell.row}].{cell.column}"))
+        out.append((float(number), f"{cell.result_id}[{cell.row}].{cell.column}"))
     return out
 
 
@@ -71,8 +87,22 @@ async def verify_finding(
     results: dict[str, ResultSnapshot],
     provider: LLMProvider,
     events: EventBus | None = None,
+    question: str = "",
+    objective: str = "",
+    target_metrics: list[str] | None = None,
+    target_dimensions: list[str] | None = None,
+    time_scope: str = "",
+    available_dimensions: list[str] | None = None,
+    mapping: Any = None,
 ) -> tuple[Verdict, dict[str, Any] | None]:
-    """Run all three gates on one finding."""
+    """Run every gate on one finding.
+
+    Four now, not three. Claim shape, arithmetic and evidence support all
+    ask whether the claim is *right*; none of them asks whether it is an
+    *answer*. A revenue ranking by channel can pass all three and still say
+    nothing about why margin fell, and shipping that as the flagship result
+    is a product failure even though every number in it is correct.
+    """
     cited = [results[r] for r in finding.result_ids if r in results]
 
     shape = check_claim(finding.text, finding.kind, cited, bool(finding.result_ids))
@@ -105,27 +135,67 @@ async def verify_finding(
         return verdict, numeric.as_dict()
 
     try:
-        payload = await ask(
+        payload = await ask_into(
             provider,
+            CriticVerdict,
             role="critic",
             system=CRITIC,
-            user=_critic_prompt(finding, cited),
-            schema=schema_of(CriticVerdict),
+            user=_critic_prompt(finding, cited, question, objective),
             context={
                 "finding": json.loads(finding.model_dump_json()),
                 "results": [s.compact() for s in cited],
+                "question": question,
+                "objective": objective,
+                "target_metrics": list(target_metrics or []),
+                "target_dimensions": list(target_dimensions or []),
+                # The period the question named. A claim about the right
+                # metric and the wrong months is not an answer.
+                "time_scope": time_scope,
+                # This dataset's own columns, so the relevance rules work
+                # on an upload as well as on the governed warehouse.
+                "available_dimensions": list(available_dimensions or []),
             },
         )
-        critic = parse_into(CriticVerdict, payload, "critic")
+        critic = payload
         status = critic.status
         reason = critic.reason
+        answers = critic.answers_question
+        relevance_reason = critic.relevance_reason
     except LLMError as exc:
         # A critic that cannot answer must not wave a finding through.
         status = "partially_supported"
         reason = f"The verifier could not complete its check ({exc})."
+        relevance_reason = ""
+        answers = None
         rule = "critic_unavailable"
     else:
         rule = "critic"
+
+    evidence_supported = status == "supported"
+
+    # Relevance is only reached when the evidence holds, so a claim is never
+    # rejected as off-topic when the real problem is that it is wrong.
+    if evidence_supported and answers is not True:
+        status = "unsupported"
+        rule = IRRELEVANT
+        reason = relevance_reason or "The finding does not address the question that was asked."
+
+    # The engine's own reading of the question, which the model cannot
+    # overrule. Asked for a total, a real model answered `true` to "does
+    # this answer the question?" for a claim about a column's null rate,
+    # in the same response whose reason said it did not report the total.
+    # A gate whose only input is the model's opinion is not a gate, so the
+    # model keeps its veto and loses its power to grant.
+    #
+    # It abstains where there is no mapping to judge against, and a
+    # profile question accepts profile findings as before.
+    intent = check_intent(finding.text, mapping)
+    if evidence_supported and intent.applicable and not intent.answers:
+        status = "unsupported"
+        rule = IRRELEVANT
+        reason = intent.reason
+        relevance_reason = intent.reason
+        answers = False
 
     verdict = Verdict(
         finding_id=finding.finding_id,
@@ -133,6 +203,9 @@ async def verify_finding(
         reason=reason,
         rule=rule,
         numeric_check=numeric.as_dict(),
+        evidence_supported=evidence_supported,
+        answers_question=answers,
+        relevance_reason=relevance_reason,
     )
     _emit(events, finding, verdict)
     return verdict, numeric.as_dict()
@@ -166,12 +239,72 @@ def publish(finding: CandidateFinding, verdict: Verdict) -> PublishedFinding:
         metric_ids=finding.metric_ids,
         verification_status=verdict.status,
         verifier_reason=verdict.reason,
+        verifier_rule=verdict.rule,
         numeric_check=verdict.numeric_check,
-        claimed_change=finding.claimed_change,
+        evidence_supported=verdict.evidence_supported,
+        answers_question=verdict.answers_question,
+        relevance_reason=verdict.relevance_reason,
+        # Dropped when the verifier could not read it. An unreadable change
+        # asserts nothing, so it does not fail the finding -- but it must
+        # not be displayed as a calculation either, because nothing checked
+        # it. The provenance drawer shows what was verified or nothing.
+        claimed_change=(
+            None
+            if (verdict.numeric_check or {}).get("claimed_change_discarded")
+            else finding.claimed_change
+        ),
     )
 
 
-def _critic_prompt(finding: CandidateFinding, cited: list[ResultSnapshot]) -> str:
+def _render_cells(finding: CandidateFinding, by_id: dict[str, ResultSnapshot]) -> str:
+    """Show the critic what is *in* each cited cell, not what was claimed.
+
+    `EvidenceCell.value` is optional and a proposer often leaves it unset.
+    This line used to render it directly, so every unset value reached the
+    critic as `= None` -- and the critic, reading exactly what it was shown,
+    rejected correct findings on the grounds that the cited cell was empty.
+    A real local model lost four true claims that way in one probe: the
+    engine held the right value the whole time and never looked it up.
+
+    Resolution goes through `agent_cell`, so a withheld upload cell is still
+    withheld here. A claimed value that disagrees with the result is shown
+    alongside rather than silently replaced, because a miscopied cell is
+    something the critic should see.
+    """
+    lines: list[str] = []
+    for cell in finding.evidence_cells:
+        reference = f"{cell.result_id}[{cell.row}].{cell.column}"
+        label = f" ({cell.label})" if cell.label else ""
+        snapshot = by_id.get(cell.result_id)
+        if snapshot is None:
+            lines.append(f"- {reference} = (this result was not cited or is unavailable)")
+            continue
+        try:
+            value = snapshot.agent_cell(cell.row, cell.column)
+        except (KeyError, IndexError):
+            lines.append(f"- {reference} = (no such cell in that result)")
+            continue
+        line = f"- {reference} = {value}{label}"
+        if cell.value is not None and not _same_scalar(cell.value, value):
+            line += f"  [the finding states {cell.value} for this cell]"
+        lines.append(line)
+    return "\n".join(lines)
+
+
+def _same_scalar(claimed: Any, actual: Any) -> bool:
+    if isinstance(claimed, bool) or isinstance(actual, bool):
+        return claimed is actual
+    if isinstance(claimed, int | float) and isinstance(actual, int | float):
+        return abs(float(claimed) - float(actual)) <= max(0.005, abs(float(actual)) * 1e-6)
+    return str(claimed).strip() == str(actual).strip()
+
+
+def _critic_prompt(
+    finding: CandidateFinding,
+    cited: list[ResultSnapshot],
+    question: str = "",
+    objective: str = "",
+) -> str:
     blocks: list[str] = []
     for snapshot in cited:
         lines = [
@@ -188,11 +321,14 @@ def _critic_prompt(finding: CandidateFinding, cited: list[ResultSnapshot]) -> st
             )
         blocks.append("\n".join(lines))
 
-    cells = "\n".join(
-        f"- {c.result_id}[{c.row}].{c.column} = {c.value} ({c.label})"
-        for c in finding.evidence_cells
-    )
+    cells = _render_cells(finding, {s.result_id: s for s in cited})
     return f"""\
+QUESTION
+{question or "(not recorded)"}
+
+TASK OBJECTIVE
+{objective or "(not recorded)"}
+
 PROPOSED FINDING
 text: {finding.text}
 kind: {finding.kind}
@@ -205,4 +341,5 @@ RESULTS
 {chr(10).join(blocks) or "(none)"}
 
 The arithmetic in this finding has already been checked and is correct.
-Judge only whether the wording fairly describes the result."""
+Judge two things: whether the wording fairly describes the result, and
+whether the finding answers the QUESTION above."""

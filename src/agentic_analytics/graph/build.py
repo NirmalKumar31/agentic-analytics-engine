@@ -20,14 +20,19 @@ from langgraph.graph import END, START, StateGraph
 from langgraph.types import Send
 
 from agentic_analytics.agents import analyst, critic, reporter, visualizer
+from agentic_analytics.agents.execution import (
+    ExecutionContract,
+    build_execution_contract,
+    select_tools,
+)
 from agentic_analytics.agents.schemas import (
     AnalysisPlan,
-    AnalysisReport,
     AnalysisTask,
     PublishedFinding,
     TaskOutcome,
     Verdict,
 )
+from agentic_analytics.agents.scope import dataset_vocabulary
 from agentic_analytics.agents.worker import run_task
 from agentic_analytics.analytics.corrections import apply_family_correction
 from agentic_analytics.analytics.results import ResultSnapshot, StatisticalResult
@@ -37,6 +42,10 @@ from agentic_analytics.graph.state import AnalysisState, WorkerInput
 from agentic_analytics.llm.base import BudgetError, LLMError, LLMProvider
 from agentic_analytics.logging import get_logger
 from agentic_analytics.mcp_layer.client import AnalyticsToolset
+from agentic_analytics.verification.claims import collapse_exact_duplicates
+from agentic_analytics.verification.limitations import rejection_limitations
+from agentic_analytics.verification.period import dataset_dimensions
+from agentic_analytics.warehouse.metrics import VALID_GRAINS
 from agentic_analytics.warehouse.session import AnalysisSession
 
 log = get_logger(__name__)
@@ -56,12 +65,17 @@ class RunContext:
         provider: LLMProvider,
         events: EventBus,
         budgets: Budgets,
+        telemetry: dict[str, Any] | None = None,
     ) -> None:
         self.session = session
         self.toolset = toolset
         self.provider = provider
         self.events = events
         self.budgets = budgets
+        #: Optional dict the real-model evaluation passes in to record where
+        #: the engine intervened. `None` in production, and every write is
+        #: guarded, so a normal run does none of this work.
+        self.telemetry = telemetry
         self.started_at = time.monotonic()
 
     @property
@@ -72,7 +86,113 @@ class RunContext:
         return self.elapsed > self.budgets.max_runtime_seconds
 
     def results(self) -> dict[str, ResultSnapshot]:
-        return {s.result_id: s for s in self.session.results.all()}
+        """The snapshots this run may read.
+
+        Scoped to the run's own toolset, not to the session. The session
+        store is shared by every run on the connection, so reading it whole
+        would let one half of a comparison cite the other half's numbers --
+        and would hand a cloud run the cells a local run was allowed to
+        compute. A dropped id is skipped: the store is bounded.
+        """
+        store = self.session.results
+        return {rid: store.get(rid) for rid in self.toolset.result_ids if store.has(rid)}
+
+
+def _canonical_for(mapping: Any, results: dict[str, Any], already: list[Any]) -> Any:
+    """The engine's direct answer, when there is one to give and it is not
+    already said.
+
+    Skipped when a published claim already reports the same figure, so the
+    report does not say the same number twice in two voices.
+    """
+    if mapping is None or not getattr(mapping, "confident", False):
+        return None
+    from agentic_analytics.verification.canonical import canonical_answer
+
+    for snapshot in reversed(list(results.values())):
+        if snapshot.tool_name != "aggregate_for_question":
+            continue
+        finding = canonical_answer(mapping, snapshot)
+        if finding is None:
+            continue
+        cited = {(c.result_id, c.row, c.column) for c in finding.evidence_cells}
+        for published in already:
+            if cited & {(c.result_id, c.row, c.column) for c in published.evidence_cells}:
+                return None
+        return finding
+    return None
+
+
+def _verify_without_a_model(finding: Any, results: dict[str, Any], mapping: Any) -> Verdict:
+    """Deterministic gates only, for a claim the engine wrote itself.
+
+    Every gate a model-proposed claim faces except the model: the cells
+    must resolve, the arithmetic must check, and it must answer the
+    resolved intent. Asking a model to approve the engine's own arithmetic
+    would reintroduce exactly the failure this exists to prevent.
+    """
+    from agentic_analytics.agents.critic import _resolve_cells
+    from agentic_analytics.verification.intent import check_intent
+    from agentic_analytics.verification.numeric import verify_numbers
+
+    cells = _resolve_cells(finding, results)
+    cited = [results[r] for r in finding.result_ids if r in results]
+    numeric = verify_numbers(finding.text, finding.claimed_change, cells, cited)
+    if not numeric.ok:
+        return Verdict(
+            finding_id=finding.finding_id,
+            status="unsupported",
+            reason=numeric.reason,
+            rule="numeric_mismatch",
+            numeric_check=numeric.as_dict(),
+        )
+    intent = check_intent(finding.text, mapping)
+    if intent.applicable and not intent.answers:
+        return Verdict(
+            finding_id=finding.finding_id,
+            status="unsupported",
+            reason=intent.reason,
+            rule="irrelevant_to_question",
+            numeric_check=numeric.as_dict(),
+        )
+    return Verdict(
+        finding_id=finding.finding_id,
+        status="supported",
+        reason=(
+            "Composed by the engine from the executed aggregate and its result "
+            "lineage, and checked against the cells it cites."
+        ),
+        rule="engine_canonical",
+        numeric_check=numeric.as_dict(),
+        evidence_supported=True,
+        answers_question=True,
+    )
+
+
+def _resolve_intent(ctx: Any, question: str) -> Any:
+    """The question mapped onto an uploaded table, or `None`.
+
+    Only for a single uploaded table: the governed warehouse answers
+    through its metric registry, where the brief already carries the
+    target metrics and this adds nothing. Any failure here returns `None`
+    and the intent check abstains -- a verification must not fall over
+    because a question could not be parsed.
+    """
+    if not question:
+        return None
+    try:
+        from agentic_analytics.analytics import upload_plan
+        from agentic_analytics.analytics.semantic import infer_schema
+
+        if ctx.session.registry is not None:
+            return None
+        tables = list(ctx.session.table_names)
+        if len(tables) != 1:
+            return None
+        schema = infer_schema(ctx.session, tables[0])
+        return upload_plan.resolve_question(question, schema.as_dict())
+    except Exception:  # pragma: no cover - never break verification
+        return None
 
 
 def build_graph(ctx: RunContext) -> Any:
@@ -136,6 +256,7 @@ def build_graph(ctx: RunContext) -> Any:
                 state.get("model_names", []),
                 max_tasks=ctx.budgets.max_analysis_tasks,
                 tables=state["dataset_catalog"].get("tables", []),
+                telemetry=ctx.telemetry,
             )
         except (LLMError, BudgetError) as exc:
             return _abort("no analysis plan could be produced", exc, ctx)
@@ -191,8 +312,35 @@ def build_graph(ctx: RunContext) -> Any:
             toolset=ctx.toolset,
             events=ctx.events,
             max_tool_calls=ctx.budgets.max_tool_calls_per_task,
+            tables=sorted(ctx.session.table_names),
+            has_metrics=ctx.session.has_metrics,
+            contract=_execution_contract(ctx, task),
+            out_of_time=ctx.out_of_time,
         )
         return {"task_outcomes": [outcome]}
+
+    def _execution_contract(ctx: RunContext, task: AnalysisTask) -> ExecutionContract:
+        """What this worker may name, from what the session already knows.
+
+        Assembled per task rather than per run so the tool schemas shown can
+        be narrowed to the ones this task could plausibly use. Everything in
+        it is read from the session catalog, the metric registry and the MCP
+        listing; none of it is written down a second time here.
+        """
+        catalog = ctx.session.catalog()
+        wanted = select_tools(
+            ctx.toolset.available_tools,
+            task,
+            has_metrics=ctx.session.has_metrics,
+        )
+        return build_execution_contract(
+            catalog=catalog,
+            registry=ctx.session.registry,
+            tool_contracts=[c for c in ctx.toolset.tool_contracts if c.name in wanted],
+            grains=sorted(VALID_GRAINS),
+            available_tools=list(ctx.toolset.available_tools),
+            task=task,
+        )
 
     # ----------------------------------------------------- aggregate_results
     async def aggregate_results(state: AnalysisState) -> dict[str, Any]:
@@ -231,15 +379,72 @@ def build_graph(ctx: RunContext) -> Any:
                 by_task.setdefault(snapshot.task_id, []).append(snapshot.statistical_result)
         for family in by_task.values():
             apply_family_correction(family)
-        published: list[PublishedFinding] = []
         rejected: list[Verdict] = []
         verdicts: list[Verdict] = []
+        supported: list[PublishedFinding] = []
+        # The objective is the sub-question a task was given, and a finding
+        # that answers it answers part of the question even when it does not
+        # restate the whole one.
+        plan = state.get("plan")
+        objectives = {task.task_id: task.objective for task in (plan.tasks if plan else [])}
+        # The brief is the question decomposed into metrics and dimensions,
+        # which is a sturdier statement of "what was asked" than the
+        # question's wording: "shipping delays" and `late_delivery_rate`
+        # share no word at all.
+        brief = state.get("analysis")
+        brief_metrics = list(brief.target_metrics) if brief else []
+        brief_dimensions = list(brief.dimensions) if brief else []
+        brief_time_scope = (brief.time_scope or "") if brief else ""
+        # Derived from this dataset, not from the demo warehouse's registry.
+        dataset_dims = sorted(
+            dataset_dimensions(
+                ctx.session.catalog(),
+                ctx.session.registry.describe_all() if ctx.session.registry else [],
+            )
+        )
+        # The engine's own reading of the question, resolved once for the
+        # run and handed to every verification. For an uploaded table this
+        # names the operation, measure, dimension and period the question
+        # asked for, and a claim that speaks to none of them does not
+        # answer it whatever the model says. `None` for the governed
+        # warehouse and for anything that cannot be mapped, where the
+        # intent check abstains.
+        question_mapping = _resolve_intent(ctx, state.get("question", ""))
 
         for outcome in state.get("task_outcomes", []):
             for finding in outcome.findings:
+                if ctx.out_of_time():
+                    # Verification costs a model call per claim, and that
+                    # tail is how a run overruns its budget after the tool
+                    # loop has already stopped. A claim that cannot be
+                    # checked is withheld -- never waved through, which is
+                    # the one outcome that would make the budget matter
+                    # more than the invariant.
+                    verdict = Verdict(
+                        finding_id=finding.finding_id,
+                        status="unsupported",
+                        reason=(
+                            "The run reached its time budget before this claim "
+                            "could be verified, so it was not published."
+                        ),
+                        rule="verification_budget_exhausted",
+                    )
+                    verdicts.append(verdict)
+                    rejected.append(verdict)
+                    continue
                 try:
                     verdict, _ = await critic.verify_finding(
-                        finding, results, ctx.provider, ctx.events
+                        finding,
+                        results,
+                        ctx.provider,
+                        ctx.events,
+                        question=state.get("question", ""),
+                        objective=objectives.get(finding.task_id or "", ""),
+                        target_metrics=brief_metrics,
+                        target_dimensions=brief_dimensions,
+                        time_scope=brief_time_scope,
+                        available_dimensions=dataset_dims,
+                        mapping=question_mapping,
                     )
                 except (LLMError, BudgetError) as exc:
                     verdict = Verdict(
@@ -251,16 +456,67 @@ def build_graph(ctx: RunContext) -> Any:
                 # Only `supported` is published. `partially_supported` is
                 # retained for the audit metrics but kept out of the report.
                 if verdict.status == "supported":
-                    published.append(critic.publish(finding, verdict))
+                    supported.append(critic.publish(finding, verdict))
                 else:
                     rejected.append(verdict)
 
-        limitations: list[str] = []
-        if rejected:
-            limitations.append(
-                f"{len(rejected)} proposed finding(s) were withheld because the "
-                "cited results did not support them."
+        # The engine's own answer to a question it mapped confidently.
+        #
+        # Added after the model's claims and verified without asking a
+        # model anything: the sentence is generated from the executed
+        # query and its lineage, so its numbers are its cells by
+        # construction. A real run proposed the correct total and the
+        # critic withheld it, unsure whether `total_net_value` named a
+        # column of the uploaded file or the engine's own alias. It was
+        # the alias, the doubt was fair, and the wording caused it. This
+        # says "the total net value is ..." instead, naming the visitor's
+        # column, and a model cannot discard it over a name the engine
+        # chose.
+        canonical = _canonical_for(question_mapping, results, supported)
+        if canonical is not None:
+            verdict = _verify_without_a_model(canonical, results, question_mapping)
+            verdicts.append(verdict)
+            if verdict.status == "supported":
+                supported.insert(0, critic.publish(canonical, verdict))
+            else:
+                rejected.append(verdict)
+
+        # Exact duplicates, collapsed after verification rather than before.
+        # A real run published "The product family 'Home' has the highest
+        # total net value of 40189.25." twice, from two tasks that had found
+        # it independently. Both were true and both passed every gate;
+        # printing the same sentence twice still inflates the finding count,
+        # the report length and the apparent breadth of the analysis.
+        #
+        # After the verdicts, because letting an unverified candidate decide
+        # which verified one survives would put the collapse upstream of the
+        # thing that makes publication safe.
+        published, duplicate_records = collapse_exact_duplicates(
+            supported,
+            text_of=lambda f: f.text,
+            id_of=lambda f: f.finding_id,
+            task_of=lambda f: f.task_id or "",
+            results_of=lambda f: list(f.result_ids),
+        )
+        duplicates = [d.as_dict() for d in duplicate_records]
+        for record in duplicate_records:
+            ctx.events.emit(
+                EventType.FINDING_REJECTED,
+                finding_id=record.finding_id,
+                reason="an identical finding was already published",
+                duplicate_of=record.duplicate_of,
             )
+
+        if duplicates and ctx.telemetry is not None:
+            ctx.telemetry["duplicate_published_findings_removed"] = len(duplicates)
+            ctx.telemetry["duplicate_published_findings"] = duplicates
+
+        # One sentence per reason, not one sentence for every rejection.
+        # A single blanket line told a reader the engine had found a data
+        # problem when it had found a relevance problem, or none at all.
+        limitations: list[str] = rejection_limitations(v.rule for v in rejected)
+        if duplicates:
+            limitations.extend(rejection_limitations(["duplicate_finding"] * len(duplicates)))
         return {
             "verdicts": verdicts,
             "published": published,
@@ -322,6 +578,14 @@ def build_graph(ctx: RunContext) -> Any:
         published = state.get("published", [])
         if not published:
             return {"charts": []}
+        if ctx.out_of_time():
+            # A chart is decoration. Spending a model call on one after the
+            # analytical deadline is the clearest case of presentation work
+            # competing with the budget, and nothing is lost by skipping it.
+            return {
+                "charts": [],
+                "limitations": ["Charts were skipped: the run reached its time budget."],
+            }
         try:
             charts = await visualizer.build_charts(
                 published,
@@ -343,6 +607,19 @@ def build_graph(ctx: RunContext) -> Any:
         limitations = list(dict.fromkeys(state.get("limitations", [])))
         if state.get("stopped_reason"):
             limitations.append(f"The run stopped early: {state['stopped_reason']}.")
+        if ctx.out_of_time():
+            # Organising is the only thing the model does here, so a run
+            # that is out of time still gets its report -- written by the
+            # engine from the findings that passed verification. Losing
+            # verified findings because the *presentation* step had no
+            # budget left would be the wrong trade in both directions: it
+            # discards real work and reports a failure that did not happen.
+            report = reporter.assemble_without_model(
+                state["question"],
+                state.get("published", []),
+                [*limitations, "The run reached its time budget before the report was organised."],
+            )
+            return {"report": report}
         try:
             report = await reporter.write_report(
                 state["question"],
@@ -350,12 +627,18 @@ def build_graph(ctx: RunContext) -> Any:
                 ctx.results(),
                 limitations,
                 ctx.provider,
+                dataset_vocabulary(
+                    ctx.session.catalog(),
+                    ctx.session.registry.describe_all() if ctx.session.registry else [],
+                ),
             )
-        except (LLMError, BudgetError) as exc:
-            report = AnalysisReport(
-                question=state["question"],
-                executive_summary="The report could not be written.",
-                limitations=[*limitations, str(exc)],
+        except LLMError as exc:
+            # Includes `BudgetError`. Same reasoning as above: fall back to
+            # the deterministic organisation rather than to a stub.
+            report = reporter.assemble_without_model(
+                state["question"],
+                state.get("published", []),
+                [*limitations, str(exc)],
             )
         return {"report": report}
 

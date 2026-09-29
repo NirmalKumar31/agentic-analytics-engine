@@ -1,0 +1,234 @@
+{
+  "claims": [
+    {
+      "claimed_change": {},
+      "evidence_cells": [
+        {
+          "column": "total_net_value",
+          "label": null,
+          "result_id": "res_ddf7b2cdc8d1",
+          "row": 0,
+          "value": 176851.26
+        }
+      ],
+      "finding_id": "f1",
+      "kind": "calculated_fact",
+      "metric_ids": [],
+      "published": true,
+      "reason": "The cited result sums the net_value field across all 4,000 rows and reports 176851.26, matching the finding.",
+      "resolved_cells": [
+        {
+          "actual_value": 176851.26,
+          "column": "total_net_value",
+          "resolved": true,
+          "result_id": "res_ddf7b2cdc8d1",
+          "row": 0,
+          "stated_value": 176851.26
+        }
+      ],
+      "result_ids": [
+        "res_ddf7b2cdc8d1"
+      ],
+      "rule": "critic",
+      "status": "supported",
+      "task_id": "total_net_value",
+      "text": "The total net value across all rows is 176851.26."
+    },
+    {
+      "claimed_change": {},
+      "evidence_cells": [
+        {
+          "column": "total_net_value",
+          "label": null,
+          "result_id": "res_ddf7b2cdc8d1",
+          "row": 0,
+          "value": 176851.26
+        }
+      ],
+      "finding_id": "f1",
+      "kind": "calculated_fact",
+      "metric_ids": [],
+      "published": false,
+      "reason": "The question asks for the total of net value, while the claim describes the column rather than reporting that figure.",
+      "resolved_cells": [
+        {
+          "actual_value": 176851.26,
+          "column": "total_net_value",
+          "resolved": true,
+          "result_id": "res_ddf7b2cdc8d1",
+          "row": 0,
+          "stated_value": 176851.26
+        }
+      ],
+      "result_ids": [
+        "res_ddf7b2cdc8d1"
+      ],
+      "rule": "irrelevant_to_question",
+      "status": "unsupported",
+      "task_id": "total_net_value",
+      "text": "The total net value across all rows is 176851.26."
+    },
+    {
+      "claimed_change": {},
+      "evidence_cells": [
+        {
+          "column": "row_count",
+          "label": null,
+          "result_id": "res_ddf7b2cdc8d1",
+          "row": 0,
+          "value": 4000
+        }
+      ],
+      "finding_id": "f2",
+      "kind": "calculated_fact",
+      "metric_ids": [],
+      "published": false,
+      "reason": "The question asks for the total of net value, while the claim describes the column rather than reporting that figure.",
+      "resolved_cells": [
+        {
+          "actual_value": 4000,
+          "column": "row_count",
+          "resolved": true,
+          "result_id": "res_ddf7b2cdc8d1",
+          "row": 0,
+          "stated_value": 4000
+        }
+      ],
+      "result_ids": [
+        "res_ddf7b2cdc8d1"
+      ],
+      "rule": "irrelevant_to_question",
+      "status": "unsupported",
+      "task_id": "total_net_value",
+      "text": "The result covers 4000 rows."
+    },
+    {
+      "claimed_change": {},
+      "evidence_cells": [
+        {
+          "column": "distinct_count",
+          "label": null,
+          "result_id": "res_7a3f1f3ea609",
+          "row": 5,
+          "value": 2961
+        },
+        {
+          "column": "mean_value",
+          "label": null,
+          "result_id": "res_7a3f1f3ea609",
+          "row": 5,
+          "value": 44.2128
+        }
+      ],
+      "finding_id": "f3",
+      "kind": "calculated_fact",
+      "metric_ids": [],
+      "published": false,
+      "reason": "The question asks for the total of net value, while the claim describes the column rather than reporting that figure.",
+      "resolved_cells": [
+        {
+          "actual_value": 2961,
+          "column": "distinct_count",
+          "resolved": true,
+          "result_id": "res_7a3f1f3ea609",
+          "row": 5,
+          "stated_value": 2961
+        },
+        {
+          "actual_value": 44.2128,
+          "column": "mean_value",
+          "resolved": true,
+          "result_id": "res_7a3f1f3ea609",
+          "row": 5,
+          "stated_value": 44.2128
+        }
+      ],
+      "result_ids": [
+        "res_7a3f1f3ea609"
+      ],
+      "rule": "irrelevant_to_question",
+      "status": "unsupported",
+      "task_id": "profile_net_value_fields",
+      "text": "The `net_value` column has 2961 distinct values and a mean of 44.2128."
+    },
+    {
+      "claimed_change": {},
+      "evidence_cells": [
+        {
+          "column": "row_count",
+          "label": null,
+          "result_id": "res_ddf7b2cdc8d1",
+          "row": 0,
+          "value": 4000
+        }
+      ],
+      "finding_id": "f2",
+      "kind": "calculated_fact",
+      "metric_ids": [],
+      "published": false,
+      "reason": "The question asks for the total net value. The finding reports only the number of rows, not the total of the net_value field.",
+      "resolved_cells": [
+        {
+          "actual_value": 4000,
+          "column": "row_count",
+          "resolved": true,
+          "result_id": "res_ddf7b2cdc8d1",
+          "row": 0,
+          "stated_value": 4000
+        }
+      ],
+      "result_ids": [
+        "res_ddf7b2cdc8d1"
+      ],
+      "rule": "irrelevant_to_question",
+      "status": "unsupported",
+      "task_id": "total_net_value",
+      "text": "The result covers 4000 rows."
+    }
+  ],
+  "correct_answer": {
+    "rows": 4000,
+    "total_net_value": 176851.26
+  },
+  "environment_subset": {
+    "reasoning_effort": "low",
+    "sampling_fields_sent": "none",
+    "service_tier": "default",
+    "store": false,
+    "temperature": null
+  },
+  "expectation": "sum of net_value",
+  "fixture_kind": "passing product-quality acceptance",
+  "model": "gpt-6-luna",
+  "note": "The second real-model smoke, on SHA 279675a, after the four defects the first smoke exposed were fixed. The direct total is published, the off-topic claims are withheld as irrelevant rather than unsupported, no numeric mismatch occurs, and the run consumed exactly one session and one client slot. Preserved beside the failure it succeeds, so both are readable as evidence.",
+  "question": "What is the total net value?",
+  "recorded_outcome": {
+    "client_slots_consumed": 1,
+    "correct_answer_published": true,
+    "false_numeric_rejection": 0,
+    "irrelevant_published": 0,
+    "session_slots_consumed": 1,
+    "unsupported_published": 0
+  },
+  "source_sha": "279675a074ea88c2d92f6ce004ac63ccfeb76e5f",
+  "usage": {
+    "cache_write_input_tokens": 6018,
+    "cached_input_tokens": 0,
+    "completion_attempts": 15,
+    "cost_is_complete": true,
+    "input_tokens": 14560,
+    "ordinary_input_tokens": 8542,
+    "output_tokens": 3084,
+    "provider_requests": 0,
+    "reasoning_tokens": 1223,
+    "reservations": 15,
+    "retained_microdollars": 0,
+    "settled_microdollars": 3156,
+    "settlements": 15,
+    "unusable_usage_calls": 0,
+    "usage_categories_are_coherent": true
+  },
+  "withheld_rules": {
+    "irrelevant_to_question": 4
+  }
+}

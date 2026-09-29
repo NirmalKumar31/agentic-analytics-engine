@@ -23,3 +23,6 @@ web/test-results/
 web/playwright-report/
 web/blob-report/
 web/.playwright/
+
+# Local Claude Code settings. Machine-specific and not part of the project.
+.claude/

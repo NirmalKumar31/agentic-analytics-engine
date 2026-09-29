@@ -1,0 +1,784 @@
+{
+  "categories": {
+    "A": "evidence, arithmetic, units, comparison scope and wording all supported",
+    "B": "numerically supported, but the wording or citation carries a semantic limitation the deterministic gates do not enforce",
+    "C": "unsupported: a number, entity or direction the cited results do not carry"
+  },
+  "totals": {
+    "A": 24,
+    "B": 7,
+    "C": 0
+  },
+  "reviewed_by": "manual review of every published finding against its resolved cells",
+  "findings": [
+    {
+      "dataset": "sales",
+      "kind": "aggregate",
+      "question": "What is the total net value?",
+      "finding_id": "fin_a73156fb",
+      "text": "The table has 6 columns.",
+      "result_ids": [
+        "res_cb3385a81429"
+      ],
+      "resolved_cells": [
+        {
+          "ref": "res_cb3385a81429[0].column_name",
+          "actual_value": "sales_order_ref",
+          "resolved": true
+        }
+      ],
+      "verification_rule": "critic",
+      "all_cells_resolved": true,
+      "manual_category": "B",
+      "manual_note": "The count 6 is present in the cited result but not in the cited cell, which holds a column name. Numeric verification checks against the result, so the citation is coarser than the claim."
+    },
+    {
+      "dataset": "sales",
+      "kind": "aggregate",
+      "question": "What is the total net value?",
+      "finding_id": "fin_0b220872",
+      "text": "The `sales_order_ref` column contains 4000 non-null values.",
+      "result_ids": [
+        "res_cb3385a81429"
+      ],
+      "resolved_cells": [
+        {
+          "ref": "res_cb3385a81429[0].non_null",
+          "actual_value": 4000,
+          "resolved": true
+        }
+      ],
+      "verification_rule": "critic",
+      "all_cells_resolved": true,
+      "manual_category": "A",
+      "manual_note": ""
+    },
+    {
+      "dataset": "sales",
+      "kind": "aggregate",
+      "question": "What is the total net value?",
+      "finding_id": "fin_0b9acdd8",
+      "text": "The `booked_on` column contains dates ranging from '2025-01-01' to '2025-12-27'.",
+      "result_ids": [
+        "res_cb3385a81429"
+      ],
+      "resolved_cells": [
+        {
+          "ref": "res_cb3385a81429[1].min_value",
+          "actual_value": "2025-01-01",
+          "resolved": true
+        },
+        {
+          "ref": "res_cb3385a81429[1].max_value",
+          "actual_value": "2025-12-27",
+          "resolved": true
+        }
+      ],
+      "verification_rule": "critic",
+      "all_cells_resolved": true,
+      "manual_category": "A",
+      "manual_note": ""
+    },
+    {
+      "dataset": "sales",
+      "kind": "aggregate",
+      "question": "What is the total net value?",
+      "finding_id": "fin_9ae74f12",
+      "text": "The `territory` column has 4 distinct values.",
+      "result_ids": [
+        "res_cb3385a81429"
+      ],
+      "resolved_cells": [
+        {
+          "ref": "res_cb3385a81429[2].distinct_count",
+          "actual_value": 4,
+          "resolved": true
+        }
+      ],
+      "verification_rule": "critic",
+      "all_cells_resolved": true,
+      "manual_category": "A",
+      "manual_note": ""
+    },
+    {
+      "dataset": "sales",
+      "kind": "aggregate",
+      "question": "What is the total net value?",
+      "finding_id": "fin_0bac4b4f",
+      "text": "The `product_family` column has 5 distinct values.",
+      "result_ids": [
+        "res_cb3385a81429"
+      ],
+      "resolved_cells": [
+        {
+          "ref": "res_cb3385a81429[3].distinct_count",
+          "actual_value": 5,
+          "resolved": true
+        }
+      ],
+      "verification_rule": "critic",
+      "all_cells_resolved": true,
+      "manual_category": "A",
+      "manual_note": ""
+    },
+    {
+      "dataset": "sales",
+      "kind": "aggregate",
+      "question": "What is the total net value?",
+      "finding_id": "fin_dea12c99",
+      "text": "The correlation between 'units_sold' and 'net_value' is -0.034864.",
+      "result_ids": [
+        "res_5d00e3b81cc9",
+        "res_b89b78affb92",
+        "res_93878a6e76c3"
+      ],
+      "resolved_cells": [
+        {
+          "ref": "res_5d00e3b81cc9[0].units_sold",
+          "actual_value": 1.0,
+          "resolved": true
+        },
+        {
+          "ref": "res_b89b78affb92[0].units_sold",
+          "actual_value": 1.0,
+          "resolved": true
+        },
+        {
+          "ref": "res_93878a6e76c3[0].units_sold",
+          "actual_value": 1.0,
+          "resolved": true
+        }
+      ],
+      "verification_rule": "critic",
+      "all_cells_resolved": true,
+      "manual_category": "B",
+      "manual_note": "-0.034864 is in the cited correlation matrix but not in the three cited cells, which all hold the 1.0 self-correlation."
+    },
+    {
+      "dataset": "sales",
+      "kind": "aggregate",
+      "question": "What is the total net value?",
+      "finding_id": "fin_cdf4f11b",
+      "text": "The total net value for North territory ranges from 43985.05 to 43985.05.",
+      "result_ids": [
+        "res_eea163dc4b53",
+        "res_8a11c0f00c2e",
+        "res_8925c2344e94",
+        "res_fa9375b011d6",
+        "res_368276eeddfa"
+      ],
+      "resolved_cells": [
+        {
+          "ref": "res_eea163dc4b53[0].total_net_value",
+          "actual_value": 43985.04999999993,
+          "resolved": true
+        },
+        {
+          "ref": "res_8a11c0f00c2e[0].total_net_value",
+          "actual_value": 215380.7600000001,
+          "resolved": true
+        },
+        {
+          "ref": "res_8925c2344e94[0].total_net_value",
+          "actual_value": 43985.04999999993,
+          "resolved": true
+        },
+        {
+          "ref": "res_fa9375b011d6[0].total_net_value",
+          "actual_value": 43985.04999999993,
+          "resolved": true
+        },
+        {
+          "ref": "res_368276eeddfa[0].total_net_value",
+          "actual_value": 43985.04999999993,
+          "resolved": true
+        }
+      ],
+      "verification_rule": "critic",
+      "all_cells_resolved": true,
+      "manual_category": "B",
+      "manual_note": "Worded as a range whose endpoints are the same number. The value matches the cited cell; the range framing adds nothing and reads as a comparison that was not made."
+    },
+    {
+      "dataset": "sales",
+      "kind": "aggregate",
+      "question": "What is the total net value?",
+      "finding_id": "fin_ca661b15",
+      "text": "The total net value for South territory ranges from 44287.83 to 44287.83.",
+      "result_ids": [
+        "res_eea163dc4b53",
+        "res_8a11c0f00c2e",
+        "res_8925c2344e94",
+        "res_fa9375b011d6",
+        "res_368276eeddfa"
+      ],
+      "resolved_cells": [
+        {
+          "ref": "res_eea163dc4b53[1].total_net_value",
+          "actual_value": 44287.82999999998,
+          "resolved": true
+        },
+        {
+          "ref": "res_8a11c0f00c2e[1].total_net_value",
+          "actual_value": 223493.7400000001,
+          "resolved": true
+        },
+        {
+          "ref": "res_8925c2344e94[1].total_net_value",
+          "actual_value": 44287.82999999998,
+          "resolved": true
+        },
+        {
+          "ref": "res_fa9375b011d6[1].total_net_value",
+          "actual_value": 44287.82999999998,
+          "resolved": true
+        },
+        {
+          "ref": "res_368276eeddfa[1].total_net_value",
+          "actual_value": 44287.82999999998,
+          "resolved": true
+        }
+      ],
+      "verification_rule": "critic",
+      "all_cells_resolved": true,
+      "manual_category": "B",
+      "manual_note": "Worded as a range whose endpoints are the same number. The value matches the cited cell; the range framing adds nothing and reads as a comparison that was not made."
+    },
+    {
+      "dataset": "sales",
+      "kind": "aggregate",
+      "question": "What is the total net value?",
+      "finding_id": "fin_22b363a8",
+      "text": "The total net value for East territory ranges from 44023.73 to 44023.73.",
+      "result_ids": [
+        "res_eea163dc4b53",
+        "res_8a11c0f00c2e",
+        "res_8925c2344e94",
+        "res_fa9375b011d6",
+        "res_368276eeddfa"
+      ],
+      "resolved_cells": [
+        {
+          "ref": "res_eea163dc4b53[2].total_net_value",
+          "actual_value": 44023.729999999974,
+          "resolved": true
+        },
+        {
+          "ref": "res_8a11c0f00c2e[2].total_net_value",
+          "actual_value": 214504.98999999985,
+          "resolved": true
+        },
+        {
+          "ref": "res_8925c2344e94[2].total_net_value",
+          "actual_value": 44023.729999999974,
+          "resolved": true
+        },
+        {
+          "ref": "res_fa9375b011d6[2].total_net_value",
+          "actual_value": 44023.729999999974,
+          "resolved": true
+        },
+        {
+          "ref": "res_368276eeddfa[2].total_net_value",
+          "actual_value": 44023.729999999974,
+          "resolved": true
+        }
+      ],
+      "verification_rule": "critic",
+      "all_cells_resolved": true,
+      "manual_category": "B",
+      "manual_note": "Worded as a range whose endpoints are the same number. The value matches the cited cell; the range framing adds nothing and reads as a comparison that was not made."
+    },
+    {
+      "dataset": "sales",
+      "kind": "ranking",
+      "question": "Which product family has the highest net value?",
+      "finding_id": "fin_1d1b61dc",
+      "text": "The product family 'Home' has the highest total net value of 40189.25.",
+      "result_ids": [
+        "res_480d39564900",
+        "res_985d17ce63b3",
+        "res_84486d12f53d"
+      ],
+      "resolved_cells": [
+        {
+          "ref": "res_480d39564900[0].total_net_value",
+          "actual_value": 40189.25,
+          "resolved": true
+        },
+        {
+          "ref": "res_985d17ce63b3[0].total_net_value",
+          "actual_value": 40189.25,
+          "resolved": true
+        },
+        {
+          "ref": "res_84486d12f53d[0].total_net_value",
+          "actual_value": 40189.25,
+          "resolved": true
+        }
+      ],
+      "verification_rule": "critic",
+      "all_cells_resolved": true,
+      "manual_category": "A",
+      "manual_note": ""
+    },
+    {
+      "dataset": "sales",
+      "kind": "ranking",
+      "question": "Which product family has the highest net value?",
+      "finding_id": "fin_93e24681",
+      "text": "The total net value for Home products is 40189.25.",
+      "result_ids": [
+        "res_4a378796b842"
+      ],
+      "resolved_cells": [
+        {
+          "ref": "res_4a378796b842[0].total_net_value",
+          "actual_value": 40189.25,
+          "resolved": true
+        }
+      ],
+      "verification_rule": "critic",
+      "all_cells_resolved": true,
+      "manual_category": "A",
+      "manual_note": ""
+    },
+    {
+      "dataset": "sales",
+      "kind": "ranking",
+      "question": "Which product family has the highest net value?",
+      "finding_id": "fin_e810bc3c",
+      "text": "The total net value for Garden products is 40068.22.",
+      "result_ids": [
+        "res_4a378796b842"
+      ],
+      "resolved_cells": [
+        {
+          "ref": "res_4a378796b842[1].total_net_value",
+          "actual_value": 40068.22,
+          "resolved": true
+        }
+      ],
+      "verification_rule": "critic",
+      "all_cells_resolved": true,
+      "manual_category": "A",
+      "manual_note": ""
+    },
+    {
+      "dataset": "sales",
+      "kind": "ranking",
+      "question": "Which product family has the highest net value?",
+      "finding_id": "fin_c18499c7",
+      "text": "The total net value for Books products is 40038.11.",
+      "result_ids": [
+        "res_4a378796b842"
+      ],
+      "resolved_cells": [
+        {
+          "ref": "res_4a378796b842[2].total_net_value",
+          "actual_value": 40038.11,
+          "resolved": true
+        }
+      ],
+      "verification_rule": "critic",
+      "all_cells_resolved": true,
+      "manual_category": "A",
+      "manual_note": ""
+    },
+    {
+      "dataset": "sales",
+      "kind": "ranking",
+      "question": "Which product family has the highest net value?",
+      "finding_id": "fin_ac402685",
+      "text": "The total net value for Toys products is 39573.99.",
+      "result_ids": [
+        "res_4a378796b842"
+      ],
+      "resolved_cells": [
+        {
+          "ref": "res_4a378796b842[3].total_net_value",
+          "actual_value": 39573.99,
+          "resolved": true
+        }
+      ],
+      "verification_rule": "critic",
+      "all_cells_resolved": true,
+      "manual_category": "A",
+      "manual_note": ""
+    },
+    {
+      "dataset": "sales",
+      "kind": "ranking",
+      "question": "Which product family has the highest net value?",
+      "finding_id": "fin_16a4402c",
+      "text": "The total net value for Electronics products is 16981.69.",
+      "result_ids": [
+        "res_4a378796b842"
+      ],
+      "resolved_cells": [
+        {
+          "ref": "res_4a378796b842[4].total_net_value",
+          "actual_value": 16981.69,
+          "resolved": true
+        }
+      ],
+      "verification_rule": "critic",
+      "all_cells_resolved": true,
+      "manual_category": "A",
+      "manual_note": ""
+    },
+    {
+      "dataset": "sales",
+      "kind": "ranking",
+      "question": "Which product family has the highest net value?",
+      "finding_id": "fin_910a3e4b",
+      "text": "The dataset contains columns related to product families including 'product_family'.",
+      "result_ids": [
+        "res_6995652e1022"
+      ],
+      "resolved_cells": [
+        {
+          "ref": "res_6995652e1022[3].column_name",
+          "actual_value": "product_family",
+          "resolved": true
+        },
+        {
+          "ref": "res_9d93c3d76c25[0].product_family",
+          "actual_value": "Books",
+          "resolved": true
+        }
+      ],
+      "verification_rule": "critic",
+      "all_cells_resolved": true,
+      "manual_category": "A",
+      "manual_note": ""
+    },
+    {
+      "dataset": "sales",
+      "kind": "ranking",
+      "question": "Which product family has the highest net value?",
+      "finding_id": "fin_097e0ed3",
+      "text": "There are five distinct product families: Books, Toys, Home, Electronics, and Garden.",
+      "result_ids": [
+        "res_9d93c3d76c25",
+        "res_e1143317741e"
+      ],
+      "resolved_cells": [
+        {
+          "ref": "res_9d93c3d76c25[0].product_family",
+          "actual_value": "Books",
+          "resolved": true
+        },
+        {
+          "ref": "res_e1143317741e[0].product_family",
+          "actual_value": "Books",
+          "resolved": true
+        }
+      ],
+      "verification_rule": "critic",
+      "all_cells_resolved": true,
+      "manual_category": "A",
+      "manual_note": ""
+    },
+    {
+      "dataset": "sales",
+      "kind": "ranking",
+      "question": "Which product family has the highest net value?",
+      "finding_id": "fin_8feb8d23",
+      "text": "Each product family has the same number of records: 800.",
+      "result_ids": [
+        "res_e1143317741e"
+      ],
+      "resolved_cells": [
+        {
+          "ref": "res_e1143317741e[0].count",
+          "actual_value": 800,
+          "resolved": true
+        }
+      ],
+      "verification_rule": "critic",
+      "all_cells_resolved": true,
+      "manual_category": "B",
+      "manual_note": "A universal claim ('each') resting on one cited cell. The other four rows do equal 800 in the cited result, but the citation does not establish it."
+    },
+    {
+      "dataset": "sales",
+      "kind": "ranking",
+      "question": "Which product family has the highest net value?",
+      "finding_id": "fin_3523cab3",
+      "text": "The total units sold for each product family are as follows: Books (4034), Toys (3952), Home (3862), Electronics (4052), and Garden (3964).",
+      "result_ids": [
+        "res_d542b46b9183",
+        "res_957f039aecf7"
+      ],
+      "resolved_cells": [
+        {
+          "ref": "res_d542b46b9183[0].total_units_sold",
+          "actual_value": 4034,
+          "resolved": true
+        },
+        {
+          "ref": "res_957f039aecf7[0].total_units_sold",
+          "actual_value": 3964,
+          "resolved": true
+        }
+      ],
+      "verification_rule": "critic",
+      "all_cells_resolved": true,
+      "manual_category": "B",
+      "manual_note": "Five values claimed, two cells cited. All five appear in the cited result, so arithmetic passes, but the per-family mapping is not established by the citation."
+    },
+    {
+      "dataset": "marketing",
+      "kind": "trend",
+      "question": "How did spend usd trend over time?",
+      "finding_id": "fin_91d7e242",
+      "text": "The total spend usd in 2025-01 was 107,373.07.",
+      "result_ids": [
+        "res_85546f16914f"
+      ],
+      "resolved_cells": [
+        {
+          "ref": "res_85546f16914f[0].total_spend_usd",
+          "actual_value": 107373.07,
+          "resolved": true
+        }
+      ],
+      "verification_rule": "critic",
+      "all_cells_resolved": true,
+      "manual_category": "A",
+      "manual_note": ""
+    },
+    {
+      "dataset": "marketing",
+      "kind": "trend",
+      "question": "How did spend usd trend over time?",
+      "finding_id": "fin_7ff3b02d",
+      "text": "The total spend usd in 2025-02 was 104,825.71.",
+      "result_ids": [
+        "res_85546f16914f"
+      ],
+      "resolved_cells": [
+        {
+          "ref": "res_85546f16914f[1].total_spend_usd",
+          "actual_value": 104825.71,
+          "resolved": true
+        }
+      ],
+      "verification_rule": "critic",
+      "all_cells_resolved": true,
+      "manual_category": "A",
+      "manual_note": ""
+    },
+    {
+      "dataset": "marketing",
+      "kind": "trend",
+      "question": "How did spend usd trend over time?",
+      "finding_id": "fin_7222c19e",
+      "text": "The total spend usd in 2025-03 was 110,257.24.",
+      "result_ids": [
+        "res_85546f16914f"
+      ],
+      "resolved_cells": [
+        {
+          "ref": "res_85546f16914f[2].total_spend_usd",
+          "actual_value": 110257.24,
+          "resolved": true
+        }
+      ],
+      "verification_rule": "critic",
+      "all_cells_resolved": true,
+      "manual_category": "A",
+      "manual_note": ""
+    },
+    {
+      "dataset": "marketing",
+      "kind": "trend",
+      "question": "How did spend usd trend over time?",
+      "finding_id": "fin_6acadd1c",
+      "text": "The total spend usd in 2025-04 was 104,733.68.",
+      "result_ids": [
+        "res_85546f16914f"
+      ],
+      "resolved_cells": [
+        {
+          "ref": "res_85546f16914f[3].total_spend_usd",
+          "actual_value": 104733.68,
+          "resolved": true
+        }
+      ],
+      "verification_rule": "critic",
+      "all_cells_resolved": true,
+      "manual_category": "A",
+      "manual_note": ""
+    },
+    {
+      "dataset": "marketing",
+      "kind": "trend",
+      "question": "How did spend usd trend over time?",
+      "finding_id": "fin_de4b861e",
+      "text": "The total spend usd in 2025-05 was 104,499.55.",
+      "result_ids": [
+        "res_85546f16914f"
+      ],
+      "resolved_cells": [
+        {
+          "ref": "res_85546f16914f[4].total_spend_usd",
+          "actual_value": 104499.55,
+          "resolved": true
+        }
+      ],
+      "verification_rule": "critic",
+      "all_cells_resolved": true,
+      "manual_category": "A",
+      "manual_note": ""
+    },
+    {
+      "dataset": "marketing",
+      "kind": "trend",
+      "question": "How did spend usd trend over time?",
+      "finding_id": "fin_e190210b",
+      "text": "The total spend usd in 2025-06 was 106,515.57.",
+      "result_ids": [
+        "res_85546f16914f"
+      ],
+      "resolved_cells": [
+        {
+          "ref": "res_85546f16914f[5].total_spend_usd",
+          "actual_value": 106515.57,
+          "resolved": true
+        }
+      ],
+      "verification_rule": "critic",
+      "all_cells_resolved": true,
+      "manual_category": "A",
+      "manual_note": ""
+    },
+    {
+      "dataset": "marketing",
+      "kind": "trend",
+      "question": "How did spend usd trend over time?",
+      "finding_id": "fin_3e15d090",
+      "text": "The total spend usd in 2025-07 was 99,566.98.",
+      "result_ids": [
+        "res_85546f16914f"
+      ],
+      "resolved_cells": [
+        {
+          "ref": "res_85546f16914f[6].total_spend_usd",
+          "actual_value": 99566.98,
+          "resolved": true
+        }
+      ],
+      "verification_rule": "critic",
+      "all_cells_resolved": true,
+      "manual_category": "A",
+      "manual_note": ""
+    },
+    {
+      "dataset": "marketing",
+      "kind": "trend",
+      "question": "How did spend usd trend over time?",
+      "finding_id": "fin_44b5853f",
+      "text": "The total spend usd in 2025-08 was 105,435.11.",
+      "result_ids": [
+        "res_85546f16914f"
+      ],
+      "resolved_cells": [
+        {
+          "ref": "res_85546f16914f[7].total_spend_usd",
+          "actual_value": 105435.11,
+          "resolved": true
+        }
+      ],
+      "verification_rule": "critic",
+      "all_cells_resolved": true,
+      "manual_category": "A",
+      "manual_note": ""
+    },
+    {
+      "dataset": "marketing",
+      "kind": "trend",
+      "question": "How did spend usd trend over time?",
+      "finding_id": "fin_cb472c14",
+      "text": "The total spend usd in 2025-09 was 106,513.84.",
+      "result_ids": [
+        "res_85546f16914f"
+      ],
+      "resolved_cells": [
+        {
+          "ref": "res_85546f16914f[8].total_spend_usd",
+          "actual_value": 106513.84,
+          "resolved": true
+        }
+      ],
+      "verification_rule": "critic",
+      "all_cells_resolved": true,
+      "manual_category": "A",
+      "manual_note": ""
+    },
+    {
+      "dataset": "marketing",
+      "kind": "trend",
+      "question": "How did spend usd trend over time?",
+      "finding_id": "fin_d5d264ec",
+      "text": "The total spend usd in 2025-10 was 102,383.36.",
+      "result_ids": [
+        "res_85546f16914f"
+      ],
+      "resolved_cells": [
+        {
+          "ref": "res_85546f16914f[9].total_spend_usd",
+          "actual_value": 102383.36,
+          "resolved": true
+        }
+      ],
+      "verification_rule": "critic",
+      "all_cells_resolved": true,
+      "manual_category": "A",
+      "manual_note": ""
+    },
+    {
+      "dataset": "marketing",
+      "kind": "trend",
+      "question": "How did spend usd trend over time?",
+      "finding_id": "fin_01fd3777",
+      "text": "The total spend usd in 2025-11 was 105,615.41.",
+      "result_ids": [
+        "res_85546f16914f"
+      ],
+      "resolved_cells": [
+        {
+          "ref": "res_85546f16914f[10].total_spend_usd",
+          "actual_value": 105615.41,
+          "resolved": true
+        }
+      ],
+      "verification_rule": "critic",
+      "all_cells_resolved": true,
+      "manual_category": "A",
+      "manual_note": ""
+    },
+    {
+      "dataset": "marketing",
+      "kind": "trend",
+      "question": "How did spend usd trend over time?",
+      "finding_id": "fin_9a25046a",
+      "text": "The total spend usd in 2025-12 was 106,527.18.",
+      "result_ids": [
+        "res_85546f16914f"
+      ],
+      "resolved_cells": [
+        {
+          "ref": "res_85546f16914f[11].total_spend_usd",
+          "actual_value": 106527.18,
+          "resolved": true
+        }
+      ],
+      "verification_rule": "critic",
+      "all_cells_resolved": true,
+      "manual_category": "A",
+      "manual_note": ""
+    }
+  ]
+}

@@ -22,6 +22,7 @@ import re
 from typing import Any
 
 from agentic_analytics.llm.base import LLMProvider, LLMRequest
+from agentic_analytics.verification.period import check_period, resolve_span
 
 # Question keyword -> metrics the analyst should target.
 _METRIC_HINTS: list[tuple[str, tuple[str, ...]]] = [
@@ -46,7 +47,40 @@ _DIMENSION_HINTS: list[tuple[str, str]] = [
 ]
 
 _QUARTER = re.compile(r"\bq([1-4])\b", re.IGNORECASE)
-_YEAR = re.compile(r"\b(20\d{2})\b")
+#: A question asking for one number rather than a decomposition.
+_ASKS_FOR_TOTAL = re.compile(
+    r"\b(total|overall|how much|how many|sum of|aggregate|combined)\b", re.IGNORECASE
+)
+#: A question asking for a decomposition. "Total amount by region" contains
+#: both, and is a breakdown request: the word "total" describes how each
+#: group is measured, not that only one number is wanted. Checked so that
+#: the aggregate rule cannot reject the very breakdown that was asked for.
+_ASKS_FOR_BREAKDOWN = re.compile(
+    r"\b(by|per|across|for each|split|grouped|breakdown|segment|dimension)\b", re.IGNORECASE
+)
+#: A question asking how something moved, rather than what it is.
+_ASKS_FOR_CHANGE = re.compile(
+    r"\b(change|changed|change\?|growth|grew|increase|increased|decrease|decreased|"
+    r"rose|fell|drop|trend|vs|versus|compared|difference|delta|why)\b",
+    re.IGNORECASE,
+)
+#: The engine's own profile sentence: how many columns a table has and how
+#: many distinct values one of them holds. Matched on the engine's wording
+#: because the engine wrote it.
+_IS_TABLE_SHAPE = re.compile(r"\bhas \d[\d,]* columns\b|\bdistinct values across\b", re.IGNORECASE)
+#: A question that actually wants the shape of the table.
+_ASKS_FOR_DESCRIPTION = re.compile(
+    r"\b(describe|description|profile|schema|structure|overview|columns?|fields?|"
+    r"what is in|what does .* contain|summar)",
+    re.IGNORECASE,
+)
+#: A claim describing movement between two periods rather than a level.
+_REPORTS_A_CHANGE = re.compile(
+    r"\b(rose from|fell from|increased from|decreased from|a change of|changed by|"
+    r"contributed|contribution of)\b",
+    re.IGNORECASE,
+)
+_YEAR = re.compile(r"\b((?:19|20)\d{2})\b")
 
 
 def _matches(pattern: str, text: str) -> bool:
@@ -60,7 +94,7 @@ class FakeProvider(LLMProvider):
     requires_credentials = False
 
     async def complete_json(self, request: LLMRequest) -> dict[str, Any]:
-        self._check_budget()
+        self._check_budget(request.role)
         handler = getattr(self, f"_role_{request.role}", None)
         if handler is None:
             raise KeyError(f"scripted provider has no handler for role {request.role!r}")
@@ -93,19 +127,39 @@ class FakeProvider(LLMProvider):
             if _matches(pattern, question) and dim in available_dims
         ]
 
-        quarter = _QUARTER.search(question)
-        year = _YEAR.search(question)
+        # Every quarter named, not just the first. "Q3 and Q2" is a request
+        # to compare two periods, and reading only the leading match turned
+        # it into a request about one -- which then failed to resolve at all
+        # and was answered as though no period had been named.
+        quarters = _QUARTER.findall(question)
+        years = _YEAR.findall(question)
         time_scope = None
-        if quarter and year:
-            time_scope = f"{year.group(1)} Q{quarter.group(1)}"
-        elif quarter:
-            time_scope = f"Q{quarter.group(1)}"
-        elif year:
-            time_scope = year.group(1)
+        if len(quarters) >= 2:
+            # Newest first, so the later quarter is the current period.
+            first, second = sorted({int(q) for q in quarters}, reverse=True)[:2]
+            if years:
+                time_scope = f"{years[0]} Q{first} vs {years[-1]} Q{second}"
+            else:
+                time_scope = f"Q{first} vs Q{second}"
+        elif quarters and years:
+            time_scope = f"{years[0]} Q{quarters[0]}"
+        elif quarters:
+            time_scope = f"Q{quarters[0]}"
+        elif years:
+            time_scope = years[0]
 
         if _matches(r"affect|impact|relate|associat|correlat|driv", question):
             analysis_type = "correlation"
-        elif _matches(r"trend|over time|month|quarter|increase|decrease|fell|rose", question):
+        elif len(quarters) >= 2 or _matches(
+            r"percentage change|pct change|\bvs\b|versus", question
+        ):
+            # Two periods, or an explicit comparison. Not profiling: asking
+            # for a change between periods and being handed a profile of the
+            # whole dataset is the wrong answer, not a partial one.
+            analysis_type = "timeseries"
+        elif _matches(
+            r"trend|over time|month|quarter|increase|decrease|fell|rose|change", question
+        ):
             analysis_type = "timeseries"
         elif dimensions:
             analysis_type = "segmentation"
@@ -113,7 +167,18 @@ class FakeProvider(LLMProvider):
             analysis_type = "profiling"
 
         ambiguities: list[str] = []
-        if not time_scope:
+        if quarters and not years:
+            # The specific, actionable version. A quarter with no year
+            # cannot be resolved -- guessing one would analyse data nobody
+            # asked about -- so say exactly what to type instead.
+            named = " and ".join(f"Q{q}" for q in dict.fromkeys(quarters))
+            example = f"Q{quarters[0]} 2025"
+            ambiguities.append(
+                f"{named} was named without a year, so no period filter could be "
+                f"applied and the figures below cover the whole dataset. "
+                f"Add a year -- for example '{example}' -- to analyse that quarter."
+            )
+        elif not time_scope:
             ambiguities.append("No explicit time range; the full dataset period is used.")
         if not dimensions:
             ambiguities.append(
@@ -450,11 +515,15 @@ class FakeProvider(LLMProvider):
             return {
                 "status": "unsupported",
                 "reason": "The claim cites no result, so nothing supports it.",
+                "answers_question": False,
+                "relevance_reason": "A claim with no evidence answers nothing.",
             }
         if not results:
             return {
                 "status": "unsupported",
                 "reason": "The cited results are not available for checking.",
+                "answers_question": False,
+                "relevance_reason": "The cited results are not available.",
             }
 
         has_test = any(r.get("statistical_result") for r in results)
@@ -465,15 +534,31 @@ class FakeProvider(LLMProvider):
                     "The claim calls the difference significant but no statistical "
                     "test was run on the cited result."
                 ),
+                "answers_question": False,
+                "relevance_reason": "A significance claim without a test answers nothing.",
             }
+
+        relevant, relevance_reason = _answers_question(
+            text,
+            [str(m) for m in finding.get("metric_ids", [])],
+            str(ctx.get("question", "")),
+            [str(m) for m in ctx.get("target_metrics", [])],
+            [str(d) for d in ctx.get("target_dimensions", [])],
+            ctx.get("time_scope") or None,
+            {str(d).lower() for d in ctx.get("available_dimensions", [])} or None,
+        )
         if kind == "interpretation":
             return {
                 "status": "supported",
                 "reason": "Stated as an interpretation and scoped to the cited result.",
+                "answers_question": relevant,
+                "relevance_reason": relevance_reason,
             }
         return {
             "status": "supported",
             "reason": "The wording matches the values in the cited result.",
+            "answers_question": relevant,
+            "relevance_reason": relevance_reason,
         }
 
     # ---------------------------------------------------------- visualizer
@@ -1098,13 +1183,35 @@ def _adhoc_findings(task: dict[str, Any], result: dict[str, Any]) -> list[dict[s
     return _scalar_findings(task, result)
 
 
+#: Columns that describe a result rather than answer anything. A scalar
+#: finding that reported one of these said "row_count for the selected
+#: scope is 240" to a question about yield -- true, checkable, and not the
+#: answer, so the relevance gate withheld it and the run published nothing.
+_PROVENANCE_COLUMNS = frozenset({"row_count", "rows", "n", "count_rows"})
+
+
 def _scalar_findings(task: dict[str, Any], result: dict[str, Any]) -> list[dict[str, Any]]:
     columns: list[str] = result["columns"]
     rows: list[list[Any]] = result["rows"]
     if not rows:
         return []
-    metric = columns[-1]
-    value = rows[0][len(columns) - 1]
+
+    # The aggregate, not the row count beside it. Aggregates carry a
+    # `row_count` column for provenance, and it is usually last.
+    index = next(
+        (
+            i
+            for i, name in enumerate(columns)
+            if name.lower() not in _PROVENANCE_COLUMNS
+            and isinstance(rows[0][i], int | float)
+            and not isinstance(rows[0][i], bool)
+        ),
+        None,
+    )
+    if index is None:
+        return []
+    metric = columns[index]
+    value = rows[0][index]
     if not isinstance(value, int | float):
         return []
     return [
@@ -1135,3 +1242,242 @@ def _next_questions(question: str, findings: list[dict[str, Any]]) -> list[str]:
     if not out:
         out.append("Which dimension explains the largest share of the variation seen here?")
     return out[:3]
+
+
+#: Words that carry no subject matter, so sharing one says nothing about
+#: whether a finding is on topic.
+_STOPWORDS = frozenset(
+    {
+        "a",
+        "across",
+        "all",
+        "an",
+        "analyse",
+        "analysis",
+        "analyze",
+        "and",
+        "any",
+        "are",
+        "be",
+        "been",
+        "between",
+        "bottom",
+        "by",
+        "change",
+        "changed",
+        "compare",
+        "comparison",
+        "data",
+        "dataset",
+        "did",
+        "do",
+        "does",
+        "done",
+        "each",
+        "finding",
+        "findings",
+        "for",
+        "from",
+        "had",
+        "has",
+        "have",
+        "highest",
+        "how",
+        "in",
+        "is",
+        "it",
+        "its",
+        "largest",
+        "least",
+        "less",
+        "lowest",
+        "more",
+        "most",
+        "number",
+        "numbers",
+        "of",
+        "on",
+        "or",
+        "our",
+        "over",
+        "per",
+        "rate",
+        "rates",
+        "result",
+        "results",
+        "show",
+        "shows",
+        "smallest",
+        "than",
+        "that",
+        "the",
+        "their",
+        "them",
+        "there",
+        "these",
+        "they",
+        "this",
+        "those",
+        "to",
+        "top",
+        "total",
+        "totals",
+        "under",
+        "us",
+        "value",
+        "values",
+        "was",
+        "we",
+        "were",
+        "what",
+        "when",
+        "where",
+        "which",
+        "who",
+        "whom",
+        "whose",
+        "why",
+        "with",
+        "you",
+        "your",
+    }
+)
+
+
+#: Dimension names a finding's wording can be sliced by. Read from the
+#: metric layer at import so the list cannot drift from the warehouse.
+def _known_dimensions() -> frozenset[str]:
+    try:
+        from agentic_analytics.warehouse.metrics import load_registry
+
+        registry = load_registry()
+        return frozenset(d.lower() for model in registry.models.values() for d in model.dimensions)
+    except Exception:  # pragma: no cover - a missing metric layer is not fatal
+        return frozenset()
+
+
+_KNOWN_DIMENSIONS = _known_dimensions()
+
+
+def _terms(text: str) -> set[str]:
+    """Subject-matter words, singularised crudely so plurals match."""
+    words = re.findall(r"[a-z_]+", text.lower())
+    out: set[str] = set()
+    for word in words:
+        for part in word.split("_"):
+            if len(part) < 3 or part in _STOPWORDS:
+                continue
+            out.add(part[:-1] if part.endswith("s") and len(part) > 4 else part)
+    return out
+
+
+def _answers_question(
+    text: str,
+    metric_ids: list[str],
+    question: str,
+    target_metrics: list[str],
+    target_dimensions: list[str],
+    time_scope: str | None = None,
+    available_dimensions: set[str] | None = None,
+) -> tuple[bool, str]:
+    """Deterministic relevance for the scripted provider.
+
+    The committed demonstrations are produced by this provider, and they
+    were the ones carrying accurate, off-topic findings: a revenue ranking
+    by acquisition channel under a question about why margin fell.
+
+    Structural first. The analysis brief decomposes the question into the
+    metrics and dimensions it is about, and a finding that reports one of
+    those is on topic whatever words it uses -- "shipping delays" and
+    `late_delivery_rate` share no word at all, so matching on wording alone
+    rejected the very finding the question asked for.
+
+    Words are the fallback, for findings that carry no metric id. Overlap of
+    subject-matter terms, not similarity: a rule a reader can check by eye.
+    """
+    named = {m.lower() for m in target_metrics}
+    wanted_dims = {d.lower() for d in target_dimensions}
+    # This dataset's own columns. Falling back to the demo registry's
+    # dimensions is what made these rules no-ops for every upload.
+    known_dims = available_dimensions if available_dimensions is not None else _KNOWN_DIMENSIONS
+
+    # When the question names a dimension, a finding sliced by a different
+    # one is not an answer however good its numbers are: "which customer
+    # segments drive returns" is not answered by a month-over-month refund
+    # total. Only applied when the brief actually names one; most questions
+    # do not, and an absent dimension must not reject everything.
+    if wanted_dims:
+        sliced_by = {d for d in known_dims if d in text.lower()}
+        off_topic = sliced_by - wanted_dims
+        if off_topic and not (sliced_by & wanted_dims):
+            return False, (
+                f"The claim is sliced by {', '.join(sorted(off_topic))}, "
+                f"while the question asks about {', '.join(sorted(wanted_dims))}."
+            )
+
+    # Before the metric check, not after. Reporting the right metric used
+    # to be enough to pass, so a revenue figure for the wrong two months
+    # answered a question about Q3 and Q2: the claim named the metric, the
+    # gate returned early, and the dates were never looked at.
+    if time_scope:
+        period = check_period(text, time_scope, resolve_span(time_scope))
+        if not period.aligned:
+            return False, period.reason
+
+    # A description of the table's shape, offered as the answer to a
+    # question that asked for something else. It is true and checkable --
+    # the counts come from the profile result -- and it is not an answer to
+    # "total kwh_consumed by tariff_band". The engine falls back to a
+    # profile when a question cannot be mapped, and publishing that
+    # fallback as a finding presented the fallback as the answer.
+    if _IS_TABLE_SHAPE.search(text) and not _ASKS_FOR_DESCRIPTION.search(question or ""):
+        return False, (
+            "The claim describes the shape of the table, while the question asks "
+            "for a specific figure."
+        )
+
+    # Asked for a total, handed a breakdown. "Total revenue in Q3" is not
+    # answered by which category earned the most, however exact that is.
+    # Only when the question asks for an aggregate *and* names no
+    # dimension: a driver question -- "why did margin fall" -- names no
+    # dimension either and breakdowns are precisely its answer, so keying
+    # on the absent dimension alone would reject the right answer.
+    if (
+        not wanted_dims
+        and _ASKS_FOR_TOTAL.search(question or "")
+        and not _ASKS_FOR_BREAKDOWN.search(question or "")
+    ):
+        sliced_by = {d for d in known_dims if d in text.lower()}
+        if sliced_by:
+            return False, (
+                f"The question asks for an overall figure, while the claim is "
+                f"broken down by {', '.join(sorted(sliced_by))}."
+            )
+        # Asked what a number *is*, handed how it *moved*. "How much revenue
+        # did we make in 2025" is not answered by a quarter-over-quarter
+        # change, even one inside 2025. Skipped when the question asks about
+        # movement, which is most of them.
+        if not _ASKS_FOR_CHANGE.search(question or "") and _REPORTS_A_CHANGE.search(text):
+            return False, (
+                "The question asks for a level, while the claim describes a "
+                "change between two periods."
+            )
+
+    if named and {m.lower() for m in metric_ids} & named:
+        shared = sorted({m.lower() for m in metric_ids} & named)
+        return True, f"Reports a metric the question is about: {', '.join(shared)}."
+
+    asked = _terms(question) | {t for m in target_metrics for t in _terms(m)}
+    asked |= {t for d in target_dimensions for t in _terms(d)}
+    if not asked:
+        return True, "No question was recorded, so relevance was not assessed."
+
+    claimed = _terms(text) | {t for m in metric_ids for t in _terms(m)}
+    shared_terms = asked & claimed
+    if shared_terms:
+        return True, f"Shares subject matter with the question: {', '.join(sorted(shared_terms))}."
+    return False, (
+        "The claim is about "
+        f"{', '.join(sorted(claimed)) or 'nothing the question names'}, "
+        f"while the question is about {', '.join(sorted(asked))}."
+    )

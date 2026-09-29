@@ -1,0 +1,1001 @@
+"""The real-model harness itself, tested without a real model.
+
+The evaluation is opt-in and never runs in CI, because it needs a live model
+and is explicitly non-deterministic. That is a reason not to run *the
+evaluation* in CI, not a reason to ship its machinery untested: the datasets
+must generate, the outcomes must aggregate, and the report must not carry
+dataset contents. All of that is checkable with a scripted provider.
+"""
+
+from __future__ import annotations
+
+import json
+from pathlib import Path
+from typing import Any
+
+import pytest
+
+from agentic_analytics.config import Settings
+from agentic_analytics.evaluation.datasets import (
+    DATASETS,
+    SEED,
+    WAREHOUSE_QUESTIONS,
+    build_all,
+)
+from agentic_analytics.evaluation.real_model import (
+    QuestionOutcome,
+    _median,
+    _summarise,
+    evaluate_question,
+    write_report,
+)
+from agentic_analytics.warehouse.session import open_upload_session
+
+
+# ------------------------------------------------------------- datasets
+def test_every_dataset_builds(tmp_path: Path) -> None:
+    built = build_all(tmp_path)
+    assert set(built) == {d.dataset_id for d in DATASETS}
+    for dataset_id, path in built.items():
+        assert path.exists(), dataset_id
+        assert path.stat().st_size > 0, dataset_id
+
+
+def test_generation_is_deterministic(tmp_path: Path) -> None:
+    """A rerun must evaluate the same data, or a difference in outcome
+    cannot be attributed to the model."""
+    first = build_all(tmp_path / "a")
+    second = build_all(tmp_path / "b")
+    for dataset_id in first:
+        assert first[dataset_id].read_bytes() == second[dataset_id].read_bytes(), dataset_id
+    assert SEED == 4242
+
+
+def test_every_dataset_loads_as_a_session(tmp_path: Path) -> None:
+    """Generating a file nothing can open would waste a whole evaluation."""
+    built = build_all(tmp_path)
+    for dataset in DATASETS:
+        path = built[dataset.dataset_id]
+        session = open_upload_session(path, path.name, dataset.file_format)  # type: ignore[arg-type]
+        try:
+            info = session.tables["uploaded_data"]
+            assert info.row_count > 0, dataset.dataset_id
+            assert len(info.columns) >= 2, dataset.dataset_id
+        finally:
+            session.close()
+
+
+def test_the_datasets_do_not_share_a_vocabulary(tmp_path: Path) -> None:
+    """The point of the set. A model that only ever sees `revenue` tells you
+    nothing about what happens when the column is `spend_usd`."""
+    built = build_all(tmp_path)
+    columns_by_dataset: dict[str, set[str]] = {}
+    for dataset in DATASETS:
+        path = built[dataset.dataset_id]
+        session = open_upload_session(path, path.name, dataset.file_format)  # type: ignore[arg-type]
+        try:
+            columns_by_dataset[dataset.dataset_id] = {
+                c["name"].lower() for c in session.tables["uploaded_data"].columns
+            }
+        finally:
+            session.close()
+
+    names = list(columns_by_dataset)
+    for i, left in enumerate(names):
+        for right in names[i + 1 :]:
+            shared = columns_by_dataset[left] & columns_by_dataset[right]
+            assert not shared, f"{left} and {right} share {shared}"
+
+
+def test_the_question_set_covers_the_kinds_that_stress_planning() -> None:
+    kinds = {q.kind for d in DATASETS for q in d.questions}
+    kinds |= {q.kind for q in WAREHOUSE_QUESTIONS}
+    assert {"aggregate", "grouped", "ranking", "trend", "statistical"} <= kinds
+    # The two that matter most: a question with no clear target, and one the
+    # data cannot answer. Both should be refused rather than guessed at.
+    assert "ambiguous" in kinds
+    assert "unsupported" in kinds
+
+
+def test_a_parquet_dataset_is_included() -> None:
+    assert any(d.file_format == "parquet" for d in DATASETS)
+
+
+def test_the_messy_dataset_is_actually_messy(tmp_path: Path) -> None:
+    built = build_all(tmp_path)
+    path = built["messy"]
+    header = path.read_text().splitlines()[0]
+    assert " " in header and "#" in header, header
+
+
+# ----------------------------------------------------- call observation
+# The provider-wrapping RecordingProvider is gone: it could only see whether
+# the provider returned a dict, which is the measurement that made the first
+# report untrue. Stage-accurate observation lives in `agents/base.py` and is
+# tested in `tests/unit/test_structured_call_stages.py`.
+
+
+# ------------------------------------------------------------ end to end
+async def test_a_question_runs_end_to_end_with_the_scripted_provider(
+    tmp_path: Path,
+) -> None:
+    """Exercises the harness path itself, model excluded."""
+    from agentic_analytics.evaluation.datasets import EvalQuestion
+
+    built = build_all(tmp_path)
+    path = built["sales"]
+    cfg = Settings(provider_mode="fake", live_analytics_enabled=True)
+
+    outcome = await evaluate_question(
+        EvalQuestion("What is the total net value by territory?", "grouped"),
+        "sales",
+        lambda: open_upload_session(path, path.name, "csv"),
+        cfg,
+    )
+
+    assert outcome.dataset == "sales"
+    assert outcome.error == "", outcome.error
+    assert outcome.structured_agent_calls > 0
+    assert outcome.tool_calls > 0
+    assert outcome.runtime_seconds >= 0
+
+
+async def test_a_crash_is_recorded_rather_than_raised(tmp_path: Path) -> None:
+    """Finding crashes is the point, so one must not end the evaluation."""
+    from agentic_analytics.evaluation.datasets import EvalQuestion
+
+    def explode() -> Any:
+        raise RuntimeError("no session for you")
+
+    outcome = await evaluate_question(
+        EvalQuestion("q", "aggregate"),
+        "broken",
+        explode,
+        Settings(provider_mode="fake", live_analytics_enabled=True),
+    )
+    assert "RuntimeError" in outcome.error
+    assert outcome.completed is False
+
+
+# ------------------------------------------------------------ summarising
+def _outcome(**kwargs: Any) -> QuestionOutcome:
+    base: dict[str, Any] = {
+        "dataset": "d",
+        "question": "q",
+        "kind": "grouped",
+        "expectation": "",
+    }
+    return QuestionOutcome(**(base | kwargs))
+
+
+def test_the_summary_counts_each_outcome_once() -> None:
+    outcomes = [
+        _outcome(completed=True, published_findings=2, structured_agent_calls=5),
+        _outcome(completed=False, stopped_reason="stopped", structured_agent_calls=3),
+        _outcome(error="Boom: x", structured_agent_calls=1),
+        _outcome(completed=True, schema_validation_failures=1, tool_call_failures=2),
+    ]
+    summary = _summarise(Settings(provider_mode="local"), outcomes, 12.5)
+
+    assert summary["questions_asked"] == 4
+    assert summary["runs_completed"] == 2
+    assert summary["runs_stopped_early"] == 1
+    assert summary["runs_crashed"] == 1
+    assert summary["runs_publishing_at_least_one_finding"] == 1
+    assert summary["runs_with_a_schema_validation_failure"] == 1
+    assert summary["runs_with_a_failed_tool_call"] == 1
+    assert summary["total_structured_agent_calls"] == 9
+    assert summary["is_deterministic"] is False
+
+
+def test_the_summary_separates_failure_stages() -> None:
+    """A timeout is not a schema failure, and the report must not say it is."""
+    outcomes = [
+        _outcome(timeout_failures=2, failures_by_stage={"timeout": 2}),
+        _outcome(schema_validation_failures=1, failures_by_stage={"schema_validation_error": 1}),
+        _outcome(transport_failures=1, failures_by_stage={"transport_error": 1}),
+        _outcome(question_timeout=True),
+    ]
+    summary = _summarise(Settings(), outcomes, 1.0)
+    assert summary["runs_with_a_provider_timeout"] == 1
+    assert summary["runs_with_a_schema_validation_failure"] == 1
+    assert summary["runs_with_a_transport_failure"] == 1
+    assert summary["runs_hitting_the_question_timeout"] == 1
+    assert summary["failures_by_stage"] == {
+        "schema_validation_error": 1,
+        "timeout": 2,
+        "transport_error": 1,
+    }
+
+
+def test_the_summary_separates_model_plans_from_engine_rescues() -> None:
+    """A run the engine rescued is not evidence the model planned it."""
+    outcomes = [
+        _outcome(model_plan_directly_executable=True, outcome_flags=["direct_model_plan"]),
+        _outcome(tasks_redirected_by_engine=2, outcome_flags=["engine_rescued"]),
+        _outcome(fallback_plan_used=True, outcome_flags=["engine_rescued"]),
+        _outcome(kind="unsupported", outcome_flags=["safe_refusal"]),
+    ]
+    summary = _summarise(Settings(), outcomes, 1.0)
+    assert summary["runs_with_direct_model_plan"] == 1
+    assert summary["runs_requiring_task_redirect"] == 1
+    assert summary["runs_requiring_engine_fallback"] == 1
+    assert summary["runs_safely_refusing"] == 1
+    assert summary["outcome_flag_counts"]["engine_rescued"] == 2
+
+
+def test_the_summary_reports_which_rule_withheld_what() -> None:
+    """A withheld finding is the pipeline working, and which gate fired
+    matters more than the count."""
+    outcomes = [
+        _outcome(withheld_findings=2, withheld_rules={"causal_from_observational": 2}),
+        _outcome(withheld_findings=1, withheld_rules={"numeric_mismatch": 1}),
+    ]
+    summary = _summarise(Settings(), outcomes, 1.0)
+    assert summary["withheld_by_rule"] == {
+        "causal_from_observational": 2,
+        "numeric_mismatch": 1,
+    }
+    assert summary["total_withheld_findings"] == 3
+
+
+def test_the_summary_groups_by_question_kind() -> None:
+    outcomes = [
+        _outcome(kind="ambiguous", completed=True),
+        _outcome(kind="ambiguous", error="x"),
+        _outcome(kind="ranking", completed=True, published_findings=1),
+    ]
+    summary = _summarise(Settings(), outcomes, 1.0)
+    assert summary["by_question_kind"]["ambiguous"] == {
+        "asked": 2,
+        "completed": 1,
+        "published_any": 0,
+        "crashed": 1,
+    }
+    assert summary["by_question_kind"]["ranking"]["published_any"] == 1
+
+
+def test_the_summary_names_the_model_for_each_provider_mode() -> None:
+    local = _summarise(Settings(provider_mode="local", ollama_model="qwen3:4b"), [], 0.0)
+    assert local["model"] == "qwen3:4b"
+    cloud = _summarise(Settings(provider_mode="cloud", cloud_model="gpt-6-luna"), [], 0.0)
+    assert cloud["model"] == "gpt-6-luna"
+
+
+def test_the_summary_says_it_is_not_a_benchmark() -> None:
+    summary = _summarise(Settings(), [], 0.0)
+    assert summary["evaluation_kind"] == "real-model behavioural evaluation"
+    assert "not a pass/fail benchmark" in summary["note"]
+    assert "withheld finding is the pipeline working" in summary["note"]
+
+
+@pytest.mark.parametrize(
+    ("values", "expected"),
+    [([], 0.0), ([3.0], 3.0), ([1.0, 3.0], 2.0), ([5.0, 1.0, 3.0], 3.0)],
+)
+def test_the_median_handles_both_parities(values: list[float], expected: float) -> None:
+    assert _median(values) == expected
+
+
+def test_the_report_writes_and_round_trips(tmp_path: Path) -> None:
+    summary = _summarise(Settings(), [_outcome(completed=True)], 1.0)
+    path = write_report(summary, tmp_path / "nested" / "report.json")
+    assert path.exists()
+    assert json.loads(path.read_text())["questions_asked"] == 1
+
+
+# ---------------------------------------------- checkpointing and resume
+def test_a_question_key_changes_when_the_question_changes() -> None:
+    """Editing a question must invalidate its checkpoint.
+
+    Resuming past a question whose text has changed would report a result
+    for a question nobody asked.
+    """
+    from agentic_analytics.evaluation.real_model import question_key
+
+    first = question_key("sales", 0, "What is the total?")
+    assert first == question_key("sales", 0, "What is the total?")
+    assert first != question_key("sales", 0, "What is the average?")
+    assert first != question_key("sales", 1, "What is the total?")
+    assert first != question_key("marketing", 0, "What is the total?")
+
+
+def test_each_outcome_is_persisted_as_it_completes(tmp_path: Path) -> None:
+    """The first sweep lost two hours because it wrote only at the end."""
+    from agentic_analytics.evaluation.real_model import _append_outcome, _load_checkpoint
+
+    path = tmp_path / "outcomes.jsonl"
+    _append_outcome(path, "sales:00:abcd1234", _outcome(published_findings=3))
+    assert path.exists(), "nothing was written after the first question"
+
+    _append_outcome(path, "sales:01:beef5678", _outcome(withheld_findings=1))
+    loaded = _load_checkpoint(path)
+    assert set(loaded) == {"sales:00:abcd1234", "sales:01:beef5678"}
+    assert loaded["sales:00:abcd1234"].published_findings == 3
+
+
+def test_a_truncated_checkpoint_line_does_not_lose_the_rest(tmp_path: Path) -> None:
+    """A process killed mid-write must not poison the resume."""
+    from agentic_analytics.evaluation.real_model import _append_outcome, _load_checkpoint
+
+    path = tmp_path / "outcomes.jsonl"
+    _append_outcome(path, "a:00:1111", _outcome(published_findings=1))
+    with path.open("a") as handle:
+        handle.write('{"key": "b:00:2222", "outcome": {"dataset"\n')  # truncated
+    _append_outcome(path, "c:00:3333", _outcome(published_findings=2))
+
+    loaded = _load_checkpoint(path)
+    assert set(loaded) == {"a:00:1111", "c:00:3333"}
+
+
+def test_an_atomic_write_leaves_no_half_file(tmp_path: Path) -> None:
+    from agentic_analytics.evaluation.real_model import _atomic_write
+
+    path = tmp_path / "nested" / "meta.json"
+    _atomic_write(path, '{"a": 1}')
+    assert json.loads(path.read_text()) == {"a": 1}
+    assert not list(path.parent.glob("*.tmp")), "a temp file was left behind"
+
+
+async def test_resume_skips_completed_questions(tmp_path: Path) -> None:
+    from agentic_analytics.evaluation.real_model import run_real_model_evaluation
+
+    cfg = Settings(provider_mode="fake", live_analytics_enabled=True)
+    checkpoint = tmp_path / "ckpt"
+
+    first = await run_real_model_evaluation(
+        cfg,
+        tmp_path / "data",
+        dataset_ids=["sales"],
+        include_warehouse=False,
+        max_questions=2,
+        checkpoint_dir=checkpoint,
+    )
+    assert first["questions_asked"] == 2
+    lines_after_first = (checkpoint / "outcomes.jsonl").read_text().splitlines()
+
+    second = await run_real_model_evaluation(
+        cfg,
+        tmp_path / "data",
+        dataset_ids=["sales"],
+        include_warehouse=False,
+        max_questions=2,
+        checkpoint_dir=checkpoint,
+    )
+    assert second["questions_asked"] == 2
+    # Nothing was re-run, so nothing new was appended.
+    assert (checkpoint / "outcomes.jsonl").read_text().splitlines() == lines_after_first
+
+
+async def test_resume_refuses_a_checkpoint_from_a_different_model(
+    tmp_path: Path,
+) -> None:
+    """Silently mixing two models would produce a report about neither."""
+    from agentic_analytics.evaluation.real_model import run_real_model_evaluation
+
+    checkpoint = tmp_path / "ckpt"
+    await run_real_model_evaluation(
+        Settings(provider_mode="fake", live_analytics_enabled=True),
+        tmp_path / "data",
+        dataset_ids=["sales"],
+        include_warehouse=False,
+        max_questions=1,
+        checkpoint_dir=checkpoint,
+    )
+
+    with pytest.raises(RuntimeError, match="different configuration"):
+        await run_real_model_evaluation(
+            Settings(provider_mode="local", ollama_model="other:1b"),
+            tmp_path / "data",
+            dataset_ids=["sales"],
+            include_warehouse=False,
+            max_questions=1,
+            checkpoint_dir=checkpoint,
+        )
+
+
+async def test_a_status_file_makes_a_stalled_run_diagnosable(tmp_path: Path) -> None:
+    from agentic_analytics.evaluation.real_model import run_real_model_evaluation
+
+    checkpoint = tmp_path / "ckpt"
+    await run_real_model_evaluation(
+        Settings(provider_mode="fake", live_analytics_enabled=True),
+        tmp_path / "data",
+        dataset_ids=["sales"],
+        include_warehouse=False,
+        max_questions=1,
+        checkpoint_dir=checkpoint,
+    )
+    status = json.loads((checkpoint / "status.json").read_text())
+    assert status["finished"] is True
+    assert status["total"] == 1
+    assert "environment" in status
+
+
+# ------------------------------------------------------ question timeout
+async def test_a_question_that_runs_long_is_cut_off(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A per-call timeout does not bound a question.
+
+    Forty calls at three minutes each is two hours for one answer, which is
+    exactly how the first sweep became unreadable.
+    """
+    import asyncio
+
+    from agentic_analytics.evaluation.datasets import EvalQuestion
+
+    async def hang(*args: Any, **kwargs: Any) -> Any:
+        await asyncio.sleep(30)
+
+    monkeypatch.setattr("agentic_analytics.evaluation.real_model.run_analysis", hang)
+    built = build_all(tmp_path)
+    path = built["sales"]
+
+    outcome = await evaluate_question(
+        EvalQuestion("q", "aggregate"),
+        "sales",
+        lambda: open_upload_session(path, path.name, "csv"),
+        Settings(provider_mode="fake", live_analytics_enabled=True),
+        question_timeout_seconds=0.3,
+    )
+
+    assert outcome.question_timeout is True
+    assert "question_timeout" in outcome.outcome_flags
+    assert outcome.error == "", "a timeout is not a crash"
+    assert outcome.runtime_seconds < 10
+
+
+# ------------------------------------------------------------ provenance
+def test_the_environment_fingerprint_records_what_was_evaluated() -> None:
+    """`model = qwen3:4b` alone cannot be reproduced or trusted."""
+    from agentic_analytics.evaluation.real_model import environment_fingerprint
+
+    info = environment_fingerprint(
+        Settings(provider_mode="local", ollama_model="qwen3:4b", ollama_think=False)
+    )
+    assert info["provider_mode"] == "local"
+    assert info["model"] == "qwen3:4b"
+    assert info["think"] is False
+    assert info["dataset_seed"] == SEED
+    assert info["harness_schema"] >= 2
+    # Budgets are part of what was evaluated.
+    assert "max_llm_calls" in info and "max_tool_calls_per_task" in info
+
+
+def test_a_missing_optional_provenance_field_does_not_fail_the_run() -> None:
+    """Best effort: no metadata lookup may abort an evaluation."""
+    from agentic_analytics.evaluation.real_model import environment_fingerprint
+
+    info = environment_fingerprint(Settings(provider_mode="cloud", cloud_model="m"))
+    assert info["model"] == "m"
+    # Ollama-only fields are simply absent rather than raising.
+    assert "quantization" not in info or info["quantization"] is None
+
+
+# ------------------------------------------ honest refusal classification
+@pytest.mark.parametrize(
+    ("failure", "value"),
+    [
+        ("question_timeout", True),
+        ("error", "RuntimeError: boom"),
+        ("timeout_failures", 1),
+        ("transport_failures", 1),
+        ("schema_validation_failures", 1),
+        ("json_parse_failures", 1),
+        ("tool_call_failures", 1),
+    ],
+)
+def test_a_broken_run_is_not_called_a_refusal(failure: str, value: Any) -> None:
+    """Zero findings is not an intention if something failed.
+
+    A timeout, a schema failure and a failed tool call all produce no
+    published finding. Labelling those a "safe refusal" describes a
+    breakage as a decision, which is the most flattering possible reading
+    of a model that did not work.
+    """
+    from agentic_analytics.evaluation.real_model import _flags
+
+    outcome = _outcome(kind="unsupported", completed=True, **{failure: value})
+    flags = _flags(outcome)
+    assert "no_published_finding_on_unanswerable_question" not in flags, flags
+
+
+def test_a_clean_empty_run_on_an_unanswerable_question_is_recorded_as_such() -> None:
+    from agentic_analytics.evaluation.real_model import _flags
+
+    flags = _flags(_outcome(kind="unsupported", completed=True))
+    assert "no_published_finding_on_unanswerable_question" in flags
+    # Cautiously worded: there is no explicit "I decline" signal to read.
+    assert "safe_refusal" not in flags
+
+
+def test_an_answerable_question_with_no_findings_is_not_a_refusal() -> None:
+    from agentic_analytics.evaluation.real_model import _flags
+
+    flags = _flags(_outcome(kind="grouped", completed=True))
+    assert "no_published_finding_on_unanswerable_question" not in flags
+    assert "completed_no_candidate_findings" in flags
+
+
+# ------------------------------------------------- claim preservation
+async def test_a_withheld_claim_keeps_its_text_and_evidence(tmp_path: Path) -> None:
+    """The most interesting artifact in a run is the claim that was refused.
+
+    It used to be stored with an empty text, so the thing a model said that
+    the evidence did not support could not be reviewed at all.
+    """
+    from agentic_analytics.agents.schemas import (
+        CandidateFinding,
+        EvidenceCell,
+        TaskOutcome,
+        Verdict,
+    )
+    from agentic_analytics.evaluation.real_model import QuestionOutcome, _observe
+    from agentic_analytics.graph.runner import RunResult
+
+    candidate = CandidateFinding(
+        text="Revenue in the North doubled, which proves the campaign worked.",
+        kind="calculated_fact",
+        task_id="task_01",
+        result_ids=["res_1"],
+        evidence_cells=[
+            EvidenceCell(result_id="res_1", row=0, column="total", value=12.5, label="total")
+        ],
+        metric_ids=["revenue"],
+        claimed_change={"type": "difference", "from": 5.0, "to": 12.5, "stated": 7.5},
+    )
+    result = RunResult(
+        run_id="r",
+        question="q",
+        session_id="s",
+        dataset={},
+        report=None,
+        tasks=[TaskOutcome(task_id="task_01", findings=[candidate])],
+        rejected=[
+            Verdict(
+                finding_id=candidate.finding_id,
+                status="unsupported",
+                reason="The claim asserts causation from observational data.",
+                rule="causal_from_observational",
+            )
+        ],
+    )
+    outcome = _observe(
+        QuestionOutcome(dataset="d", question="q", kind="grouped", expectation=""),
+        result,
+        [],
+        {},
+    )
+
+    assert len(outcome.claims) == 1
+    claim = outcome.claims[0]
+    assert claim["published"] is False
+    assert claim["rule"] == "causal_from_observational"
+    assert "proves the campaign worked" in claim["text"], "the refused claim was lost"
+    assert claim["kind"] == "calculated_fact"
+    assert claim["task_id"] == "task_01"
+    assert claim["result_ids"] == ["res_1"]
+    assert claim["evidence_cells"][0]["column"] == "total"
+    assert claim["metric_ids"] == ["revenue"]
+    assert claim["claimed_change"]["stated"] == 7.5
+
+
+def test_a_published_claim_records_the_rule_that_accepted_it() -> None:
+    """`status=supported` without a rule says nothing about how."""
+    from agentic_analytics.agents.critic import publish
+    from agentic_analytics.agents.schemas import CandidateFinding, Verdict
+
+    candidate = CandidateFinding(
+        text="Revenue was 12.5.",
+        kind="calculated_fact",
+        task_id="t",
+        result_ids=["res_1"],
+        evidence_cells=[],
+        metric_ids=[],
+    )
+    published = publish(
+        candidate,
+        Verdict(
+            finding_id=candidate.finding_id,
+            status="supported",
+            reason="The wording matches the values in the cited result.",
+            rule="critic",
+        ),
+    )
+    assert published.verifier_rule == "critic"
+
+
+# --------------------------------------------- checkpoint SHA discipline
+def test_a_publishable_evaluation_must_not_mix_git_shas() -> None:
+    """`--resume-incompatible` is a debugging tool, not a reporting one.
+
+    Resuming across engine builds puts outcomes from two different systems
+    in one report and destroys the attribution the evaluation exists for.
+    The flag stays, because interrupted debugging runs are real, but the
+    default refuses and the docstring says why.
+    """
+    import inspect
+
+    from agentic_analytics.evaluation.real_model import run_real_model_evaluation
+
+    signature = inspect.signature(run_real_model_evaluation)
+    assert signature.parameters["resume_incompatible_ok"].default is False
+    assert signature.parameters["resume"].default is True
+
+    source = inspect.getsource(run_real_model_evaluation)
+    assert "git_sha" in source, "the SHA is not part of checkpoint compatibility"
+    assert "harness_schema" in source
+
+
+# -------------------------------------------------- tool failure reasons
+def test_a_failed_tool_call_records_why_it_failed() -> None:
+    """ "36 of 36 tool calls failed" is a fact, not a reason.
+
+    The first clean Stage-1 run produced exactly that line for the warehouse
+    question and nothing else, so it could not distinguish a model naming a
+    column that does not exist from a guard refusing a legitimate call --
+    opposite problems with opposite fixes. The trace carried the message the
+    whole time.
+    """
+    from agentic_analytics.evaluation.real_model import QuestionOutcome, _observe
+    from agentic_analytics.graph.runner import RunResult
+
+    result = RunResult(
+        run_id="r",
+        question="q",
+        session_id="s",
+        dataset={},
+        report=None,
+        mcp_trace=[
+            {
+                "tool_name": "aggregate_for_question",
+                "ok": False,
+                "error": "column 'acquisition_channel' does not exist in table 'orders'",
+            },
+            {
+                "tool_name": "aggregate_for_question",
+                "ok": False,
+                "error": "column 'acquisition_channel' does not exist in table 'orders'",
+            },
+            {"tool_name": "profile_table", "ok": False, "error": "no such table 'sales'"},
+            {"tool_name": "profile_table", "ok": True},
+        ],
+    )
+    outcome = _observe(
+        QuestionOutcome(dataset="d", question="q", kind="grouped", expectation=""),
+        result,
+        [],
+        {},
+    )
+
+    assert outcome.tool_calls == 4
+    assert outcome.tool_call_failures == 3
+    assert outcome.tool_failures_by_tool == {"aggregate_for_question": 2, "profile_table": 1}
+    reasons = outcome.tool_failure_reasons
+    assert reasons["column 'acquisition_channel' does not exist in table 'orders'"] == 2
+    assert reasons["no such table 'sales'"] == 1
+
+
+def test_a_failure_with_no_message_is_still_counted() -> None:
+    from agentic_analytics.evaluation.real_model import QuestionOutcome, _observe
+    from agentic_analytics.graph.runner import RunResult
+
+    result = RunResult(
+        run_id="r",
+        question="q",
+        session_id="s",
+        dataset={},
+        report=None,
+        mcp_trace=[{"tool_name": "profile_table", "ok": False, "error": None}],
+    )
+    outcome = _observe(
+        QuestionOutcome(dataset="d", question="q", kind="grouped", expectation=""),
+        result,
+        [],
+        {},
+    )
+    assert outcome.tool_failure_reasons == {"(no message)": 1}
+
+
+def test_the_variety_of_failure_messages_is_bounded() -> None:
+    """A worker failing a new way every call must not grow the artifact."""
+    from agentic_analytics.evaluation.real_model import (
+        MAX_FAILURE_REASONS,
+        QuestionOutcome,
+        _observe,
+    )
+    from agentic_analytics.graph.runner import RunResult
+
+    result = RunResult(
+        run_id="r",
+        question="q",
+        session_id="s",
+        dataset={},
+        report=None,
+        mcp_trace=[
+            {"tool_name": "t", "ok": False, "error": f"distinct failure {i}"} for i in range(40)
+        ],
+    )
+    outcome = _observe(
+        QuestionOutcome(dataset="d", question="q", kind="grouped", expectation=""),
+        result,
+        [],
+        {},
+    )
+    assert len(outcome.tool_failure_reasons) == MAX_FAILURE_REASONS + 1
+    overflow = outcome.tool_failure_reasons["(further distinct failures not recorded)"]
+    assert overflow == 40 - MAX_FAILURE_REASONS
+    # The total still adds up, so the count is not quietly lossy.
+    assert sum(outcome.tool_failure_reasons.values()) == 40
+
+
+def test_a_long_failure_message_is_truncated() -> None:
+    from agentic_analytics.evaluation.real_model import QuestionOutcome, _observe
+    from agentic_analytics.graph.runner import RunResult
+
+    result = RunResult(
+        run_id="r",
+        question="q",
+        session_id="s",
+        dataset={},
+        report=None,
+        mcp_trace=[{"tool_name": "t", "ok": False, "error": "x" * 900}],
+    )
+    outcome = _observe(
+        QuestionOutcome(dataset="d", question="q", kind="grouped", expectation=""),
+        result,
+        [],
+        {},
+    )
+    assert max(len(k) for k in outcome.tool_failure_reasons) == 200
+
+
+def test_the_summary_totals_failure_reasons_across_questions() -> None:
+    a = _outcome(tool_call_failures=2, tool_failure_reasons={"no such column": 2})
+    b = _outcome(
+        tool_call_failures=3,
+        tool_failure_reasons={"no such column": 1, "no such table": 2},
+        tool_failures_by_tool={"profile_table": 3},
+    )
+    summary = _summarise(Settings(), [a, b], 1.0)
+
+    assert summary["tool_failure_reasons"] == {"no such column": 3, "no such table": 2}
+    assert summary["tool_failures_by_tool"] == {"profile_table": 3}
+
+
+# ------------------------------------------------------ the stage 1 mix
+def test_the_stage1_selection_covers_every_capability_claimed() -> None:
+    """Seven questions chosen on purpose, not the first of each dataset.
+
+    Taking the first question of every dataset produced six `grouped`
+    questions and one `aggregate`, which says nothing about ranking, trends,
+    statistics, or what the engine does when the honest answer is that the
+    data cannot support one.
+    """
+    from agentic_analytics.evaluation.real_model import STAGE1_SELECTION
+
+    kinds = {kind for _, kind in STAGE1_SELECTION}
+    assert kinds == {"grouped", "aggregate", "ranking", "trend", "statistical", "unsupported"}
+    assert len(STAGE1_SELECTION) == 7
+    # The warehouse is the only dataset with a metric layer, so it has to be
+    # in any run that claims to exercise one.
+    assert any(dataset == "warehouse" for dataset, _ in STAGE1_SELECTION)
+    # And uploads, which have no metric layer, must be represented too.
+    assert {d for d, _ in STAGE1_SELECTION} - {"warehouse"}
+
+
+def test_the_stage1_selection_names_questions_that_exist() -> None:
+    """A selection naming a question no dataset has would run short."""
+    from agentic_analytics.evaluation.datasets import DATASETS, WAREHOUSE_QUESTIONS
+    from agentic_analytics.evaluation.real_model import STAGE1_SELECTION
+
+    available = {("warehouse", q.kind) for q in WAREHOUSE_QUESTIONS}
+    for dataset in DATASETS:
+        available |= {(dataset.dataset_id, q.kind) for q in dataset.questions}
+
+    missing = [pair for pair in STAGE1_SELECTION if pair not in available]
+    assert not missing, f"selection names questions that do not exist: {missing}"
+
+
+def test_applying_the_selection_picks_one_question_per_pair() -> None:
+    from agentic_analytics.evaluation.datasets import EvalQuestion
+    from agentic_analytics.evaluation.real_model import STAGE1_SELECTION, apply_selection
+
+    work = []
+    for dataset, kind in STAGE1_SELECTION:
+        for n in range(3):
+            work.append(
+                (f"{dataset}:{kind}:{n}", dataset, EvalQuestion(f"q{n}", kind, ""), lambda: None)
+            )
+    work.append(("extra", "sales", EvalQuestion("noise", "ambiguous", ""), lambda: None))
+
+    chosen = apply_selection(work, "stage1")
+    assert len(chosen) == 7
+    assert [(d, q.kind) for _, d, q, _ in chosen] == list(STAGE1_SELECTION)
+    # One per pair: the first, deterministically.
+    assert all(key.endswith(":0") for key, _, _, _ in chosen)
+
+
+def test_a_selection_that_cannot_be_filled_fails_loudly() -> None:
+    """Running six of seven questions quietly would misreport coverage."""
+    from agentic_analytics.evaluation.datasets import EvalQuestion
+    from agentic_analytics.evaluation.real_model import apply_selection
+
+    work = [("k", "warehouse", EvalQuestion("q", "grouped", ""), lambda: None)]
+    with pytest.raises(ValueError, match="does not have"):
+        apply_selection(work, "stage1")
+
+
+def test_an_unknown_selection_is_refused() -> None:
+    from agentic_analytics.evaluation.real_model import apply_selection
+
+    with pytest.raises(ValueError, match="unknown selection"):
+        apply_selection([], "stage9")
+
+
+# ------------------------------------------------ cell values for review
+async def test_a_claims_cited_cells_are_resolved_for_review() -> None:
+    """Reviewing a claim means checking it against the numbers it cites.
+
+    `EvidenceCell.value` is optional and a model rarely fills it, so an
+    artifact that stores only the model's own view of a cell leaves a
+    reviewer with the claim and no way to check it short of re-running the
+    entire evaluation.
+    """
+    from agentic_analytics.agents.schemas import (
+        CandidateFinding,
+        EvidenceCell,
+        TaskOutcome,
+        Verdict,
+    )
+    from agentic_analytics.analytics.results import ResultSnapshot
+    from agentic_analytics.evaluation.real_model import QuestionOutcome, _observe
+    from agentic_analytics.graph.runner import RunResult
+
+    snapshot = ResultSnapshot(
+        result_id="res_1",
+        tool_name="compare_segments",
+        columns=["region", "revenue"],
+        rows=[["North", 52100.0], ["South", 38200.5]],
+        row_count=2,
+    )
+    candidate = CandidateFinding(
+        text="The South region earned 38200.5.",
+        kind="calculated_fact",
+        task_id="task_1",
+        result_ids=["res_1"],
+        evidence_cells=[
+            EvidenceCell(result_id="res_1", row=1, column="revenue"),
+            EvidenceCell(result_id="res_1", row=9, column="revenue"),
+            EvidenceCell(result_id="res_missing", row=0, column="revenue"),
+        ],
+    )
+    result = RunResult(
+        run_id="r",
+        question="q",
+        session_id="s",
+        dataset={},
+        report=None,
+        results={"res_1": snapshot},
+        tasks=[TaskOutcome(task_id="task_1", findings=[candidate])],
+        rejected=[
+            Verdict(
+                finding_id=candidate.finding_id,
+                status="unsupported",
+                reason="overstated",
+                rule="critic",
+            )
+        ],
+    )
+    outcome = _observe(
+        QuestionOutcome(dataset="d", question="q", kind="grouped", expectation=""),
+        result,
+        [],
+        {},
+    )
+
+    cells = outcome.claims[0]["resolved_cells"]
+    assert len(cells) == 3
+    assert cells[0]["actual_value"] == 38200.5
+    assert cells[0]["resolved"] is True
+    assert cells[0]["stated_value"] is None
+    # A reference that points at nothing says so rather than reading as zero.
+    assert cells[1]["resolved"] is False
+    assert cells[1]["note"] == "no such cell in that result"
+    assert cells[2]["resolved"] is False
+    assert cells[2]["note"] == "the cited result is not available"
+
+
+async def test_a_withheld_upload_cell_stays_withheld_in_the_artifact() -> None:
+    """The artifact must not become the place the redaction does not apply."""
+    from agentic_analytics.agents.schemas import (
+        CandidateFinding,
+        EvidenceCell,
+        TaskOutcome,
+        Verdict,
+    )
+    from agentic_analytics.analytics.results import RAW_CELL_COLUMNS, ResultSnapshot
+    from agentic_analytics.evaluation.real_model import QuestionOutcome, _observe
+    from agentic_analytics.graph.runner import RunResult
+
+    column = sorted(RAW_CELL_COLUMNS)[0]
+    snapshot = ResultSnapshot(
+        result_id="res_1",
+        tool_name="profile_table",
+        columns=["column_name", column],
+        rows=[["salary", 987654.32]],
+        row_count=1,
+        withhold_cells=True,
+    )
+    candidate = CandidateFinding(
+        text="A value is present.",
+        task_id="task_1",
+        result_ids=["res_1"],
+        evidence_cells=[EvidenceCell(result_id="res_1", row=0, column=column)],
+    )
+    result = RunResult(
+        run_id="r",
+        question="q",
+        session_id="s",
+        dataset={},
+        report=None,
+        results={"res_1": snapshot},
+        tasks=[TaskOutcome(task_id="task_1", findings=[candidate])],
+        rejected=[
+            Verdict(finding_id=candidate.finding_id, status="unsupported", reason="x", rule="y")
+        ],
+    )
+    outcome = _observe(
+        QuestionOutcome(dataset="d", question="q", kind="grouped", expectation=""),
+        result,
+        [],
+        {},
+    )
+    assert "987654.32" not in json.dumps(outcome.claims)
+    assert outcome.claims[0]["resolved_cells"][0]["actual_value"] is None
+
+
+# --------------------------------------------- telemetry from a dead run
+def test_a_timed_out_question_still_reports_the_calls_it_made() -> None:
+    """Zero tool calls after ten minutes of making them is not a measurement.
+
+    The clean Stage-1 warehouse question hit its ceiling and recorded
+    `tools=0`, because a killed run produces no `RunResult` and the trace
+    died with the coroutine. That is the one case where knowing what the
+    tool loop did matters most.
+    """
+    from agentic_analytics.evaluation.real_model import (
+        QuestionOutcome,
+        _record_partial_tools,
+    )
+
+    class Toolset:
+        def public_trace(self) -> list[dict[str, Any]]:
+            return [
+                {"tool_name": "aggregate_for_question", "ok": False, "error": "table required"},
+                {"tool_name": "aggregate_for_question", "ok": False, "error": "table required"},
+                {"tool_name": "profile_table", "ok": True},
+            ]
+
+    outcome = QuestionOutcome(dataset="d", question="q", kind="grouped", expectation="")
+    _record_partial_tools(outcome, {"toolset": Toolset()})
+
+    assert outcome.tool_calls == 3
+    assert outcome.tool_call_failures == 2
+    assert outcome.tool_calls_succeeded == 1
+    assert outcome.tool_failures_by_tool == {"aggregate_for_question": 2}
+    assert outcome.tool_failure_reasons == {"table required": 2}
+    assert set(outcome.tools_selected) == {"aggregate_for_question", "profile_table"}
+
+
+def test_salvaging_is_a_no_op_when_there_is_nothing_to_salvage() -> None:
+    from agentic_analytics.evaluation.real_model import (
+        QuestionOutcome,
+        _record_partial_tools,
+    )
+
+    outcome = QuestionOutcome(dataset="d", question="q", kind="grouped", expectation="")
+    _record_partial_tools(outcome, {})
+    _record_partial_tools(outcome, {"toolset": object()})
+    assert outcome.tool_calls == 0

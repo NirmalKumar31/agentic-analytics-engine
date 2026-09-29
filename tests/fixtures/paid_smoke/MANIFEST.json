@@ -1,0 +1,14 @@
+{
+  "first_smoke_38cfb51.json": {
+    "sha256": "87257a0eed773971dc4373098a39bf922d3303adacac5f594014f380d3fa3e27",
+    "bytes": 5990,
+    "purpose": "failed acceptance, preserved as regression input",
+    "immutable": true
+  },
+  "second_smoke_279675a.json": {
+    "sha256": "afb8d3da3e70e214f9d1940cdfc83a282bc55fb23fde6b6fbacb0d58d72ca703",
+    "bytes": 6867,
+    "purpose": "passing acceptance after the fixes",
+    "immutable": true
+  }
+}

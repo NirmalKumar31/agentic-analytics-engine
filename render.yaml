@@ -1,16 +1,33 @@
-# Render blueprint for the public demo.
+# Render blueprint for the public demo. One service, both modes.
 #
-# Deploys with no secret of any kind. The provider is the deterministic
-# scripted stand-in, so the analysis, the MCP tool calls, the SQL and the
-# verification all execute for real and nothing is sent to an external model
-# provider.
+# Deploys with no secret of any kind, and AI Analytics off. Deterministic
+# Analytics runs the real analysis, the real MCP tool calls, the real SQL and
+# the real verification with a scripted provider making the agent decisions;
+# nothing is sent to an external model provider.
 #
-# Sizing. `standard` is 1 CPU / 2 GB. The numbers below are chosen against
-# that, not against a hoped-for load: each session's DuckDB gets 384 MB and
-# one thread, and at most 12 sessions (6 of them uploads) are admitted at
-# once. Those are admission limits, not a measured concurrency guarantee --
-# 12 sessions all running large aggregates simultaneously is not something
-# this instance is claimed to survive.
+# AI Analytics stays unavailable until every one of these is true:
+#
+#   AAE_AI_ANALYTICS_ENABLED=true
+#   AAE_CLOUD_API_KEY         set in the dashboard, never here
+#   AAE_CLOUD_MODEL           an identifier with a pricing entry in
+#                             src/agentic_analytics/llm/pricing.py
+#   AAE_AI_QUOTA_REDIS_URL    a reachable Redis/Key Value instance
+#
+# Missing any of them leaves AI unavailable with a sanitized reason and
+# leaves Deterministic Analytics working. There is no in-memory fallback for
+# the quota ledger on purpose: process-local counters reset on every cold
+# start and are not shared between instances, so they cannot bound an
+# anonymous paid endpoint.
+#
+# The application ceilings below are the first line of defence, not a billing
+# guarantee. Set a hard spend cap on the provider account as well.
+#
+# Sizing. `free` is 512 MB. The numbers below are measured against that,
+# not chosen against a hoped-for load: each session's DuckDB gets 160 MB and
+# one thread, and at most 3 sessions (2 of them uploads) are admitted at
+# once, because three live sessions with two analyses running peaked at
+# 438 MB and six reached 600 MB. Those are admission limits, not a measured
+# concurrency guarantee -- see docs/DEPLOYMENT.md for the measurements.
 #
 # One thing needs setting by hand, and deliberately is not set:
 #
@@ -27,9 +44,17 @@ services:
     name: agentic-analytics-engine
     runtime: docker
     dockerfilePath: ./Dockerfile
-    # `1c-2g` is the explicit spelling of the legacy `standard` plan:
-    # 1 CPU, 2 GB. The numbers below are sized against exactly that.
-    plan: 1c-2g
+    # Free instances spin down after 15 minutes of inactivity and take
+    # about a minute to wake. That is the scale-to-zero this demo wants,
+    # and it is only safe because the ceilings below are sized for 512 MB:
+    # four concurrent analyses measured 654 MB, which this plan would
+    # OOM-kill. See docs/DEPLOYMENT.md for the measurements.
+    #
+    # The ephemeral filesystem is not a problem here. The demo warehouse is
+    # baked into the image at build time, uploads live under /tmp for the
+    # life of a session, and the AI ledger is in Key Value rather than on
+    # disk -- so there is nothing to persist across a spin-down.
+    plan: free
     region: oregon
     # Readiness rather than liveness: a container that came up without
     # its demo warehouse is alive and useless, and a health check that
@@ -42,9 +67,65 @@ services:
     # field takes the string "off".
     autoDeployTrigger: "off"
     envVars:
-      # The scripted provider. No credential is read, and none is needed.
+      # The default provider for CLI and evaluation workflows. The web
+      # application does not read it to choose a mode: the browser sends the
+      # mode with each request and the provider is built per run.
       - key: AAE_PROVIDER_MODE
         value: fake
+
+      # ------------------------------------------------------- AI Analytics
+      # Off. Turning this on without the four settings above leaves AI
+      # unavailable rather than unbounded.
+      - key: AAE_AI_ANALYTICS_ENABLED
+        value: "false"
+      # Set in the dashboard only. `sync: false` keeps the value out of the
+      # repository and out of this file.
+      - key: AAE_CLOUD_API_KEY
+        sync: false
+      # Must match a pricing entry exactly. An unpriced model is refused
+      # rather than estimated.
+      - key: AAE_CLOUD_MODEL
+        value: gpt-6-luna
+      # Reasoning tokens are billed as output. The engine chooses what to
+      # investigate; it does not ask the model to compute.
+      - key: AAE_CLOUD_REASONING_EFFORT
+        value: low
+      # Render Key Value connection string. Secret, and required before AI
+      # can be offered at all.
+      - key: AAE_AI_QUOTA_REDIS_URL
+        sync: false
+      # Per-run ceilings for an AI run. Deterministic runs are unaffected.
+      - key: AAE_AI_MAX_LLM_CALLS
+        value: "64"
+      - key: AAE_AI_MAX_INPUT_TOKENS
+        value: "120000"
+      - key: AAE_AI_MAX_OUTPUT_TOKENS
+        value: "64000"
+      # Output tokens the proposing stages may not touch, so a run
+      # cannot spend its whole budget before verifying anything.
+      - key: AAE_AI_VERIFICATION_OUTPUT_RESERVE
+        value: "24000"
+      - key: AAE_AI_MAX_RUNTIME_SECONDS
+        value: "180"
+      # Integer microdollars. 250000 = $0.25 for one run.
+      - key: AAE_AI_MAX_COST_MICRODOLLARS
+        value: "250000"
+      # Public-demo ceilings, enforced in the durable ledger so a restart or
+      # a second instance cannot reset them.
+      - key: AAE_AI_RUNS_PER_SESSION
+        value: "3"
+      - key: AAE_AI_RUNS_PER_IP_PER_HOUR
+        value: "5"
+      - key: AAE_AI_CONCURRENT_RUNS
+        value: "1"
+      # 500000 = $0.50 a day.
+      - key: AAE_AI_DAILY_COST_MICRODOLLARS
+        value: "500000"
+      # $4.00 against a $5 hard limit on the provider project. The gap is
+      # deliberate: provider enforcement is documented as not instantaneous,
+      # so the application stops first rather than racing it.
+      - key: AAE_AI_TOTAL_COST_MICRODOLLARS
+        value: "4000000"
       # Visitors may ask their own questions and upload their own data.
       - key: AAE_LIVE_ANALYTICS_ENABLED
         value: "true"
@@ -68,9 +149,12 @@ services:
       - key: AAE_LOG_JSON
         value: "true"
 
-      # Per-session DuckDB envelope, sized for 1 CPU / 2 GB.
+      # Per-session DuckDB envelope. Two analyses may run at once, so this
+      # is set well below half the instance's 512 MB rather than near it:
+      # the Python process, the warehouse handles and the HTTP server all
+      # live in the same budget.
       - key: AAE_DUCKDB_MEMORY_LIMIT
-        value: 384MB
+        value: 160MB
       - key: AAE_DUCKDB_THREADS
         value: "1"
 
@@ -90,9 +174,9 @@ services:
       - key: AAE_BUDGETS__MAX_RESULT_ROWS
         value: "500"
       - key: AAE_BUDGETS__MAX_UPLOAD_BYTES
-        value: "15728640"
+        value: "10485760"
       - key: AAE_BUDGETS__MAX_UPLOAD_ROWS
-        value: "750000"
+        value: "400000"
       - key: AAE_BUDGETS__MAX_UPLOAD_COLUMNS
         value: "200"
       # Ceiling on the uncompressed size a Parquet footer declares, checked
@@ -103,13 +187,30 @@ services:
       - key: AAE_BUDGETS__MAX_PARQUET_UNCOMPRESSED_BYTES
         value: "536870912"
 
-      # Uploaded data is ephemeral, and these bound how much of it can exist.
+      # Uploaded data is ephemeral, and these bound how much of it can
+      # exist. The session cap is the single most important number on this
+      # plan: each live session holds a DuckDB connection over the
+      # warehouse, costing roughly 55 MB, and the instance has 512 MB.
+      #
+      # Measured, with two analyses running against a full session table:
+      #   3 sessions -> 438 MB   fits
+      #   4 sessions -> 497 MB   within 15 MB of the limit
+      #   6 sessions -> 600 MB   killed
+      #   8 sessions -> 708 MB   killed
+      #
+      # So three. A fourth visitor evicts the least recently used session
+      # rather than taking the instance down with it. Raising this without
+      # raising the plan is how this deployment dies under its first bit of
+      # attention.
+      #
+      # The TTL matches the plan's own 15-minute spin-down: a session that
+      # outlived the container it lived in is not a session.
       - key: AAE_SESSION_TTL_SECONDS
-        value: "1800"
+        value: "900"
       - key: AAE_MAX_CONCURRENT_SESSIONS
-        value: "12"
+        value: "3"
       - key: AAE_MAX_ACTIVE_UPLOAD_SESSIONS
-        value: "6"
+        value: "2"
 
       # Abuse controls. In-process counters, not durable quotas: a restart
       # resets them, and the client key comes from X-Forwarded-For, which is

@@ -18,13 +18,14 @@ import {
  */
 
 test.describe('the page a visitor lands on', () => {
-  test('loads and states which execution mode produced what is on screen', async ({ page }) => {
+  test('does not claim an execution mode before anything has run', async ({ page }) => {
     await page.goto('/')
     await expect(page.getByRole('button', { name: /Commerce demo warehouse/ })).toBeVisible()
-    // One of the three modes, named. Not a generic "ready".
-    await expect(page.locator('.mode-pill')).toHaveText(
-      /Recorded|Deterministic live|AI live/,
-    )
+    // The badge states what produced what is on screen. Nothing has been
+    // produced yet, so asserting a mode here would be asserting a result
+    // that does not exist -- which is what it used to do, and what a
+    // visitor reasonably read as a claim about their run.
+    await expect(page.locator('.mode-pill')).toHaveCount(0)
   })
 
   test('offers the three committed recordings', async ({ page }) => {
@@ -68,9 +69,11 @@ test.describe('the demo warehouse', () => {
     await page.getByRole('button', { name: /Commerce demo warehouse/ }).click()
     await expect(page.getByRole('heading', { name: 'Ask' })).toBeVisible()
 
-    // Deterministic mode must say that interpretation is rule-based.
-    const badge = await page.locator('.mode-pill').textContent()
-    if (badge?.includes('Deterministic live')) {
+    // Deterministic mode must say that interpretation is rule-based. Read
+    // from the selector rather than the badge: before a run the selector is
+    // what holds the choice, and the badge deliberately says nothing yet.
+    const deterministic = page.getByRole('radio', { name: /Deterministic/i })
+    if (await deterministic.isChecked()) {
       await expect(page.getByTestId('interpretation-notice')).toContainText(
         /rule-based/i,
       )
@@ -82,6 +85,12 @@ test.describe('the demo warehouse', () => {
     // Progress is visible while it runs.
     await expect(page.getByRole('heading', { name: 'Analysis' }).first()).toBeVisible()
     await waitForReport(page)
+
+    // Now that something has run, the badge names what produced it. The
+    // other half of the contract asserted on the landing page.
+    await expect(page.locator('.mode-pill')).toHaveText(
+      /Recorded|Deterministic live|AI live|Compare both/,
+    )
 
     const findings = page.locator('article.finding')
     expect(await findings.count()).toBeGreaterThan(0)

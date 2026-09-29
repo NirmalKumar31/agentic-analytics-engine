@@ -1,20 +1,25 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import { ActivityLog } from './components/ActivityLog'
+import { ComparisonView } from './components/ComparisonView'
 import { DatasetSummary } from './components/DatasetSummary'
 import { ExecutionFlow } from './components/ExecutionFlow'
-import { ModeBadge } from './components/ModeBadge'
+import { badgeMode, ModeBadge } from './components/ModeBadge'
+import { ThemeToggle, useTheme } from './components/ThemeToggle'
+import { ModeSelector } from './components/ModeSelector'
 import { ProvenanceDrawer } from './components/ProvenanceDrawer'
 import { ReportView } from './components/ReportView'
 import { RightRail } from './components/RightRail'
 import { ApiError, api } from './lib/api'
 import type {
+  ComparisonStarted,
   MetricInfo,
   RecordingSummary,
   RunEvent,
   RunPayload,
   ServerConfig,
   SessionPayload,
+  UiMode,
 } from './lib/types'
 import { useRunEvents } from './lib/useRunEvents'
 
@@ -32,6 +37,12 @@ export function App() {
   const [showTrace, setShowTrace] = useState(false)
   const [openFinding, setOpenFinding] = useState<string | null>(null)
   const [replay, setReplay] = useState<RecordingSummary | null>(null)
+  // Deterministic by default. The server decides what else is on offer.
+  const [uiMode, setUiMode] = useState<UiMode>('deterministic')
+  const [theme, toggleTheme] = useTheme()
+  const [comparison, setComparison] = useState<ComparisonStarted | null>(null)
+  const [aiRun, setAiRun] = useState<RunPayload | null>(null)
+  const [aiError, setAiError] = useState<string | null>(null)
   const fileInput = useRef<HTMLInputElement>(null)
 
   const { events, finished } = useRunEvents(runId)
@@ -121,21 +132,57 @@ export function App() {
     setBusy(true)
     setError(null)
     setRun(null)
+    setAiRun(null)
+    setAiError(null)
+    setComparison(null)
     try {
-      const { run_id } = await api.startAnalysis(session.session_id, question.trim())
-      setRunId(run_id)
+      if (uiMode === 'compare') {
+        const started = await api.startComparison(session.session_id, question.trim())
+        setComparison(started)
+        setRunId(started.deterministic_run_id)
+      } else {
+        const { run_id } = await api.startAnalysis(session.session_id, question.trim(), uiMode)
+        setRunId(run_id)
+      }
     } catch (e) {
       setError(e instanceof ApiError ? e.message : 'The analysis could not be started.')
     } finally {
       setBusy(false)
     }
-  }, [session, question])
+  }, [session, question, uiMode])
+
+  // The AI side of a comparison is polled separately, so one side failing
+  // never removes the other.
+  useEffect(() => {
+    if (!comparison) return
+    let cancelled = false
+    const poll = async () => {
+      try {
+        const payload = await api.run(comparison.ai_run_id)
+        if (cancelled) return
+        setAiRun(payload)
+        if (payload.status === 'failed' && payload.error) setAiError(payload.error)
+        if (payload.status === 'running') window.setTimeout(poll, 1200)
+      } catch (e) {
+        if (!cancelled) {
+          setAiError(e instanceof ApiError ? e.message : 'The AI run could not be read.')
+        }
+      }
+    }
+    void poll()
+    return () => {
+      cancelled = true
+    }
+  }, [comparison])
 
   const reset = useCallback(() => {
     setRun(null)
     setRunId(null)
     setReplay(null)
     setOpenFinding(null)
+    setComparison(null)
+    setAiRun(null)
+    setAiError(null)
   }, [])
 
   const endSession = useCallback(async () => {
@@ -180,7 +227,14 @@ export function App() {
           </div>
         </div>
         <div className="topbar-spacer" />
-        {config && <ModeBadge mode={replay ? 'recorded' : config.execution_mode} />}
+        {/* Only once something has actually run. The badge says what
+            produced what is on screen, and before a run nothing has -- so
+            announcing "Deterministic live" on the dataset picker claims a
+            result that does not exist yet. */}
+        {config && (run || runId || replay) && (
+          <ModeBadge mode={badgeMode(!!replay, config.execution_mode, uiMode)} />
+        )}
+        <ThemeToggle theme={theme} onToggle={toggleTheme} />
         {session && (
           <button
             className="btn ghost small"
@@ -213,7 +267,7 @@ export function App() {
         <Step index={5} label="Report" state={stage === 'report' ? 'active' : 'idle'} />
       </nav>
 
-      <main className="main">
+      <main className="main" data-rail={run || runId ? 'true' : 'false'}>
         <div className="column">
           {configError && <div className="notice error">{configError}</div>}
           {error && <div className="notice error">{error}</div>}
@@ -254,6 +308,8 @@ export function App() {
               setQuestion={setQuestion}
               onAsk={ask}
               busy={busy}
+              uiMode={uiMode}
+              setUiMode={setUiMode}
             />
           )}
 
@@ -282,16 +338,59 @@ export function App() {
             <div className="notice warn">The run stopped early: {run.stopped_reason}</div>
           )}
 
-          {run && (
-            <ReportView
-              question={run.question}
-              report={run.report}
-              findings={run.findings}
-              rejected={run.rejected}
-              charts={run.charts}
-              results={run.results}
-              onShowWork={setOpenFinding}
+          {comparison ? (
+            <ComparisonView
+              question={comparison.question}
+              deterministic={{
+                title: 'Deterministic Analytics',
+                subtitle: 'Rule-based planning over the governed analytics engine.',
+                run,
+                error: null,
+                pending: Boolean(runId) && !finished,
+                children: run ? (
+                  <ReportView
+                    question={run.question}
+                    report={run.report}
+                    findings={run.findings}
+                    rejected={run.rejected}
+                    charts={run.charts}
+                    results={run.results}
+                    onShowWork={setOpenFinding}
+                  />
+                ) : null,
+              }}
+              ai={{
+                title: 'AI Analytics',
+                subtitle: 'A cloud model plans and interprets; the engine computes and verifies.',
+                run: aiRun,
+                error: aiError,
+                pending: Boolean(aiRun && aiRun.status === 'running'),
+                usage: aiRun?.usage,
+                children: aiRun && aiRun.status === 'completed' ? (
+                  <ReportView
+                    question={aiRun.question}
+                    report={aiRun.report}
+                    findings={aiRun.findings}
+                    rejected={aiRun.rejected}
+                    charts={aiRun.charts}
+                    results={aiRun.results}
+                    onShowWork={setOpenFinding}
+                  />
+                ) : null,
+              }}
             />
+          ) : (
+            run && (
+              <ReportView
+                question={run.question}
+                report={run.report}
+                findings={run.findings}
+                rejected={run.rejected}
+                charts={run.charts}
+                results={run.results}
+                onShowWork={setOpenFinding}
+              />
+            )
           )}
         </div>
 
@@ -394,14 +493,26 @@ function DatasetPanel({
 
         {config.uploads_enabled && (
           <p className="small dim" style={{ margin: 0 }}>
-            Your file is used only for this analysis session and is deleted when the
-            session ends or expires, after {config.session_ttl_minutes} minutes of
-            inactivity. There are no accounts, so anyone with your session cookie is
-            your session. Please do not upload sensitive or regulated data to this
-            public demo.
-            {config.model_inference_remote
-              ? ' This server is configured with a cloud model, so derived schema information and analysis results are sent to that provider.'
-              : ' This server uses a local deterministic provider, so nothing derived from your file is sent to an external model provider.'}
+            Your file stays for this session only and is deleted after 15 minutes
+            of inactivity. Please don't upload sensitive or regulated data.
+            {config.model_inference_remote && (
+              <>
+                {' '}
+                <details className="disclosure">
+                  <summary>What is sent to OpenAI in AI mode</summary>
+                  Column names, inferred column roles and computed results go to
+                  OpenAI as part of the prompt. Computed results include the labels of
+                  a column you group by — a total by department cannot be reported
+                  without naming the departments. Individual rows do not go: row
+                  sampling is refused, a profile's smallest and largest values are
+                  withheld, and a column with a different value on almost every row is
+                  never used as a grouping. Requests ask OpenAI not to store the
+                  exchange; what it retains beyond that is governed by that account's
+                  data settings, not by this application. Deterministic Analytics sends
+                  nothing to any provider.
+                </details>
+              </>
+            )}
           </p>
         )}
 
@@ -444,12 +555,16 @@ function AskPanel({
   setQuestion,
   onAsk,
   busy,
+  uiMode,
+  setUiMode,
 }: {
   config: ServerConfig | null
   question: string
   setQuestion: (q: string) => void
   onAsk: () => void
   busy: boolean
+  uiMode: UiMode
+  setUiMode: (m: UiMode) => void
 }) {
   return (
     <section className="panel">
@@ -457,7 +572,15 @@ function AskPanel({
         <h2>Ask</h2>
       </div>
       <div className="panel-body stack">
-        {config?.execution_mode === 'deterministic_live' && (
+        {config?.capabilities && (
+          <ModeSelector
+            capabilities={config.capabilities}
+            value={uiMode}
+            onChange={setUiMode}
+            disabled={busy}
+          />
+        )}
+        {uiMode === 'deterministic' && (
           <p className="notice info small" data-testid="interpretation-notice" style={{ margin: 0 }}>
             Question interpretation is rule-based in this public demo: a scripted
             provider maps your wording onto the dataset, and says so when it cannot.
@@ -479,7 +602,13 @@ function AskPanel({
         />
         <div className="row">
           <button className="btn primary" onClick={onAsk} disabled={busy || !question.trim()}>
-            {busy ? 'Starting…' : 'Run analysis'}
+            {busy
+              ? 'Starting…'
+              : uiMode === 'compare'
+                ? 'Run both'
+                : uiMode === 'ai'
+                  ? 'Run with AI'
+                  : 'Run analysis'}
           </button>
           <span className="small dim">{question.length}/500 · ⌘↵ to run</span>
         </div>

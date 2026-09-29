@@ -86,7 +86,6 @@ def _text_of(report: Any) -> str:
     """Every string a reader would see."""
     parts = [report.executive_summary, *report.key_findings, *report.limitations]
     parts += [s.heading for s in report.sections]
-    parts += [s.body for s in report.sections]
     parts += report.next_questions
     return "\n".join(parts)
 
@@ -132,8 +131,8 @@ async def test_a_fabricated_claim_never_reaches_the_report(payload: dict[str, An
 async def test_every_factual_sentence_comes_from_a_verified_finding() -> None:
     """The invariant itself, not just one attack against it.
 
-    The summary and every section body must be built only from the exact
-    text of published findings.
+    The summary states nothing about the data, sections carry no prose, and
+    each verified finding appears exactly once.
     """
     report = await _report(
         {
@@ -141,23 +140,25 @@ async def test_every_factual_sentence_comes_from_a_verified_finding() -> None:
             "sections": [{"finding_ids": ["fin_a"]}, {"finding_ids": ["fin_c"]}],
         }
     )
-    verified = {f.text for f in FINDINGS}
+    import re
 
-    # Executive summary is a join of exact finding texts.
-    remaining = report.executive_summary
-    for text in sorted(verified, key=len, reverse=True):
-        remaining = remaining.replace(text, "")
-    assert remaining.strip() == "", f"summary contains text no finding provided: {remaining!r}"
+    from agentic_analytics.agents.reporter import SUMMARY_LINE
 
-    # So is every section body.
+    # The summary is a fixed sentence about the document, not the data. It
+    # used to be finding texts joined, which printed each finding again
+    # under Key findings and a third time in its section; anything generated
+    # here is prose the gate cannot check.
+    assert report.executive_summary == SUMMARY_LINE
+    assert not re.search(r"\d", report.executive_summary)
+
+    # A section groups by id and carries no prose to smuggle a claim into.
     for section in report.sections:
-        remaining = section.body
-        for text in sorted(verified, key=len, reverse=True):
-            remaining = remaining.replace(text, "")
-        assert remaining.strip() == "", f"section body has unverified text: {remaining!r}"
+        assert not hasattr(section, "body")
+        assert section.finding_ids
 
-    # Key findings are the verified texts verbatim.
+    # Key findings are the verified texts verbatim, each exactly once.
     assert report.key_findings == [f.text for f in FINDINGS]
+    assert len(report.key_findings) == len(set(report.key_findings))
 
 
 async def test_section_headings_are_engine_owned() -> None:
@@ -231,11 +232,10 @@ async def test_the_fallback_report_obeys_the_same_invariant() -> None:
         ["The dataset covers two years only."],
         BrokenReporter(),
     )
-    verified = {f.text for f in FINDINGS}
-    remaining = report.executive_summary
-    for text in sorted(verified, key=len, reverse=True):
-        remaining = remaining.replace(text, "")
-    assert remaining.strip() == ""
+    from agentic_analytics.agents.reporter import SUMMARY_LINE
+
+    # The fallback obeys the same contract: a fixed summary, findings once.
+    assert report.executive_summary == SUMMARY_LINE
     assert report.key_findings == [f.text for f in FINDINGS]
     assert all(s.heading in KIND_HEADINGS.values() for s in report.sections)
 

@@ -96,7 +96,6 @@ export interface ChartSpec {
 
 export interface ReportSection {
   heading: string
-  body: string
   finding_ids: string[]
 }
 
@@ -145,6 +144,18 @@ export interface RunMetrics {
 }
 
 export interface RunPayload {
+  /** Present when the run failed or was cancelled. */
+  error?: string
+  /** How the run was executed, recorded on the run itself. */
+  mode?: RunMode
+  provider_kind?: string
+  comparison_id?: string
+  requested_model?: string
+  resolved_model?: string
+  engine_version?: string
+  dataset_fingerprint?: string
+  usage?: RunUsage
+
   run_id: string
   question: string
   dataset: DatasetCatalog
@@ -185,6 +196,7 @@ export type EventType =
   | 'budget_exceeded'
   | 'run_completed'
   | 'run_failed'
+  | 'run_cancelled'
 
 export interface RunEvent {
   event_id: string
@@ -195,6 +207,48 @@ export interface RunEvent {
 }
 
 export type ExecutionMode = 'recorded' | 'deterministic_live' | 'ai_live'
+
+/** Which decision-maker drives a run. The server validates this too. */
+export type RunMode = 'deterministic' | 'ai'
+
+/** A user choice. `compare` runs both and is not a provider mode. */
+export type UiMode = RunMode | 'compare'
+
+export interface ModeCapability {
+  mode: RunMode
+  available: boolean
+  label: string
+  description: string
+  reason: string
+  message: string
+}
+
+export interface AILimits {
+  runs_per_session: number
+  max_model_calls_per_run: number
+  max_runtime_seconds: number
+}
+
+export interface Capabilities {
+  modes: ModeCapability[]
+  compare_available: boolean
+  ai_limits: AILimits | null
+}
+
+export interface RunUsage {
+  input_tokens: number
+  output_tokens: number
+  provider_attempts: number
+  estimated_cost_microdollars: number
+}
+
+export interface ComparisonStarted {
+  comparison_id: string
+  session_id: string
+  question: string
+  deterministic_run_id: string
+  ai_run_id: string
+}
 
 export interface ServerConfig {
   version: string
@@ -210,6 +264,7 @@ export interface ServerConfig {
   budgets: Record<string, number>
   demo_questions: { id: string; question: string; why: string }[]
   recordings: RecordingSummary[]
+  capabilities: Capabilities
 }
 
 export interface RecordingSummary {

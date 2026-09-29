@@ -19,17 +19,44 @@ import json
 import re
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field
+
+#: Why a structured call failed, as a stable identifier.
+#:
+#: The distinction is load-bearing for evaluation. "The model returned
+#: something the schema rejected" and "the HTTP request timed out" are
+#: completely different statements about a model, and collapsing both into
+#: one error type -- which is what happened -- makes a report that cannot
+#: answer the question it claims to answer.
+FailureKind = Literal[
+    "transport_error",
+    "timeout",
+    "json_parse_error",
+    "schema_validation_error",
+    "budget_exhausted",
+    # The model understood the request and declined it. Distinct from a
+    # parse failure on purpose: nothing is wrong with the contract, so
+    # retrying the same prompt is not a fix.
+    "refused",
+    "unknown",
+]
 
 
 class LLMError(RuntimeError):
     """A provider failed. Messages are sanitised before they reach a user."""
 
+    def __init__(self, message: str, kind: FailureKind = "unknown") -> None:
+        super().__init__(message)
+        self.kind: FailureKind = kind
+
 
 class BudgetError(LLMError):
     """The run reached its LLM call ceiling."""
+
+    def __init__(self, message: str) -> None:
+        super().__init__(message, kind="budget_exhausted")
 
 
 class LLMRequest(BaseModel):
@@ -49,22 +76,47 @@ class LLMRequest(BaseModel):
 
 @dataclass
 class LLMUsage:
-    """Call and token accounting for one run."""
+    """Request accounting for one run.
 
-    calls: int = 0
+    Attempts and successes are counted separately, and the ceiling is
+    enforced on **attempts**. It used to be enforced on successes, which
+    meant a failing provider consumed no budget at all: a run could time out
+    against a paid endpoint indefinitely and never reach its limit. For an
+    anonymous cloud deployment that is the difference between a budget and a
+    suggestion.
+
+    Tokens are recorded from what the provider actually reported, so they
+    follow successes and stay zero for an attempt that returned nothing.
+    """
+
+    attempts: int = 0
+    successes: int = 0
     input_tokens: int = 0
     output_tokens: int = 0
     by_role: dict[str, int] = field(default_factory=dict)
 
+    @property
+    def calls(self) -> int:
+        """Successful responses. Kept for readers that predate `successes`."""
+        return self.successes
+
+    def start(self, role: str) -> None:
+        """Reserve one attempt, before the request is dispatched."""
+        self.attempts += 1
+        self.by_role[role] = self.by_role.get(role, 0) + 1
+
     def record(self, role: str, input_tokens: int = 0, output_tokens: int = 0) -> None:
-        self.calls += 1
+        """A provider answered. Tokens are whatever it reported."""
+        self.successes += 1
         self.input_tokens += input_tokens
         self.output_tokens += output_tokens
-        self.by_role[role] = self.by_role.get(role, 0) + 1
 
     def as_dict(self) -> dict[str, Any]:
         return {
-            "llm_calls": self.calls,
+            "provider_request_attempts": self.attempts,
+            "provider_successful_responses": self.successes,
+            # Retained so existing readers and recordings keep working.
+            "llm_calls": self.successes,
             "input_tokens": self.input_tokens,
             "output_tokens": self.output_tokens,
             "by_role": dict(self.by_role),
@@ -77,14 +129,26 @@ class LLMProvider(ABC):
     name: str = "base"
     #: True when calling this provider costs money or needs a credential.
     requires_credentials: bool = False
+    #: True when a prompt sent to this provider leaves the machine. This is
+    #: what decides whether an uploaded file's raw cells may appear in one,
+    #: so it is a property of the provider a run actually holds rather than
+    #: of the process: one process serves both a local run and a cloud run.
+    remote_inference: bool = False
 
     def __init__(self, max_calls: int = 40) -> None:
         self.usage = LLMUsage()
         self.max_calls = max_calls
 
-    def _check_budget(self) -> None:
-        if self.usage.calls >= self.max_calls:
-            raise BudgetError(f"run reached its ceiling of {self.max_calls} LLM calls")
+    def _check_budget(self, role: str = "unknown") -> None:
+        """Reserve one attempt, or refuse before anything is dispatched.
+
+        Counting the attempt here rather than on success is the whole point:
+        a request that times out has still been made, has still cost the
+        provider's time and possibly money, and must still consume budget.
+        """
+        if self.usage.attempts >= self.max_calls:
+            raise BudgetError(f"run reached its ceiling of {self.max_calls} model request attempts")
+        self.usage.start(role)
 
     @abstractmethod
     async def complete_json(self, request: LLMRequest) -> dict[str, Any]:
@@ -122,7 +186,7 @@ def extract_json(text: str) -> dict[str, Any]:
             continue
         if isinstance(parsed, dict):
             return parsed
-    raise LLMError("provider did not return a JSON object")
+    raise LLMError("provider did not return a JSON object", kind="json_parse_error")
 
 
 def sanitize_provider_error(exc: BaseException) -> str:
@@ -134,6 +198,12 @@ def sanitize_provider_error(exc: BaseException) -> str:
     """
     name = type(exc).__name__
     text = str(exc).lower()
+    # By type first, then by message. `asyncio.TimeoutError` and
+    # `httpx.ReadTimeout` both stringify to the empty string, so a
+    # message-only test classified them as a generic failure -- which is how
+    # a run that hung for twenty minutes got reported as "call failed".
+    if isinstance(exc, TimeoutError) or "timeout" in name.lower():
+        return "the language model did not respond in time"
     if "timeout" in text or "timed out" in text:
         return f"the language model did not respond in time ({name})"
     if "connect" in text or "refused" in text:

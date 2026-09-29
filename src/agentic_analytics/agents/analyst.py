@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from agentic_analytics.agents.base import ask, bullet_list, parse_into, schema_of
+from agentic_analytics.agents.base import ask_into, bullet_list
 from agentic_analytics.agents.prompts import PLANNER, QUESTION_ANALYST
 from agentic_analytics.agents.schemas import AnalysisPlan, AnalysisTask, QuestionAnalysis
 from agentic_analytics.agents.timescope import comparison_window as _comparison_window
@@ -59,12 +59,12 @@ DIMENSIONS AVAILABLE
 
 Produce the analysis brief."""
 
-    payload = await ask(
+    payload = await ask_into(
         provider,
+        QuestionAnalysis,
         role="question_analyst",
         system=QUESTION_ANALYST,
         user=user,
-        schema=schema_of(QuestionAnalysis),
         context={
             "question": question,
             "metrics": [m["name"] for m in metrics],
@@ -73,7 +73,7 @@ Produce the analysis brief."""
             "dataset_kind": catalog.get("dataset_kind"),
         },
     )
-    analysis = parse_into(QuestionAnalysis, payload, "question_analyst")
+    analysis = payload
 
     # A model may name a metric that does not exist. Drop it and say so,
     # rather than letting a worker fail on it later.
@@ -98,6 +98,7 @@ async def plan_analysis(
     max_tasks: int,
     default_filters: list[dict[str, Any]] | None = None,
     tables: list[dict[str, Any]] | None = None,
+    telemetry: dict[str, Any] | None = None,
 ) -> list[AnalysisTask]:
     """Turn a brief into independent, executable analytical tasks."""
     metric_dimensions = {m["name"]: m["valid_dimensions"] for m in metrics}
@@ -126,12 +127,12 @@ TABLES AVAILABLE
 
 Emit at most {max_tasks} tasks."""
 
-    payload = await ask(
+    payload = await ask_into(
         provider,
+        AnalysisPlan,
         role="planner",
         system=PLANNER,
         user=user,
-        schema=schema_of(AnalysisPlan),
         context={
             "question": question,
             "analysis": analysis.model_dump(),
@@ -152,7 +153,7 @@ Emit at most {max_tasks} tasks."""
             "tables": tables or [],
         },
     )
-    plan = parse_into(AnalysisPlan, payload, "planner")
+    plan = payload
     window = parse_time_scope(analysis.time_scope)
     time_fields = {m["name"]: m["time_field"] for m in metrics}
 
@@ -160,11 +161,91 @@ Emit at most {max_tasks} tasks."""
     # dimensions the metric does not support. A task that cannot run is worse
     # than one fewer task.
     known = {m["name"] for m in metrics}
+    # A dataset with no metric layer -- any upload -- cannot run the
+    # metric-based tools at all. Dropping those tasks silently is what a real
+    # model's first plan hits: `preferred_tool` defaults to `compute_metric`
+    # when a model omits it, every task is then unexecutable, and the run
+    # stops having done nothing. The objective and columns are still good, so
+    # the task is redirected to the tool that *can* serve it rather than
+    # discarded. Nothing about verification changes; this only decides which
+    # governed tool a task reaches.
+    metric_free_dataset = not known
+    # Telemetry for the real-model evaluation. An engine fallback that
+    # rescues a bad plan is good for the product and *hides* the model's
+    # failure, so the intervention is recorded rather than left invisible.
+    # `plan_telemetry` is a plain dict a caller may pass in; production
+    # passes nothing and none of this runs.
+    if telemetry is not None:
+        telemetry["raw_model_tasks"] = [
+            {
+                "objective": task.objective[:200],
+                "analysis_type": task.analysis_type,
+                "required_metrics": list(task.required_metrics),
+                "dimensions": list(task.dimensions),
+                "preferred_tool": task.preferred_tool,
+                "table": task.table,
+                "columns": list(task.columns),
+            }
+            for task in plan.tasks
+        ]
+        telemetry["raw_model_tasks_returned"] = len(plan.tasks)
+        telemetry["raw_model_tools_requested"] = sorted(
+            {task.preferred_tool for task in plan.tasks}
+        )
+        telemetry["tasks_redirected_by_engine"] = 0
+        telemetry["redirect_reasons"] = []
+        telemetry["fallback_plan_used"] = False
+
     cleaned: list[AnalysisTask] = []
     for task in plan.tasks:
         task.required_metrics = [m for m in task.required_metrics if m in known]
+        if metric_free_dataset and task.preferred_tool not in METRIC_FREE_TOOLS:
+            if telemetry is not None:
+                telemetry["tasks_redirected_by_engine"] += 1
+                telemetry["redirect_reasons"].append(
+                    f"{task.preferred_tool} needs a metric layer this dataset has none of"
+                )
+            task.preferred_tool = "aggregate_for_question"
+            task.table = task.table or (tables[0]["name"] if tables else None)
+            task.variables = {**task.variables, "question": question}
+        # The mirror of the redirect above. A governed dataset asked for
+        # with an upload tool cannot work -- `aggregate_for_question` maps a
+        # question onto one table's raw columns, and on a warehouse that is
+        # both ambiguous and outside the metric layer. Redirecting is only
+        # honest when the task already names the metric to use: choosing one
+        # for it would be the engine deciding what the model meant.
+        if (
+            not metric_free_dataset
+            and task.preferred_tool == "aggregate_for_question"
+            and task.required_metrics
+        ):
+            if telemetry is not None:
+                telemetry["tasks_redirected_by_engine"] += 1
+                telemetry["redirect_reasons"].append(
+                    "aggregate_for_question does not use the metric layer; the task "
+                    f"already names {task.required_metrics[0]!r}"
+                )
+            task.preferred_tool = "compute_metric"
+
+        # A metric task that names no metric used to be dropped here, and
+        # that rule is now wrong. It was written when the worker had no idea
+        # which metrics existed, so a task saying "compare gross margin
+        # across channels" with an empty `required_metrics` really was
+        # unexecutable. The worker is given the metric catalogue now, and
+        # preflight checks whatever it names, so the task is executable and
+        # dropping it throws away a perfectly good objective.
+        #
+        # It cost a whole run to find: the planner returned six sensible
+        # metric tasks, every one with `required_metrics: []`, and the
+        # engine discarded all six without a word. The drop survives only
+        # where there is genuinely nothing to name.
         if not task.required_metrics and task.preferred_tool not in METRIC_FREE_TOOLS:
-            continue
+            if metric_free_dataset:
+                continue
+            if telemetry is not None:
+                telemetry["tasks_without_a_named_metric"] = (
+                    telemetry.get("tasks_without_a_named_metric", 0) + 1
+                )
         primary = task.required_metrics[0] if task.required_metrics else None
         if primary:
             allowed = set(metric_dimensions.get(primary, []))
@@ -186,4 +267,61 @@ Emit at most {max_tasks} tasks."""
         cleaned.append(task)
         if len(cleaned) >= max_tasks:
             break
+
+    if not cleaned and metric_free_dataset and tables:
+        # The engine's own plan, used when a provider returned nothing this
+        # dataset can execute. Bounded, deterministic, and the same two tasks
+        # the scripted provider would have chosen -- owned here so that every
+        # provider gets the fallback rather than each having to implement it.
+        cleaned = _fallback_plan(question, str(tables[0]["name"]), max_tasks)
+        if telemetry is not None:
+            telemetry["fallback_plan_used"] = True
+
+    if telemetry is not None:
+        telemetry["planner_tasks_after_cleanup"] = len(cleaned)
+        telemetry["cleaned_tasks"] = [
+            {
+                "objective": task.objective[:200],
+                "preferred_tool": task.preferred_tool,
+                "required_metrics": list(task.required_metrics),
+                "dimensions": list(task.dimensions),
+                "table": task.table,
+            }
+            for task in cleaned
+        ]
+        # The distinction the evaluation exists to make: did the model plan
+        # something runnable, or did the engine rescue it?
+        telemetry["model_plan_directly_executable"] = bool(
+            plan.tasks
+            and not telemetry["fallback_plan_used"]
+            and telemetry["tasks_redirected_by_engine"] == 0
+            and cleaned
+        )
     return cleaned
+
+
+def _fallback_plan(question: str, table: str, max_tasks: int) -> list[AnalysisTask]:
+    """Answer the question if the rules can map it; describe the table either way."""
+    tasks = [
+        AnalysisTask(
+            task_id="task_01",
+            objective=f"Answer the question from {table} if it maps to the columns",
+            analysis_type="profiling",
+            preferred_tool="aggregate_for_question",
+            priority=1,
+            table=table,
+            variables={"question": question},
+        )
+    ]
+    if max_tasks > 1:
+        tasks.append(
+            AnalysisTask(
+                task_id="task_02",
+                objective=f"Describe the shape of {table}",
+                analysis_type="profiling",
+                preferred_tool="profile_table",
+                priority=2,
+                table=table,
+            )
+        )
+    return tasks

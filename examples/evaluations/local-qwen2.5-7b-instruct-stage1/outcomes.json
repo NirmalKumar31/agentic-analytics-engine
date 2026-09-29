@@ -1,0 +1,3143 @@
+[
+  {
+    "dataset": "warehouse",
+    "question": "Revenue increased in Q3 2025, but gross margin fell. What caused it?",
+    "kind": "grouped",
+    "expectation": "decomposition into rate and mix",
+    "completed": true,
+    "stopped_reason": "",
+    "error": "",
+    "question_timeout": false,
+    "roles_called": {
+      "question_analyst": 1,
+      "planner": 1,
+      "worker_next_tool": 36,
+      "worker_findings": 6
+    },
+    "roles_failed": {
+      "worker_findings": 4
+    },
+    "failures_by_stage": {
+      "timeout": 4
+    },
+    "schema_validation_failures": 0,
+    "json_parse_failures": 0,
+    "transport_failures": 0,
+    "timeout_failures": 4,
+    "budget_failures": 0,
+    "raw_model_tasks_returned": 6,
+    "raw_model_tools_requested": [
+      "analyze_timeseries",
+      "compare_segments",
+      "decompose_change",
+      "rank_contributors"
+    ],
+    "raw_model_tasks": [
+      {
+        "objective": "Identify the segments driving revenue growth in Q3 2025.",
+        "analysis_type": "segmentation",
+        "required_metrics": [],
+        "dimensions": [],
+        "preferred_tool": "decompose_change",
+        "table": null,
+        "columns": []
+      },
+      {
+        "objective": "Analyze the gross margin trend in Q3 2025.",
+        "analysis_type": "segmentation",
+        "required_metrics": [],
+        "dimensions": [],
+        "preferred_tool": "analyze_timeseries",
+        "table": null,
+        "columns": []
+      },
+      {
+        "objective": "Compare gross margin across different acquisition channels in Q3 2025.",
+        "analysis_type": "segmentation",
+        "required_metrics": [],
+        "dimensions": [],
+        "preferred_tool": "compare_segments",
+        "table": null,
+        "columns": []
+      },
+      {
+        "objective": "Identify the segments driving changes in gross margin in Q3 2025.",
+        "analysis_type": "segmentation",
+        "required_metrics": [],
+        "dimensions": [],
+        "preferred_tool": "decompose_change",
+        "table": null,
+        "columns": []
+      },
+      {
+        "objective": "Determine the segments contributing most to increased revenue in Q3 2025.",
+        "analysis_type": "segmentation",
+        "required_metrics": [],
+        "dimensions": [],
+        "preferred_tool": "rank_contributors",
+        "table": null,
+        "columns": []
+      },
+      {
+        "objective": "Identify the segments contributing most to decreased gross margin in Q3 2025.",
+        "analysis_type": "segmentation",
+        "required_metrics": [],
+        "dimensions": [],
+        "preferred_tool": "rank_contributors",
+        "table": null,
+        "columns": []
+      }
+    ],
+    "cleaned_tasks": [
+      {
+        "objective": "Identify the segments driving revenue growth in Q3 2025.",
+        "preferred_tool": "decompose_change",
+        "required_metrics": [],
+        "dimensions": [],
+        "table": null
+      },
+      {
+        "objective": "Analyze the gross margin trend in Q3 2025.",
+        "preferred_tool": "analyze_timeseries",
+        "required_metrics": [],
+        "dimensions": [],
+        "table": null
+      },
+      {
+        "objective": "Compare gross margin across different acquisition channels in Q3 2025.",
+        "preferred_tool": "compare_segments",
+        "required_metrics": [],
+        "dimensions": [],
+        "table": null
+      },
+      {
+        "objective": "Identify the segments driving changes in gross margin in Q3 2025.",
+        "preferred_tool": "decompose_change",
+        "required_metrics": [],
+        "dimensions": [],
+        "table": null
+      },
+      {
+        "objective": "Determine the segments contributing most to increased revenue in Q3 2025.",
+        "preferred_tool": "rank_contributors",
+        "required_metrics": [],
+        "dimensions": [],
+        "table": null
+      },
+      {
+        "objective": "Identify the segments contributing most to decreased gross margin in Q3 2025.",
+        "preferred_tool": "rank_contributors",
+        "required_metrics": [],
+        "dimensions": [],
+        "table": null
+      }
+    ],
+    "planner_tasks_after_cleanup": 6,
+    "tasks_redirected_by_engine": 0,
+    "tasks_without_a_named_metric": 6,
+    "duplicate_published_findings_removed": 0,
+    "redirect_reasons": [],
+    "fallback_plan_used": false,
+    "model_plan_directly_executable": true,
+    "planned_tasks": 6,
+    "tools_selected": [
+      "compare_segments",
+      "decompose_change",
+      "rank_contributors",
+      "analyze_timeseries"
+    ],
+    "tool_calls": 27,
+    "tool_call_failures": 0,
+    "tool_failures_by_tool": {},
+    "tool_failure_reasons": {},
+    "tool_calls_succeeded": 27,
+    "preflight_rejections": 8,
+    "duplicate_failed_calls_suppressed": 1,
+    "mcp_failures": 0,
+    "tool_failure_categories": {
+      "duplicate_failed_call_suppressed": 1,
+      "unknown_dimension": 4,
+      "malformed_filter": 4
+    },
+    "execution_contract_characters": 3028,
+    "generated_sql_calls": 0,
+    "statistical_tests": 0,
+    "candidate_findings": 9,
+    "published_findings": 0,
+    "withheld_findings": 9,
+    "withheld_rules": {
+      "verification_budget_exhausted": 9
+    },
+    "report_written": false,
+    "report_sections": 0,
+    "claims": [
+      {
+        "finding_id": "fin_c0e2dfe8",
+        "text": "The organic segment contributed 47.9203% to the decrease in contribution margin.",
+        "kind": "calculated_fact",
+        "task_id": "task_040ca633",
+        "result_ids": [
+          "res_c17b2b0c7a30"
+        ],
+        "evidence_cells": [
+          {
+            "result_id": "res_c17b2b0c7a30",
+            "row": 0,
+            "column": "contribution_pct",
+            "value": null,
+            "label": null
+          }
+        ],
+        "metric_ids": [],
+        "claimed_change": null,
+        "published": false,
+        "status": "unsupported",
+        "rule": "verification_budget_exhausted",
+        "reason": "The run reached its time budget before this claim could be verified, so it was not published.",
+        "resolved_cells": [
+          {
+            "result_id": "res_c17b2b0c7a30",
+            "row": 0,
+            "column": "contribution_pct",
+            "stated_value": null,
+            "actual_value": 47.9203,
+            "resolved": true
+          }
+        ]
+      },
+      {
+        "finding_id": "fin_6cc26cf6",
+        "text": "The referral segment contributed 30.41% to the decrease in contribution margin.",
+        "kind": "calculated_fact",
+        "task_id": "task_040ca633",
+        "result_ids": [
+          "res_c17b2b0c7a30"
+        ],
+        "evidence_cells": [
+          {
+            "result_id": "res_c17b2b0c7a30",
+            "row": 1,
+            "column": "contribution_pct",
+            "value": null,
+            "label": null
+          }
+        ],
+        "metric_ids": [],
+        "claimed_change": null,
+        "published": false,
+        "status": "unsupported",
+        "rule": "verification_budget_exhausted",
+        "reason": "The run reached its time budget before this claim could be verified, so it was not published.",
+        "resolved_cells": [
+          {
+            "result_id": "res_c17b2b0c7a30",
+            "row": 1,
+            "column": "contribution_pct",
+            "stated_value": null,
+            "actual_value": 30.41,
+            "resolved": true
+          }
+        ]
+      },
+      {
+        "finding_id": "fin_31d85031",
+        "text": "The email segment contributed 22.0372% to the decrease in contribution margin.",
+        "kind": "calculated_fact",
+        "task_id": "task_040ca633",
+        "result_ids": [
+          "res_c17b2b0c7a30"
+        ],
+        "evidence_cells": [
+          {
+            "result_id": "res_c17b2b0c7a30",
+            "row": 2,
+            "column": "contribution_pct",
+            "value": null,
+            "label": null
+          }
+        ],
+        "metric_ids": [],
+        "claimed_change": null,
+        "published": false,
+        "status": "unsupported",
+        "rule": "verification_budget_exhausted",
+        "reason": "The run reached its time budget before this claim could be verified, so it was not published.",
+        "resolved_cells": [
+          {
+            "result_id": "res_c17b2b0c7a30",
+            "row": 2,
+            "column": "contribution_pct",
+            "stated_value": null,
+            "actual_value": 22.0372,
+            "resolved": true
+          }
+        ]
+      },
+      {
+        "finding_id": "fin_1e9e29b3",
+        "text": "The affiliate segment contributed -17.2783% to the decrease in contribution margin.",
+        "kind": "calculated_fact",
+        "task_id": "task_040ca633",
+        "result_ids": [
+          "res_c17b2b0c7a30"
+        ],
+        "evidence_cells": [
+          {
+            "result_id": "res_c17b2b0c7a30",
+            "row": 3,
+            "column": "contribution_pct",
+            "value": null,
+            "label": null
+          }
+        ],
+        "metric_ids": [],
+        "claimed_change": null,
+        "published": false,
+        "status": "unsupported",
+        "rule": "verification_budget_exhausted",
+        "reason": "The run reached its time budget before this claim could be verified, so it was not published.",
+        "resolved_cells": [
+          {
+            "result_id": "res_c17b2b0c7a30",
+            "row": 3,
+            "column": "contribution_pct",
+            "stated_value": null,
+            "actual_value": -17.2783,
+            "resolved": true
+          }
+        ]
+      },
+      {
+        "finding_id": "fin_9956ab6a",
+        "text": "The paid_search segment contributed 9.0571% to the decrease in contribution margin.",
+        "kind": "calculated_fact",
+        "task_id": "task_040ca633",
+        "result_ids": [
+          "res_c17b2b0c7a30"
+        ],
+        "evidence_cells": [
+          {
+            "result_id": "res_c17b2b0c7a30",
+            "row": 4,
+            "column": "contribution_pct",
+            "value": null,
+            "label": null
+          }
+        ],
+        "metric_ids": [],
+        "claimed_change": null,
+        "published": false,
+        "status": "unsupported",
+        "rule": "verification_budget_exhausted",
+        "reason": "The run reached its time budget before this claim could be verified, so it was not published.",
+        "resolved_cells": [
+          {
+            "result_id": "res_c17b2b0c7a30",
+            "row": 4,
+            "column": "contribution_pct",
+            "stated_value": null,
+            "actual_value": 9.0571,
+            "resolved": true
+          }
+        ]
+      },
+      {
+        "finding_id": "fin_1a36631d",
+        "text": "The social acquisition channel has the highest gross margin percentage at 36.38%.",
+        "kind": "calculated_fact",
+        "task_id": "task_c9bee820",
+        "result_ids": [
+          "res_286e3e8a5728",
+          "res_7593248c76cd",
+          "res_3cbd4a60680c"
+        ],
+        "evidence_cells": [
+          {
+            "result_id": "res_286e3e8a5728",
+            "row": 0,
+            "column": "gross_margin_pct",
+            "value": null,
+            "label": null
+          },
+          {
+            "result_id": "res_7593248c76cd",
+            "row": 0,
+            "column": "gross_margin_pct",
+            "value": null,
+            "label": null
+          },
+          {
+            "result_id": "res_3cbd4a60680c",
+            "row": 0,
+            "column": "gross_margin_pct",
+            "value": null,
+            "label": null
+          }
+        ],
+        "metric_ids": [],
+        "claimed_change": null,
+        "published": false,
+        "status": "unsupported",
+        "rule": "verification_budget_exhausted",
+        "reason": "The run reached its time budget before this claim could be verified, so it was not published.",
+        "resolved_cells": [
+          {
+            "result_id": "res_286e3e8a5728",
+            "row": 0,
+            "column": "gross_margin_pct",
+            "stated_value": null,
+            "actual_value": 36.38013113427783,
+            "resolved": true
+          },
+          {
+            "result_id": "res_7593248c76cd",
+            "row": 0,
+            "column": "gross_margin_pct",
+            "stated_value": null,
+            "actual_value": 36.38013113427783,
+            "resolved": true
+          },
+          {
+            "result_id": "res_3cbd4a60680c",
+            "row": 0,
+            "column": "gross_margin_pct",
+            "stated_value": null,
+            "actual_value": 36.38013113427783,
+            "resolved": true
+          }
+        ]
+      },
+      {
+        "finding_id": "fin_12f56ae0",
+        "text": "The organic acquisition channel has a gross margin percentage of 35.58%.",
+        "kind": "calculated_fact",
+        "task_id": "task_c9bee820",
+        "result_ids": [
+          "res_286e3e8a5728",
+          "res_7593248c76cd",
+          "res_3cbd4a60680c"
+        ],
+        "evidence_cells": [
+          {
+            "result_id": "res_286e3e8a5728",
+            "row": 1,
+            "column": "gross_margin_pct",
+            "value": null,
+            "label": null
+          },
+          {
+            "result_id": "res_7593248c76cd",
+            "row": 1,
+            "column": "gross_margin_pct",
+            "value": null,
+            "label": null
+          },
+          {
+            "result_id": "res_3cbd4a60680c",
+            "row": 1,
+            "column": "gross_margin_pct",
+            "value": null,
+            "label": null
+          }
+        ],
+        "metric_ids": [],
+        "claimed_change": null,
+        "published": false,
+        "status": "unsupported",
+        "rule": "verification_budget_exhausted",
+        "reason": "The run reached its time budget before this claim could be verified, so it was not published.",
+        "resolved_cells": [
+          {
+            "result_id": "res_286e3e8a5728",
+            "row": 1,
+            "column": "gross_margin_pct",
+            "stated_value": null,
+            "actual_value": 35.58276669944937,
+            "resolved": true
+          },
+          {
+            "result_id": "res_7593248c76cd",
+            "row": 1,
+            "column": "gross_margin_pct",
+            "stated_value": null,
+            "actual_value": 35.58276669944937,
+            "resolved": true
+          },
+          {
+            "result_id": "res_3cbd4a60680c",
+            "row": 1,
+            "column": "gross_margin_pct",
+            "stated_value": null,
+            "actual_value": 35.58276669944937,
+            "resolved": true
+          }
+        ]
+      },
+      {
+        "finding_id": "fin_19d934df",
+        "text": "The referral acquisition channel has a gross margin percentage of 35.14%.",
+        "kind": "calculated_fact",
+        "task_id": "task_c9bee820",
+        "result_ids": [
+          "res_286e3e8a5728",
+          "res_7593248c76cd",
+          "res_3cbd4a60680c"
+        ],
+        "evidence_cells": [
+          {
+            "result_id": "res_286e3e8a5728",
+            "row": 3,
+            "column": "gross_margin_pct",
+            "value": null,
+            "label": null
+          },
+          {
+            "result_id": "res_7593248c76cd",
+            "row": 3,
+            "column": "gross_margin_pct",
+            "value": null,
+            "label": null
+          },
+          {
+            "result_id": "res_3cbd4a60680c",
+            "row": 3,
+            "column": "gross_margin_pct",
+            "value": null,
+            "label": null
+          }
+        ],
+        "metric_ids": [],
+        "claimed_change": null,
+        "published": false,
+        "status": "unsupported",
+        "rule": "verification_budget_exhausted",
+        "reason": "The run reached its time budget before this claim could be verified, so it was not published.",
+        "resolved_cells": [
+          {
+            "result_id": "res_286e3e8a5728",
+            "row": 3,
+            "column": "gross_margin_pct",
+            "stated_value": null,
+            "actual_value": 35.142653990355,
+            "resolved": true
+          },
+          {
+            "result_id": "res_7593248c76cd",
+            "row": 3,
+            "column": "gross_margin_pct",
+            "stated_value": null,
+            "actual_value": 35.142653990355,
+            "resolved": true
+          },
+          {
+            "result_id": "res_3cbd4a60680c",
+            "row": 3,
+            "column": "gross_margin_pct",
+            "stated_value": null,
+            "actual_value": 35.142653990355,
+            "resolved": true
+          }
+        ]
+      },
+      {
+        "finding_id": "fin_7ab0c065",
+        "text": "The affiliate acquisition channel has the lowest gross margin percentage at 25.06%.",
+        "kind": "calculated_fact",
+        "task_id": "task_c9bee820",
+        "result_ids": [
+          "res_286e3e8a5728",
+          "res_7593248c76cd",
+          "res_3cbd4a60680c"
+        ],
+        "evidence_cells": [
+          {
+            "result_id": "res_286e3e8a5728",
+            "row": 5,
+            "column": "gross_margin_pct",
+            "value": null,
+            "label": null
+          },
+          {
+            "result_id": "res_7593248c76cd",
+            "row": 5,
+            "column": "gross_margin_pct",
+            "value": null,
+            "label": null
+          },
+          {
+            "result_id": "res_3cbd4a60680c",
+            "row": 5,
+            "column": "gross_margin_pct",
+            "value": null,
+            "label": null
+          }
+        ],
+        "metric_ids": [],
+        "claimed_change": null,
+        "published": false,
+        "status": "unsupported",
+        "rule": "verification_budget_exhausted",
+        "reason": "The run reached its time budget before this claim could be verified, so it was not published.",
+        "resolved_cells": [
+          {
+            "result_id": "res_286e3e8a5728",
+            "row": 5,
+            "column": "gross_margin_pct",
+            "stated_value": null,
+            "actual_value": 25.05578928662103,
+            "resolved": true
+          },
+          {
+            "result_id": "res_7593248c76cd",
+            "row": 5,
+            "column": "gross_margin_pct",
+            "stated_value": null,
+            "actual_value": 25.05578928662103,
+            "resolved": true
+          },
+          {
+            "result_id": "res_3cbd4a60680c",
+            "row": 5,
+            "column": "gross_margin_pct",
+            "stated_value": null,
+            "actual_value": 25.05578928662103,
+            "resolved": true
+          }
+        ]
+      }
+    ],
+    "outcome_flags": [
+      "provider_failure",
+      "completed_all_findings_withheld",
+      "direct_model_plan"
+    ],
+    "structured_agent_calls": 44,
+    "provider_request_attempts": 44,
+    "provider_successful_responses": 40,
+    "input_tokens": 75622,
+    "output_tokens": 5406,
+    "runtime_seconds": 2107.87
+  },
+  {
+    "dataset": "sales",
+    "question": "What is the total net value?",
+    "kind": "aggregate",
+    "expectation": "sum of net_value",
+    "completed": true,
+    "stopped_reason": "",
+    "error": "",
+    "question_timeout": false,
+    "roles_called": {
+      "question_analyst": 1,
+      "planner": 1,
+      "worker_next_tool": 30,
+      "worker_findings": 5,
+      "critic": 11,
+      "visualizer": 4,
+      "reporter": 1
+    },
+    "roles_failed": {},
+    "failures_by_stage": {},
+    "schema_validation_failures": 0,
+    "json_parse_failures": 0,
+    "transport_failures": 0,
+    "timeout_failures": 0,
+    "budget_failures": 0,
+    "raw_model_tasks_returned": 5,
+    "raw_model_tools_requested": [
+      "aggregate_for_question",
+      "correlation_matrix",
+      "profile_table",
+      "run_readonly_sql"
+    ],
+    "raw_model_tasks": [
+      {
+        "objective": "Describe the structure of the uploaded data table",
+        "analysis_type": "segmentation",
+        "required_metrics": [],
+        "dimensions": [],
+        "preferred_tool": "profile_table",
+        "table": "uploaded_data",
+        "columns": []
+      },
+      {
+        "objective": "Identify potential columns that could represent a net value",
+        "analysis_type": "segmentation",
+        "required_metrics": [],
+        "dimensions": [],
+        "preferred_tool": "run_readonly_sql",
+        "table": "uploaded_data",
+        "columns": [
+          "*"
+        ]
+      },
+      {
+        "objective": "Check if there is any numeric column that could represent net value by aggregating its values",
+        "analysis_type": "segmentation",
+        "required_metrics": [],
+        "dimensions": [],
+        "preferred_tool": "aggregate_for_question",
+        "table": "uploaded_data",
+        "columns": [
+          "column_name"
+        ]
+      },
+      {
+        "objective": "Determine if there are any segments that could influence the net value",
+        "analysis_type": "segmentation",
+        "required_metrics": [],
+        "dimensions": [],
+        "preferred_tool": "run_readonly_sql",
+        "table": "uploaded_data",
+        "columns": [
+          "segment_column"
+        ]
+      },
+      {
+        "objective": "Analyze relationships between numeric columns that could potentially represent net value",
+        "analysis_type": "segmentation",
+        "required_metrics": [],
+        "dimensions": [],
+        "preferred_tool": "correlation_matrix",
+        "table": "uploaded_data",
+        "columns": []
+      }
+    ],
+    "cleaned_tasks": [
+      {
+        "objective": "Describe the structure of the uploaded data table",
+        "preferred_tool": "profile_table",
+        "required_metrics": [],
+        "dimensions": [],
+        "table": "uploaded_data"
+      },
+      {
+        "objective": "Identify potential columns that could represent a net value",
+        "preferred_tool": "run_readonly_sql",
+        "required_metrics": [],
+        "dimensions": [],
+        "table": "uploaded_data"
+      },
+      {
+        "objective": "Check if there is any numeric column that could represent net value by aggregating its values",
+        "preferred_tool": "aggregate_for_question",
+        "required_metrics": [],
+        "dimensions": [],
+        "table": "uploaded_data"
+      },
+      {
+        "objective": "Determine if there are any segments that could influence the net value",
+        "preferred_tool": "run_readonly_sql",
+        "required_metrics": [],
+        "dimensions": [],
+        "table": "uploaded_data"
+      },
+      {
+        "objective": "Analyze relationships between numeric columns that could potentially represent net value",
+        "preferred_tool": "correlation_matrix",
+        "required_metrics": [],
+        "dimensions": [],
+        "table": "uploaded_data"
+      }
+    ],
+    "planner_tasks_after_cleanup": 5,
+    "tasks_redirected_by_engine": 0,
+    "tasks_without_a_named_metric": 0,
+    "duplicate_published_findings_removed": 0,
+    "redirect_reasons": [],
+    "fallback_plan_used": false,
+    "model_plan_directly_executable": true,
+    "planned_tasks": 5,
+    "tools_selected": [
+      "profile_table",
+      "correlation_matrix",
+      "run_readonly_sql",
+      "aggregate_for_question"
+    ],
+    "tool_calls": 19,
+    "tool_call_failures": 7,
+    "tool_failures_by_tool": {
+      "run_readonly_sql": 4,
+      "aggregate_for_question": 1,
+      "correlation_matrix": 2
+    },
+    "tool_failure_reasons": {
+      "unknown table(s): columns; available: ['uploaded_data']": 3,
+      "this question could not be mapped to the table without guessing (the question asked what the table contains); call profile_dataset to see the columns": 1,
+      "column 'territory' is VARCHAR, which this test cannot use; it requires a numeric column": 1,
+      "query failed: Binder Error: Referenced column \"column_name\" not found in FROM clause! Candidate bindings: \"net_value\", \"units_sold\" LINE 2: SELECT column_name FROM uploaded_data LIMIT 10 ^": 1,
+      "column 'product_family' is VARCHAR, which this test cannot use; it requires a numeric column": 1
+    },
+    "tool_calls_succeeded": 12,
+    "preflight_rejections": 2,
+    "duplicate_failed_calls_suppressed": 9,
+    "mcp_failures": 7,
+    "tool_failure_categories": {
+      "duplicate_failed_call_suppressed": 9,
+      "unknown_tool": 2,
+      "mcp_tool_failed": 7
+    },
+    "execution_contract_characters": 921,
+    "generated_sql_calls": 10,
+    "statistical_tests": 0,
+    "candidate_findings": 15,
+    "published_findings": 9,
+    "withheld_findings": 6,
+    "withheld_rules": {
+      "numeric_mismatch": 4,
+      "critic": 2
+    },
+    "report_written": true,
+    "report_sections": 2,
+    "claims": [
+      {
+        "finding_id": "fin_a73156fb",
+        "text": "The table has 6 columns.",
+        "kind": "calculated_fact",
+        "task_id": "task_0f2fe76a",
+        "result_ids": [
+          "res_cb3385a81429"
+        ],
+        "evidence_cells": [
+          {
+            "result_id": "res_cb3385a81429",
+            "row": 0,
+            "column": "column_name",
+            "value": null,
+            "label": null
+          }
+        ],
+        "metric_ids": [],
+        "claimed_change": null,
+        "published": true,
+        "status": "supported",
+        "rule": "critic",
+        "reason": "The table indeed has 6 columns as stated: sales_order_ref, booked_on, territory, product_family, units_sold, and net_value.",
+        "resolved_cells": [
+          {
+            "result_id": "res_cb3385a81429",
+            "row": 0,
+            "column": "column_name",
+            "stated_value": null,
+            "actual_value": "sales_order_ref",
+            "resolved": true
+          }
+        ]
+      },
+      {
+        "finding_id": "fin_0b220872",
+        "text": "The `sales_order_ref` column contains 4000 non-null values.",
+        "kind": "calculated_fact",
+        "task_id": "task_0f2fe76a",
+        "result_ids": [
+          "res_cb3385a81429"
+        ],
+        "evidence_cells": [
+          {
+            "result_id": "res_cb3385a81429",
+            "row": 0,
+            "column": "non_null",
+            "value": null,
+            "label": null
+          }
+        ],
+        "metric_ids": [],
+        "claimed_change": null,
+        "published": true,
+        "status": "supported",
+        "rule": "critic",
+        "reason": "The proposed finding accurately states that the `sales_order_ref` column contains 4000 non-null values, which matches the result shown in the referenced cell.",
+        "resolved_cells": [
+          {
+            "result_id": "res_cb3385a81429",
+            "row": 0,
+            "column": "non_null",
+            "stated_value": null,
+            "actual_value": 4000,
+            "resolved": true
+          }
+        ]
+      },
+      {
+        "finding_id": "fin_0b9acdd8",
+        "text": "The `booked_on` column contains dates ranging from '2025-01-01' to '2025-12-27'.",
+        "kind": "calculated_fact",
+        "task_id": "task_0f2fe76a",
+        "result_ids": [
+          "res_cb3385a81429"
+        ],
+        "evidence_cells": [
+          {
+            "result_id": "res_cb3385a81429",
+            "row": 1,
+            "column": "min_value",
+            "value": null,
+            "label": null
+          },
+          {
+            "result_id": "res_cb3385a81429",
+            "row": 1,
+            "column": "max_value",
+            "value": null,
+            "label": null
+          }
+        ],
+        "metric_ids": [],
+        "claimed_change": null,
+        "published": true,
+        "status": "supported",
+        "rule": "critic",
+        "reason": "The proposed finding accurately states that the `booked_on` column contains dates ranging from '2025-01-01' to '2025-12-27', which matches the minimum and maximum values provided in the result.",
+        "resolved_cells": [
+          {
+            "result_id": "res_cb3385a81429",
+            "row": 1,
+            "column": "min_value",
+            "stated_value": null,
+            "actual_value": "2025-01-01",
+            "resolved": true
+          },
+          {
+            "result_id": "res_cb3385a81429",
+            "row": 1,
+            "column": "max_value",
+            "stated_value": null,
+            "actual_value": "2025-12-27",
+            "resolved": true
+          }
+        ]
+      },
+      {
+        "finding_id": "fin_9ae74f12",
+        "text": "The `territory` column has 4 distinct values.",
+        "kind": "calculated_fact",
+        "task_id": "task_0f2fe76a",
+        "result_ids": [
+          "res_cb3385a81429"
+        ],
+        "evidence_cells": [
+          {
+            "result_id": "res_cb3385a81429",
+            "row": 2,
+            "column": "distinct_count",
+            "value": null,
+            "label": null
+          }
+        ],
+        "metric_ids": [],
+        "claimed_change": null,
+        "published": true,
+        "status": "supported",
+        "rule": "critic",
+        "reason": "The proposed finding accurately states that the `territory` column has 4 distinct values, which matches the result shown in the referenced cell.",
+        "resolved_cells": [
+          {
+            "result_id": "res_cb3385a81429",
+            "row": 2,
+            "column": "distinct_count",
+            "stated_value": null,
+            "actual_value": 4,
+            "resolved": true
+          }
+        ]
+      },
+      {
+        "finding_id": "fin_0bac4b4f",
+        "text": "The `product_family` column has 5 distinct values.",
+        "kind": "calculated_fact",
+        "task_id": "task_0f2fe76a",
+        "result_ids": [
+          "res_cb3385a81429"
+        ],
+        "evidence_cells": [
+          {
+            "result_id": "res_cb3385a81429",
+            "row": 3,
+            "column": "distinct_count",
+            "value": null,
+            "label": null
+          }
+        ],
+        "metric_ids": [],
+        "claimed_change": null,
+        "published": true,
+        "status": "supported",
+        "rule": "critic",
+        "reason": "The proposed finding accurately states that the `product_family` column has 5 distinct values, which matches the result shown in the referenced cell.",
+        "resolved_cells": [
+          {
+            "result_id": "res_cb3385a81429",
+            "row": 3,
+            "column": "distinct_count",
+            "stated_value": null,
+            "actual_value": 5,
+            "resolved": true
+          }
+        ]
+      },
+      {
+        "finding_id": "fin_dea12c99",
+        "text": "The correlation between 'units_sold' and 'net_value' is -0.034864.",
+        "kind": "calculated_fact",
+        "task_id": "task_c68ef6dd",
+        "result_ids": [
+          "res_5d00e3b81cc9",
+          "res_b89b78affb92",
+          "res_93878a6e76c3"
+        ],
+        "evidence_cells": [
+          {
+            "result_id": "res_5d00e3b81cc9",
+            "row": 0,
+            "column": "units_sold",
+            "value": null,
+            "label": null
+          },
+          {
+            "result_id": "res_b89b78affb92",
+            "row": 0,
+            "column": "units_sold",
+            "value": null,
+            "label": null
+          },
+          {
+            "result_id": "res_93878a6e76c3",
+            "row": 0,
+            "column": "units_sold",
+            "value": null,
+            "label": null
+          }
+        ],
+        "metric_ids": [],
+        "claimed_change": null,
+        "published": true,
+        "status": "supported",
+        "rule": "critic",
+        "reason": "The correlation value between 'units_sold' and 'net_value' is correctly stated as -0.034864, which matches the result from the correlation matrix.",
+        "resolved_cells": [
+          {
+            "result_id": "res_5d00e3b81cc9",
+            "row": 0,
+            "column": "units_sold",
+            "stated_value": null,
+            "actual_value": 1.0,
+            "resolved": true
+          },
+          {
+            "result_id": "res_b89b78affb92",
+            "row": 0,
+            "column": "units_sold",
+            "stated_value": null,
+            "actual_value": 1.0,
+            "resolved": true
+          },
+          {
+            "result_id": "res_93878a6e76c3",
+            "row": 0,
+            "column": "units_sold",
+            "stated_value": null,
+            "actual_value": 1.0,
+            "resolved": true
+          }
+        ]
+      },
+      {
+        "finding_id": "fin_cdf4f11b",
+        "text": "The total net value for North territory ranges from 43985.05 to 43985.05.",
+        "kind": "calculated_fact",
+        "task_id": "task_f2d75858",
+        "result_ids": [
+          "res_eea163dc4b53",
+          "res_8a11c0f00c2e",
+          "res_8925c2344e94",
+          "res_fa9375b011d6",
+          "res_368276eeddfa"
+        ],
+        "evidence_cells": [
+          {
+            "result_id": "res_eea163dc4b53",
+            "row": 0,
+            "column": "total_net_value",
+            "value": null,
+            "label": null
+          },
+          {
+            "result_id": "res_8a11c0f00c2e",
+            "row": 0,
+            "column": "total_net_value",
+            "value": null,
+            "label": null
+          },
+          {
+            "result_id": "res_8925c2344e94",
+            "row": 0,
+            "column": "total_net_value",
+            "value": null,
+            "label": null
+          },
+          {
+            "result_id": "res_fa9375b011d6",
+            "row": 0,
+            "column": "total_net_value",
+            "value": null,
+            "label": null
+          },
+          {
+            "result_id": "res_368276eeddfa",
+            "row": 0,
+            "column": "total_net_value",
+            "value": null,
+            "label": null
+          }
+        ],
+        "metric_ids": [],
+        "claimed_change": null,
+        "published": true,
+        "status": "supported",
+        "rule": "critic",
+        "reason": "The total net value for the North territory, as shown by the results from multiple queries, consistently ranges around 43985.05.",
+        "resolved_cells": [
+          {
+            "result_id": "res_eea163dc4b53",
+            "row": 0,
+            "column": "total_net_value",
+            "stated_value": null,
+            "actual_value": 43985.04999999993,
+            "resolved": true
+          },
+          {
+            "result_id": "res_8a11c0f00c2e",
+            "row": 0,
+            "column": "total_net_value",
+            "stated_value": null,
+            "actual_value": 215380.7600000001,
+            "resolved": true
+          },
+          {
+            "result_id": "res_8925c2344e94",
+            "row": 0,
+            "column": "total_net_value",
+            "stated_value": null,
+            "actual_value": 43985.04999999993,
+            "resolved": true
+          },
+          {
+            "result_id": "res_fa9375b011d6",
+            "row": 0,
+            "column": "total_net_value",
+            "stated_value": null,
+            "actual_value": 43985.04999999993,
+            "resolved": true
+          },
+          {
+            "result_id": "res_368276eeddfa",
+            "row": 0,
+            "column": "total_net_value",
+            "stated_value": null,
+            "actual_value": 43985.04999999993,
+            "resolved": true
+          }
+        ]
+      },
+      {
+        "finding_id": "fin_ca661b15",
+        "text": "The total net value for South territory ranges from 44287.83 to 44287.83.",
+        "kind": "calculated_fact",
+        "task_id": "task_f2d75858",
+        "result_ids": [
+          "res_eea163dc4b53",
+          "res_8a11c0f00c2e",
+          "res_8925c2344e94",
+          "res_fa9375b011d6",
+          "res_368276eeddfa"
+        ],
+        "evidence_cells": [
+          {
+            "result_id": "res_eea163dc4b53",
+            "row": 1,
+            "column": "total_net_value",
+            "value": null,
+            "label": null
+          },
+          {
+            "result_id": "res_8a11c0f00c2e",
+            "row": 1,
+            "column": "total_net_value",
+            "value": null,
+            "label": null
+          },
+          {
+            "result_id": "res_8925c2344e94",
+            "row": 1,
+            "column": "total_net_value",
+            "value": null,
+            "label": null
+          },
+          {
+            "result_id": "res_fa9375b011d6",
+            "row": 1,
+            "column": "total_net_value",
+            "value": null,
+            "label": null
+          },
+          {
+            "result_id": "res_368276eeddfa",
+            "row": 1,
+            "column": "total_net_value",
+            "value": null,
+            "label": null
+          }
+        ],
+        "metric_ids": [],
+        "claimed_change": null,
+        "published": true,
+        "status": "supported",
+        "rule": "critic",
+        "reason": "The total net value for the South territory, as shown in the results, is 44287.83 (rounded), which matches the proposed finding.",
+        "resolved_cells": [
+          {
+            "result_id": "res_eea163dc4b53",
+            "row": 1,
+            "column": "total_net_value",
+            "stated_value": null,
+            "actual_value": 44287.82999999998,
+            "resolved": true
+          },
+          {
+            "result_id": "res_8a11c0f00c2e",
+            "row": 1,
+            "column": "total_net_value",
+            "stated_value": null,
+            "actual_value": 223493.7400000001,
+            "resolved": true
+          },
+          {
+            "result_id": "res_8925c2344e94",
+            "row": 1,
+            "column": "total_net_value",
+            "stated_value": null,
+            "actual_value": 44287.82999999998,
+            "resolved": true
+          },
+          {
+            "result_id": "res_fa9375b011d6",
+            "row": 1,
+            "column": "total_net_value",
+            "stated_value": null,
+            "actual_value": 44287.82999999998,
+            "resolved": true
+          },
+          {
+            "result_id": "res_368276eeddfa",
+            "row": 1,
+            "column": "total_net_value",
+            "stated_value": null,
+            "actual_value": 44287.82999999998,
+            "resolved": true
+          }
+        ]
+      },
+      {
+        "finding_id": "fin_22b363a8",
+        "text": "The total net value for East territory ranges from 44023.73 to 44023.73.",
+        "kind": "calculated_fact",
+        "task_id": "task_f2d75858",
+        "result_ids": [
+          "res_eea163dc4b53",
+          "res_8a11c0f00c2e",
+          "res_8925c2344e94",
+          "res_fa9375b011d6",
+          "res_368276eeddfa"
+        ],
+        "evidence_cells": [
+          {
+            "result_id": "res_eea163dc4b53",
+            "row": 2,
+            "column": "total_net_value",
+            "value": null,
+            "label": null
+          },
+          {
+            "result_id": "res_8a11c0f00c2e",
+            "row": 2,
+            "column": "total_net_value",
+            "value": null,
+            "label": null
+          },
+          {
+            "result_id": "res_8925c2344e94",
+            "row": 2,
+            "column": "total_net_value",
+            "value": null,
+            "label": null
+          },
+          {
+            "result_id": "res_fa9375b011d6",
+            "row": 2,
+            "column": "total_net_value",
+            "value": null,
+            "label": null
+          },
+          {
+            "result_id": "res_368276eeddfa",
+            "row": 2,
+            "column": "total_net_value",
+            "value": null,
+            "label": null
+          }
+        ],
+        "metric_ids": [],
+        "claimed_change": null,
+        "published": true,
+        "status": "supported",
+        "rule": "critic",
+        "reason": "The total net value for the East territory, as shown in the results, is 44023.73 (when rounded), which matches the proposed finding.",
+        "resolved_cells": [
+          {
+            "result_id": "res_eea163dc4b53",
+            "row": 2,
+            "column": "total_net_value",
+            "stated_value": null,
+            "actual_value": 44023.729999999974,
+            "resolved": true
+          },
+          {
+            "result_id": "res_8a11c0f00c2e",
+            "row": 2,
+            "column": "total_net_value",
+            "stated_value": null,
+            "actual_value": 214504.98999999985,
+            "resolved": true
+          },
+          {
+            "result_id": "res_8925c2344e94",
+            "row": 2,
+            "column": "total_net_value",
+            "stated_value": null,
+            "actual_value": 44023.729999999974,
+            "resolved": true
+          },
+          {
+            "result_id": "res_fa9375b011d6",
+            "row": 2,
+            "column": "total_net_value",
+            "stated_value": null,
+            "actual_value": 44023.729999999974,
+            "resolved": true
+          },
+          {
+            "result_id": "res_368276eeddfa",
+            "row": 2,
+            "column": "total_net_value",
+            "stated_value": null,
+            "actual_value": 44023.729999999974,
+            "resolved": true
+          }
+        ]
+      },
+      {
+        "finding_id": "fin_cbef1df3",
+        "text": "The `units_sold` column contains integer values ranging from 1 to 9 with a mean of 4.966.",
+        "kind": "calculated_fact",
+        "task_id": "task_0f2fe76a",
+        "result_ids": [
+          "res_cb3385a81429"
+        ],
+        "evidence_cells": [
+          {
+            "result_id": "res_cb3385a81429",
+            "row": 4,
+            "column": "min_value",
+            "value": null,
+            "label": null
+          },
+          {
+            "result_id": "res_cb3385a81429",
+            "row": 4,
+            "column": "max_value",
+            "value": null,
+            "label": null
+          },
+          {
+            "result_id": "res_cb3385a81429",
+            "row": 4,
+            "column": "mean_value",
+            "value": null,
+            "label": null
+          }
+        ],
+        "metric_ids": [],
+        "claimed_change": null,
+        "published": false,
+        "status": "unsupported",
+        "rule": "numeric_mismatch",
+        "reason": "The value(s) 1, 4.966 do not appear in, and cannot be derived from, the cited results.",
+        "resolved_cells": [
+          {
+            "result_id": "res_cb3385a81429",
+            "row": 4,
+            "column": "min_value",
+            "stated_value": null,
+            "actual_value": "1.0",
+            "resolved": true
+          },
+          {
+            "result_id": "res_cb3385a81429",
+            "row": 4,
+            "column": "max_value",
+            "stated_value": null,
+            "actual_value": "9.0",
+            "resolved": true
+          },
+          {
+            "result_id": "res_cb3385a81429",
+            "row": 4,
+            "column": "mean_value",
+            "stated_value": null,
+            "actual_value": "4.966",
+            "resolved": true
+          }
+        ]
+      },
+      {
+        "finding_id": "fin_9525a8bf",
+        "text": "The `net_value` column contains floating-point values ranging from 10.81 to 75.6 with a mean of 44.2128.",
+        "kind": "calculated_fact",
+        "task_id": "task_0f2fe76a",
+        "result_ids": [
+          "res_cb3385a81429"
+        ],
+        "evidence_cells": [
+          {
+            "result_id": "res_cb3385a81429",
+            "row": 5,
+            "column": "min_value",
+            "value": null,
+            "label": null
+          },
+          {
+            "result_id": "res_cb3385a81429",
+            "row": 5,
+            "column": "max_value",
+            "value": null,
+            "label": null
+          },
+          {
+            "result_id": "res_cb3385a81429",
+            "row": 5,
+            "column": "mean_value",
+            "value": null,
+            "label": null
+          }
+        ],
+        "metric_ids": [],
+        "claimed_change": null,
+        "published": false,
+        "status": "unsupported",
+        "rule": "numeric_mismatch",
+        "reason": "The value(s) 10.81, 75.6, 44.2128 do not appear in, and cannot be derived from, the cited results.",
+        "resolved_cells": [
+          {
+            "result_id": "res_cb3385a81429",
+            "row": 5,
+            "column": "min_value",
+            "stated_value": null,
+            "actual_value": "10.81",
+            "resolved": true
+          },
+          {
+            "result_id": "res_cb3385a81429",
+            "row": 5,
+            "column": "max_value",
+            "stated_value": null,
+            "actual_value": "75.6",
+            "resolved": true
+          },
+          {
+            "result_id": "res_cb3385a81429",
+            "row": 5,
+            "column": "mean_value",
+            "stated_value": null,
+            "actual_value": "44.2128",
+            "resolved": true
+          }
+        ]
+      },
+      {
+        "finding_id": "fin_eca02cd0",
+        "text": "The column 'net_value' has 4000 non-null values and its mean value is 44.2128.",
+        "kind": "calculated_fact",
+        "task_id": "task_361364c6",
+        "result_ids": [
+          "res_94b5c236b237"
+        ],
+        "evidence_cells": [
+          {
+            "result_id": "res_94b5c236b237",
+            "row": 5,
+            "column": "non_null",
+            "value": null,
+            "label": null
+          },
+          {
+            "result_id": "res_94b5c236b237",
+            "row": 5,
+            "column": "mean_value",
+            "value": null,
+            "label": null
+          }
+        ],
+        "metric_ids": [],
+        "claimed_change": null,
+        "published": false,
+        "status": "unsupported",
+        "rule": "numeric_mismatch",
+        "reason": "The value(s) 44.2128 do not appear in, and cannot be derived from, the cited results.",
+        "resolved_cells": [
+          {
+            "result_id": "res_94b5c236b237",
+            "row": 5,
+            "column": "non_null",
+            "stated_value": null,
+            "actual_value": 4000,
+            "resolved": true
+          },
+          {
+            "result_id": "res_94b5c236b237",
+            "row": 5,
+            "column": "mean_value",
+            "stated_value": null,
+            "actual_value": "44.2128",
+            "resolved": true
+          }
+        ]
+      },
+      {
+        "finding_id": "fin_f029938a",
+        "text": "The correlation between 'net_value' and itself is 1.0.",
+        "kind": "calculated_fact",
+        "task_id": "task_c68ef6dd",
+        "result_ids": [
+          "res_5d00e3b81cc9",
+          "res_b89b78affb92",
+          "res_93878a6e76c3"
+        ],
+        "evidence_cells": [
+          {
+            "result_id": "res_5d00e3b81cc9",
+            "row": 1,
+            "column": "net_value",
+            "value": null,
+            "label": null
+          },
+          {
+            "result_id": "res_b89b78affb92",
+            "row": 1,
+            "column": "net_value",
+            "value": null,
+            "label": null
+          },
+          {
+            "result_id": "res_93878a6e76c3",
+            "row": 1,
+            "column": "net_value",
+            "value": null,
+            "label": null
+          }
+        ],
+        "metric_ids": [],
+        "claimed_change": null,
+        "published": false,
+        "status": "unsupported",
+        "rule": "critic",
+        "reason": "The correlation between 'net_value' and itself is not 1.0 as stated in the proposed finding, but rather 1.000000 (as shown in the results). The correct statement should be that the correlation between 'net_value' and itself is 1.000000.",
+        "resolved_cells": [
+          {
+            "result_id": "res_5d00e3b81cc9",
+            "row": 1,
+            "column": "net_value",
+            "stated_value": null,
+            "actual_value": 1.0,
+            "resolved": true
+          },
+          {
+            "result_id": "res_b89b78affb92",
+            "row": 1,
+            "column": "net_value",
+            "stated_value": null,
+            "actual_value": 1.0,
+            "resolved": true
+          },
+          {
+            "result_id": "res_93878a6e76c3",
+            "row": 1,
+            "column": "net_value",
+            "stated_value": null,
+            "actual_value": 1.0,
+            "resolved": true
+          }
+        ]
+      },
+      {
+        "finding_id": "fin_9c516f8b",
+        "text": "The column 'net_value' has 4000 non-null values and its mean value is 44.2128.",
+        "kind": "calculated_fact",
+        "task_id": "task_e2d3de73",
+        "result_ids": [
+          "res_cb053c046e6b"
+        ],
+        "evidence_cells": [
+          {
+            "result_id": "res_cb053c046e6b",
+            "row": 5,
+            "column": "non_null",
+            "value": null,
+            "label": null
+          },
+          {
+            "result_id": "res_cb053c046e6b",
+            "row": 5,
+            "column": "mean_value",
+            "value": null,
+            "label": null
+          }
+        ],
+        "metric_ids": [],
+        "claimed_change": null,
+        "published": false,
+        "status": "unsupported",
+        "rule": "numeric_mismatch",
+        "reason": "The value(s) 44.2128 do not appear in, and cannot be derived from, the cited results.",
+        "resolved_cells": [
+          {
+            "result_id": "res_cb053c046e6b",
+            "row": 5,
+            "column": "non_null",
+            "stated_value": null,
+            "actual_value": 4000,
+            "resolved": true
+          },
+          {
+            "result_id": "res_cb053c046e6b",
+            "row": 5,
+            "column": "mean_value",
+            "stated_value": null,
+            "actual_value": "44.2128",
+            "resolved": true
+          }
+        ]
+      },
+      {
+        "finding_id": "fin_7b5a623c",
+        "text": "The total net value for West territory ranges from 44554.65 to 44554.65.",
+        "kind": "calculated_fact",
+        "task_id": "task_f2d75858",
+        "result_ids": [
+          "res_eea163dc4b53",
+          "res_8a11c0f00c2e",
+          "res_8925c2344e94",
+          "res_fa9375b011d6",
+          "res_368276eeddfa"
+        ],
+        "evidence_cells": [
+          {
+            "result_id": "res_eea163dc4b53",
+            "row": 3,
+            "column": "total_net_value",
+            "value": null,
+            "label": null
+          },
+          {
+            "result_id": "res_8a11c0f00c2e",
+            "row": 3,
+            "column": "total_net_value",
+            "value": null,
+            "label": null
+          },
+          {
+            "result_id": "res_8925c2344e94",
+            "row": 3,
+            "column": "total_net_value",
+            "value": null,
+            "label": null
+          },
+          {
+            "result_id": "res_fa9375b011d6",
+            "row": 3,
+            "column": "total_net_value",
+            "value": null,
+            "label": null
+          },
+          {
+            "result_id": "res_368276eeddfa",
+            "row": 3,
+            "column": "total_net_value",
+            "value": null,
+            "label": null
+          }
+        ],
+        "metric_ids": [],
+        "claimed_change": null,
+        "published": false,
+        "status": "unsupported",
+        "rule": "critic",
+        "reason": "The proposed finding states that the total net value for the West territory ranges from 44554.65 to 44554.65, but the actual total net value is 44554.65 (as shown in the results). The result shows a single value rather than a range.",
+        "resolved_cells": [
+          {
+            "result_id": "res_eea163dc4b53",
+            "row": 3,
+            "column": "total_net_value",
+            "stated_value": null,
+            "actual_value": 44554.64999999997,
+            "resolved": true
+          },
+          {
+            "result_id": "res_8a11c0f00c2e",
+            "row": 3,
+            "column": "total_net_value",
+            "stated_value": null,
+            "actual_value": 218591.38999999996,
+            "resolved": true
+          },
+          {
+            "result_id": "res_8925c2344e94",
+            "row": 3,
+            "column": "total_net_value",
+            "stated_value": null,
+            "actual_value": 44554.64999999997,
+            "resolved": true
+          },
+          {
+            "result_id": "res_fa9375b011d6",
+            "row": 3,
+            "column": "total_net_value",
+            "stated_value": null,
+            "actual_value": 44554.64999999997,
+            "resolved": true
+          },
+          {
+            "result_id": "res_368276eeddfa",
+            "row": 3,
+            "column": "total_net_value",
+            "stated_value": null,
+            "actual_value": 44554.64999999997,
+            "resolved": true
+          }
+        ]
+      }
+    ],
+    "outcome_flags": [
+      "tool_failure",
+      "completed_with_published_findings",
+      "direct_model_plan"
+    ],
+    "structured_agent_calls": 53,
+    "provider_request_attempts": 53,
+    "provider_successful_responses": 53,
+    "input_tokens": 50654,
+    "output_tokens": 4998,
+    "runtime_seconds": 986.44
+  },
+  {
+    "dataset": "marketing",
+    "question": "What is the total spend in usd by acquisition source?",
+    "kind": "grouped",
+    "expectation": "sum of spend_usd by acquisition_source",
+    "completed": false,
+    "stopped_reason": "no analysis task produced a usable result",
+    "error": "",
+    "question_timeout": false,
+    "roles_called": {
+      "question_analyst": 1,
+      "planner": 1,
+      "worker_next_tool": 6,
+      "worker_findings": 1
+    },
+    "roles_failed": {},
+    "failures_by_stage": {},
+    "schema_validation_failures": 0,
+    "json_parse_failures": 0,
+    "transport_failures": 0,
+    "timeout_failures": 0,
+    "budget_failures": 0,
+    "raw_model_tasks_returned": 1,
+    "raw_model_tools_requested": [
+      "aggregate_for_question"
+    ],
+    "raw_model_tasks": [
+      {
+        "objective": "Determine the total spend in USD by acquisition source.",
+        "analysis_type": "segmentation",
+        "required_metrics": [],
+        "dimensions": [],
+        "preferred_tool": "aggregate_for_question",
+        "table": "uploaded_data",
+        "columns": [
+          "acquisition_source",
+          "spend_usd"
+        ]
+      }
+    ],
+    "cleaned_tasks": [
+      {
+        "objective": "Determine the total spend in USD by acquisition source.",
+        "preferred_tool": "aggregate_for_question",
+        "required_metrics": [],
+        "dimensions": [],
+        "table": "uploaded_data"
+      }
+    ],
+    "planner_tasks_after_cleanup": 1,
+    "tasks_redirected_by_engine": 0,
+    "tasks_without_a_named_metric": 0,
+    "duplicate_published_findings_removed": 0,
+    "redirect_reasons": [],
+    "fallback_plan_used": false,
+    "model_plan_directly_executable": true,
+    "planned_tasks": 1,
+    "tools_selected": [
+      "aggregate_for_question",
+      "profile_table"
+    ],
+    "tool_calls": 2,
+    "tool_call_failures": 1,
+    "tool_failures_by_tool": {
+      "aggregate_for_question": 1
+    },
+    "tool_failure_reasons": {
+      "this question could not be mapped to the table without guessing (the question does not name which numeric column to use, and the table has 3 to choose from); call profile_dataset to see the columns": 1
+    },
+    "tool_calls_succeeded": 1,
+    "preflight_rejections": 1,
+    "duplicate_failed_calls_suppressed": 3,
+    "mcp_failures": 1,
+    "tool_failure_categories": {
+      "duplicate_failed_call_suppressed": 3,
+      "mcp_tool_failed": 1,
+      "unknown_argument": 1
+    },
+    "execution_contract_characters": 829,
+    "generated_sql_calls": 0,
+    "statistical_tests": 0,
+    "candidate_findings": 0,
+    "published_findings": 0,
+    "withheld_findings": 0,
+    "withheld_rules": {},
+    "report_written": false,
+    "report_sections": 0,
+    "claims": [],
+    "outcome_flags": [
+      "tool_failure",
+      "direct_model_plan"
+    ],
+    "structured_agent_calls": 9,
+    "provider_request_attempts": 9,
+    "provider_successful_responses": 9,
+    "input_tokens": 7475,
+    "output_tokens": 369,
+    "runtime_seconds": 96.09
+  },
+  {
+    "dataset": "sales",
+    "question": "Which product family has the highest net value?",
+    "kind": "ranking",
+    "expectation": "ranking by summed net_value, descending",
+    "completed": true,
+    "stopped_reason": "",
+    "error": "",
+    "question_timeout": false,
+    "roles_called": {
+      "question_analyst": 1,
+      "planner": 1,
+      "worker_next_tool": 24,
+      "worker_findings": 4,
+      "critic": 11,
+      "visualizer": 4,
+      "reporter": 1
+    },
+    "roles_failed": {},
+    "failures_by_stage": {},
+    "schema_validation_failures": 0,
+    "json_parse_failures": 0,
+    "transport_failures": 0,
+    "timeout_failures": 0,
+    "budget_failures": 0,
+    "raw_model_tasks_returned": 4,
+    "raw_model_tools_requested": [
+      "compute_metric",
+      "profile_table",
+      "rank_contributors",
+      "run_readonly_sql"
+    ],
+    "raw_model_tasks": [
+      {
+        "objective": "Identify which product family has the highest net value.",
+        "analysis_type": "segmentation",
+        "required_metrics": [],
+        "dimensions": [],
+        "preferred_tool": "profile_table",
+        "table": "uploaded_data",
+        "columns": []
+      },
+      {
+        "objective": "Determine if there are any columns related to product families and their associated values in the dataset.",
+        "analysis_type": "segmentation",
+        "required_metrics": [],
+        "dimensions": [],
+        "preferred_tool": "run_readonly_sql",
+        "table": "uploaded_data",
+        "columns": [
+          "product_family",
+          "value_column"
+        ]
+      },
+      {
+        "objective": "Calculate the sum of values for each product family.",
+        "analysis_type": "segmentation",
+        "required_metrics": [],
+        "dimensions": [],
+        "preferred_tool": "compute_metric",
+        "table": "uploaded_data",
+        "columns": [
+          "product_family",
+          "value_column"
+        ]
+      },
+      {
+        "objective": "Identify which product family has the highest sum of values.",
+        "analysis_type": "segmentation",
+        "required_metrics": [],
+        "dimensions": [],
+        "preferred_tool": "rank_contributors",
+        "table": "uploaded_data",
+        "columns": [
+          "product_family",
+          "value_column"
+        ]
+      }
+    ],
+    "cleaned_tasks": [
+      {
+        "objective": "Identify which product family has the highest net value.",
+        "preferred_tool": "profile_table",
+        "required_metrics": [],
+        "dimensions": [],
+        "table": "uploaded_data"
+      },
+      {
+        "objective": "Determine if there are any columns related to product families and their associated values in the dataset.",
+        "preferred_tool": "run_readonly_sql",
+        "required_metrics": [],
+        "dimensions": [],
+        "table": "uploaded_data"
+      },
+      {
+        "objective": "Calculate the sum of values for each product family.",
+        "preferred_tool": "aggregate_for_question",
+        "required_metrics": [],
+        "dimensions": [],
+        "table": "uploaded_data"
+      },
+      {
+        "objective": "Identify which product family has the highest sum of values.",
+        "preferred_tool": "aggregate_for_question",
+        "required_metrics": [],
+        "dimensions": [],
+        "table": "uploaded_data"
+      }
+    ],
+    "planner_tasks_after_cleanup": 4,
+    "tasks_redirected_by_engine": 2,
+    "tasks_without_a_named_metric": 0,
+    "duplicate_published_findings_removed": 1,
+    "redirect_reasons": [
+      "compute_metric needs a metric layer this dataset has none of",
+      "rank_contributors needs a metric layer this dataset has none of"
+    ],
+    "fallback_plan_used": false,
+    "model_plan_directly_executable": false,
+    "planned_tasks": 4,
+    "tools_selected": [
+      "aggregate_for_question",
+      "profile_table",
+      "run_readonly_sql"
+    ],
+    "tool_calls": 18,
+    "tool_call_failures": 0,
+    "tool_failures_by_tool": {},
+    "tool_failure_reasons": {},
+    "tool_calls_succeeded": 18,
+    "preflight_rejections": 2,
+    "duplicate_failed_calls_suppressed": 4,
+    "mcp_failures": 0,
+    "tool_failure_categories": {
+      "metric_tool_without_metric_layer": 1,
+      "duplicate_failed_call_suppressed": 4,
+      "unknown_tool": 1
+    },
+    "execution_contract_characters": 830,
+    "generated_sql_calls": 5,
+    "statistical_tests": 0,
+    "candidate_findings": 10,
+    "published_findings": 10,
+    "withheld_findings": 0,
+    "withheld_rules": {},
+    "report_written": true,
+    "report_sections": 2,
+    "claims": [
+      {
+        "finding_id": "fin_1d1b61dc",
+        "text": "The product family 'Home' has the highest total net value of 40189.25.",
+        "kind": "calculated_fact",
+        "task_id": "task_aa1f0844",
+        "result_ids": [
+          "res_480d39564900",
+          "res_985d17ce63b3",
+          "res_84486d12f53d"
+        ],
+        "evidence_cells": [
+          {
+            "result_id": "res_480d39564900",
+            "row": 0,
+            "column": "total_net_value",
+            "value": null,
+            "label": null
+          },
+          {
+            "result_id": "res_985d17ce63b3",
+            "row": 0,
+            "column": "total_net_value",
+            "value": null,
+            "label": null
+          },
+          {
+            "result_id": "res_84486d12f53d",
+            "row": 0,
+            "column": "total_net_value",
+            "value": null,
+            "label": null
+          }
+        ],
+        "metric_ids": [],
+        "claimed_change": null,
+        "published": true,
+        "status": "supported",
+        "rule": "critic",
+        "reason": "",
+        "resolved_cells": [
+          {
+            "result_id": "res_480d39564900",
+            "row": 0,
+            "column": "total_net_value",
+            "stated_value": null,
+            "actual_value": 40189.25,
+            "resolved": true
+          },
+          {
+            "result_id": "res_985d17ce63b3",
+            "row": 0,
+            "column": "total_net_value",
+            "stated_value": null,
+            "actual_value": 40189.25,
+            "resolved": true
+          },
+          {
+            "result_id": "res_84486d12f53d",
+            "row": 0,
+            "column": "total_net_value",
+            "stated_value": null,
+            "actual_value": 40189.25,
+            "resolved": true
+          }
+        ]
+      },
+      {
+        "finding_id": "fin_93e24681",
+        "text": "The total net value for Home products is 40189.25.",
+        "kind": "calculated_fact",
+        "task_id": "task_d09656ef",
+        "result_ids": [
+          "res_4a378796b842"
+        ],
+        "evidence_cells": [
+          {
+            "result_id": "res_4a378796b842",
+            "row": 0,
+            "column": "total_net_value",
+            "value": null,
+            "label": null
+          }
+        ],
+        "metric_ids": [],
+        "claimed_change": null,
+        "published": true,
+        "status": "supported",
+        "rule": "critic",
+        "reason": "The total net value for Home products as stated (40189.25) matches the value provided in the referenced cell.",
+        "resolved_cells": [
+          {
+            "result_id": "res_4a378796b842",
+            "row": 0,
+            "column": "total_net_value",
+            "stated_value": null,
+            "actual_value": 40189.25,
+            "resolved": true
+          }
+        ]
+      },
+      {
+        "finding_id": "fin_e810bc3c",
+        "text": "The total net value for Garden products is 40068.22.",
+        "kind": "calculated_fact",
+        "task_id": "task_d09656ef",
+        "result_ids": [
+          "res_4a378796b842"
+        ],
+        "evidence_cells": [
+          {
+            "result_id": "res_4a378796b842",
+            "row": 1,
+            "column": "total_net_value",
+            "value": null,
+            "label": null
+          }
+        ],
+        "metric_ids": [],
+        "claimed_change": null,
+        "published": true,
+        "status": "supported",
+        "rule": "critic",
+        "reason": "",
+        "resolved_cells": [
+          {
+            "result_id": "res_4a378796b842",
+            "row": 1,
+            "column": "total_net_value",
+            "stated_value": null,
+            "actual_value": 40068.22,
+            "resolved": true
+          }
+        ]
+      },
+      {
+        "finding_id": "fin_c18499c7",
+        "text": "The total net value for Books products is 40038.11.",
+        "kind": "calculated_fact",
+        "task_id": "task_d09656ef",
+        "result_ids": [
+          "res_4a378796b842"
+        ],
+        "evidence_cells": [
+          {
+            "result_id": "res_4a378796b842",
+            "row": 2,
+            "column": "total_net_value",
+            "value": null,
+            "label": null
+          }
+        ],
+        "metric_ids": [],
+        "claimed_change": null,
+        "published": true,
+        "status": "supported",
+        "rule": "critic",
+        "reason": "",
+        "resolved_cells": [
+          {
+            "result_id": "res_4a378796b842",
+            "row": 2,
+            "column": "total_net_value",
+            "stated_value": null,
+            "actual_value": 40038.11,
+            "resolved": true
+          }
+        ]
+      },
+      {
+        "finding_id": "fin_ac402685",
+        "text": "The total net value for Toys products is 39573.99.",
+        "kind": "calculated_fact",
+        "task_id": "task_d09656ef",
+        "result_ids": [
+          "res_4a378796b842"
+        ],
+        "evidence_cells": [
+          {
+            "result_id": "res_4a378796b842",
+            "row": 3,
+            "column": "total_net_value",
+            "value": null,
+            "label": null
+          }
+        ],
+        "metric_ids": [],
+        "claimed_change": null,
+        "published": true,
+        "status": "supported",
+        "rule": "critic",
+        "reason": "The total net value for Toys products as shown in the result (39573.99) matches the value stated in the proposed finding.",
+        "resolved_cells": [
+          {
+            "result_id": "res_4a378796b842",
+            "row": 3,
+            "column": "total_net_value",
+            "stated_value": null,
+            "actual_value": 39573.99,
+            "resolved": true
+          }
+        ]
+      },
+      {
+        "finding_id": "fin_16a4402c",
+        "text": "The total net value for Electronics products is 16981.69.",
+        "kind": "calculated_fact",
+        "task_id": "task_d09656ef",
+        "result_ids": [
+          "res_4a378796b842"
+        ],
+        "evidence_cells": [
+          {
+            "result_id": "res_4a378796b842",
+            "row": 4,
+            "column": "total_net_value",
+            "value": null,
+            "label": null
+          }
+        ],
+        "metric_ids": [],
+        "claimed_change": null,
+        "published": true,
+        "status": "supported",
+        "rule": "critic",
+        "reason": "",
+        "resolved_cells": [
+          {
+            "result_id": "res_4a378796b842",
+            "row": 4,
+            "column": "total_net_value",
+            "stated_value": null,
+            "actual_value": 16981.69,
+            "resolved": true
+          }
+        ]
+      },
+      {
+        "finding_id": "fin_910a3e4b",
+        "text": "The dataset contains columns related to product families including 'product_family'.",
+        "kind": "calculated_fact",
+        "task_id": "task_d10064fc",
+        "result_ids": [
+          "res_6995652e1022"
+        ],
+        "evidence_cells": [
+          {
+            "result_id": "res_6995652e1022",
+            "row": 3,
+            "column": "column_name",
+            "value": null,
+            "label": null
+          },
+          {
+            "result_id": "res_9d93c3d76c25",
+            "row": 0,
+            "column": "product_family",
+            "value": null,
+            "label": null
+          }
+        ],
+        "metric_ids": [],
+        "claimed_change": null,
+        "published": true,
+        "status": "supported",
+        "rule": "critic",
+        "reason": "",
+        "resolved_cells": [
+          {
+            "result_id": "res_6995652e1022",
+            "row": 3,
+            "column": "column_name",
+            "stated_value": null,
+            "actual_value": "product_family",
+            "resolved": true
+          },
+          {
+            "result_id": "res_9d93c3d76c25",
+            "row": 0,
+            "column": "product_family",
+            "stated_value": null,
+            "actual_value": "Books",
+            "resolved": true
+          }
+        ]
+      },
+      {
+        "finding_id": "fin_097e0ed3",
+        "text": "There are five distinct product families: Books, Toys, Home, Electronics, and Garden.",
+        "kind": "calculated_fact",
+        "task_id": "task_d10064fc",
+        "result_ids": [
+          "res_9d93c3d76c25",
+          "res_e1143317741e"
+        ],
+        "evidence_cells": [
+          {
+            "result_id": "res_9d93c3d76c25",
+            "row": 0,
+            "column": "product_family",
+            "value": null,
+            "label": null
+          },
+          {
+            "result_id": "res_e1143317741e",
+            "row": 0,
+            "column": "product_family",
+            "value": null,
+            "label": null
+          }
+        ],
+        "metric_ids": [],
+        "claimed_change": null,
+        "published": true,
+        "status": "supported",
+        "rule": "critic",
+        "reason": "",
+        "resolved_cells": [
+          {
+            "result_id": "res_9d93c3d76c25",
+            "row": 0,
+            "column": "product_family",
+            "stated_value": null,
+            "actual_value": "Books",
+            "resolved": true
+          },
+          {
+            "result_id": "res_e1143317741e",
+            "row": 0,
+            "column": "product_family",
+            "stated_value": null,
+            "actual_value": "Books",
+            "resolved": true
+          }
+        ]
+      },
+      {
+        "finding_id": "fin_8feb8d23",
+        "text": "Each product family has the same number of records: 800.",
+        "kind": "calculated_fact",
+        "task_id": "task_d10064fc",
+        "result_ids": [
+          "res_e1143317741e"
+        ],
+        "evidence_cells": [
+          {
+            "result_id": "res_e1143317741e",
+            "row": 0,
+            "column": "count",
+            "value": null,
+            "label": null
+          }
+        ],
+        "metric_ids": [],
+        "claimed_change": null,
+        "published": true,
+        "status": "supported",
+        "rule": "critic",
+        "reason": "",
+        "resolved_cells": [
+          {
+            "result_id": "res_e1143317741e",
+            "row": 0,
+            "column": "count",
+            "stated_value": null,
+            "actual_value": 800,
+            "resolved": true
+          }
+        ]
+      },
+      {
+        "finding_id": "fin_3523cab3",
+        "text": "The total units sold for each product family are as follows: Books (4034), Toys (3952), Home (3862), Electronics (4052), and Garden (3964).",
+        "kind": "calculated_fact",
+        "task_id": "task_d10064fc",
+        "result_ids": [
+          "res_d542b46b9183",
+          "res_957f039aecf7"
+        ],
+        "evidence_cells": [
+          {
+            "result_id": "res_d542b46b9183",
+            "row": 0,
+            "column": "total_units_sold",
+            "value": null,
+            "label": null
+          },
+          {
+            "result_id": "res_957f039aecf7",
+            "row": 0,
+            "column": "total_units_sold",
+            "value": null,
+            "label": null
+          }
+        ],
+        "metric_ids": [],
+        "claimed_change": null,
+        "published": true,
+        "status": "supported",
+        "rule": "critic",
+        "reason": "",
+        "resolved_cells": [
+          {
+            "result_id": "res_d542b46b9183",
+            "row": 0,
+            "column": "total_units_sold",
+            "stated_value": null,
+            "actual_value": 4034,
+            "resolved": true
+          },
+          {
+            "result_id": "res_957f039aecf7",
+            "row": 0,
+            "column": "total_units_sold",
+            "stated_value": null,
+            "actual_value": 3964,
+            "resolved": true
+          }
+        ]
+      }
+    ],
+    "outcome_flags": [
+      "completed_with_published_findings",
+      "engine_rescued"
+    ],
+    "structured_agent_calls": 46,
+    "provider_request_attempts": 46,
+    "provider_successful_responses": 46,
+    "input_tokens": 41235,
+    "output_tokens": 3178,
+    "runtime_seconds": 657.17
+  },
+  {
+    "dataset": "marketing",
+    "question": "How did spend usd trend over time?",
+    "kind": "trend",
+    "expectation": "monthly spend series",
+    "completed": true,
+    "stopped_reason": "",
+    "error": "",
+    "question_timeout": false,
+    "roles_called": {
+      "question_analyst": 1,
+      "planner": 1,
+      "worker_next_tool": 6,
+      "worker_findings": 1,
+      "critic": 12,
+      "visualizer": 1,
+      "reporter": 1
+    },
+    "roles_failed": {},
+    "failures_by_stage": {},
+    "schema_validation_failures": 0,
+    "json_parse_failures": 0,
+    "transport_failures": 0,
+    "timeout_failures": 0,
+    "budget_failures": 0,
+    "raw_model_tasks_returned": 1,
+    "raw_model_tools_requested": [
+      "analyze_timeseries"
+    ],
+    "raw_model_tasks": [
+      {
+        "objective": "Analyze the trend of spend usd over time",
+        "analysis_type": "segmentation",
+        "required_metrics": [],
+        "dimensions": [],
+        "preferred_tool": "analyze_timeseries",
+        "table": "uploaded_data",
+        "columns": [
+          "date",
+          "spend_usd"
+        ]
+      }
+    ],
+    "cleaned_tasks": [
+      {
+        "objective": "Analyze the trend of spend usd over time",
+        "preferred_tool": "aggregate_for_question",
+        "required_metrics": [],
+        "dimensions": [],
+        "table": "uploaded_data"
+      }
+    ],
+    "planner_tasks_after_cleanup": 1,
+    "tasks_redirected_by_engine": 1,
+    "tasks_without_a_named_metric": 0,
+    "duplicate_published_findings_removed": 0,
+    "redirect_reasons": [
+      "analyze_timeseries needs a metric layer this dataset has none of"
+    ],
+    "fallback_plan_used": false,
+    "model_plan_directly_executable": false,
+    "planned_tasks": 1,
+    "tools_selected": [
+      "aggregate_for_question"
+    ],
+    "tool_calls": 1,
+    "tool_call_failures": 0,
+    "tool_failures_by_tool": {},
+    "tool_failure_reasons": {},
+    "tool_calls_succeeded": 1,
+    "preflight_rejections": 4,
+    "duplicate_failed_calls_suppressed": 1,
+    "mcp_failures": 0,
+    "tool_failure_categories": {
+      "duplicate_failed_call_suppressed": 1,
+      "metric_tool_without_metric_layer": 4
+    },
+    "execution_contract_characters": 829,
+    "generated_sql_calls": 0,
+    "statistical_tests": 0,
+    "candidate_findings": 12,
+    "published_findings": 12,
+    "withheld_findings": 0,
+    "withheld_rules": {},
+    "report_written": true,
+    "report_sections": 2,
+    "claims": [
+      {
+        "finding_id": "fin_91d7e242",
+        "text": "The total spend usd in 2025-01 was 107,373.07.",
+        "kind": "calculated_fact",
+        "task_id": "task_94229124",
+        "result_ids": [
+          "res_85546f16914f"
+        ],
+        "evidence_cells": [
+          {
+            "result_id": "res_85546f16914f",
+            "row": 0,
+            "column": "total_spend_usd",
+            "value": null,
+            "label": null
+          }
+        ],
+        "metric_ids": [],
+        "claimed_change": null,
+        "published": true,
+        "status": "supported",
+        "rule": "critic",
+        "reason": "The proposed finding accurately states that the total spend USD for January 2025 was $107,373.07, which matches the value in the referenced cell.",
+        "resolved_cells": [
+          {
+            "result_id": "res_85546f16914f",
+            "row": 0,
+            "column": "total_spend_usd",
+            "stated_value": null,
+            "actual_value": 107373.07,
+            "resolved": true
+          }
+        ]
+      },
+      {
+        "finding_id": "fin_7ff3b02d",
+        "text": "The total spend usd in 2025-02 was 104,825.71.",
+        "kind": "calculated_fact",
+        "task_id": "task_94229124",
+        "result_ids": [
+          "res_85546f16914f"
+        ],
+        "evidence_cells": [
+          {
+            "result_id": "res_85546f16914f",
+            "row": 1,
+            "column": "total_spend_usd",
+            "value": null,
+            "label": null
+          }
+        ],
+        "metric_ids": [],
+        "claimed_change": null,
+        "published": true,
+        "status": "supported",
+        "rule": "critic",
+        "reason": "",
+        "resolved_cells": [
+          {
+            "result_id": "res_85546f16914f",
+            "row": 1,
+            "column": "total_spend_usd",
+            "stated_value": null,
+            "actual_value": 104825.71,
+            "resolved": true
+          }
+        ]
+      },
+      {
+        "finding_id": "fin_7222c19e",
+        "text": "The total spend usd in 2025-03 was 110,257.24.",
+        "kind": "calculated_fact",
+        "task_id": "task_94229124",
+        "result_ids": [
+          "res_85546f16914f"
+        ],
+        "evidence_cells": [
+          {
+            "result_id": "res_85546f16914f",
+            "row": 2,
+            "column": "total_spend_usd",
+            "value": null,
+            "label": null
+          }
+        ],
+        "metric_ids": [],
+        "claimed_change": null,
+        "published": true,
+        "status": "supported",
+        "rule": "critic",
+        "reason": "The proposed finding accurately states that the total spend USD for the month of 2025-03 was $110,257.24, which matches the value in the referenced cell.",
+        "resolved_cells": [
+          {
+            "result_id": "res_85546f16914f",
+            "row": 2,
+            "column": "total_spend_usd",
+            "stated_value": null,
+            "actual_value": 110257.24,
+            "resolved": true
+          }
+        ]
+      },
+      {
+        "finding_id": "fin_6acadd1c",
+        "text": "The total spend usd in 2025-04 was 104,733.68.",
+        "kind": "calculated_fact",
+        "task_id": "task_94229124",
+        "result_ids": [
+          "res_85546f16914f"
+        ],
+        "evidence_cells": [
+          {
+            "result_id": "res_85546f16914f",
+            "row": 3,
+            "column": "total_spend_usd",
+            "value": null,
+            "label": null
+          }
+        ],
+        "metric_ids": [],
+        "claimed_change": null,
+        "published": true,
+        "status": "supported",
+        "rule": "critic",
+        "reason": "",
+        "resolved_cells": [
+          {
+            "result_id": "res_85546f16914f",
+            "row": 3,
+            "column": "total_spend_usd",
+            "stated_value": null,
+            "actual_value": 104733.68,
+            "resolved": true
+          }
+        ]
+      },
+      {
+        "finding_id": "fin_de4b861e",
+        "text": "The total spend usd in 2025-05 was 104,499.55.",
+        "kind": "calculated_fact",
+        "task_id": "task_94229124",
+        "result_ids": [
+          "res_85546f16914f"
+        ],
+        "evidence_cells": [
+          {
+            "result_id": "res_85546f16914f",
+            "row": 4,
+            "column": "total_spend_usd",
+            "value": null,
+            "label": null
+          }
+        ],
+        "metric_ids": [],
+        "claimed_change": null,
+        "published": true,
+        "status": "supported",
+        "rule": "critic",
+        "reason": "",
+        "resolved_cells": [
+          {
+            "result_id": "res_85546f16914f",
+            "row": 4,
+            "column": "total_spend_usd",
+            "stated_value": null,
+            "actual_value": 104499.55,
+            "resolved": true
+          }
+        ]
+      },
+      {
+        "finding_id": "fin_e190210b",
+        "text": "The total spend usd in 2025-06 was 106,515.57.",
+        "kind": "calculated_fact",
+        "task_id": "task_94229124",
+        "result_ids": [
+          "res_85546f16914f"
+        ],
+        "evidence_cells": [
+          {
+            "result_id": "res_85546f16914f",
+            "row": 5,
+            "column": "total_spend_usd",
+            "value": null,
+            "label": null
+          }
+        ],
+        "metric_ids": [],
+        "claimed_change": null,
+        "published": true,
+        "status": "supported",
+        "rule": "critic",
+        "reason": "The proposed finding accurately states that the total spend USD for the month of 2025-06 was 106,515.57, which matches the value in the referenced cell.",
+        "resolved_cells": [
+          {
+            "result_id": "res_85546f16914f",
+            "row": 5,
+            "column": "total_spend_usd",
+            "stated_value": null,
+            "actual_value": 106515.57,
+            "resolved": true
+          }
+        ]
+      },
+      {
+        "finding_id": "fin_3e15d090",
+        "text": "The total spend usd in 2025-07 was 99,566.98.",
+        "kind": "calculated_fact",
+        "task_id": "task_94229124",
+        "result_ids": [
+          "res_85546f16914f"
+        ],
+        "evidence_cells": [
+          {
+            "result_id": "res_85546f16914f",
+            "row": 6,
+            "column": "total_spend_usd",
+            "value": null,
+            "label": null
+          }
+        ],
+        "metric_ids": [],
+        "claimed_change": null,
+        "published": true,
+        "status": "supported",
+        "rule": "critic",
+        "reason": "",
+        "resolved_cells": [
+          {
+            "result_id": "res_85546f16914f",
+            "row": 6,
+            "column": "total_spend_usd",
+            "stated_value": null,
+            "actual_value": 99566.98,
+            "resolved": true
+          }
+        ]
+      },
+      {
+        "finding_id": "fin_44b5853f",
+        "text": "The total spend usd in 2025-08 was 105,435.11.",
+        "kind": "calculated_fact",
+        "task_id": "task_94229124",
+        "result_ids": [
+          "res_85546f16914f"
+        ],
+        "evidence_cells": [
+          {
+            "result_id": "res_85546f16914f",
+            "row": 7,
+            "column": "total_spend_usd",
+            "value": null,
+            "label": null
+          }
+        ],
+        "metric_ids": [],
+        "claimed_change": null,
+        "published": true,
+        "status": "supported",
+        "rule": "critic",
+        "reason": "The proposed finding accurately states that the total spend USD for the month of 2025-08 was 105,435.11, which matches the value in the referenced cell.",
+        "resolved_cells": [
+          {
+            "result_id": "res_85546f16914f",
+            "row": 7,
+            "column": "total_spend_usd",
+            "stated_value": null,
+            "actual_value": 105435.11,
+            "resolved": true
+          }
+        ]
+      },
+      {
+        "finding_id": "fin_cb472c14",
+        "text": "The total spend usd in 2025-09 was 106,513.84.",
+        "kind": "calculated_fact",
+        "task_id": "task_94229124",
+        "result_ids": [
+          "res_85546f16914f"
+        ],
+        "evidence_cells": [
+          {
+            "result_id": "res_85546f16914f",
+            "row": 8,
+            "column": "total_spend_usd",
+            "value": null,
+            "label": null
+          }
+        ],
+        "metric_ids": [],
+        "claimed_change": null,
+        "published": true,
+        "status": "supported",
+        "rule": "critic",
+        "reason": "",
+        "resolved_cells": [
+          {
+            "result_id": "res_85546f16914f",
+            "row": 8,
+            "column": "total_spend_usd",
+            "stated_value": null,
+            "actual_value": 106513.84,
+            "resolved": true
+          }
+        ]
+      },
+      {
+        "finding_id": "fin_d5d264ec",
+        "text": "The total spend usd in 2025-10 was 102,383.36.",
+        "kind": "calculated_fact",
+        "task_id": "task_94229124",
+        "result_ids": [
+          "res_85546f16914f"
+        ],
+        "evidence_cells": [
+          {
+            "result_id": "res_85546f16914f",
+            "row": 9,
+            "column": "total_spend_usd",
+            "value": null,
+            "label": null
+          }
+        ],
+        "metric_ids": [],
+        "claimed_change": null,
+        "published": true,
+        "status": "supported",
+        "rule": "critic",
+        "reason": "",
+        "resolved_cells": [
+          {
+            "result_id": "res_85546f16914f",
+            "row": 9,
+            "column": "total_spend_usd",
+            "stated_value": null,
+            "actual_value": 102383.36,
+            "resolved": true
+          }
+        ]
+      },
+      {
+        "finding_id": "fin_01fd3777",
+        "text": "The total spend usd in 2025-11 was 105,615.41.",
+        "kind": "calculated_fact",
+        "task_id": "task_94229124",
+        "result_ids": [
+          "res_85546f16914f"
+        ],
+        "evidence_cells": [
+          {
+            "result_id": "res_85546f16914f",
+            "row": 10,
+            "column": "total_spend_usd",
+            "value": null,
+            "label": null
+          }
+        ],
+        "metric_ids": [],
+        "claimed_change": null,
+        "published": true,
+        "status": "supported",
+        "rule": "critic",
+        "reason": "The proposed finding accurately states that the total spend USD for the period 2025-11 was 105,615.41, which matches the value in the referenced cell.",
+        "resolved_cells": [
+          {
+            "result_id": "res_85546f16914f",
+            "row": 10,
+            "column": "total_spend_usd",
+            "stated_value": null,
+            "actual_value": 105615.41,
+            "resolved": true
+          }
+        ]
+      },
+      {
+        "finding_id": "fin_9a25046a",
+        "text": "The total spend usd in 2025-12 was 106,527.18.",
+        "kind": "calculated_fact",
+        "task_id": "task_94229124",
+        "result_ids": [
+          "res_85546f16914f"
+        ],
+        "evidence_cells": [
+          {
+            "result_id": "res_85546f16914f",
+            "row": 11,
+            "column": "total_spend_usd",
+            "value": null,
+            "label": null
+          }
+        ],
+        "metric_ids": [],
+        "claimed_change": null,
+        "published": true,
+        "status": "supported",
+        "rule": "critic",
+        "reason": "The proposed finding accurately states that the total spend USD for December 2025 (2025-12) was 106,527.18, which matches the value in the referenced cell.",
+        "resolved_cells": [
+          {
+            "result_id": "res_85546f16914f",
+            "row": 11,
+            "column": "total_spend_usd",
+            "stated_value": null,
+            "actual_value": 106527.18,
+            "resolved": true
+          }
+        ]
+      }
+    ],
+    "outcome_flags": [
+      "completed_with_published_findings",
+      "engine_rescued"
+    ],
+    "structured_agent_calls": 23,
+    "provider_request_attempts": 23,
+    "provider_successful_responses": 23,
+    "input_tokens": 19804,
+    "output_tokens": 2565,
+    "runtime_seconds": 568.69
+  },
+  {
+    "dataset": "retention",
+    "question": "Does the churn rate differ between the free and enterprise tiers?",
+    "kind": "statistical",
+    "expectation": "two-proportion z on has_churned",
+    "completed": false,
+    "stopped_reason": "no analysis task produced a usable result",
+    "error": "",
+    "question_timeout": false,
+    "roles_called": {
+      "question_analyst": 1,
+      "planner": 1,
+      "worker_next_tool": 6,
+      "worker_findings": 1
+    },
+    "roles_failed": {},
+    "failures_by_stage": {},
+    "schema_validation_failures": 0,
+    "json_parse_failures": 0,
+    "transport_failures": 0,
+    "timeout_failures": 0,
+    "budget_failures": 0,
+    "raw_model_tasks_returned": 1,
+    "raw_model_tools_requested": [
+      "compare_segments"
+    ],
+    "raw_model_tasks": [
+      {
+        "objective": "Compare churn rates between free and enterprise tiers",
+        "analysis_type": "segmentation",
+        "required_metrics": [],
+        "dimensions": [],
+        "preferred_tool": "compare_segments",
+        "table": "uploaded_data",
+        "columns": [
+          "tier",
+          "churned"
+        ]
+      }
+    ],
+    "cleaned_tasks": [
+      {
+        "objective": "Compare churn rates between free and enterprise tiers",
+        "preferred_tool": "aggregate_for_question",
+        "required_metrics": [],
+        "dimensions": [],
+        "table": "uploaded_data"
+      }
+    ],
+    "planner_tasks_after_cleanup": 1,
+    "tasks_redirected_by_engine": 1,
+    "tasks_without_a_named_metric": 0,
+    "duplicate_published_findings_removed": 0,
+    "redirect_reasons": [
+      "compare_segments needs a metric layer this dataset has none of"
+    ],
+    "fallback_plan_used": false,
+    "model_plan_directly_executable": false,
+    "planned_tasks": 1,
+    "tools_selected": [
+      "aggregate_for_question",
+      "profile_table"
+    ],
+    "tool_calls": 3,
+    "tool_call_failures": 2,
+    "tool_failures_by_tool": {
+      "aggregate_for_question": 2
+    },
+    "tool_failure_reasons": {
+      "this question could not be mapped to the table without guessing (the question does not ask for a count, total, average, ranking or trend); call profile_dataset to see the columns": 2
+    },
+    "tool_calls_succeeded": 1,
+    "preflight_rejections": 1,
+    "duplicate_failed_calls_suppressed": 2,
+    "mcp_failures": 2,
+    "tool_failure_categories": {
+      "duplicate_failed_call_suppressed": 2,
+      "mcp_tool_failed": 2,
+      "unknown_argument": 1
+    },
+    "execution_contract_characters": 866,
+    "generated_sql_calls": 0,
+    "statistical_tests": 0,
+    "candidate_findings": 0,
+    "published_findings": 0,
+    "withheld_findings": 0,
+    "withheld_rules": {},
+    "report_written": false,
+    "report_sections": 0,
+    "claims": [],
+    "outcome_flags": [
+      "tool_failure",
+      "engine_rescued"
+    ],
+    "structured_agent_calls": 9,
+    "provider_request_attempts": 9,
+    "provider_successful_responses": 9,
+    "input_tokens": 7779,
+    "output_tokens": 402,
+    "runtime_seconds": 156.18
+  },
+  {
+    "dataset": "sales",
+    "question": "Which sales rep closed the most deals?",
+    "kind": "unsupported",
+    "expectation": "no such column; must refuse rather than substitute one",
+    "completed": false,
+    "stopped_reason": "no analysis task produced a usable result",
+    "error": "",
+    "question_timeout": false,
+    "roles_called": {
+      "question_analyst": 1,
+      "planner": 1,
+      "worker_next_tool": 12,
+      "worker_findings": 1
+    },
+    "roles_failed": {},
+    "failures_by_stage": {},
+    "schema_validation_failures": 0,
+    "json_parse_failures": 0,
+    "transport_failures": 0,
+    "timeout_failures": 0,
+    "budget_failures": 0,
+    "raw_model_tasks_returned": 2,
+    "raw_model_tools_requested": [
+      "profile_table",
+      "statistical_test"
+    ],
+    "raw_model_tasks": [
+      {
+        "objective": "Identify which sales rep closed the most deals.",
+        "analysis_type": "segmentation",
+        "required_metrics": [],
+        "dimensions": [],
+        "preferred_tool": "profile_table",
+        "table": "uploaded_data",
+        "columns": []
+      },
+      {
+        "objective": "Determine if there is a significant difference in the number of deals closed by different reps.",
+        "analysis_type": "segmentation",
+        "required_metrics": [],
+        "dimensions": [],
+        "preferred_tool": "statistical_test",
+        "table": "uploaded_data",
+        "columns": [
+          "sales_rep",
+          "deals_closed"
+        ]
+      }
+    ],
+    "cleaned_tasks": [
+      {
+        "objective": "Identify which sales rep closed the most deals.",
+        "preferred_tool": "profile_table",
+        "required_metrics": [],
+        "dimensions": [],
+        "table": "uploaded_data"
+      },
+      {
+        "objective": "Determine if there is a significant difference in the number of deals closed by different reps.",
+        "preferred_tool": "statistical_test",
+        "required_metrics": [],
+        "dimensions": [],
+        "table": "uploaded_data"
+      }
+    ],
+    "planner_tasks_after_cleanup": 2,
+    "tasks_redirected_by_engine": 0,
+    "tasks_without_a_named_metric": 0,
+    "duplicate_published_findings_removed": 0,
+    "redirect_reasons": [],
+    "fallback_plan_used": false,
+    "model_plan_directly_executable": true,
+    "planned_tasks": 2,
+    "tools_selected": [
+      "profile_table",
+      "aggregate_for_question"
+    ],
+    "tool_calls": 6,
+    "tool_call_failures": 1,
+    "tool_failures_by_tool": {
+      "aggregate_for_question": 1
+    },
+    "tool_failure_reasons": {
+      "this question could not be mapped to the table without guessing (the question does not name which grouping column to use, and the table has 3 to choose from); call profile_dataset to see the columns": 1
+    },
+    "tool_calls_succeeded": 5,
+    "preflight_rejections": 6,
+    "duplicate_failed_calls_suppressed": 0,
+    "mcp_failures": 1,
+    "tool_failure_categories": {
+      "mcp_tool_failed": 1,
+      "missing_test_variable": 5,
+      "unknown_test_type": 1
+    },
+    "execution_contract_characters": 830,
+    "generated_sql_calls": 0,
+    "statistical_tests": 0,
+    "candidate_findings": 0,
+    "published_findings": 0,
+    "withheld_findings": 0,
+    "withheld_rules": {},
+    "report_written": false,
+    "report_sections": 0,
+    "claims": [],
+    "outcome_flags": [
+      "tool_failure",
+      "direct_model_plan"
+    ],
+    "structured_agent_calls": 15,
+    "provider_request_attempts": 15,
+    "provider_successful_responses": 15,
+    "input_tokens": 14823,
+    "output_tokens": 652,
+    "runtime_seconds": 201.04
+  }
+]

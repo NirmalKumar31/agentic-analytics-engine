@@ -179,7 +179,7 @@ export function ActivityLog({ events, trace, showTrace, onToggleTrace, running }
   }
 
   return (
-    <section className="panel">
+    <section className="panel" data-busy={running ? 'true' : 'false'}>
       <div className="panel-head">
         <h2>Activity</h2>
         {running && <span className="tag pulse">running</span>}
