@@ -593,10 +593,20 @@ suites. 89% branch coverage. The deployed deterministic path passes a
 upload, analysis, provenance and cleanup check. Two of those checks are
 HTTPS-only, so the same script reports 55 against a local container.
 
-Both public modes are verified against the live service. One authorised
-Compare Both run published the correct total on the deterministic and the
-AI side alike — a figure computed independently before the run — for
-**$0.001160**, with every cited evidence cell resolving and no credential,
+Both public modes are verified against the live service. Three authorised
+Compare Both runs on 30 Sep 2026 asked one question with a time period. In
+two, the cloud model's typed plan validated to a **byte-identical canonical
+contract** to the schema-grounded rules, and both panes published the total
+computed independently beforehand. In the third the model declared the
+question ambiguous and the engine **refused with its stated reason** rather
+than guessing or silently falling back to the rule contract. Two of three is
+two of three: the variance is real and a reader of a single comparison cannot
+see it. Total $0.003170, recorded in
+[docs/LIMITATIONS.md](docs/LIMITATIONS.md) §11.
+
+An earlier authorised Compare Both run published the correct total on the
+deterministic and the AI side alike — a figure computed independently before
+the run — for **$0.001160**, with every cited evidence cell resolving and no credential,
 internal endpoint or uploaded row appearing in any public response.
 `docs/RELEASE-EVIDENCE-v0.1.0.md` records the measurements and what they do
 not cover: Chromium only, no rehearsed AI-off rollback, and one paid run
