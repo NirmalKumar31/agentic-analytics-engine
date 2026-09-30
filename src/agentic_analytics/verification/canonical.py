@@ -36,14 +36,51 @@ _PHRASING = {
 }
 
 
-def _format(value: Decimal) -> str:
-    """Thousands separators, and no trailing zeros invented or removed.
+def resolve_result_column(name: str, columns: list[str]) -> str | None:
+    """The column a requested name is actually returned as, or ``None``.
 
-    The digits are the result's own; only grouping is added.
+    The compiler aliases output columns to lowercase slugs, so a grouping
+    by `Holiday_Flag` arrives as `holiday_flag`. Comparing the requested
+    name literally meant this function bailed out and the complete
+    grouped answer was never composed -- the report fell back to a model
+    summary naming only the highest and lowest group.
+
+    Returns the column as the result spells it, because that is what
+    `cell()` has to be given.
     """
+    if name in columns:
+        return name
+    from agentic_analytics.analytics.upload_plan import alias_for
+
+    wanted = {name.lower(), alias_for(name)}
+    for column in columns:
+        if column.lower() in wanted:
+            return column
+    return None
+
+
+#: Decimal places a published figure is displayed to.
+#:
+#: The engine rounds aggregates to four inside SQL, and printing all four
+#: put `1,122,887.8924` in a sentence about money. Two is what a reader
+#: expects and what the independently computed figure uses. The evidence
+#: cell keeps the value the query produced -- this changes presentation
+#: only, never what was verified.
+DISPLAY_PLACES = 2
+
+#: How each operation reads in a sentence. "Sum weekly sales by holiday
+#: flag" is not how anyone says it.
+_OPERATION_WORD = {"sum": "total", "average": "average", "count": "count of"}
+
+
+def _format(value: Decimal) -> str:
+    """Thousands separators, and no more precision than a reader wants."""
     if value == value.to_integral_value():
         return f"{int(value):,}"
-    return f"{value:,f}".rstrip("0").rstrip(".")
+    quantised = round(value, DISPLAY_PLACES)
+    if quantised == quantised.to_integral_value():
+        return f"{int(quantised):,}"
+    return f"{quantised:,f}".rstrip("0").rstrip(".")
 
 
 def _format_metric(value: Decimal, metric_format: str) -> str:
@@ -75,9 +112,14 @@ def canonical_answer(
             return None
         metric = getattr(mapping, "metric", None)
         dimensions = list(getattr(mapping, "dimensions", ()) or ())
-        if not metric or metric not in snapshot.columns:
+        metric_column = resolve_result_column(str(metric), snapshot.columns) if metric else None
+        if not metric or metric_column is None:
             return None
-        if any(dimension not in snapshot.columns for dimension in dimensions):
+        metric = metric_column
+        resolved_dimensions = [
+            resolve_result_column(str(d), snapshot.columns) or d for d in dimensions
+        ]
+        if any(d not in snapshot.columns for d in resolved_dimensions):
             # A follow-up or an unrelated task may have computed the same
             # metric without the required grouping.  It is not a direct
             # answer, and it must not be allowed to crash verification.
@@ -91,7 +133,7 @@ def canonical_answer(
             if value is None:
                 return None
             label = " / ".join(
-                str(snapshot.cell(row_index, dimension) or "") for dimension in dimensions
+                str(snapshot.cell(row_index, dimension) or "") for dimension in resolved_dimensions
             )
             if not label:
                 label = metric.replace("_", " ")
@@ -141,11 +183,13 @@ def canonical_answer(
         if origin.get("kind") == "aggregate" and origin.get("column") == (measure or "*"):
             target = column
             break
-    if target is None or target not in snapshot.columns:
+    target = resolve_result_column(str(target), snapshot.columns) if target else None
+    if target is None:
         return None
 
     if dimension:
-        if dimension not in snapshot.columns:
+        dimension_column = resolve_result_column(str(dimension), snapshot.columns)
+        if dimension_column is None:
             return None
         grouped_entries: list[str] = []
         grouped_cells: list[EvidenceCell] = []
@@ -155,7 +199,7 @@ def canonical_answer(
             )
             if value is None:
                 return None
-            label = str(snapshot.cell(row, dimension))
+            label = str(snapshot.cell(row, dimension_column))
             grouped_entries.append(f"{label}: {_format(value)}")
             grouped_cells.append(
                 EvidenceCell(
@@ -168,9 +212,8 @@ def canonical_answer(
             )
         what = (measure or "rows").replace("_", " ")
         return CandidateFinding(
-            text=f"{operation.capitalize()} {what} by {dimension.replace('_', ' ')}: "
-            + "; ".join(grouped_entries)
-            + ".",
+            text=f"{_OPERATION_WORD.get(operation, operation).capitalize()} {what} "
+            f"by {dimension.replace('_', ' ')}: " + "; ".join(grouped_entries) + ".",
             kind="calculated_fact",
             task_id=task_id,
             result_ids=[snapshot.result_id],

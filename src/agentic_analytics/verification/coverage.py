@@ -61,12 +61,32 @@ def _is_metric_contract(mapping: Any) -> bool:
     return isinstance(canonical, dict) and canonical.get("kind") == "metric_registry"
 
 
+def _names_column(dimension: str, columns: set[str]) -> bool:
+    """Whether a requested dimension is present among a result's columns.
+
+    Compared through the aliasing the compiler applies rather than
+    literally. The engine returns a grouping by `Holiday_Flag` in a column
+    called `holiday_flag`, so a literal comparison failed and the finding
+    was withheld as not having the requested answer shape -- with the
+    correct figures sitting in the result store and a completed, empty
+    report on screen.
+
+    Every fixture in the corpus uses lowercase headers, so alias and
+    original coincided and nothing caught it. It appears as soon as an
+    uploaded file capitalises a header, which most exported files do.
+    """
+    from agentic_analytics.analytics.upload_plan import alias_for
+
+    wanted = {dimension, dimension.lower(), alias_for(dimension)}
+    return bool(wanted & {c.lower() for c in columns} | wanted & columns)
+
+
 def _shape_holds(snapshot: Any, mapping: Any) -> bool:
     columns = set(getattr(snapshot, "columns", None) or [])
     dimensions = getattr(mapping, "dimensions", None) or ()
     if not dimensions:
         dimensions = (getattr(mapping, "dimension", None),)
-    if any(dimension and dimension not in columns for dimension in dimensions):
+    if any(dimension and not _names_column(str(dimension), columns) for dimension in dimensions):
         return False
     # An empty population is a valid answer.  Shape is about the result
     # schema, not whether any row survived the requested restrictions.
