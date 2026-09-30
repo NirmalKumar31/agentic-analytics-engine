@@ -90,12 +90,38 @@ def oracle() -> dict[str, Any]:
     }
 
 
+def _try(
+    client: Client,
+    session: str,
+    checks: Checks,
+    not_run: list[str],
+    question: str,
+) -> dict[str, Any] | None:
+    """Ask, and record a ceiling as not-run rather than as a verdict."""
+    try:
+        return _ask(client, session, question, checks)
+    except RateLimited:
+        not_run.append(question)
+        print(f"      not run (rate limited): {question}")
+        return None
+
+
+class RateLimited(Exception):
+    """The deployment's own ceiling, which is not a defect."""
+
+
 def _ask(client: Client, session: str, question: str, checks: Checks) -> dict[str, Any] | None:
     status, started = client.json(
         "/api/analyses",
         method="POST",
         payload={"session_id": session, "question": question, "mode": "deterministic"},
     )
+    if status == 429:
+        # A per-address ceiling refusing an eleventh question is the
+        # deployment working as configured. Counting it as a failed check
+        # says the engine is broken when the script is simply being
+        # throttled -- and counting it as a pass would be worse.
+        raise RateLimited(question)
     if status != 202:
         checks.ok(f"{question[:44]!r} was accepted", False, f"HTTP {status}")
         return None
@@ -141,6 +167,7 @@ def main() -> int:
 
     expected = oracle()
     checks = Checks()
+    not_run: list[str] = []
     client = Client(args.base_url)
     bodies: list[int] = []
 
@@ -179,7 +206,13 @@ def main() -> int:
     checks.ok("the date column is a time field", roles.get("Trading_Date") == "time")
 
     # ---------------------------------------------------------------- A
-    run = _ask(client, session, "What is the average Weekly_Revenue by Promo_Flag?", checks)
+    run = _try(
+        client,
+        session,
+        checks,
+        not_run,
+        "What is the average Weekly_Revenue by Promo_Flag?",
+    )
     if run:
         snapshot = _aggregate(run) or {}
         got = _cells(snapshot, 0, 1)
@@ -209,7 +242,7 @@ def main() -> int:
         )
 
     # ---------------------------------------------------------------- B
-    run = _ask(client, session, "What is the total Weekly_Revenue by Branch_No?", checks)
+    run = _try(client, session, checks, not_run, "What is the total Weekly_Revenue by Branch_No?")
     if run:
         snapshot = _aggregate(run) or {}
         coverage = snapshot.get("group_coverage") or {}
@@ -249,7 +282,13 @@ def main() -> int:
         )
 
     # ---------------------------------------------------------------- C
-    run = _ask(client, session, "Which Branch_No had the highest total Weekly_Revenue?", checks)
+    run = _try(
+        client,
+        session,
+        checks,
+        not_run,
+        "Which Branch_No had the highest total Weekly_Revenue?",
+    )
     if run:
         published = " ".join(f.get("text", "") for f in run.get("findings") or [])
         branch, value = expected["top_branch"]
@@ -264,7 +303,7 @@ def main() -> int:
 
     # ---------------------------------------------------------------- D
     period_question = "What was the total Weekly_Revenue in 2011?"
-    run = _ask(client, session, period_question, checks)
+    run = _try(client, session, checks, not_run, period_question)
     if run:
         contract = run.get("query_contract") or {}
         checks.ok(
@@ -284,7 +323,7 @@ def main() -> int:
         )
 
     # ---------------------------------------------------------------- E
-    run = _ask(client, session, "Show the monthly trend of Weekly_Revenue", checks)
+    run = _try(client, session, checks, not_run, "Show the monthly trend of Weekly_Revenue")
     if run:
         snapshot = _aggregate(run) or {}
         periods = [str(row[0]) for row in snapshot.get("rows") or []]
@@ -306,7 +345,7 @@ def main() -> int:
         checks.ok("E: a chart was built from the cited result", bool(charts))
 
     # ---------------------------------------------------------------- F
-    run = _ask(client, session, "What is the average gross_margin by Branch_No?", checks)
+    run = _try(client, session, checks, not_run, "What is the average gross_margin by Branch_No?")
     if run:
         reason = run.get("stopped_reason") or ""
         checks.ok("F: refused", run.get("status") == "refused", str(run.get("status")))
@@ -357,7 +396,7 @@ def main() -> int:
             ">=",
         ),
     ):
-        run = _ask(client, session, question, checks)
+        run = _try(client, session, checks, not_run, question)
         if not run:
             continue
         contract = run.get("query_contract") or {}
@@ -393,6 +432,11 @@ def main() -> int:
     checks.ok("the deleted dataset is gone", status in {403, 404}, f"HTTP {status}")
 
     checks.note(f"largest response body {max(bodies):,} bytes")
+    if not_run:
+        print(f"\nNOT RUN ({len(not_run)}), refused by the deployment's own ceiling:")
+        for question in not_run:
+            print(f"  - {question}")
+        print("  These are neither passes nor failures. Re-run after the window.")
 
     if checks.failures:
         print(f"\nFAIL: {len(checks.failures)} of {checks.passed + len(checks.failures)} checks")
