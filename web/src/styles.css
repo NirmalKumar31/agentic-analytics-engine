@@ -453,6 +453,27 @@ pre.sql {
 .contract-diff thead th { border-top: 0; color: var(--text-muted); font-weight: 600; }
 .contract-diff tbody th { color: var(--text-dim); font-weight: 500; white-space: nowrap; }
 
+/* The answer a reader came for, before the metadata that describes it. */
+.direct-answer {
+  border: 1px solid rgb(var(--supported-rgb) / 40%);
+  border-radius: var(--radius-sm);
+  background: var(--bg-inset);
+  padding: 13px 15px;
+}
+.direct-answer h3 {
+  margin: 0 0 7px;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--supported);
+}
+.answer-text { margin: 0 0 11px; font-size: 17px; line-height: 1.45; }
+.answer-scope { display: grid; gap: 5px; margin: 0 0 11px; }
+.answer-scope div { display: grid; grid-template-columns: 100px minmax(0, 1fr); gap: 10px; }
+.answer-scope dt { color: var(--text-dim); }
+.answer-scope dd { margin: 0; overflow-wrap: anywhere; }
+.answer-result { margin: 0 0 9px; }
+
 .applied-analysis {
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
@@ -647,6 +668,40 @@ table.data .tag { font-size: 10px; padding: 1px 6px; }
   .chart-host { min-height: 180px; max-height: 240px; overflow: hidden; }
   .chart-host svg, .chart-host canvas { max-width: 100% !important; max-height: 230px !important; }
   .table-wrap, pre.sql { max-height: none; overflow: visible; }
+
+  /* Blocks added for the answer-first report. Their screen colours are
+     tuned for a dark background: `--supported` and the `.notice` variants
+     are pale, which is invisible on paper. Each is restated in ink, and
+     each is kept off a page boundary -- an answer split across two pages
+     is the one thing in this report that must not happen. */
+  .direct-answer {
+    break-inside: avoid;
+    background: #fff;
+    border: 1.5pt solid #222;
+    padding: 4mm;
+  }
+  .direct-answer h3 { color: #444; }
+  .answer-text { font-size: 13pt; color: #111; }
+  .answer-scope dt { color: #555; }
+  .answer-scope dd, .answer-result { color: #111; }
+
+  .notice, .notice.warn, .notice.success, .notice.error, .notice.info {
+    color: #111;
+    background: #fff;
+    border-color: #888;
+  }
+
+  .contract-diff { break-inside: avoid; color: #111; }
+  .contract-diff caption { color: #444; }
+  .contract-diff thead th, .contract-diff tbody th { color: #333; }
+  .contract-diff th, .contract-diff td { border-top: 0.5pt solid #bbb; }
+
+  /* A button in a PDF is a dead control. The provenance it opens is not
+     reachable on paper, so the prompt to open it is noise. */
+  .finding-foot .btn, .direct-answer .btn { display: none !important; }
+
+  .applied-analysis { break-inside: avoid; background: #fff; border-color: #bbb; }
+  .applied-analysis h3, .contract-summary dt { color: #555; }
 }
 
 /* ------------------------------------------------------------ instrument
