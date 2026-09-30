@@ -188,50 +188,50 @@ export function ReportView({
         </div>
       </section>
 
-      {findings.length > 0 && (
-        <section className="panel">
-          <div className="panel-head">
-            <h2>Key findings</h2>
-            <span className="spacer" />
-            <span className="small dim">
-              click any finding to see how it was derived
-            </span>
-          </div>
-          <div className="panel-body stack">
-            {supporting.length === 0 ? (
-              <p className="small dim" style={{ margin: 0 }}>
-                The answer above is the only published finding.
-              </p>
-            ) : (
-              supporting.map((finding) => (
-                <article
-                  className={`finding ${finding.kind}`}
-                  key={finding.finding_id}
-                >
-                  <p className="finding-text">{finding.text}</p>
-                  <div className="finding-foot">
-                    <span className={`tag ${finding.verification_status}`}>
-                      {finding.verification_status === "supported"
-                        ? "Supported"
-                        : "Held back"}
-                    </span>
-                    <span className={`tag ${finding.kind}`}>
-                      {kindLabel(finding.kind)}
-                    </span>
-                    <span className="spacer" style={{ flex: 1 }} />
-                    <button
-                      className="btn ghost small"
-                      onClick={() => onShowWork(finding.finding_id)}
-                    >
-                      Show work →
-                    </button>
-                  </div>
-                </article>
-              ))
-            )}
-          </div>
-        </section>
-      )}
+      <section className="panel">
+        <div className="panel-head">
+          <h2>Key findings</h2>
+          <span className="spacer" />
+          <span className="small dim">
+            click any finding to see how it was derived
+          </span>
+        </div>
+        <div className="panel-body stack">
+          {supporting.length === 0 ? (
+            <p className="small dim" style={{ margin: 0 }}>
+              {answer
+                ? "The answer above is the only published finding."
+                : "None were published for this question."}
+            </p>
+          ) : (
+            supporting.map((finding) => (
+              <article
+                className={`finding ${finding.kind}`}
+                key={finding.finding_id}
+              >
+                <p className="finding-text">{finding.text}</p>
+                <div className="finding-foot">
+                  <span className={`tag ${finding.verification_status}`}>
+                    {finding.verification_status === "supported"
+                      ? "Supported"
+                      : "Held back"}
+                  </span>
+                  <span className={`tag ${finding.kind}`}>
+                    {kindLabel(finding.kind)}
+                  </span>
+                  <span className="spacer" style={{ flex: 1 }} />
+                  <button
+                    className="btn ghost small"
+                    onClick={() => onShowWork(finding.finding_id)}
+                  >
+                    Show work →
+                  </button>
+                </div>
+              </article>
+            ))
+          )}
+        </div>
+      </section>
 
       {charts.length > 0 && (
         <section className="panel">

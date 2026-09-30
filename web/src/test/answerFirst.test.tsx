@@ -201,6 +201,9 @@ describe("ReportView order", () => {
     // The answer is itself an `article.finding`, so the rest of the app and
     // the browser suite still select it; it must not also appear twice.
     expect(container.querySelectorAll("article.finding")).toHaveLength(1);
+    // `waitForReport` in the browser suite anchors on this heading, so it
+    // has to be present whether or not anything was published.
+    expect(screen.getByText("Key findings")).toBeVisible();
     expect(container.textContent).toContain(
       "The answer above is the only published finding.",
     );
@@ -256,5 +259,29 @@ describe("ReportView empty states", () => {
       /supporting context/i,
     );
     expect(screen.getByText("Key findings")).toBeVisible();
+  });
+});
+
+describe("the report anchor the browser suite waits on", () => {
+  it("renders the Key findings heading even when nothing was published", () => {
+    render(
+      <ReportView
+        question="q"
+        report={null}
+        findings={[]}
+        rejected={[]}
+        charts={[]}
+        results={{}}
+        queryContract={contract()}
+        onShowWork={() => {}}
+      />,
+    );
+    // Hiding this panel on a refusal broke `waitForReport` for every
+    // browser test that asserts a refusal, because the helper had no
+    // other signal that the report had rendered at all.
+    expect(screen.getByText("Key findings")).toBeVisible();
+    expect(
+      screen.getByText("None were published for this question."),
+    ).toBeVisible();
   });
 });
