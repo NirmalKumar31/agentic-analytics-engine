@@ -700,6 +700,20 @@ table.data .tag { font-size: 10px; padding: 1px 6px; }
      reachable on paper, so the prompt to open it is noise. */
   .finding-foot .btn, .direct-answer .btn { display: none !important; }
 
+  /* Coverage and terminal state must survive onto paper: a saved PDF that
+     drops "25 of 45 groups" or a refusal reason is the same falsehood the
+     screen used to tell. */
+  .answer-scope dd,
+  .contract-summary dd { color: #111; }
+  [data-testid="partial-answer"],
+  [data-testid="run-state-card"] {
+    break-inside: avoid;
+    color: #111;
+    background: #fff;
+    border: 1pt solid #555;
+  }
+  [data-testid="pane-status"] { color: #111; border: 0.5pt solid #777; }
+
   .applied-analysis { break-inside: avoid; background: #fff; border-color: #bbb; }
   .applied-analysis h3, .contract-summary dt { color: #555; }
 }

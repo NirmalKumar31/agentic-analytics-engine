@@ -9,6 +9,7 @@ import { ThemeToggle, useTheme } from './components/ThemeToggle'
 import { ModeSelector } from './components/ModeSelector'
 import { ProvenanceDrawer } from './components/ProvenanceDrawer'
 import { ReportView } from './components/ReportView'
+import { runState } from './lib/runState'
 import { RightRail } from './components/RightRail'
 import { ApiError, api } from './lib/api'
 import type {
@@ -386,9 +387,17 @@ export function App() {
                 subtitle: 'A cloud model plans and interprets; the engine computes and verifies.',
                 run: aiRun,
                 error: aiError,
+                // AI off by capability, quota or configuration is not a
+                // failed run, and must not be reported as one.
+                unavailable:
+                  !aiRun &&
+                  !aiError &&
+                  Boolean(
+                    config?.capabilities?.modes.some((m) => m.mode === 'ai' && !m.available),
+                  ),
                 pending: Boolean(aiRun && aiRun.status === 'running'),
                 usage: aiRun?.usage,
-                children: aiRun && aiRun.status === 'completed' ? (
+                children: aiRun && runState(aiRun).showsReport ? (
                   <ReportView
                     question={aiRun.question}
                     report={aiRun.report}

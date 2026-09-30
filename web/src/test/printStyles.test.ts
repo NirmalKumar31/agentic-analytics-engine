@@ -41,6 +41,8 @@ describe("print stylesheet", () => {
     [".contract-diff", "where two interpretations differ"],
     [".applied-analysis", "the governed contract"],
     [".notice", "withheld findings"],
+    ['[data-testid="partial-answer"]', "the partial-breakdown warning"],
+    ['[data-testid="run-state-card"]', "a refusal or failure reason"],
   ])("restates %s in ink (%s)", (selector) => {
     expect(block).toContain(selector);
   });

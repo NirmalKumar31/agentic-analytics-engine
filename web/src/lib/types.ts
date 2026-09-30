@@ -67,6 +67,24 @@ export interface StatisticalResult {
 
 export type Cell = string | number | boolean | null;
 
+/**
+ * How much of a grouped answer a result carries.
+ *
+ * Absent means "not a grouped answer", never "complete": completeness was
+ * previously inferred, and every signal available inferred it wrongly.
+ */
+export interface GroupCoverage {
+  complete: boolean;
+  groups_returned: number;
+  groups_total?: number | null;
+  rows_total?: number | null;
+  rows_matching?: number | null;
+  rows_represented?: number | null;
+  query_limit?: number | null;
+  ordering: "dimension" | "measure" | "period";
+  ranked_by_request: boolean;
+}
+
 export interface ResultSnapshot {
   result_id: string;
   tool_name: string;
@@ -81,6 +99,7 @@ export interface ResultSnapshot {
   parameters: Record<string, unknown>;
   warnings: string[];
   statistical_result: StatisticalResult | null;
+  group_coverage?: GroupCoverage | null;
 }
 
 export interface TaskOutcome {

@@ -38,7 +38,7 @@ from agentic_analytics.analytics import stats as stats_tools
 from agentic_analytics.analytics import upload_plan
 from agentic_analytics.analytics.execute import QueryError, run_query
 from agentic_analytics.analytics.filters import FilterError, coerce_filters
-from agentic_analytics.analytics.results import ResultSnapshot
+from agentic_analytics.analytics.results import GroupCoverage, ResultSnapshot
 from agentic_analytics.analytics.semantic import infer_schema
 from agentic_analytics.config import Budgets, Settings, get_settings
 from agentic_analytics.logging import get_logger
@@ -158,6 +158,99 @@ class DatasetProfile(BaseModel):
 class MetricList(BaseModel):
     metrics: list[MetricInfo]
     note: str = ""
+
+
+def _attach_group_coverage(
+    session: AnalysisSession,
+    snapshot: ResultSnapshot,
+    mapping: Any,
+    budgets: Budgets,
+) -> None:
+    """Record what a grouped result covers, and trim any overflow.
+
+    The breakdown SQL asks for one group more than the engine accepts, so a
+    result arriving at the ceiling plus one is known to be short rather than
+    assumed complete. The extra group is dropped before anything cites the
+    result -- a reader must not see a group the coverage block says was not
+    returned.
+
+    Coverage counts come from their own aggregate over the same filtered
+    population. Deriving them from the returned rows is what produced
+    "every row in the dataset" for a result holding 55% of them.
+
+    A failure here leaves `group_coverage` unset, which callers read as "not
+    a grouped answer". That is the safe direction: no claim of completeness
+    is made from a missing block.
+    """
+    if not upload_plan.is_breakdown(mapping):
+        return
+
+    ceiling = upload_plan.GROUP_RESULT_MAX
+    # Two different limits can cut a breakdown short, and either one means
+    # the answer is partial. The probe row is the query's own limit; the
+    # transport limit fires first when `max_result_rows` is at or below the
+    # ceiling, which it is by default -- so reading only the probe row
+    # reported a 501-group result as complete.
+    overflowed = len(snapshot.rows) > ceiling or bool(snapshot.truncated)
+    if overflowed:
+        del snapshot.rows[ceiling:]
+        snapshot.row_count = len(snapshot.rows)
+
+    groups_total: int | None = None
+    rows_matching: int | None = None
+    rows_total: int | None = None
+    try:
+        coverage_sql = upload_plan.build_coverage_sql(mapping)
+        if coverage_sql:
+            counted = run_query(
+                session,
+                coverage_sql,
+                tool_name="aggregate_for_question:coverage",
+                max_rows=1,
+                timeout_seconds=budgets.query_timeout_seconds,
+                max_sql_length=budgets.max_sql_length,
+            )
+            if counted.rows:
+                record = counted.to_records()[0]
+                groups_total = int(record.get("groups_total") or 0)
+                rows_matching = int(record.get("rows_matching") or 0)
+        totals = run_query(
+            session,
+            upload_plan.build_row_total_sql(mapping),
+            tool_name="aggregate_for_question:rows",
+            max_rows=1,
+            timeout_seconds=budgets.query_timeout_seconds,
+            max_sql_length=budgets.max_sql_length,
+        )
+        if totals.rows:
+            rows_total = int(totals.to_records()[0].get("rows_total") or 0)
+    except (QueryError, ValueError, TypeError) as exc:  # pragma: no cover
+        log.warning("group_coverage_unavailable", error=str(exc)[:120])
+
+    rows_represented: int | None = None
+    if "row_count" in snapshot.columns:
+        index = snapshot.columns.index("row_count")
+        counts = [
+            float(value)
+            for row in snapshot.rows
+            if isinstance((value := row[index]), int | float) and not isinstance(value, bool)
+        ]
+        if len(counts) == len(snapshot.rows):
+            rows_represented = int(sum(counts))
+
+    returned = len(snapshot.rows)
+    complete = not overflowed and (groups_total is None or returned >= groups_total)
+    snapshot.group_coverage = GroupCoverage(
+        complete=complete,
+        groups_returned=returned,
+        groups_total=groups_total,
+        rows_total=rows_total,
+        rows_matching=rows_matching,
+        rows_represented=rows_represented,
+        query_limit=ceiling if overflowed else None,
+        ordering="dimension",
+        ranked_by_request=False,
+    )
 
 
 def build_server(manager: SessionManager, settings: Settings | None = None) -> MCPServer:
@@ -686,6 +779,7 @@ def build_server(manager: SessionManager, settings: Settings | None = None) -> M
         # Where each output column came from, so an alias cannot be read
         # as a column of the uploaded file.
         snapshot.column_lineage = upload_plan.sql_lineage(mapping)
+        _attach_group_coverage(session, snapshot, mapping, budgets)
         return ToolResult.of(snapshot)
 
     @mcp.tool(

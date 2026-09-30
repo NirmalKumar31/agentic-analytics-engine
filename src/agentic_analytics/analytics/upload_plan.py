@@ -38,9 +38,20 @@ from agentic_analytics.analytics.row_filters import filters_from_plan, parse_fil
 
 Operation = Literal["count", "sum", "average", "trend", "rank", "profile"]
 
-#: Rows returned by a grouped aggregate. Small enough to read, large enough
-#: that a real breakdown is not silently cut off.
-GROUP_LIMIT = 25
+#: Groups a breakdown may return. The old value was 25, with a comment
+#: claiming it was "large enough that a real breakdown is not silently cut
+#: off". A 45-store sales table falsified that: `total Weekly_Sales by
+#: Store` returned the top 25, covering 3,575 of 6,435 rows and omitting
+#: $1.58bn of $6.74bn, and the report called it the complete breakdown of
+#: every row.
+#:
+#: Two things changed. This is now aligned with the result transport budget
+#: rather than with what fits on a screen -- how many rows a reader wants to
+#: scroll is the UI's problem, and the UI may preview fewer without
+#: touching the analytical result. And the engine asks for one more group
+#: than it will accept, so it can *tell* whether a breakdown was cut short
+#: instead of assuming it was not.
+GROUP_RESULT_MAX = 500
 #: Rows returned when the question asked for a top or bottom list.
 RANK_LIMIT = 10
 #: Points in a trend. A daily series over a few years stays under this.
@@ -94,9 +105,33 @@ _ASCENDING = re.compile(r"\b(bottom|lowest|smallest|worst|least)\b", re.IGNORECA
 
 #: "by category", "per region", "grouped by store". The captured phrase is
 #: matched against column names; anything else is ignored.
+#:
+#: The interrogative forms are here because "which store had the highest
+#: total sales" names its grouping without a `by`, and it is one of the
+#: commonest shapes a business question takes. Without them a ranking over
+#: a numeric grouping column resolved to `profile` and the question was
+#: refused -- the engine could rank by a declared dimension but not by a
+#: store or product id.
 _GROUPING_PHRASE = re.compile(
     r"\b(?:by|per|across|for each|grouped by|group by|split by)\s+"
     r"(?:the\s+|each\s+|every\s+)?([a-z0-9_ ]{2,40})",
+    re.IGNORECASE,
+)
+
+
+#: "which store", "whose account". The interrogative subject of a ranking
+#: question, which names its grouping without a `by`.
+#:
+#: Deliberately narrow, and deliberately not folded into
+#: `_GROUPING_PHRASE`. Adding these words there matched every question
+#: opening with "what", captured the rest of the clause, and broke two
+#: working cases: "the average Weekly_Sales by Holiday_Flag" lost its
+#: grouping to the hijacked phrase, and "the average profit by Store"
+#: stopped refusing and answered with a substituted measure. So: only
+#: `which`/`whose`, at most two words, and only consulted when a `by`
+#: phrase resolved nothing.
+_SUBJECT_PHRASE = re.compile(
+    r"\b(?:which|whose)\s+(?:the\s+)?([a-z0-9_]+(?:\s+[a-z0-9_]+)?)",
     re.IGNORECASE,
 )
 
@@ -294,6 +329,13 @@ def _unresolved_measure(text: str, schema: dict[str, Any]) -> str | None:
         for w in re.split(r"[^a-z0-9_]+", remaining.lower())
         if w and w not in _MEASURE_NOISE and not w.isdigit() and len(w) > 2
     ]
+    # A word that resolves to a column by plural is not unresolved.
+    # `_without_column_names` strips exact spellings, so "categories" for a
+    # column called `category` survived it and read as a measure the table
+    # does not have -- which turned "top categories", a legitimate
+    # frequency ranking with no measure at all, into a refusal.
+    columns = [str(f.get("name", "")) for f in schema.get("fields") or []]
+    content = [w for w in content if not any(_mentions(w, c) >= 0 for c in columns)]
     # Nothing left means every content word in measure position named a
     # real column. Nothing there to begin with means no measure was named,
     # which is a different situation the single-candidate rule may settle.
@@ -331,6 +373,12 @@ class QuestionMapping:
     #: Who interpreted the wording.  This changes provenance, not arithmetic;
     #: the canonical contract deliberately excludes it.
     interpretation: str = "rule-based"
+    #: Why the planner named in `interpretation` is the one that decided,
+    #: when that was not the obvious answer. Set when a cloud plan could
+    #: not honour an unambiguous contract and the engine's own contract
+    #: executed instead. Provenance only: excluded from the canonical
+    #: contract, because the arithmetic is identical either way.
+    planner_note: str = ""
 
     def canonical_dict(self) -> dict[str, Any]:
         """The semantic contract, stable across planner implementations."""
@@ -374,6 +422,7 @@ class QuestionMapping:
             "explanation": self.explanation,
             "named_columns": list(self.named_columns),
             "interpretation": self.interpretation,
+            "planner_note": self.planner_note,
             "contract_hash": self.contract_hash,
             "canonical_contract": self.canonical_dict(),
         }
@@ -849,7 +898,24 @@ def resolve_question(question: str, schema: dict[str, Any]) -> QuestionMapping:
     # a measure's name cannot choose the analysis. `text` is still used for
     # everything that legitimately reads column references -- the measure,
     # the grouping, the filters.
-    intent_text = _normalise(_without_column_names(question, schema))
+    # Column references are removed, and so is the text a row filter has
+    # already claimed. "total revenue with temperature at least 50"
+    # contains "least", which the ranking pattern matched -- so a filtered
+    # total became a ranking, needed a grouping it was never given, and was
+    # refused. A clause another component owns must not also decide the
+    # intent.
+    intent_source = _without_column_names(question, schema)
+    for row_filter in resolution.filters:
+        claimed = str(getattr(row_filter, "source_text", "") or "")
+        if claimed:
+            intent_source = intent_source.replace(claimed, " ")
+            # The excerpt is taken from the original question, so it may not
+            # survive column removal verbatim. Fall back to the operator and
+            # value, which is the part that misleads the intent matcher.
+            tail = claimed.split()[-3:]
+            if len(tail) >= 2:
+                intent_source = intent_source.replace(" ".join(tail), " ")
+    intent_text = _normalise(intent_source)
     operation: Operation | None = next(
         (
             candidate
@@ -904,11 +970,27 @@ def resolve_question(question: str, schema: dict[str, Any]) -> QuestionMapping:
                 break
         if dimension:
             break
+    if dimension is None and operation == "rank":
+        # "Which store had the highest total sales" names its grouping as
+        # the subject of the question. Restricted to a ranking: elsewhere
+        # "which" is usually asking about the answer, not the grouping.
+        for phrase in _SUBJECT_PHRASE.findall(text):
+            for candidate in groupable:
+                if _mentions(_normalise(phrase), candidate) >= 0:
+                    dimension = candidate
+                    break
+            if dimension:
+                break
     if dimension is None:
         # Otherwise a dimension the question merely named is still a
         # grouping -- "returns by category" and "category returns" ask the
         # same thing.
-        mentioned_dims = [c for c in named if c in dimensions]
+        # A column a filter claimed is not a grouping the question asked
+        # for. "total revenue where promo_flag is 1" restricts to one value
+        # of that column; grouping by it then returns a single group and
+        # presents a restriction as a breakdown.
+        filter_claimed = {str(getattr(f, "column", "")) for f in resolution.filters}
+        mentioned_dims = [c for c in named if c in dimensions and c not in filter_claimed]
         dimension = mentioned_dims[0] if mentioned_dims else None
 
     if dimension is None:
@@ -971,7 +1053,14 @@ def resolve_question(question: str, schema: dict[str, Any]) -> QuestionMapping:
     # as the answer: a measure silently replaced by the column the
     # question asked to group by.
     widening = [c for c in aggregatable if c != dimension]
-    measure, why = _pick(named, measures, "numeric column", widening)
+    # A column a filter already claimed is not also a candidate measure.
+    # "total Weekly_Revenue with Avg_Temp_C at least 50" names two numeric
+    # columns, and both being measures made the measure ambiguous -- so a
+    # question that says plainly what to total was refused because it also
+    # said what to restrict.
+    filtered_columns = {str(getattr(f, "column", "")) for f in resolution.filters}
+    candidates = [c for c in named if c not in filtered_columns] or named
+    measure, why = _pick(candidates, measures, "numeric column", widening)
 
     # The guard applies only where a substitution is possible: the measure
     # was not named by the question and came from "the table offers
@@ -979,7 +1068,12 @@ def resolve_question(question: str, schema: dict[str, Any]) -> QuestionMapping:
     # question that named a real measure column needs no checking, and
     # checking it anyway read interrogatives like "which region has" as
     # unresolved measures.
-    if measure is not None and measure not in named:
+    # Also when nothing could be resolved at all. "the table has 2 numeric
+    # columns to choose from" is true but unhelpful for a question that
+    # named a column plainly -- it just is not in this table. Naming the
+    # word back is the difference between a reader rephrasing and a reader
+    # guessing.
+    if measure is None or measure not in named:
         unresolved = _unresolved_measure(question, schema)
         if unresolved is not None:
             return refuse(
@@ -1013,7 +1107,13 @@ def resolve_question(question: str, schema: dict[str, Any]) -> QuestionMapping:
         return refuse(str(why))
 
     if operation == "rank":
-        rank_dimension, why = _pick(named, dimensions, "grouping column")
+        # The same groupable set a breakdown uses. Restricting a ranking to
+        # declared dimensions refused "which branch had the highest total"
+        # on any table whose grouping key is numeric -- the breakdown of
+        # the same column worked, so the two paths disagreed about what
+        # could be grouped.
+        rankable = [c for c in _groupable(schema) if c != measure]
+        rank_dimension, why = _pick(named, rankable, "grouping column")
         if dimension:
             rank_dimension = dimension
         if rank_dimension is None:
@@ -1178,6 +1278,41 @@ def _period_filter(mapping: QuestionMapping) -> str:
     )
 
 
+def is_breakdown(mapping: QuestionMapping) -> bool:
+    """Whether this contract asks for a grouped breakdown.
+
+    A ranking is grouped too, but it is a short list the question asked
+    for, so its limit is the answer rather than a shortfall.
+    """
+    return bool(mapping.dimension) and mapping.operation in {"count", "sum", "average"}
+
+
+def build_coverage_sql(mapping: QuestionMapping) -> str | None:
+    """How many groups and rows the contract's population actually has.
+
+    One extra aggregate over the same filtered population. The alternative
+    -- deriving coverage from the rows that came back -- is what produced
+    "every row in the dataset" for a result holding 55% of them.
+    """
+    if not is_breakdown(mapping):
+        return None
+    table = _quote(mapping.table)
+    where = _where(mapping)
+    dim = _quote(mapping.dimension or "")
+    return (
+        "SELECT COUNT(*) AS groups_total, "
+        "COALESCE(SUM(group_rows), 0) AS rows_matching FROM ("
+        f"SELECT {dim} AS g, COUNT(*) AS group_rows "
+        f"FROM {table}{where} GROUP BY 1) AS grouped"
+    )
+
+
+def build_row_total_sql(mapping: QuestionMapping) -> str:
+    """Rows in the table before any filter, so a filtered population can be
+    reported as a share of the whole rather than as the whole."""
+    return f"SELECT COUNT(*) AS rows_total FROM {_quote(mapping.table)}"
+
+
 def build_sql(mapping: QuestionMapping) -> str | None:
     """Compose the statement for a resolved mapping.
 
@@ -1214,7 +1349,8 @@ def build_sql(mapping: QuestionMapping) -> str | None:
         dim = _quote(mapping.dimension)
         return (
             f"SELECT {dim} AS {_alias(mapping.dimension)}, COUNT(*) AS row_count "
-            f"FROM {table}{where} GROUP BY 1 ORDER BY 2 DESC NULLS LAST LIMIT {GROUP_LIMIT}"
+            f"FROM {table}{where} GROUP BY 1 ORDER BY 1 NULLS LAST "
+            f"LIMIT {GROUP_RESULT_MAX + 1}"
         )
 
     if mapping.operation == "rank" and mapping.measure is None:
@@ -1237,9 +1373,21 @@ def build_sql(mapping: QuestionMapping) -> str | None:
         return f"SELECT {value}, COUNT(*) AS row_count FROM {table}{where}"
 
     dim = _quote(mapping.dimension)
-    direction = "ASC" if mapping.ascending else "DESC"
-    limit = RANK_LIMIT if mapping.operation == "rank" else GROUP_LIMIT
+    if mapping.operation == "rank":
+        # The question asked for a top or bottom list, so ordering by the
+        # measure is the answer rather than an artefact of the limit.
+        direction = "ASC" if mapping.ascending else "DESC"
+        return (
+            f"SELECT {dim} AS {_alias(mapping.dimension)}, {value}, COUNT(*) AS row_count "
+            f"FROM {table}{where} GROUP BY 1 ORDER BY 2 {direction} NULLS LAST "
+            f"LIMIT {RANK_LIMIT}"
+        )
+    # A breakdown. Ordered by the dimension, because ordering by the measure
+    # and then cutting at a limit turns "total sales by store" into an
+    # undeclared top-list -- which is exactly how a 25-of-45 result came to
+    # be published as the complete breakdown.
     return (
         f"SELECT {dim} AS {_alias(mapping.dimension)}, {value}, COUNT(*) AS row_count "
-        f"FROM {table}{where} GROUP BY 1 ORDER BY 2 {direction} NULLS LAST LIMIT {limit}"
+        f"FROM {table}{where} GROUP BY 1 ORDER BY 1 NULLS LAST "
+        f"LIMIT {GROUP_RESULT_MAX + 1}"
     )

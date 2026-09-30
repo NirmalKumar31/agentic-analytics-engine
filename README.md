@@ -208,7 +208,11 @@ Five gates, and they answer different questions:
 2. **Arithmetic** — every number in the sentence appears in a cited result.
 3. **Answer coverage** — a direct aggregate must preserve the accepted
    operation, measure, grouping, row filters, period, output shape and, for a
-   ranking, sort order. Each has its own rejection reason: "withheld as
+   ranking, sort order. A grouped answer also carries counted coverage:
+   groups returned against groups total, rows represented against rows
+   matching. A breakdown is complete or it says which part of it is
+   missing — it is never described as complete because nothing measured
+   said otherwise. Each has its own rejection reason: "withheld as
    unsupported" tells a reader the engine found a data problem when it found
    a population problem.
 4. **Evidence support** — the wording fairly describes what the cited result
@@ -310,6 +314,14 @@ column, operation, filter, period and source excerpt is checked locally before
 execution. A rule-detectable restriction is a lower bound: an AI plan that
 omits “aged 30 to 40”, changes an inclusive bound, or names an unknown column
 is refused. The engine composes the SQL itself and it still passes the guard.
+
+Where the rules resolve a question unambiguously, their contract is what
+executes. A cloud planner that returns `profile` for `total sales by store`
+does not cost the visitor the answer: the engine's own contract runs, the
+report records that the planner did not decide it, and Compare Both reports
+the same governed interpretation because that is what it is. Where the rules
+are *not* confident, a plan that cannot be validated is refused with its
+reason, because there is no contract to fall back to.
 
 Well-formed is not the same as faithful, so the plan is bounded in four more
 places. It may not group by a column the engine withholds as a grouping — an

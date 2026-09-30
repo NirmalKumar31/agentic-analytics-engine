@@ -122,7 +122,35 @@ Return the grounded upload query plan."""
             "candidate_plan": _upload_plan_fixture(question, deterministic),
         },
     )
-    return upload_plan.mapping_from_plan(question, schema, planned)
+    proposed = upload_plan.mapping_from_plan(question, schema, planned)
+    if proposed.confident:
+        return proposed
+
+    # The cloud plan could not be used. Where the rules resolved the
+    # question unambiguously, the engine's own contract executes and
+    # provenance records that the planner did not decide it.
+    #
+    # Asked "what is the total Weekly_Sales by Store", a real model
+    # returned `profile` with no measure and no grouping. Refusing there
+    # fails a routine business question because a model chose a different
+    # operation, and the visitor sees an empty pane next to a deterministic
+    # answer that worked. The arithmetic is not the model's to own, so
+    # there is nothing to protect by refusing.
+    #
+    # This is deliberately not presented as an independent interpretation:
+    # `interpretation` says the rules decided, `planner_note` says why, and
+    # the canonical contract is byte-identical to the deterministic one --
+    # so Compare Both reports the same governed interpretation, which is
+    # the truth.
+    if deterministic.confident:
+        deterministic.planner_note = (
+            "the AI planner did not return a usable contract for this question, "
+            "so the engine's own schema-grounded contract was executed"
+        )
+        return deterministic
+
+    # Neither resolved it. The AI's reason is the more specific one.
+    return proposed
 
 
 def analysis_from_upload_mapping(

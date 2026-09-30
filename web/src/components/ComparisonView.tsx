@@ -9,6 +9,7 @@
 
 import type { ReactNode } from "react";
 import { contractDifferences } from "../lib/contractDiff";
+import { runState } from "../lib/runState";
 import type { RunPayload, RunUsage } from "../lib/types";
 
 interface Side {
@@ -18,6 +19,8 @@ interface Side {
   error: string | null;
   pending: boolean;
   usage?: RunUsage;
+  /** AI off by capability, quota or configuration -- not a failed run. */
+  unavailable?: boolean;
   children: ReactNode;
 }
 
@@ -27,34 +30,68 @@ interface Props {
   ai: Side;
 }
 
-function statusLabel(side: Side): string {
-  if (side.error) return "Failed";
-  if (side.pending) return "Running";
-  if (side.run) return "Complete";
-  return "Not started";
+function stateOf(side: Side) {
+  return runState(side.run, {
+    error: side.error,
+    pending: side.pending,
+    unavailable: side.unavailable,
+  });
 }
 
+/**
+ * What happened, when it was not a verified answer.
+ *
+ * A refused or failed pane used to render nothing, so the reader saw an
+ * empty column and a COMPLETE badge. The reason the engine gave is the
+ * most useful thing on screen in those states, so it is shown rather than
+ * left in the activity log.
+ */
+function RunStateCard({ state }: { state: ReturnType<typeof runState> }) {
+  if (state.state === "completed_verified" || state.state === "running") {
+    return null;
+  }
+  if (state.state === "not_started") return null;
+  return (
+    <div
+      className={`notice ${state.tone === "error" ? "error" : "warn"}`}
+      role={state.tone === "error" ? "alert" : "status"}
+      data-testid="run-state-card"
+      data-state={state.state}
+    >
+      <strong>{state.label}.</strong>{" "}
+      {state.reason || RUN_STATE_FALLBACK[state.state]}
+    </div>
+  );
+}
+
+const RUN_STATE_FALLBACK: Record<string, string> = {
+  refused: "The question could not be mapped to this dataset safely.",
+  execution_failed: "The analysis could not be completed.",
+  verification_withheld:
+    "The analysis ran, but no finding survived the publication checks. The withheld findings below say why.",
+  cancelled: "The run was stopped before it finished.",
+  unavailable: "This mode is not available on this deployment.",
+};
+
 function Pane({ side }: { side: Side }) {
-  const status = statusLabel(side);
+  const state = stateOf(side);
   return (
     <section className="compare-pane" aria-label={side.title}>
       <div className="panel-head">
         <h2>{side.title}</h2>
         <span className="spacer" style={{ flex: 1 }} />
         <span
-          className={`tag status-${status.toLowerCase()}`}
+          className={`tag ${state.tone}`}
+          data-testid="pane-status"
+          data-state={state.state}
           aria-live="polite"
         >
-          {status}
+          {state.label}
         </span>
       </div>
       <p className="small dim compare-subtitle">{side.subtitle}</p>
 
-      {side.error ? (
-        <p className="error" role="alert">
-          {side.error}
-        </p>
-      ) : null}
+      <RunStateCard state={state} />
 
       {side.usage ? (
         <dl className="usage-summary small dim">
@@ -74,6 +111,13 @@ function Pane({ side }: { side: Side }) {
       ) : null}
 
       <div className="compare-body">{side.children}</div>
+      {!state.showsReport && !side.children ? (
+        <p className="small dim" data-testid="pane-placeholder">
+          {state.state === "running"
+            ? "This side is still running."
+            : "This side has not started."}
+        </p>
+      ) : null}
     </section>
   );
 }

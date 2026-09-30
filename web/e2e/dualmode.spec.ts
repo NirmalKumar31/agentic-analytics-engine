@@ -163,6 +163,96 @@ test.describe('AI and Compare, with the API intercepted', () => {
     }
   })
 
+  test('a refused AI pane shows its refusal, not a Complete badge', async ({ page }) => {
+    // The production failure, in a browser. An AI run with status
+    // `refused` wore a COMPLETE badge and rendered an empty pane beside a
+    // deterministic answer that had worked. The jsdom tests render
+    // `ComparisonView` with children already supplied, so they never
+    // exercised the decision about whether to supply them.
+    await page.route('**/api/config', async (route) => {
+      const response = await route.fetch()
+      const body = await response.json()
+      body.capabilities.modes = body.capabilities.modes.map((m: { mode: string }) =>
+        m.mode === 'ai' ? { ...m, available: true, reason: '', message: '' } : m,
+      )
+      body.capabilities.compare_available = true
+      body.capabilities.ai_limits = {
+        runs_per_session: 3,
+        max_model_calls_per_run: 24,
+        max_runtime_seconds: 180,
+      }
+      await route.fulfill({ response, json: body })
+    })
+
+    await page.route('**/api/comparisons', async (route) => {
+      const request = route.request().postDataJSON() as { session_id: string; question: string }
+      const started = await route.fetch({
+        url: new URL('/api/analyses', page.url()).toString(),
+        method: 'POST',
+        postData: JSON.stringify({ ...request, mode: 'deterministic' }),
+        headers: { 'content-type': 'application/json' },
+      })
+      const { run_id } = (await started.json()) as { run_id: string }
+      await route.fulfill({
+        status: 202,
+        json: {
+          comparison_id: 'cmp_refused',
+          session_id: request.session_id,
+          question: request.question,
+          deterministic_run_id: run_id,
+          ai_run_id: 'run_refused_ai',
+        },
+      })
+    })
+
+    await page.route('**/api/analyses/run_refused_ai', async (route) => {
+      await route.fulfill({
+        status: 200,
+        json: {
+          run_id: 'run_refused_ai',
+          session_id: 'x',
+          question: 'What is total revenue?',
+          status: 'refused',
+          created_at: Date.now() / 1000,
+          mode: 'ai',
+          provider_kind: 'cloud',
+          findings: [],
+          rejected: [],
+          charts: [],
+          results: {},
+          events: [],
+          mcp_trace: [],
+          report: null,
+          stopped_reason:
+            'the question could not be mapped safely: the AI plan named a grouping this engine does not offer',
+          query_contract: null,
+        },
+      })
+    })
+
+    await openDemo(page)
+    await page.getByRole('radio', { name: /^Compare Both/ }).click()
+    await page.getByLabel('Business question').fill('What is total revenue?')
+    await page.getByRole('button', { name: /Run both/ }).click()
+
+    const ai = page.getByRole('region', { name: 'AI Analytics' })
+    await expect(ai).toBeVisible({ timeout: 60_000 })
+
+    await expect(ai.getByTestId('pane-status')).toHaveText(/Refused/)
+    await expect(ai.getByTestId('pane-status')).toHaveAttribute('data-state', 'refused')
+
+    const card = ai.getByTestId('run-state-card')
+    await expect(card).toBeVisible()
+    await expect(card).toContainText(/could not be mapped safely/i)
+    await expect(ai.getByTestId('pane-placeholder')).toHaveCount(0)
+
+    await expect(
+      page.getByRole('region', { name: 'Deterministic Analytics' }).getByText(/Key findings/),
+    ).toBeVisible({ timeout: 60_000 })
+
+    await expect(ai.getByText(/\bComplete\b/)).toHaveCount(0)
+  })
+
   test('an AI run refused by quota is reported without leaking anything', async ({ page }) => {
     await page.route('**/api/config', async (route) => {
       const response = await route.fetch()

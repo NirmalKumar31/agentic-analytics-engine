@@ -181,10 +181,14 @@ describe("ReportView order", () => {
     expect(screen.getByTestId("answer-rows")).toHaveTextContent("200");
   });
 
-  it("says every row rather than staying silent when nothing was restricted", () => {
+  it("names the requested population rather than staying silent", () => {
+    // A reader cannot tell silence from an unreported restriction. It says
+    // what the *question* restricted -- how much of that population the
+    // answer covers is the coverage line's job, and conflating the two is
+    // how "every row in the dataset" came to sit above a 55% result.
     render_();
     expect(screen.getByTestId("answer-population")).toHaveTextContent(
-      "every row in the dataset",
+      "no row filters requested",
     );
   });
 
@@ -283,5 +287,87 @@ describe("the report anchor the browser suite waits on", () => {
     expect(
       screen.getByText("None were published for this question."),
     ).toBeVisible();
+  });
+});
+
+describe("coverage wording", () => {
+  const withCoverage = (over: Record<string, unknown>) =>
+    snapshot({
+      group_coverage: {
+        complete: true,
+        groups_returned: 45,
+        groups_total: 45,
+        rows_total: 6435,
+        rows_matching: 6435,
+        rows_represented: 6435,
+        query_limit: null,
+        ordering: "dimension",
+        ranked_by_request: false,
+        ...over,
+      },
+    } as never);
+
+  const report = (snap: ReturnType<typeof snapshot>) =>
+    render(
+      <ReportView
+        question="q"
+        report={null}
+        findings={[finding()]}
+        rejected={[]}
+        charts={[]}
+        results={{ res_1: snap }}
+        queryContract={contract()}
+        onShowWork={() => {}}
+      />,
+    );
+
+  it("states complete coverage from counted values", () => {
+    report(withCoverage({}));
+    expect(screen.getByTestId("answer-coverage")).toHaveTextContent(
+      "all 45 groups",
+    );
+    expect(screen.getByTestId("answer-coverage")).toHaveTextContent(
+      "6,435 of 6,435 matching rows",
+    );
+    expect(screen.getByTestId("answer-rows")).toHaveTextContent("6,435");
+    expect(screen.queryByTestId("partial-answer")).toBeNull();
+  });
+
+  it("says a partial breakdown is partial, with exact numbers", () => {
+    // The production failure: 25 of 45 groups, 3,575 of 6,435 rows.
+    report(
+      withCoverage({
+        complete: false,
+        groups_returned: 25,
+        groups_total: 45,
+        rows_represented: 3575,
+        query_limit: 25,
+      }),
+    );
+    const notice = screen.getByTestId("partial-answer");
+    expect(notice).toHaveTextContent(/partial breakdown/i);
+    expect(notice).toHaveTextContent("25 of 45 groups");
+    expect(notice).toHaveTextContent("3,575 of 6,435 matching rows");
+    expect(notice).toHaveTextContent(/not the complete answer/i);
+  });
+
+  it("never claims every row for a partial result", () => {
+    const { container } = report(
+      withCoverage({ complete: false, groups_returned: 25, groups_total: 45 }),
+    );
+    expect(container.textContent).not.toMatch(/every row in the dataset/i);
+    expect(container.textContent).not.toMatch(/complete breakdown/i);
+  });
+
+  it("reports rows represented, not rows matching, when partial", () => {
+    report(
+      withCoverage({
+        complete: false,
+        groups_returned: 25,
+        groups_total: 45,
+        rows_represented: 3575,
+      }),
+    );
+    expect(screen.getByTestId("answer-rows")).toHaveTextContent("3,575");
   });
 });

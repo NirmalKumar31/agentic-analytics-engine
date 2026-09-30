@@ -29,6 +29,10 @@ from agentic_analytics.analytics.results import EvidenceCell, ResultSnapshot
 from agentic_analytics.verification.typing import as_number
 
 #: How each operation reads in a sentence.
+#: Groups enumerated in the answer sentence. The rest are in the cited
+#: result, which the report renders in full beside the answer.
+ENUMERATED_GROUPS = 12
+
 _PHRASING = {
     "sum": "The total {what} is {value}",
     "average": "The average {what} is {value}",
@@ -92,6 +96,147 @@ def _format_metric(value: Decimal, metric_format: str) -> str:
     return _format(value)
 
 
+def _rank_answer(mapping: Any, snapshot: ResultSnapshot, task_id: str | None) -> Any | None:
+    """The engine's own sentence for a ranking, claiming only what it holds.
+
+    A ranking returns a short list, so it supports a statement about the
+    extreme the question asked for and nothing about the other end. The
+    model's summary said "20 has the highest total_weekly_sales at
+    301,397,792 and 39 the lowest at 207,445,542" -- and 39 was the tenth
+    highest of a ten-row result, while the actual lowest store was 33 at
+    37,160,221.96. Both numbers were real cells, so numeric verification
+    passed; the word "lowest" was the falsehood.
+    """
+    from agentic_analytics.agents.schemas import CandidateFinding
+
+    measure = getattr(mapping, "measure", None)
+    dimension = getattr(mapping, "dimension", None)
+    named = getattr(mapping, "named_columns", None) or []
+    if not measure or not dimension or measure not in named or not snapshot.rows:
+        return None
+    dimension_column = resolve_result_column(str(dimension), snapshot.columns)
+    target = next(
+        (
+            column
+            for column, origin in (snapshot.column_lineage or {}).items()
+            if origin.get("kind") == "aggregate" and origin.get("column") == measure
+        ),
+        None,
+    )
+    target = resolve_result_column(str(target), snapshot.columns) if target else None
+    if dimension_column is None or target is None:
+        return None
+
+    value = as_number(snapshot.cell(0, target), declared_type=snapshot.declared_type(target))
+    if value is None:
+        return None
+    label = str(snapshot.cell(0, dimension_column))
+    ascending = bool(getattr(mapping, "ascending", False))
+    extreme = "lowest" if ascending else "highest"
+    what = measure.replace("_", " ")
+    return CandidateFinding(
+        text=(
+            f"The {extreme} total {what} by {dimension.replace('_', ' ')} is "
+            f"{label} at {_format(value)}."
+        ),
+        kind="calculated_fact",
+        task_id=task_id,
+        result_ids=[snapshot.result_id],
+        evidence_cells=[
+            EvidenceCell(
+                result_id=snapshot.result_id,
+                row=0,
+                column=target,
+                value=snapshot.cell(0, target),
+                label=f"{extreme} total of {measure}, at {label}",
+            )
+        ],
+    )
+
+
+def _trend_answer(mapping: Any, snapshot: ResultSnapshot, task_id: str | None) -> Any | None:
+    """The engine's own sentence for a time series.
+
+    A trend had no canonical answer, so the only candidate was a model's
+    prose -- and on a 33-month series the relevance gate withheld it as not
+    answering the question. The engine had computed a correct monthly
+    series and published nothing at all.
+
+    Composed from the result's own periods and values, like a breakdown,
+    which is what a trend is once the axis is the grouping.
+    """
+    from agentic_analytics.agents.schemas import CandidateFinding
+
+    measure = getattr(mapping, "measure", None)
+    named = getattr(mapping, "named_columns", None) or []
+    if not measure or measure not in named:
+        return None
+    if "period" not in snapshot.columns or not snapshot.rows:
+        return None
+    target = next(
+        (
+            column
+            for column, origin in (snapshot.column_lineage or {}).items()
+            if origin.get("kind") == "aggregate" and origin.get("column") == measure
+        ),
+        None,
+    )
+    target = resolve_result_column(str(target), snapshot.columns) if target else None
+    if target is None:
+        return None
+
+    shown = min(len(snapshot.rows), ENUMERATED_GROUPS)
+    entries: list[str] = []
+    cells: list[EvidenceCell] = []
+    for row in range(shown):
+        value = as_number(snapshot.cell(row, target), declared_type=snapshot.declared_type(target))
+        if value is None:
+            return None
+        label = str(snapshot.cell(row, "period"))
+        entries.append(f"{label}: {_format(value)}")
+        cells.append(
+            EvidenceCell(
+                result_id=snapshot.result_id,
+                row=row,
+                column=target,
+                value=snapshot.cell(row, target),
+                label=f"monthly total of {measure} for {label}",
+            )
+        )
+    tail = "." if shown == len(snapshot.rows) else "; and further periods in the cited result."
+    what = measure.replace("_", " ")
+    return CandidateFinding(
+        text=f"Monthly total {what} by month: " + "; ".join(entries) + tail,
+        kind="calculated_fact",
+        task_id=task_id,
+        result_ids=[snapshot.result_id],
+        evidence_cells=cells,
+    )
+
+
+def _population_is_empty(snapshot: ResultSnapshot) -> bool:
+    """Whether the restrictions left no rows at all.
+
+    Read from the engine's own counts: the coverage block when present,
+    otherwise the result's `row_count` column. A zero here is the
+    difference between a measured total and an empty population, and only
+    one of those is an answer.
+    """
+    coverage = snapshot.group_coverage
+    if coverage is not None and coverage.rows_matching == 0:
+        return True
+    if not snapshot.rows:
+        # A grouped aggregate with no groups. A scalar always returns one
+        # row, so this only fires for a breakdown.
+        return bool(snapshot.group_coverage) or "row_count" in snapshot.columns
+    if "row_count" in snapshot.columns and len(snapshot.rows) == 1:
+        total = as_number(
+            snapshot.cell(0, "row_count"), declared_type=snapshot.declared_type("row_count")
+        )
+        return total == 0
+    return False
+
+
 def canonical_answer(
     mapping: Any, snapshot: ResultSnapshot, task_id: str | None = None
 ) -> Any | None:
@@ -105,6 +250,12 @@ def canonical_answer(
     from agentic_analytics.agents.schemas import CandidateFinding
 
     if mapping is None or not getattr(mapping, "confident", False):
+        return None
+    if _population_is_empty(snapshot):
+        # No row passed the restrictions. "The total revenue is 0" reads as
+        # a measurement of an empty set rather than as "nothing matched",
+        # and a reader cannot tell the two apart. The report says nothing
+        # was answerable instead, which is what happened.
         return None
     canonical: Any = getattr(mapping, "canonical_dict", lambda: {})()
     if isinstance(canonical, dict) and canonical.get("kind") == "metric_registry":
@@ -159,6 +310,10 @@ def canonical_answer(
             evidence_cells=cells,
         )
     operation = getattr(mapping, "operation", "")
+    if operation == "trend":
+        return _trend_answer(mapping, snapshot, task_id)
+    if operation == "rank":
+        return _rank_answer(mapping, snapshot, task_id)
     if operation not in _PHRASING:
         return None
     dimension = getattr(mapping, "dimension", None)
@@ -193,7 +348,18 @@ def canonical_answer(
             return None
         grouped_entries: list[str] = []
         grouped_cells: list[EvidenceCell] = []
-        for row in range(len(snapshot.rows)):
+        # A breakdown with many groups belongs in the cited result, not in
+        # one sentence. Enumerating 45 stores produced a 400-character
+        # claim that was then cut mid-number, so the engine's own complete
+        # answer failed numeric verification and a two-group summary was
+        # published instead.
+        #
+        # Every numeral in the text must be a value the cited result holds,
+        # so the closing clause deliberately carries no count: how many
+        # groups there are, and how many rows they cover, is reported from
+        # `group_coverage` as data rather than asserted here as prose.
+        shown = min(len(snapshot.rows), ENUMERATED_GROUPS)
+        for row in range(shown):
             value = as_number(
                 snapshot.cell(row, target), declared_type=snapshot.declared_type(target)
             )
@@ -211,9 +377,10 @@ def canonical_answer(
                 )
             )
         what = (measure or "rows").replace("_", " ")
+        tail = "." if shown == len(snapshot.rows) else "; and further groups in the cited result."
         return CandidateFinding(
             text=f"{_OPERATION_WORD.get(operation, operation).capitalize()} {what} "
-            f"by {dimension.replace('_', ' ')}: " + "; ".join(grouped_entries) + ".",
+            f"by {dimension.replace('_', ' ')}: " + "; ".join(grouped_entries) + tail,
             kind="calculated_fact",
             task_id=task_id,
             result_ids=[snapshot.result_id],
