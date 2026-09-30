@@ -137,13 +137,21 @@ test.describe('uploading a file', () => {
     await page.getByRole('button', { name: 'Start over' }).click()
     await ask(page, 'Explain the root cause of customer churn in this file')
     await waitForReport(page)
-    // Stated in more than one place -- the activity log and the report's
-    // limitations -- so this asserts presence, not uniqueness.
+    // The activity log keeps the engine's own reason verbatim.
     await expect(page.getByText(/could not be mapped/i).first()).toBeVisible()
+    // The report records it too, in a sentence written for a reader. This
+    // used to be the same raw string repeated in three phrasings; it is
+    // now said once, so the assertion is on the reader-facing wording and
+    // on there being exactly one of it.
+    const refusals = page.locator('li', { hasText: /was not (executed|answered)/i })
     await expect(
-      page.locator('li', { hasText: /could not be mapped/i }).first(),
+      refusals.first(),
       'the report must record the refusal, not only the activity log',
     ).toBeVisible()
+    expect(
+      await refusals.count(),
+      'a refusal is stated once, not repeated in several phrasings',
+    ).toBe(1)
   })
 
   test('refuses an invalid file with a readable message', async ({ page }) => {

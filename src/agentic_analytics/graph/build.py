@@ -747,8 +747,16 @@ def build_graph(ctx: RunContext) -> Any:
     async def write_report(state: AnalysisState) -> dict[str, Any]:
         ctx.events.emit(EventType.REPORT_STARTED, finding_count=len(state.get("published", [])))
         limitations = list(dict.fromkeys(state.get("limitations", [])))
-        if state.get("stopped_reason"):
-            limitations.append(f"The run stopped early: {state['stopped_reason']}.")
+        stopped = str(state.get("stopped_reason") or "")
+        if stopped:
+            # A refusal is stated once. The mapping stage already writes a
+            # precise, actionable sentence -- "the question restricts to
+            # '3 to 9' but does not say which column that applies to; name
+            # the column, for example ..." -- and a generic "the run
+            # stopped early" on top of it adds nothing a reader can use.
+            core = stopped.split(":", 1)[-1].strip() or stopped
+            if not any(core and core in existing for existing in limitations):
+                limitations.append(f"The question was not answered: {stopped}.")
         if ctx.out_of_time():
             # Organising is the only thing the model does here, so a run
             # that is out of time still gets its report -- written by the
@@ -865,4 +873,8 @@ def _abort(reason: str, exc: BaseException | None, ctx: RunContext) -> dict[str,
     detail = f"{reason}: {exc}" if exc else reason
     log.warning("run_aborted", reason=reason, error=str(exc) if exc else None)
     ctx.events.emit(EventType.ANALYSIS_TASK_FAILED, reason=detail)
-    return {"stopped_reason": reason, "errors": [detail], "limitations": [detail]}
+    # The detail belongs in `errors`, which is diagnostic, and not in
+    # `limitations`, which a visitor reads. Adding it here was one of three
+    # places that described a single refusal, so a report on an unmappable
+    # question said the same thing three times in three phrasings.
+    return {"stopped_reason": reason, "errors": [detail]}
