@@ -234,6 +234,19 @@ async def run_task(
                 "question": str(task.variables.get("question", "")),
                 "contract": task.variables["query_contract"],
             }
+        # Direct metric-layer contracts are engine-owned too.  The model may
+        # help phrase the result, but it may not replace a requested grouped
+        # total with a trend or a single segment after the registry resolved
+        # the question.  Override both the tool and every semantic argument.
+        metric_contract = task.variables.get("metric_query_contract")
+        if metric_contract:
+            choice.tool = "compute_metric"
+            arguments = {
+                "metric": metric_contract["metric"],
+                "dimensions": list(metric_contract.get("dimensions") or []),
+                "filters": [],
+                "time_grain": metric_contract.get("time_grain"),
+            }
         # Each branch below consumes one decision, so a worker that keeps
         # proposing bad calls still terminates.
         calls += 1

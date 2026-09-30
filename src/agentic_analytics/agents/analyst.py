@@ -16,6 +16,7 @@ from agentic_analytics.agents.schemas import (
 from agentic_analytics.agents.timescope import comparison_window as _comparison_window
 from agentic_analytics.agents.timescope import parse_time_scope
 from agentic_analytics.analytics import upload_plan
+from agentic_analytics.analytics.metric_plan import MetricQuestionMapping
 from agentic_analytics.llm.base import LLMProvider
 
 # Tools that do not require a metric from the semantic layer. A dataset with
@@ -147,6 +148,23 @@ def analysis_from_upload_mapping(
         dimensions=[mapping.dimension] if mapping.dimension else [],
         time_scope=period or None,
         ambiguities=ambiguities,
+    )
+
+
+def analysis_from_metric_mapping(question: str, mapping: MetricQuestionMapping) -> QuestionAnalysis:
+    """Build a brief from an accepted metric-layer contract.
+
+    The registry has already decided the metric, grouping and time grain;
+    asking a second model to restate those facts is both wasteful and a route
+    for the plan to drift from the question.
+    """
+    return QuestionAnalysis(
+        intent=question,
+        analysis_type="timeseries" if mapping.time_grain else "segmentation",
+        target_metrics=[mapping.metric] if mapping.metric else [],
+        dimensions=list(mapping.dimensions),
+        time_scope=mapping.time_grain,
+        ambiguities=[] if mapping.confident else [mapping.explanation],
     )
 
 

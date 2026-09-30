@@ -56,10 +56,17 @@ def _parameters(snapshot: Any) -> dict[str, Any]:
     return dict(getattr(snapshot, "parameters", None) or {})
 
 
+def _is_metric_contract(mapping: Any) -> bool:
+    canonical: Any = getattr(mapping, "canonical_dict", lambda: {})()
+    return isinstance(canonical, dict) and canonical.get("kind") == "metric_registry"
+
+
 def _shape_holds(snapshot: Any, mapping: Any) -> bool:
     columns = set(getattr(snapshot, "columns", None) or [])
-    dimension = getattr(mapping, "dimension", None)
-    if dimension and dimension not in columns:
+    dimensions = getattr(mapping, "dimensions", None) or ()
+    if not dimensions:
+        dimensions = (getattr(mapping, "dimension", None),)
+    if any(dimension and dimension not in columns for dimension in dimensions):
         return False
     # An empty population is a valid answer.  Shape is about the result
     # schema, not whether any row survived the requested restrictions.
@@ -99,9 +106,9 @@ def check_answer_coverage(mapping: Any, snapshots: list[Any]) -> AnswerCoverage:
     if mapping is None or not getattr(mapping, "confident", False):
         return AnswerCoverage(applicable=False)
 
-    aggregates = [
-        item for item in snapshots if getattr(item, "tool_name", "") == "aggregate_for_question"
-    ]
+    metric_contract = _is_metric_contract(mapping)
+    expected_tool = "compute_metric" if metric_contract else "aggregate_for_question"
+    aggregates = [item for item in snapshots if getattr(item, "tool_name", "") == expected_tool]
     if not aggregates:
         # A profile claim can still be judged for support and relevance; it
         # simply is not the direct answer whose executed contract this gate
@@ -112,7 +119,7 @@ def check_answer_coverage(mapping: Any, snapshots: list[Any]) -> AnswerCoverage:
     for snapshot in aggregates:
         params = _parameters(snapshot)
         operation = getattr(mapping, "operation", None)
-        if params.get("operation") != operation:
+        if not metric_contract and params.get("operation") != operation:
             failures.append(
                 _failure(
                     mapping,
@@ -126,14 +133,15 @@ def check_answer_coverage(mapping: Any, snapshots: list[Any]) -> AnswerCoverage:
             )
             continue
         measure = getattr(mapping, "measure", None)
-        if measure is not None and params.get("measure") != measure:
+        actual_measure = params.get("metric") if metric_contract else params.get("measure")
+        if measure is not None and actual_measure != measure:
             failures.append(
                 _failure(
                     mapping,
                     rule=WRONG_MEASURE,
                     reason=(
                         f"the question asks about {str(measure).replace('_', ' ')}, but this "
-                        f"result measures {str(params.get('measure')).replace('_', ' ')}"
+                        f"result measures {str(actual_measure).replace('_', ' ')}"
                     ),
                     missing="measure",
                 )
@@ -153,8 +161,34 @@ def check_answer_coverage(mapping: Any, snapshots: list[Any]) -> AnswerCoverage:
             )
             continue
 
-        constraints = check_constraints(None, mapping, [snapshot])
-        if constraints.applicable and not constraints.preserved:
+        # The metric tool records dimensions as a list and its time grain
+        # separately; upload aggregates use the older singular fields.
+        if metric_contract:
+            wanted_dimensions = list(getattr(mapping, "dimensions", ()) or ())
+            if params.get("dimensions") != wanted_dimensions:
+                failures.append(
+                    _failure(
+                        mapping,
+                        rule=MISSING_DIMENSION,
+                        reason="the executed metric result omitted a requested breakdown",
+                        missing="dimensions",
+                    )
+                )
+                continue
+            if params.get("time_grain") != getattr(mapping, "time_grain", None):
+                failures.append(
+                    _failure(
+                        mapping,
+                        rule=WRONG_PERIOD,
+                        reason="the executed metric result used a different time grain",
+                        missing="period",
+                    )
+                )
+                continue
+            constraints = None
+        else:
+            constraints = check_constraints(None, mapping, [snapshot])
+        if constraints is not None and constraints.applicable and not constraints.preserved:
             component = {
                 MISSING_FILTER: "filters",
                 MISSING_DIMENSION: "dimensions",
