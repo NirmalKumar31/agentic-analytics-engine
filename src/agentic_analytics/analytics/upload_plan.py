@@ -366,6 +366,12 @@ class QuestionMapping:
     #: Who interpreted the wording.  This changes provenance, not arithmetic;
     #: the canonical contract deliberately excludes it.
     interpretation: str = "rule-based"
+    #: Why the planner named in `interpretation` is the one that decided,
+    #: when that was not the obvious answer. Set when a cloud plan could
+    #: not honour an unambiguous contract and the engine's own contract
+    #: executed instead. Provenance only: excluded from the canonical
+    #: contract, because the arithmetic is identical either way.
+    planner_note: str = ""
 
     def canonical_dict(self) -> dict[str, Any]:
         """The semantic contract, stable across planner implementations."""
@@ -409,6 +415,7 @@ class QuestionMapping:
             "explanation": self.explanation,
             "named_columns": list(self.named_columns),
             "interpretation": self.interpretation,
+            "planner_note": self.planner_note,
             "contract_hash": self.contract_hash,
             "canonical_contract": self.canonical_dict(),
         }

@@ -58,8 +58,28 @@ export function answerResult(
  * four where the answer covers four hundred rows would misstate the
  * population by two orders of magnitude.
  */
+/**
+ * The rows the answer was computed over, or null when the result does not
+ * say.
+ *
+ * Read from the engine's measured coverage when present. The fallback sums
+ * the result's own `row_count` column, which is right only when every group
+ * is present -- and that is exactly what coverage records, so the fallback
+ * is used only for a result that carries no coverage block at all.
+ *
+ * Deliberately not `snapshot.row_count`: that is the number of rows in the
+ * *result*, which for a grouped answer is the number of groups.
+ */
 export function rowsInScope(snapshot: ResultSnapshot | null): number | null {
   if (!snapshot) return null;
+  const coverage = snapshot.group_coverage;
+  if (coverage) {
+    if (coverage.complete && coverage.rows_matching != null) {
+      return coverage.rows_matching;
+    }
+    if (coverage.rows_represented != null) return coverage.rows_represented;
+    return null;
+  }
   const index = snapshot.columns.findIndex(
     (column) => column.toLowerCase() === "row_count",
   );
@@ -77,6 +97,43 @@ export function rowsInScope(snapshot: ResultSnapshot | null): number | null {
     } else return null;
   }
   return total;
+}
+
+/**
+ * What the answer covers, in the reader's terms, or null when the result is
+ * not a grouped answer.
+ *
+ * Every phrase here is built from counted values. The report used to say
+ * "Population: every row in the dataset" whenever the question stated no
+ * filters, and "Rows counted 3,575" from the rows that came back -- for a
+ * result holding 25 of 45 groups and 55% of the rows.
+ */
+export function coverageScope(snapshot: ResultSnapshot | null): string | null {
+  const coverage = snapshot?.group_coverage;
+  if (!coverage) return null;
+  const { groups_returned: returned, groups_total: total } = coverage;
+  const groups =
+    total == null
+      ? `${returned.toLocaleString()} group${returned === 1 ? "" : "s"}`
+      : coverage.complete
+        ? `all ${total.toLocaleString()} group${total === 1 ? "" : "s"}`
+        : `${returned.toLocaleString()} of ${total.toLocaleString()} groups`;
+  const rows =
+    coverage.rows_represented != null && coverage.rows_matching != null
+      ? `${coverage.rows_represented.toLocaleString()} of ${coverage.rows_matching.toLocaleString()} matching rows`
+      : null;
+  const ordered = coverage.complete
+    ? null
+    : coverage.ranked_by_request
+      ? "ranked as requested"
+      : `ordered by ${coverage.ordering}`;
+  return [groups, rows, ordered].filter(Boolean).join(" · ");
+}
+
+/** Whether this answer covers every group the question asked for. */
+export function isComplete(snapshot: ResultSnapshot | null): boolean | null {
+  const coverage = snapshot?.group_coverage;
+  return coverage ? coverage.complete : null;
 }
 
 /**

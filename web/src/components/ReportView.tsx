@@ -1,6 +1,8 @@
 import {
   answerResult,
+  coverageScope,
   directAnswer,
+  isComplete,
   populationClauses,
   rowsInScope,
 } from "../lib/answer";
@@ -41,6 +43,8 @@ export function ReportView({
   const answerSnapshot = answerResult(answer, results);
   const rows = rowsInScope(answerSnapshot);
   const population = populationClauses(queryContract);
+  const scope = coverageScope(answerSnapshot);
+  const complete = isComplete(answerSnapshot);
   const supporting = findings.filter(
     (f) => f.finding_id !== answer?.finding_id,
   );
@@ -80,7 +84,7 @@ export function ReportView({
                   <dd data-testid="answer-population">
                     {population.length > 0
                       ? population.join("; ")
-                      : "every row in the dataset"}
+                      : "no row filters requested"}
                   </dd>
                 </div>
                 {rows !== null ? (
@@ -89,7 +93,24 @@ export function ReportView({
                     <dd data-testid="answer-rows">{rows.toLocaleString()}</dd>
                   </div>
                 ) : null}
+                {scope ? (
+                  <div>
+                    <dt>Coverage</dt>
+                    <dd data-testid="answer-coverage">{scope}</dd>
+                  </div>
+                ) : null}
               </dl>
+              {complete === false ? (
+                <p
+                  className="notice warn small"
+                  role="status"
+                  data-testid="partial-answer"
+                  style={{ margin: "0 0 9px" }}
+                >
+                  This is a partial breakdown. {scope}. It is not the complete
+                  answer to the question as asked.
+                </p>
+              ) : null}
               {answerSnapshot ? (
                 <div className="answer-result">
                   <ResultTable
