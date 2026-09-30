@@ -10,6 +10,7 @@ from agentic_analytics.analytics.upload_plan import QuestionMapping
 from agentic_analytics.verification.coverage import (
     WRONG_OPERATION,
     WRONG_PERIOD,
+    WRONG_SORT_ORDER,
     check_answer_coverage,
 )
 
@@ -89,3 +90,81 @@ def test_unrestricted_questions_still_check_operation_and_measure() -> None:
         parameters={"operation": "average", "measure": "revenue"},
     )
     assert check_answer_coverage(mapping, [wrong]).rule == WRONG_OPERATION
+
+
+RANK = QuestionMapping(
+    operation="rank",
+    table="uploaded_data",
+    measure="revenue",
+    dimension="region",
+    ascending=False,
+)
+
+
+def ranked(**changes: object) -> ResultSnapshot:
+    parameters: dict[str, object] = {
+        "operation": "rank",
+        "measure": "revenue",
+        "dimension": "region",
+        "ascending": False,
+        "filters": [],
+    }
+    parameters.update(changes)
+    return ResultSnapshot(
+        tool_name="aggregate_for_question",
+        columns=["region", "total_revenue", "row_count"],
+        rows=[["North", 91.0, 4], ["South", 12.0, 3]],
+        parameters=parameters,
+    )
+
+
+def test_a_ranking_executed_the_other_way_round_is_not_the_answer() -> None:
+    """Direction is the whole of a ranking question.
+
+    The operation, measure, grouping, filters and period all match, so
+    every other component of this gate passes and the bottom of the table
+    is published as the top.
+    """
+    coverage = check_answer_coverage(RANK, [ranked(ascending=True)])
+
+    assert coverage.applicable
+    assert not coverage.complete
+    assert coverage.rule == WRONG_SORT_ORDER
+    assert coverage.as_dict()["missing"] == ["sort_order"]
+    assert not coverage.sort_order
+    # Nothing else may be blamed for it.
+    assert coverage.operation and coverage.measure and coverage.dimensions
+    assert coverage.filters and coverage.period and coverage.output_shape
+    assert "highest" in coverage.reason
+
+
+def test_a_ranking_asked_for_ascending_rejects_a_descending_result() -> None:
+    coverage = check_answer_coverage(
+        QuestionMapping(
+            operation="rank",
+            table="uploaded_data",
+            measure="revenue",
+            dimension="region",
+            ascending=True,
+        ),
+        [ranked(ascending=False)],
+    )
+
+    assert coverage.rule == WRONG_SORT_ORDER
+    assert "lowest" in coverage.reason
+
+
+def test_a_ranking_in_the_requested_direction_is_complete() -> None:
+    """Without this the check above passes on a gate that always refuses."""
+    coverage = check_answer_coverage(RANK, [ranked()])
+
+    assert coverage.complete
+    assert coverage.sort_order
+    assert coverage.as_dict()["missing"] == []
+
+
+def test_sort_order_is_not_required_of_a_non_ranking_question() -> None:
+    """`ascending` is inert for an average and must not be compared."""
+    coverage = check_answer_coverage(MAPPING, [result(ascending=True)])
+
+    assert coverage.complete
