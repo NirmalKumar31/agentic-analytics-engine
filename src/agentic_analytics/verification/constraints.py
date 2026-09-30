@@ -132,9 +132,7 @@ def check_constraints(finding: Any, mapping: Any, snapshots: list[Any]) -> Const
     for snapshot in snapshots:
         params = _params(snapshot)
         applied = list(params.get("filters") or [])
-        verdict = _compare(
-            params, applied, required, required_filters, measure, dimensions, period
-        )
+        verdict = _compare(params, applied, required, required_filters, measure, dimensions, period)
         if verdict is None:
             return ConstraintVerdict(applicable=True, preserved=True, required=required)
         if best is None:

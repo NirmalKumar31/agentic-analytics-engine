@@ -935,10 +935,23 @@ def question_requirements(question: str, schema: dict[str, Any]) -> QuestionRequ
     all_columns = [str(f.get("name", "")) for f in schema.get("fields") or []]
     named = [c for c in all_columns if _mentions(text, c) >= 0]
 
+    resolution = parse_filters(question, schema)
+    # A column a filter claimed is not a grouping the question asked for.
+    # The phrase capture runs to the end of the clause, so "by region for
+    # age 30 to 40" mentions two groupable columns -- and counting `age` as
+    # a requested grouping made coverage demand a cut the question never
+    # asked for, which would have failed a correct contract. The resolver
+    # excludes these for the same reason; both must agree or the gate
+    # fights the planner.
+    filter_claimed = {str(getattr(f, "column", "")) for f in resolution.filters}
     dimensions: list[str] = []
     for phrase in _GROUPING_PHRASE.findall(_normalise(question)):
         for candidate in groupable:
-            if _mentions(_normalise(phrase), candidate) >= 0 and candidate not in dimensions:
+            if (
+                candidate not in filter_claimed
+                and candidate not in dimensions
+                and _mentions(_normalise(phrase), candidate) >= 0
+            ):
                 dimensions.append(candidate)
 
     # A measure is required only where the question names a column that
@@ -960,7 +973,6 @@ def question_requirements(question: str, schema: dict[str, Any]) -> QuestionRequ
         measure_candidates = [c for c in named if c not in dimensions and c in numeric]
     measure = measure_candidates[0] if len(measure_candidates) == 1 else None
 
-    resolution = parse_filters(question, schema)
     filters = tuple(
         (
             str(item.get("column", "")),
