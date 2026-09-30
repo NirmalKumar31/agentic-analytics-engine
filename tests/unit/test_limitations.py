@@ -104,6 +104,22 @@ def test_every_rule_the_engine_can_emit_has_prose() -> None:
     missing = emitted - known_rules()
     assert not missing, f"these rules would be described wrongly: {sorted(missing)}"
 
+    # And the set above is checked against the tree, not trusted. It was a
+    # hand-written literal, so a rule added later was absent from it and
+    # the test could not notice: `partial_metric_answer` shipped with no
+    # prose and rendered to a visitor as "was withheld because they were
+    # withheld by the partial_metric_answer check".
+    #
+    # Scanned independently of `known_rules`. An earlier version of this
+    # filtered the scan *by* `known_rules`, which made it a subset by
+    # construction -- it could not report a rule that was missing from the
+    # table, which is the only thing it exists to report.
+    undescribed = _assigned_rules_in_source() - known_rules()
+    assert not undescribed, (
+        "these rules are assigned somewhere in the engine and have no "
+        f"sentence, so a reader sees the rule name: {sorted(undescribed)}"
+    )
+
 
 #: Rules with prose that the engine does not emit, and why.
 #:
@@ -114,6 +130,25 @@ def test_every_rule_the_engine_can_emit_has_prose() -> None:
 #: verifier may reject on that basis in future, and prose arriving later
 #: than the rule is how a rule ends up described wrongly.
 REFUSES_UPSTREAM_INSTEAD = {"ambiguous_mapping"}
+
+
+def _assigned_rules_in_source() -> set[str]:
+    """Every value assigned to a `rule=` keyword in the engine.
+
+    Read from the tree with no reference to the prose table, so a rule
+    added without a sentence shows up here and nowhere else.
+    """
+    import pathlib
+    import re
+
+    root = pathlib.Path(__file__).resolve().parents[2] / "src" / "agentic_analytics"
+    found: set[str] = set()
+    for path in root.rglob("*.py"):
+        if path.name == "limitations.py":
+            continue
+        for match in re.finditer(r"""rule\s*=\s*["']([a-z][a-z_]+)["']""", path.read_text()):
+            found.add(match.group(1))
+    return found
 
 
 def _rules_quoted_in_source() -> set[str]:

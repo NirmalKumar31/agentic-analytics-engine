@@ -78,6 +78,11 @@ _REASONS: tuple[tuple[str, str], ...] = (
         "the run reached its budget before they could be verified",
     ),
     (
+        "partial_metric_answer",
+        "the engine published the complete breakdown instead, so a summary "
+        "naming only some of the groups was not needed",
+    ),
+    (
         "duplicate_finding",
         "they repeated a finding already published",
     ),
