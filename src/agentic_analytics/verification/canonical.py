@@ -147,8 +147,8 @@ def canonical_answer(
     if dimension:
         if dimension not in snapshot.columns:
             return None
-        entries: list[str] = []
-        cells: list[EvidenceCell] = []
+        grouped_entries: list[str] = []
+        grouped_cells: list[EvidenceCell] = []
         for row in range(len(snapshot.rows)):
             value = as_number(
                 snapshot.cell(row, target), declared_type=snapshot.declared_type(target)
@@ -156,8 +156,8 @@ def canonical_answer(
             if value is None:
                 return None
             label = str(snapshot.cell(row, dimension))
-            entries.append(f"{label}: {_format(value)}")
-            cells.append(
+            grouped_entries.append(f"{label}: {_format(value)}")
+            grouped_cells.append(
                 EvidenceCell(
                     result_id=snapshot.result_id,
                     row=row,
@@ -169,12 +169,12 @@ def canonical_answer(
         what = (measure or "rows").replace("_", " ")
         return CandidateFinding(
             text=f"{operation.capitalize()} {what} by {dimension.replace('_', ' ')}: "
-            + "; ".join(entries)
+            + "; ".join(grouped_entries)
             + ".",
             kind="calculated_fact",
             task_id=task_id,
             result_ids=[snapshot.result_id],
-            evidence_cells=cells,
+            evidence_cells=grouped_cells,
         )
 
     value = as_number(snapshot.cell(0, target), declared_type=snapshot.declared_type(target))
