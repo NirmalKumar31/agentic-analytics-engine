@@ -50,8 +50,23 @@ TREND_LIMIT = 500
 #: order value by month" a trend rather than an average.
 _OPERATION_PATTERNS: list[tuple[str, Operation]] = [
     (
-        r"\b(trend|over time|time series|by month|per month|monthly|by week|weekly"
-        r"|by day|daily|by quarter|quarterly|by year|yearly|year over year)\b",
+        # Temporal *intent*, not temporal vocabulary.
+        #
+        # This pattern used to include the bare adjectives -- `weekly`,
+        # `monthly`, `daily`, `quarterly`, `yearly` -- and those are the
+        # words measures are named after. `Weekly_Sales`, `monthly_ad_spend`
+        # and `daily_active_users` all made every question about them a
+        # trend, so "the average weekly sales by holiday flag" was answered
+        # with a monthly series and the grouping was dropped.
+        #
+        # A grain now has to be asked for as a grouping (`by month`, `per
+        # week`) or named as an analysis (`trend`, `over time`, `year over
+        # year`). Column names are also stripped before this is matched, so
+        # a measure called `trend_score` cannot trigger it either.
+        r"\b(trend|trends|over time|time series|timeseries"
+        r"|by month|per month|by week|per week|by day|per day"
+        r"|by quarter|per quarter|by year|per year"
+        r"|year over year|month over month|week over week)\b",
         "trend",
     ),
     (
@@ -213,6 +228,34 @@ class QuestionMapping:
             "contract_hash": self.contract_hash,
             "canonical_contract": self.canonical_dict(),
         }
+
+
+def _without_column_names(question: str, schema: dict[str, Any]) -> str:
+    """The question with its column references blanked out.
+
+    Columns are named after the things they hold, and those names collide
+    with analytical vocabulary: `Weekly_Sales` contains "weekly",
+    `monthly_ad_spend` contains "monthly", a `trend_score` column would
+    contain "trend". Matching intent against the raw question let a
+    measure's name choose the analysis -- "the average weekly sales by
+    holiday flag" became a monthly trend with no grouping at all.
+
+    Both spellings are removed, longest first, because a question says
+    "weekly sales" where the schema says `Weekly_Sales` and either may
+    appear.
+    """
+    names: list[str] = []
+    for field_ in schema.get("fields") or []:
+        name = str(field_.get("name", ""))
+        if name:
+            names.append(name)
+            spoken = name.replace("_", " ")
+            if spoken != name:
+                names.append(spoken)
+    out = question
+    for name in sorted(set(names), key=len, reverse=True):
+        out = re.sub(rf"(?<![\w]){re.escape(name)}(?![\w])", " ", out, flags=re.IGNORECASE)
+    return out
 
 
 def _normalise(text: str) -> str:
@@ -537,12 +580,7 @@ def resolve_question(question: str, schema: dict[str, Any]) -> QuestionMapping:
     # mentions removed first. A column called `2024 sales ($)` otherwise
     # made every question about it a question about the year 2024, and the
     # table had no date column to apply that to, so it was refused.
-    period_text = question
-    for column in sorted(
-        (str(f.get("name", "")) for f in schema.get("fields", [])), key=len, reverse=True
-    ):
-        if column:
-            period_text = re.sub(re.escape(column), " ", period_text, flags=re.IGNORECASE)
+    period_text = _without_column_names(question, schema)
     window = parse_time_scope(period_text)
     named_period: tuple[str, str] | None = None
     period_field: str | None = None
@@ -614,11 +652,16 @@ def resolve_question(question: str, schema: dict[str, Any]) -> QuestionMapping:
     positions = {c: _mentions(text, c) for c in all_columns}
     named = sorted((c for c, pos in positions.items() if pos >= 0), key=lambda c: positions[c])
 
+    # Matched against the question with its column references removed, so
+    # a measure's name cannot choose the analysis. `text` is still used for
+    # everything that legitimately reads column references -- the measure,
+    # the grouping, the filters.
+    intent_text = _normalise(_without_column_names(question, schema))
     operation: Operation | None = next(
         (
             candidate
             for pattern, candidate in _OPERATION_PATTERNS
-            if re.search(pattern, text, re.IGNORECASE)
+            if re.search(pattern, intent_text, re.IGNORECASE)
         ),
         None,
     )
