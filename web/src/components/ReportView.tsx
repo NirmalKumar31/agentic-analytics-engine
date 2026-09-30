@@ -161,10 +161,20 @@ export function ReportView({
                     <dd>{queryContract.measure.replaceAll("_", " ")}</dd>
                   </div>
                 ) : null}
-                {queryContract.dimension ? (
+                {(queryContract.dimensions ?? []).length > 0 ? (
                   <div>
                     <dt>Grouped by</dt>
-                    <dd>{queryContract.dimension.replaceAll("_", " ")}</dd>
+                    <dd data-testid="applied-groupings">
+                      {(queryContract.dimensions ?? [])
+                        .map((d) => d.replaceAll("_", " "))
+                        .join(" then ")}
+                    </dd>
+                  </div>
+                ) : null}
+                {queryContract.time_grain ? (
+                  <div>
+                    <dt>Time grain</dt>
+                    <dd>{queryContract.time_grain}</dd>
                   </div>
                 ) : null}
                 {queryContract.filters.map((filter, index) => (

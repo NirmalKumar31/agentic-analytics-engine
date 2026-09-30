@@ -8,7 +8,7 @@
  */
 
 import type { ReactNode } from "react";
-import { contractDifferences } from "../lib/contractDiff";
+import { compareRuns } from "../lib/comparison";
 import { runState } from "../lib/runState";
 import type { RunPayload, RunUsage } from "../lib/types";
 
@@ -123,17 +123,15 @@ function Pane({ side }: { side: Side }) {
 }
 
 export function ComparisonView({ question, deterministic, ai }: Props) {
-  const leftContract = deterministic.run?.query_contract;
-  const rightContract = ai.run?.query_contract;
-  const comparable = Boolean(leftContract && rightContract);
-  const sameContract =
-    comparable && leftContract?.contract_hash === rightContract?.contract_hash;
-  // Named rather than left to the reader. "Different governed
-  // interpretations" is not actionable on its own: a different measure and
-  // a dropped row restriction are very different things to have happened.
-  const differences = sameContract
-    ? []
-    : contractDifferences(leftContract, rightContract);
+  // Three separate questions, answered separately: did the two planners
+  // agree, does the agreed contract cover what was asked, and did it
+  // produce the same numbers. One hash comparison used to stand in for all
+  // three, so "same governed interpretation" was shown for a contract that
+  // dropped a grouping -- and for a fallback, where the AI pane was
+  // running the engine's own contract.
+  const comparison = compareRuns(deterministic.run, ai.run);
+  const comparable = comparison.verdict !== "not_comparable";
+  const differences = comparison.differences;
 
   return (
     <div className="stack">
@@ -145,22 +143,29 @@ export function ComparisonView({ question, deterministic, ai }: Props) {
           <p style={{ margin: 0 }}>{question}</p>
           <p className="small dim" style={{ margin: 0 }}>
             The same question, planned two ways. Deterministic Analytics uses
-            rule-based planning; AI Analytics uses a cloud model to plan and
-            interpret. Both run the same analytics engine, the same SQL guard,
-            the same statistics, the same verification and the same publication
-            checks, against the same dataset. The results are shown
+            rule-based planning; AI Analytics uses a cloud model to translate
+            the question into a typed analytical contract. Everything after that
+            is identical and deterministic: both run the same analytics engine,
+            the same SQL guard, the same DuckDB execution through MCP, the same
+            coverage checks, the same verification and the same publication
+            checks. The model never calculates a result. The two are shown
             independently and are not ranked.
           </p>
           {comparable ? (
             <div
-              className={`notice ${sameContract ? "success" : "warn"}`}
-              role="status"
+              className={`notice ${
+                comparison.tone === "supported"
+                  ? "success"
+                  : comparison.tone === "error"
+                    ? "error"
+                    : "warn"
+              }`}
+              role={comparison.tone === "error" ? "alert" : "status"}
               data-testid="contract-comparison"
+              data-verdict={comparison.verdict}
             >
-              {sameContract
-                ? "Same governed interpretation: both panes executed the same measure, grouping, filters and period."
-                : "Different governed interpretations: these panes are not a like-for-like comparison."}
-              {!sameContract && differences.length > 0 ? (
+              <strong>{comparison.headline}.</strong> {comparison.detail}
+              {differences.length > 0 ? (
                 <table className="contract-diff" data-testid="contract-diff">
                   <caption className="small dim">
                     Where the two governed interpretations differ
@@ -183,7 +188,8 @@ export function ComparisonView({ question, deterministic, ai }: Props) {
                   </tbody>
                 </table>
               ) : null}
-              {!sameContract && differences.length === 0 ? (
+              {comparison.verdict === "contracts_differ" &&
+              differences.length === 0 ? (
                 <p className="small" style={{ margin: "0.5rem 0 0" }}>
                   The differing part of the interpretation is not one this
                   report breaks out. Review the applied analysis in each pane.

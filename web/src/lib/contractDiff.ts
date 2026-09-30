@@ -46,6 +46,11 @@ function describeColumn(column: string | null | undefined): string {
   return column ? column : NONE;
 }
 
+/** Ordered, because "by region then channel" is not "by channel then region". */
+function describeGroupings(dimensions: string[] | undefined): string {
+  return dimensions && dimensions.length > 0 ? dimensions.join(" then ") : NONE;
+}
+
 /** The canonical view of a contract, tolerating an older payload. */
 export function canonicalOf(
   contract: QueryContract | null | undefined,
@@ -66,7 +71,11 @@ export function contractDifferences(
     ["Calculation", (c) => c.operation],
     ["Table", (c) => c.table],
     ["Measure", (c) => describeColumn(c.measure)],
-    ["Grouping", (c) => describeColumn(c.dimension)],
+    // Every cut, in order. Reading the singular projection here made a
+    // two-cut contract look ungrouped, so two panes that grouped
+    // differently compared as identical.
+    ["Grouping", (c) => describeGroupings(c.dimensions)],
+    ["Time grain", (c) => c.time_grain ?? NONE],
     ["Row filters", (c) => describeFilters(c.filters)],
     ["Time period", (c) => describePeriod(c.period)],
     ["Period column", (c) => describeColumn(c.period_field)],

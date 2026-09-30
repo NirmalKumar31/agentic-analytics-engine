@@ -20,6 +20,7 @@ const canonical: CanonicalContract = {
   table: "uploaded_data",
   measure: "annual_revenue",
   dimension: "region",
+  dimensions: ["region"],
   time_field: null,
   period: null,
   period_field: null,
@@ -147,7 +148,7 @@ describe("ComparisonView contract diff", () => {
       <ComparisonView
         question="Q"
         deterministic={side(runWith(contract()))}
-        ai={side(runWith(withCanonical({ dimension: "store_id" })))}
+        ai={side(runWith(withCanonical({ dimensions: ["store_id"] })))}
       />,
     );
     const table = screen.getByTestId("contract-diff");
@@ -166,12 +167,15 @@ describe("ComparisonView contract diff", () => {
       />,
     );
     expect(screen.queryByTestId("contract-diff")).toBeNull();
-    expect(screen.getByTestId("contract-comparison")).toHaveTextContent(
-      /same governed interpretation/i,
+    // The verdict, not its wording: `data-verdict` is the stable signal
+    // and the prose is written for a reader.
+    expect(screen.getByTestId("contract-comparison")).toHaveAttribute(
+      "data-verdict",
+      "both_agree",
     );
   });
 
-  it("stays readable when the hashes differ but no listed field does", () => {
+  it("reads identical canonical fields as agreement, whatever the hash says", () => {
     render(
       <ComparisonView
         question="Q"
@@ -179,9 +183,63 @@ describe("ComparisonView contract diff", () => {
         ai={side(runWith(contract({ contract_hash: "hash-z" })))}
       />,
     );
+    // Equality is decided on the canonical fields now, not the hash. The
+    // hash is derived from those fields, so a differing hash over
+    // identical fields cannot arise from the engine -- and treating it as
+    // a divergence told the reader two identical interpretations differed.
     expect(screen.queryByTestId("contract-diff")).toBeNull();
-    expect(screen.getByTestId("contract-comparison")).toHaveTextContent(
-      /not one this report breaks out/i,
+    expect(screen.getByTestId("contract-comparison")).toHaveAttribute(
+      "data-verdict",
+      "both_agree",
     );
+  });
+});
+
+describe("groupings and grain in the diff", () => {
+  it("names a dropped second cut", () => {
+    // The shape that made two-dimensional questions unrepresentable: one
+    // pane grouped by two columns, the other by one, and comparing the
+    // singular projection showed them as identical.
+    const diff = contractDifferences(
+      contract({
+        dimensions: ["region", "business_type"],
+        canonical_contract: {
+          ...canonical,
+          dimensions: ["region", "business_type"],
+        },
+      }),
+      withCanonical({ dimensions: ["region"] }),
+    );
+
+    expect(diff).toHaveLength(1);
+    expect(diff[0]?.label).toBe("Grouping");
+    expect(diff[0]?.deterministic).toBe("region then business_type");
+    expect(diff[0]?.ai).toBe("region");
+  });
+
+  it("treats a reordered grouping as a difference", () => {
+    // "by region then channel" is not "by channel then region": the
+    // result's row order and its chart differ.
+    const diff = contractDifferences(
+      contract({
+        dimensions: ["region", "business_type"],
+        canonical_contract: {
+          ...canonical,
+          dimensions: ["region", "business_type"],
+        },
+      }),
+      withCanonical({ dimensions: ["business_type", "region"] }),
+    );
+    expect(diff.map((d) => d.label)).toEqual(["Grouping"]);
+  });
+
+  it("names a differing time grain", () => {
+    const diff = contractDifferences(
+      contract(),
+      withCanonical({ time_grain: "month" }),
+    );
+    expect(diff).toEqual([
+      { label: "Time grain", deterministic: "none", ai: "month" },
+    ]);
   });
 });
