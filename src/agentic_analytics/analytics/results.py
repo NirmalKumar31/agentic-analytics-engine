@@ -69,6 +69,57 @@ class StatisticalResult(BaseModel):
         return self.effective_p_value < 0.05
 
 
+class GroupCoverage(BaseModel):
+    """How much of a grouped answer a result actually carries.
+
+    This exists because completeness was being *inferred*, and every
+    available signal inferred it wrongly. A grouped aggregate was capped at
+    25 groups by the SQL itself, so `truncated` -- which means "the result
+    exceeded the transport limit" -- stayed false; the population line was
+    derived from "the question stated no filters"; and the row count was
+    summed over the rows that came back. On a 45-store table all three
+    agreed that a top-25 answer covering 3,575 of 6,435 rows was the
+    complete breakdown of every row.
+
+    So the four different things that "limit" can mean are recorded
+    separately and a reader-facing claim is computed from them, never
+    guessed:
+
+    * ``query_limit`` -- the LIMIT the engine put in the SQL.
+    * transport truncation -- ``ResultSnapshot.truncated``, unchanged.
+    * a UI preview cap -- the frontend's business, and never allowed to
+      change any number here.
+    * ``complete`` -- whether every group the question asked for is present.
+    """
+
+    #: Whether every requested group is in this result.
+    complete: bool
+    #: Groups in this result.
+    groups_returned: int
+    #: Groups the question would have produced. `None` when not counted.
+    groups_total: int | None = None
+    #: Rows in the table, before any filter.
+    rows_total: int | None = None
+    #: Rows passing the contract's filters and period.
+    rows_matching: int | None = None
+    #: Rows behind the groups actually returned.
+    rows_represented: int | None = None
+    #: The LIMIT the SQL applied, if any.
+    query_limit: int | None = None
+    #: What the result is ordered by. A breakdown orders by its dimension;
+    #: only an explicit ranking orders by the measure.
+    ordering: Literal["dimension", "measure", "period"] = "dimension"
+    #: Whether the question asked for a ranking. A breakdown that happens to
+    #: be cut short is not a top-N list, and must not be described as one.
+    ranked_by_request: bool = False
+
+    @property
+    def groups_omitted(self) -> int | None:
+        if self.groups_total is None:
+            return None
+        return max(self.groups_total - self.groups_returned, 0)
+
+
 #: Profile columns whose values are individual cells rather than summaries.
 RAW_CELL_COLUMNS = frozenset({"min_value", "max_value"})
 
@@ -115,6 +166,10 @@ class ResultSnapshot(BaseModel):
     #: total_net_value" cannot tell whether the claim invents a column or
     #: names the engine's own output.
     column_lineage: dict[str, dict[str, str]] = Field(default_factory=dict)
+    #: Present for a grouped aggregate. Absent means "this result is not a
+    #: grouped answer", never "it is complete" -- a caller must not read a
+    #: missing value as a completeness guarantee.
+    group_coverage: GroupCoverage | None = None
 
     def declared_type(self, column: str) -> str | None:
         """The declared type of one output column, if recorded."""

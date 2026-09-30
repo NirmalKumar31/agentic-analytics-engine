@@ -10,7 +10,7 @@ from __future__ import annotations
 import pytest
 
 from agentic_analytics.analytics.upload_plan import (
-    GROUP_LIMIT,
+    GROUP_RESULT_MAX,
     RANK_LIMIT,
     build_sql,
     resolve_question,
@@ -158,11 +158,29 @@ def test_generated_sql_is_read_only_and_bounded() -> None:
 
 def test_rank_limits_are_tighter_than_group_limits() -> None:
     """A "top" question should return a short list, not a full breakdown."""
-    assert RANK_LIMIT < GROUP_LIMIT
+    assert RANK_LIMIT < GROUP_RESULT_MAX
     ranked = str(build_sql(resolve_question("top regions by revenue", SCHEMA)))
     grouped = str(build_sql(resolve_question("total revenue by region", SCHEMA)))
     assert f"LIMIT {RANK_LIMIT}" in ranked
-    assert f"LIMIT {GROUP_LIMIT}" in grouped
+    # One more than the engine will accept, so overflow is detectable
+    # rather than assumed absent.
+    assert f"LIMIT {GROUP_RESULT_MAX + 1}" in grouped
+
+
+def test_a_breakdown_is_ordered_by_its_dimension_and_a_ranking_by_its_measure() -> None:
+    """Ordering is what separates a breakdown from a top-list.
+
+    `total revenue by region` ordered by the measure and cut at a limit is
+    an undeclared top-N. On a 45-group table that published the top 25 as
+    the complete breakdown, so the ordering is now part of the contract
+    rather than an incidental clause.
+    """
+    breakdown = str(build_sql(resolve_question("total revenue by region", SCHEMA)))
+    assert "ORDER BY 1" in breakdown
+    assert "ORDER BY 2" not in breakdown
+
+    ranking = str(build_sql(resolve_question("top regions by revenue", SCHEMA)))
+    assert "ORDER BY 2 DESC" in ranking
 
 
 def test_output_columns_use_the_dataset_vocabulary() -> None:
