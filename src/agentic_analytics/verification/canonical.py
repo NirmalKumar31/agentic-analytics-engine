@@ -214,6 +214,29 @@ def _trend_answer(mapping: Any, snapshot: ResultSnapshot, task_id: str | None) -
     )
 
 
+def _population_is_empty(snapshot: ResultSnapshot) -> bool:
+    """Whether the restrictions left no rows at all.
+
+    Read from the engine's own counts: the coverage block when present,
+    otherwise the result's `row_count` column. A zero here is the
+    difference between a measured total and an empty population, and only
+    one of those is an answer.
+    """
+    coverage = snapshot.group_coverage
+    if coverage is not None and coverage.rows_matching == 0:
+        return True
+    if not snapshot.rows:
+        # A grouped aggregate with no groups. A scalar always returns one
+        # row, so this only fires for a breakdown.
+        return bool(snapshot.group_coverage) or "row_count" in snapshot.columns
+    if "row_count" in snapshot.columns and len(snapshot.rows) == 1:
+        total = as_number(
+            snapshot.cell(0, "row_count"), declared_type=snapshot.declared_type("row_count")
+        )
+        return total == 0
+    return False
+
+
 def canonical_answer(
     mapping: Any, snapshot: ResultSnapshot, task_id: str | None = None
 ) -> Any | None:
@@ -227,6 +250,12 @@ def canonical_answer(
     from agentic_analytics.agents.schemas import CandidateFinding
 
     if mapping is None or not getattr(mapping, "confident", False):
+        return None
+    if _population_is_empty(snapshot):
+        # No row passed the restrictions. "The total revenue is 0" reads as
+        # a measurement of an empty set rather than as "nothing matched",
+        # and a reader cannot tell the two apart. The report says nothing
+        # was answerable instead, which is what happened.
         return None
     canonical: Any = getattr(mapping, "canonical_dict", lambda: {})()
     if isinstance(canonical, dict) and canonical.get("kind") == "metric_registry":

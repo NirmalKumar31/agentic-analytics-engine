@@ -329,6 +329,13 @@ def _unresolved_measure(text: str, schema: dict[str, Any]) -> str | None:
         for w in re.split(r"[^a-z0-9_]+", remaining.lower())
         if w and w not in _MEASURE_NOISE and not w.isdigit() and len(w) > 2
     ]
+    # A word that resolves to a column by plural is not unresolved.
+    # `_without_column_names` strips exact spellings, so "categories" for a
+    # column called `category` survived it and read as a measure the table
+    # does not have -- which turned "top categories", a legitimate
+    # frequency ranking with no measure at all, into a refusal.
+    columns = [str(f.get("name", "")) for f in schema.get("fields") or []]
+    content = [w for w in content if not any(_mentions(w, c) >= 0 for c in columns)]
     # Nothing left means every content word in measure position named a
     # real column. Nothing there to begin with means no measure was named,
     # which is a different situation the single-candidate rule may settle.
@@ -891,7 +898,24 @@ def resolve_question(question: str, schema: dict[str, Any]) -> QuestionMapping:
     # a measure's name cannot choose the analysis. `text` is still used for
     # everything that legitimately reads column references -- the measure,
     # the grouping, the filters.
-    intent_text = _normalise(_without_column_names(question, schema))
+    # Column references are removed, and so is the text a row filter has
+    # already claimed. "total revenue with temperature at least 50"
+    # contains "least", which the ranking pattern matched -- so a filtered
+    # total became a ranking, needed a grouping it was never given, and was
+    # refused. A clause another component owns must not also decide the
+    # intent.
+    intent_source = _without_column_names(question, schema)
+    for row_filter in resolution.filters:
+        claimed = str(getattr(row_filter, "source_text", "") or "")
+        if claimed:
+            intent_source = intent_source.replace(claimed, " ")
+            # The excerpt is taken from the original question, so it may not
+            # survive column removal verbatim. Fall back to the operator and
+            # value, which is the part that misleads the intent matcher.
+            tail = claimed.split()[-3:]
+            if len(tail) >= 2:
+                intent_source = intent_source.replace(" ".join(tail), " ")
+    intent_text = _normalise(intent_source)
     operation: Operation | None = next(
         (
             candidate
@@ -961,7 +985,12 @@ def resolve_question(question: str, schema: dict[str, Any]) -> QuestionMapping:
         # Otherwise a dimension the question merely named is still a
         # grouping -- "returns by category" and "category returns" ask the
         # same thing.
-        mentioned_dims = [c for c in named if c in dimensions]
+        # A column a filter claimed is not a grouping the question asked
+        # for. "total revenue where promo_flag is 1" restricts to one value
+        # of that column; grouping by it then returns a single group and
+        # presents a restriction as a breakdown.
+        filter_claimed = {str(getattr(f, "column", "")) for f in resolution.filters}
+        mentioned_dims = [c for c in named if c in dimensions and c not in filter_claimed]
         dimension = mentioned_dims[0] if mentioned_dims else None
 
     if dimension is None:
@@ -1024,7 +1053,14 @@ def resolve_question(question: str, schema: dict[str, Any]) -> QuestionMapping:
     # as the answer: a measure silently replaced by the column the
     # question asked to group by.
     widening = [c for c in aggregatable if c != dimension]
-    measure, why = _pick(named, measures, "numeric column", widening)
+    # A column a filter already claimed is not also a candidate measure.
+    # "total Weekly_Revenue with Avg_Temp_C at least 50" names two numeric
+    # columns, and both being measures made the measure ambiguous -- so a
+    # question that says plainly what to total was refused because it also
+    # said what to restrict.
+    filtered_columns = {str(getattr(f, "column", "")) for f in resolution.filters}
+    candidates = [c for c in named if c not in filtered_columns] or named
+    measure, why = _pick(candidates, measures, "numeric column", widening)
 
     # The guard applies only where a substitution is possible: the measure
     # was not named by the question and came from "the table offers
@@ -1032,7 +1068,12 @@ def resolve_question(question: str, schema: dict[str, Any]) -> QuestionMapping:
     # question that named a real measure column needs no checking, and
     # checking it anyway read interrogatives like "which region has" as
     # unresolved measures.
-    if measure is not None and measure not in named:
+    # Also when nothing could be resolved at all. "the table has 2 numeric
+    # columns to choose from" is true but unhelpful for a question that
+    # named a column plainly -- it just is not in this table. Naming the
+    # word back is the difference between a reader rephrasing and a reader
+    # guessing.
+    if measure is None or measure not in named:
         unresolved = _unresolved_measure(question, schema)
         if unresolved is not None:
             return refuse(

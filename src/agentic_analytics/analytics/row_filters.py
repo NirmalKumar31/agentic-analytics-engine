@@ -72,7 +72,9 @@ _COMPARISON = re.compile(
     r"(?P<col>[A-Za-z_]\w*(?:\s+\w+){0,2}?)\s*"
     r"(?P<op>>=|<=|>|<|==|=|\bis\s+at\s+least\b|\bis\s+at\s+most\b|"
     r"\bat\s+least\b|\bat\s+most\b|\bover\b|\bunder\b|\babove\b|\bbelow\b|"
-    r"\bgreater\s+than\b|\bless\s+than\b|\bmore\s+than\b|\bfewer\s+than\b)\s*"
+    r"\bgreater\s+than\b|\bless\s+than\b|\bmore\s+than\b|\bfewer\s+than\b|"
+    # Word equality, after the comparisons so "is at least" still wins.
+    r"\bis\s+equal\s+to\b|\bequals\b|\bis\b)\s*"
     r"(?P<val>-?\d+(?:\.\d+)?)",
     re.IGNORECASE,
 )
@@ -100,6 +102,14 @@ _WORD_OPS: dict[str, Operator] = {
     "below": "<",
     "less than": "<",
     "fewer than": "<",
+    # Equality in words. "where Promo_Flag is 1" is one of the commonest
+    # ways a restriction gets written, and without these the parser saw a
+    # restriction it could not map and refused the question -- the safe
+    # direction, but a refusal for a phrasing the engine understands
+    # everywhere else.
+    "is": "=",
+    "equals": "=",
+    "is equal to": "=",
 }
 
 #: The most filters one question may carry. A bound, because each one is
