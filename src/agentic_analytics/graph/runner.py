@@ -69,6 +69,15 @@ class RunResult:
     #: not claim support; it answers whether the executed shape preserved
     #: every component the question fixed.
     question_coverage: QuestionCoverage | None = None
+    #: Stage durations in milliseconds. Exposed so the UI can say where the
+    #: time went instead of implying the model computed the answer.
+    timings: dict[str, float] = field(default_factory=dict)
+    #: Why the chart is what it is, including the reason when there is none.
+    chart_decision: dict[str, Any] = field(default_factory=dict)
+    #: True when the cloud planner returned nothing usable and the engine's
+    #: own contract executed instead. Compare Both must not present that as
+    #: the model independently agreeing.
+    planner_fallback: bool = False
     stopped_reason: str = ""
     #: Set from the stop reason, or explicitly on the failure path. A caller
     #: must not infer success from the existence of this object.
@@ -104,6 +113,9 @@ class RunResult:
             "question_coverage": (
                 self.question_coverage.model_dump() if self.question_coverage else None
             ),
+            "timings": dict(self.timings),
+            "chart_decision": dict(self.chart_decision),
+            "planner_fallback": self.planner_fallback,
             "stopped_reason": self.stopped_reason,
             "outcome": self.outcome,
         }
@@ -412,6 +424,9 @@ async def run_analysis(
             state.get("query_mapping"),
             state.get("stopped_reason", ""),
         ),
+        timings=dict(state.get("timings") or {}),
+        chart_decision=dict(state.get("chart_decision") or {}),
+        planner_fallback=bool(getattr(state.get("query_mapping"), "planner_note", "")),
         stopped_reason=state.get("stopped_reason", ""),
         outcome=_outcome_from_reason(state.get("stopped_reason", "")),
     )

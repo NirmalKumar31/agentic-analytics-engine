@@ -316,8 +316,10 @@ def canonical_answer(
         return _rank_answer(mapping, snapshot, task_id)
     if operation not in _PHRASING:
         return None
-    dimension = getattr(mapping, "dimension", None)
-    if not dimension and len(snapshot.rows) != 1:
+    dimensions = [str(d) for d in (getattr(mapping, "dimensions", ()) or ())]
+    if not dimensions and getattr(mapping, "dimension", None):
+        dimensions = [str(mapping.dimension)]
+    if not dimensions and len(snapshot.rows) != 1:
         return None
 
     # The visitor has to have said what to measure. "How much?" resolves
@@ -327,7 +329,21 @@ def canonical_answer(
     # answers. A named measure is the difference between answering and
     # guessing what was meant.
     measure_named = getattr(mapping, "measure", None)
-    if not measure_named or measure_named not in (getattr(mapping, "named_columns", None) or []):
+    # A count is the exception, but only a *grouped* count. The count is
+    # the value, so there is no measure to name -- and two corpus datasets
+    # have no trustworthy numeric column and answer only this way.
+    #
+    # A bare count is not covered, because the comment above is right: "how
+    # many tickets are there" never says what a ticket is, and answering it
+    # with a row count is the guess the corpus requires be refused. My
+    # first version of this exception omitted the grouping requirement and
+    # turned exactly that case into a confident answer.
+    counting = (
+        operation == "count" and measure_named is None and bool(getattr(mapping, "dimensions", ()))
+    )
+    if not counting and (
+        not measure_named or measure_named not in (getattr(mapping, "named_columns", None) or [])
+    ):
         return None
 
     # The output column this operation produced, found through lineage so
@@ -339,13 +355,24 @@ def canonical_answer(
             target = column
             break
     target = resolve_result_column(str(target), snapshot.columns) if target else None
+    if target is None and counting and "row_count" in snapshot.columns:
+        # A count has no measure column: the count *is* the value. Two
+        # corpus datasets with no trustworthy numeric column answer only
+        # this way, and requiring a named measure left them publishing
+        # nothing once the fast path stopped asking a model to restate it.
+        target = "row_count"
     if target is None:
         return None
 
-    if dimension:
-        dimension_column = resolve_result_column(str(dimension), snapshot.columns)
-        if dimension_column is None:
+    if dimensions:
+        # Every requested cut, in order. Reading the singular projection
+        # here meant a two-cut answer had no dimension at all, fell through
+        # to the scalar path, failed its one-row check and published
+        # nothing -- a correct two-dimensional result with an empty report.
+        columns = [resolve_result_column(str(d), snapshot.columns) for d in dimensions]
+        if any(column is None for column in columns):
             return None
+        dimension_columns = [str(column) for column in columns]
         grouped_entries: list[str] = []
         grouped_cells: list[EvidenceCell] = []
         # A breakdown with many groups belongs in the cited result, not in
@@ -365,7 +392,7 @@ def canonical_answer(
             )
             if value is None:
                 return None
-            label = str(snapshot.cell(row, dimension_column))
+            label = " / ".join(str(snapshot.cell(row, column)) for column in dimension_columns)
             grouped_entries.append(f"{label}: {_format(value)}")
             grouped_cells.append(
                 EvidenceCell(
@@ -380,7 +407,9 @@ def canonical_answer(
         tail = "." if shown == len(snapshot.rows) else "; and further groups in the cited result."
         return CandidateFinding(
             text=f"{_OPERATION_WORD.get(operation, operation).capitalize()} {what} "
-            f"by {dimension.replace('_', ' ')}: " + "; ".join(grouped_entries) + tail,
+            f"by {' and '.join(d.replace('_', ' ') for d in dimensions)}: "
+            + "; ".join(grouped_entries)
+            + tail,
             kind="calculated_fact",
             task_id=task_id,
             result_ids=[snapshot.result_id],

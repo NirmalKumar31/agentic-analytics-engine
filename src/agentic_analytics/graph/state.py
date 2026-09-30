@@ -66,6 +66,11 @@ class AnalysisState(TypedDict, total=False):
     #: requirements from the contract is what made the first coverage gate
     #: vacuous.
     upload_schema: dict[str, Any]
+    #: Stage durations in milliseconds, so the UI can say where a run spent
+    #: its time instead of implying the model computed the answer.
+    timings: dict[str, float]
+    #: Why the chart is what it is, including the reason when there is none.
+    chart_decision: dict[str, Any]
     plan: AnalysisPlan
     pending_tasks: list[AnalysisTask]
     task_outcomes: Annotated[list[TaskOutcome], merge_outcomes]

@@ -365,6 +365,143 @@ def build_graph(ctx: RunContext) -> Any:
             "limitations": limitations,
         }
 
+    # ------------------------------------------------------------ fast_path
+    def _is_canonical_upload_aggregate(state: AnalysisState) -> bool:
+        """Whether this run is an ordinary governed aggregate over an upload.
+
+        These need no model after planning. A worker choosing a tool, a
+        critic restating arithmetic, a visualizer picking an encoding and a
+        reporter writing a summary added six model calls to a seven-call
+        run and contributed no authority: the contract fixes the tool, the
+        engine computes the number, and the result determines the chart.
+        """
+        mapping = state.get("query_mapping")
+        if mapping is None or not getattr(mapping, "confident", False):
+            return False
+        canonical: Any = getattr(mapping, "canonical_dict", lambda: {})()
+        if isinstance(canonical, dict) and canonical.get("kind") == "metric_registry":
+            return False
+        return str(getattr(mapping, "operation", "")) in {
+            "count",
+            "sum",
+            "average",
+            "trend",
+            "rank",
+        }
+
+    async def fast_path(state: AnalysisState) -> dict[str, Any]:
+        """Execute the accepted contract and report it, with no model."""
+        from agentic_analytics.agents.schemas import AnalysisReport, ChartSpec
+        from agentic_analytics.analytics.charts import chart_for
+
+        mapping = state["query_mapping"]
+        started = time.perf_counter()
+        try:
+            await ctx.toolset.call(
+                "aggregate_for_question",
+                {
+                    "table": mapping.table,
+                    "question": state["question"],
+                    "contract": mapping.as_dict(),
+                },
+                task_id="task_01",
+                agent="fast_path",
+            )
+        except Exception as exc:  # the tool's own guard is the boundary
+            return _abort("the accepted contract could not be executed", exc, ctx)
+        execution_ms = (time.perf_counter() - started) * 1000
+
+        results = ctx.results()
+        snapshot = next(
+            (
+                s
+                for s in reversed(list(results.values()))
+                if s.tool_name == "aggregate_for_question"
+            ),
+            None,
+        )
+        if snapshot is None:  # pragma: no cover - the call above would have raised
+            return _abort("the accepted contract produced no result", None, ctx)
+
+        verify_started = time.perf_counter()
+        candidate = _canonical_for(mapping, results, [])
+        if candidate is None:
+            return _abort("the executed result could not be turned into a direct answer", None, ctx)
+        verdict = _verify_without_a_model(candidate, results, mapping)
+        verification_ms = (time.perf_counter() - verify_started) * 1000
+        if verdict.status != "supported":
+            return {
+                "verdicts": [verdict],
+                "rejected": [verdict],
+                "published": [],
+                "charts": [],
+                "report": AnalysisReport(
+                    question=state["question"],
+                    executive_summary="",
+                    key_findings=[],
+                    sections=[],
+                    limitations=rejection_limitations([verdict.rule]),
+                    next_questions=[],
+                ),
+                "timings": {
+                    "execution_ms": round(execution_ms, 1),
+                    "verification_ms": round(verification_ms, 1),
+                },
+            }
+
+        published = [critic.publish(candidate, verdict)]
+        ctx.events.emit(
+            EventType.FINDING_VERIFIED,
+            finding_id=published[0].finding_id,
+            status=verdict.status,
+            rule=verdict.rule,
+        )
+
+        charts: list[Any] = []
+        chart = chart_for(mapping, snapshot)
+        if chart.get("kind") not in {"none", "kpi"}:
+            charts.append(
+                ChartSpec(
+                    title=str(chart.get("title") or "Result"),
+                    result_id=snapshot.result_id,
+                    finding_ids=[published[0].finding_id],
+                    spec=dict(chart.get("spec") or {}),
+                )
+            )
+        if charts:
+            ctx.events.emit(
+                EventType.CHART_CREATED,
+                chart_id=charts[0].chart_id,
+                chart_kind=str(chart.get("kind")),
+                result_id=snapshot.result_id,
+            )
+        else:
+            ctx.events.emit(
+                EventType.CHART_REJECTED,
+                reason=str(chart.get("no_chart_reason") or "a chart would not help here"),
+                chart_kind=str(chart.get("kind")),
+            )
+
+        return {
+            "verdicts": [verdict],
+            "published": published,
+            "rejected": [],
+            "charts": charts,
+            "chart_decision": chart,
+            "report": AnalysisReport(
+                question=state["question"],
+                executive_summary="",
+                key_findings=[],
+                sections=[],
+                limitations=[],
+                next_questions=[],
+            ),
+            "timings": {
+                "execution_ms": round(execution_ms, 1),
+                "verification_ms": round(verification_ms, 1),
+            },
+        }
+
     # -------------------------------------------------------- plan_analysis
     async def plan_analysis(state: AnalysisState) -> dict[str, Any]:
         if state.get("stopped_reason"):
@@ -908,6 +1045,7 @@ def build_graph(ctx: RunContext) -> Any:
     graph.add_node("dataset_context", dataset_context)
     graph.add_node("analyze_question", analyze_question)
     graph.add_node("plan_analysis", plan_analysis)
+    graph.add_node("fast_path", fast_path)
     graph.add_node("analysis_worker", analysis_worker, input_schema=WorkerInput)
     graph.add_node("aggregate_results", aggregate_results)
     graph.add_node("critique_findings", critique_findings)
@@ -919,7 +1057,17 @@ def build_graph(ctx: RunContext) -> Any:
 
     graph.add_edge(START, "dataset_context")
     graph.add_edge("dataset_context", "analyze_question")
-    graph.add_edge("analyze_question", "plan_analysis")
+
+    def route_after_analysis(state: AnalysisState) -> str:
+        """Canonical upload aggregates skip the agent graph entirely."""
+        if state.get("stopped_reason"):
+            return "plan_analysis"
+        return "fast_path" if _is_canonical_upload_aggregate(state) else "plan_analysis"
+
+    graph.add_conditional_edges(
+        "analyze_question", route_after_analysis, ["fast_path", "plan_analysis"]
+    )
+    graph.add_edge("fast_path", "verify_publication")
     graph.add_conditional_edges("plan_analysis", dispatch, ["analysis_worker", "aggregate_results"])
     graph.add_edge("analysis_worker", "aggregate_results")
     graph.add_edge("aggregate_results", "critique_findings")

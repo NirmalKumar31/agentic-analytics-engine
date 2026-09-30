@@ -135,7 +135,14 @@ async def test_a_question_runs_end_to_end_with_the_scripted_provider(
 
     assert outcome.dataset == "sales"
     assert outcome.error == "", outcome.error
-    assert outcome.structured_agent_calls > 0
+    # Zero, and that is the architecture rather than a gap. This is an
+    # uploaded table and a governed aggregate, so it runs the canonical
+    # fast path: rules resolve the contract, DuckDB computes it, and the
+    # answer, chart and verification are deterministic. The assertion used
+    # to require calls to be positive, which pinned the seven-call agent
+    # graph this replaced.
+    assert outcome.structured_agent_calls == 0
+    # The computation still happened, through MCP.
     assert outcome.tool_calls > 0
     assert outcome.runtime_seconds >= 0
 

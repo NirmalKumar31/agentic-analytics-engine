@@ -47,7 +47,17 @@ def uploaded(tmp_path: Path) -> Path:
 
 
 class RecordingProvider(FakeProvider):
-    """A scripted provider that keeps every prompt it was given."""
+    """A scripted provider that keeps every prompt it was given.
+
+    Declares itself remote. Without that these tests inspected the prompts
+    the *agent* graph sent in deterministic mode, and the canonical upload
+    fast path no longer sends any -- deterministic mode makes zero model
+    calls, which is the point of it. The surface that still exists in AI
+    mode is the single semantic-planning call, and that is the one prompt
+    an uploaded cell could travel in.
+    """
+
+    remote_inference = True
 
     def __init__(self) -> None:
         super().__init__()
