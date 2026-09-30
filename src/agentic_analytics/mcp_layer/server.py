@@ -186,7 +186,12 @@ def _attach_group_coverage(
         return
 
     ceiling = upload_plan.GROUP_RESULT_MAX
-    overflowed = len(snapshot.rows) > ceiling
+    # Two different limits can cut a breakdown short, and either one means
+    # the answer is partial. The probe row is the query's own limit; the
+    # transport limit fires first when `max_result_rows` is at or below the
+    # ceiling, which it is by default -- so reading only the probe row
+    # reported a 501-group result as complete.
+    overflowed = len(snapshot.rows) > ceiling or bool(snapshot.truncated)
     if overflowed:
         del snapshot.rows[ceiling:]
         snapshot.row_count = len(snapshot.rows)

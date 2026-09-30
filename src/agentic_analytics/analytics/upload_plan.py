@@ -1107,7 +1107,13 @@ def resolve_question(question: str, schema: dict[str, Any]) -> QuestionMapping:
         return refuse(str(why))
 
     if operation == "rank":
-        rank_dimension, why = _pick(named, dimensions, "grouping column")
+        # The same groupable set a breakdown uses. Restricting a ranking to
+        # declared dimensions refused "which branch had the highest total"
+        # on any table whose grouping key is numeric -- the breakdown of
+        # the same column worked, so the two paths disagreed about what
+        # could be grouped.
+        rankable = [c for c in _groupable(schema) if c != measure]
+        rank_dimension, why = _pick(named, rankable, "grouping column")
         if dimension:
             rank_dimension = dimension
         if rank_dimension is None:
