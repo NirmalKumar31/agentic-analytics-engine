@@ -117,9 +117,10 @@ def canonical_answer(
             evidence_cells=cells,
         )
     operation = getattr(mapping, "operation", "")
-    if operation not in _PHRASING or getattr(mapping, "dimension", None):
+    if operation not in _PHRASING:
         return None
-    if len(snapshot.rows) != 1:
+    dimension = getattr(mapping, "dimension", None)
+    if not dimension and len(snapshot.rows) != 1:
         return None
 
     # The visitor has to have said what to measure. "How much?" resolves
@@ -142,6 +143,39 @@ def canonical_answer(
             break
     if target is None or target not in snapshot.columns:
         return None
+
+    if dimension:
+        if dimension not in snapshot.columns:
+            return None
+        entries: list[str] = []
+        cells: list[EvidenceCell] = []
+        for row in range(len(snapshot.rows)):
+            value = as_number(
+                snapshot.cell(row, target), declared_type=snapshot.declared_type(target)
+            )
+            if value is None:
+                return None
+            label = str(snapshot.cell(row, dimension))
+            entries.append(f"{label}: {_format(value)}")
+            cells.append(
+                EvidenceCell(
+                    result_id=snapshot.result_id,
+                    row=row,
+                    column=target,
+                    value=snapshot.cell(row, target),
+                    label=f"{operation} of {measure} for {label}",
+                )
+            )
+        what = (measure or "rows").replace("_", " ")
+        return CandidateFinding(
+            text=f"{operation.capitalize()} {what} by {dimension.replace('_', ' ')}: "
+            + "; ".join(entries)
+            + ".",
+            kind="calculated_fact",
+            task_id=task_id,
+            result_ids=[snapshot.result_id],
+            evidence_cells=cells,
+        )
 
     value = as_number(snapshot.cell(0, target), declared_type=snapshot.declared_type(target))
     if value is None:

@@ -122,7 +122,7 @@ def _canonical_for(mapping: Any, results: dict[str, Any], already: list[Any]) ->
         # registry contract's complete answer.  It may cite the same cells
         # (for example, only the largest region), so evidence overlap cannot
         # suppress the canonical grouped result.
-        if metric_contract:
+        if metric_contract or getattr(mapping, "dimension", None):
             return finding
         cited = {(c.result_id, c.row, c.column) for c in finding.evidence_cells}
         for published in already:
@@ -595,7 +595,7 @@ def build_graph(ctx: RunContext) -> Any:
         if (
             isinstance(question_contract, dict)
             and question_contract.get("kind") == "metric_registry"
-        ):
+        ) or getattr(question_mapping, "dimension", None):
             canonical_ids = {
                 item.finding_id for item in supported if item.verifier_rule == "engine_canonical"
             }
