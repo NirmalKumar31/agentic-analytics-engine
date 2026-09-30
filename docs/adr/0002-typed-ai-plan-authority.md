@@ -53,6 +53,33 @@ engine re-derives everything it can.
 
 A plan breaching any of these is **refused, not corrected**.
 
+## Amended 2026-09-30: a usable contract falls back rather than refusing
+
+The decision below was made before the behaviour was observed on real data,
+and it was wrong for one case. Asked `total Weekly_Sales by Store`, a cloud
+planner returned `profile` with no measure and no grouping. Refusing there
+fails a routine business question because a model chose a different
+operation, and the visitor sees an empty pane beside a deterministic answer
+that worked.
+
+So: **where the deterministic resolution is confident, its contract
+executes.** The reasoning below still holds for everything else, and the
+distinction is what the fallback protects rather than whether it exists:
+
+* the arithmetic was never the model's to own, so substituting the rules'
+  contract takes nothing from it;
+* `interpretation` still says the rules decided and `planner_note` records
+  why, so the mode's provenance stays true;
+* the canonical contract is byte-identical to the deterministic one, so
+  Compare Both reports the same governed interpretation — which it is —
+  rather than a false claim of independent agreement;
+* where the rules are *not* confident, a refusal is still the answer,
+  because there is no contract to fall back to and the model's stated
+  reason is the only information available.
+
+The original reasoning follows, because the argument against a *silent*
+substitution is the reason `planner_note` exists.
+
 ## Why refuse rather than fall back to the rule interpretation
 
 Silently substituting the rule contract would produce an answer, and a

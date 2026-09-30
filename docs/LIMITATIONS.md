@@ -279,6 +279,40 @@ in §11.
 
 ---
 
+## 5a-i. What real data found that generated data did not
+
+Every defect in the grouped-completeness work was found by running a real
+uploaded file through the real graph, and none of them by the suite. The
+corpus was broad across subject areas and narrow across the shapes files
+actually take, so it agreed with the assumptions that produced it.
+
+The blind spots, each of which hid a distinct defect:
+
+| Assumption | What it hid |
+|---|---|
+| 25 or fewer groups | a breakdown cut to the top 25 and called complete |
+| lowercase headers | a grouping compared literally against a lowercased alias |
+| every numeric column is a measure | store numbers summed, and averaged |
+| answers short enough not to be truncated | a claim cut mid-number |
+| only successful run statuses | a refused run badged COMPLETE and rendered blank |
+| hand-written schema dictionaries in tests | the classifier's real output never checked |
+
+The last one is the one worth naming. Unit checks supplied a schema written
+by hand, and that hand classified the grouping key correctly where
+`infer_schema` did not — so seven acceptance questions passed at the unit
+level while three were wrong end to end. `tests/integration/` now drives a
+committed fixture with the failure-relevant shape through the actual
+upload, inference, planning, SQL, verification and report path, and no test
+in it supplies a schema.
+
+**What this does not establish.** That the remaining fixtures are realistic
+in ways nobody has thought to check. The lesson is about the method, not
+about having finished: a generated corpus tests the generator's
+assumptions, and only real files, or fixtures derived from them, test the
+engine's.
+
+---
+
 ## 5b. Exact versus conservative cost
 
 Two different numbers, and the distinction is load-bearing.

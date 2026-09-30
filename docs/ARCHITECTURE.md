@@ -464,10 +464,22 @@ It takes a different route:
 2. **Isolate.** Its own DuckDB database, its own scratch directory under
    `/tmp`, both erased when the session ends. The table name is fixed by the
    server; a user filename is never a path component and never reaches SQL.
-3. **Infer a schema.** Column roles from type and cardinality, everything
-   marked `inferred`. A real number is always a measure — a price is not a key
-   and not a grouping — and cardinality rules only apply once there are enough
-   rows for a value to have had the chance to repeat.
+3. **Infer a schema.** Column roles from several signals together,
+   everything marked `inferred`. A *fractional* number is always a measure — a
+   price is not a key and not a grouping. An *integer* is read from how its
+   values behave: whether they are near-unique, whether they fill their own
+   range, whether they sit in a calendar-year window, whether there are
+   exactly two of them, and how many rows each value recurs across.
+   Cardinality rules only apply once there are enough rows for a value to
+   have had the chance to repeat.
+
+   The recurrence signal is the load-bearing one. "Any numeric column is a
+   measure" was the earlier rule, and it summed store numbers: a key of 45
+   values, each appearing in 143 rows, was averaged and published. Cardinality
+   alone cannot separate that from a genuine count, so where the signals leave
+   it open the column name is allowed to tip the decision — and only there —
+   and when the name says nothing too, the column stays aggregatable and is
+   flagged `ambiguous` rather than presented as a settled measure.
 4. **Ask when it matters.** Two columns that could both be revenue produce a
    clarifying question rather than a guess.
 5. **Interpret and analyse.** Deterministic Analytics derives a bounded query
@@ -486,6 +498,28 @@ restriction are very different things to have happened, and "different governed
 interpretations" alone is not something a reader can act on.
 
 An inferred measure is not a governed metric, and the UI says so.
+
+### Complete, or explicitly partial
+
+A breakdown is ordered by its **dimension** and a ranking by its **measure**.
+That distinction is the whole of it: ordering a breakdown by its aggregate and
+cutting it at a limit does not shorten the breakdown, it silently produces a
+top-N list. `total sales by store` on a 45-store table returned the top 25,
+covered 3,575 of 6,435 rows, omitted $1.58bn of $6.74bn, and the report called
+it the complete breakdown of every row.
+
+Completeness is now counted, never inferred, because every signal available to
+infer it from was wrong: the SQL's own `LIMIT` left `truncated` false, the
+population line came from "the question stated no filters", and the row count
+was summed over the rows that came back. `GroupCoverage` keeps the four
+different meanings of "limit" apart — the query limit, transport truncation, a
+UI preview cap, and analytical completeness — and the breakdown asks for one
+group more than the engine accepts so a shortfall is *detected*. Either limit
+firing makes the answer partial, and a partial answer says which groups and
+how many rows it covers.
+
+A result carrying no coverage block means "not a grouped answer". It never
+means "complete".
 
 ### What a typed AI plan may not do
 
