@@ -266,3 +266,39 @@ def test_a_filtered_total_is_not_grouped_by_the_filtered_column(dataset: Path) -
     contract = result.query_contract or {}
     assert contract.get("dimension") is None
     assert [f["column"] for f in contract.get("filters") or []] == ["Promo_Flag"]
+
+
+def test_a_scalar_total_is_published_at_the_precision_it_was_computed(
+    dataset: Path, oracle: duckdb.DuckDBPyConnection
+) -> None:
+    """The engine's own answer wins over a model restating it.
+
+    `_canonical_for` used to suppress the engine's sentence for a scalar
+    when a published claim already cited the same cell, so the report would
+    not say one number in two voices. The goal was right and the choice of
+    voice was backwards: the model said "165,414,408" where the engine said
+    "165,414,407.58 across 518 rows", both citing the same cell, and
+    numeric verification accepts a rounded figure. The rounding was the
+    only difference, and it is the published total a reader takes away.
+    """
+    expected = oracle.execute(
+        "SELECT round(sum(Weekly_Revenue), 2), count(*) FROM t WHERE Avg_Temp_C >= 50"
+    ).fetchone()
+    assert expected
+    total, rows = float(expected[0]), int(expected[1])
+    # A value that is not a whole number, or the defect is invisible.
+    assert total != round(total)
+
+    text = _answer(_run(dataset, "What is the total Weekly_Revenue with Avg_Temp_C at least 50?"))
+
+    assert f"{total:,.2f}" in text, text
+    assert f"{rows:,}" in text, text
+
+
+def test_the_engines_answer_is_not_said_twice(dataset: Path) -> None:
+    """Suppressing the restatement must not reintroduce the duplicate."""
+    result = _run(dataset, "What is the total Weekly_Revenue with Avg_Temp_C at least 50?")
+
+    assert len(result.published) == 1, [f.text for f in result.published]
+    rules = [v.rule for v in result.rejected]
+    assert "restated_engine_answer" in rules or not rules, rules

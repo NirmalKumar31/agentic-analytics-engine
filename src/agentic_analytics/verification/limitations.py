@@ -87,6 +87,11 @@ _REASONS: tuple[tuple[str, str], ...] = (
         "naming only some of the groups was not needed",
     ),
     (
+        "restated_engine_answer",
+        "the engine published its own answer, computed from the executed "
+        "result, so a restatement of the same figure was not needed",
+    ),
+    (
         "duplicate_finding",
         "they repeated a finding already published",
     ),

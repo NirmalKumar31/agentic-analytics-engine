@@ -99,12 +99,13 @@ class RunContext:
 
 
 def _canonical_for(mapping: Any, results: dict[str, Any], already: list[Any]) -> Any:
-    """The engine's direct answer, when there is one to give and it is not
-    already said.
+    """The engine's direct answer, when there is one to give.
 
-    Skipped when a published claim already reports the same figure, so the
-    report does not say the same number twice in two voices.
+    Composed from the executed result, so its figures carry the precision
+    the result carries. A model restating the same figure is removed rather
+    than preferred; see the note at the return below.
     """
+    del already  # kept for callers; the duplicate is removed downstream
     if mapping is None or not getattr(mapping, "confident", False):
         return None
     from agentic_analytics.verification.canonical import canonical_answer
@@ -122,12 +123,16 @@ def _canonical_for(mapping: Any, results: dict[str, Any], already: list[Any]) ->
         # registry contract's complete answer.  It may cite the same cells
         # (for example, only the largest region), so evidence overlap cannot
         # suppress the canonical grouped result.
-        if metric_contract or getattr(mapping, "dimension", None):
-            return finding
-        cited = {(c.result_id, c.row, c.column) for c in finding.evidence_cells}
-        for published in already:
-            if cited & {(c.result_id, c.row, c.column) for c in published.evidence_cells}:
-                return None
+        # The engine's own answer wins, whichever shape it is.
+        #
+        # This used to bail out for a scalar when a published claim already
+        # cited the same cell, so the report would not say one number in
+        # two voices. The goal was right and the choice of voice was
+        # backwards: the model's sentence said "165,414,408" where the
+        # engine's said "165,414,407.58 across 518 rows", both citing the
+        # same cell, and numeric verification accepts a rounded figure. The
+        # rounding was the only difference, and it is the published total a
+        # reader takes away. The duplicate is removed below instead.
         return finding
     return None
 
@@ -592,10 +597,21 @@ def build_graph(ctx: RunContext) -> Any:
         # to replace a requested grouped aggregate.  Keep the deterministic
         # complete result rather than mixing it with partial model claims.
         question_contract: Any = getattr(question_mapping, "canonical_dict", lambda: {})()
-        if (
-            isinstance(question_contract, dict)
-            and question_contract.get("kind") == "metric_registry"
-        ) or getattr(question_mapping, "dimension", None):
+        # Whenever the engine composed its own answer, not only for a
+        # grouped one. A scalar total published the model's restatement
+        # instead: "165,414,408" where the engine's own sentence said
+        # "165,414,407.58 across 518 rows". Both cite the same cell and
+        # numeric verification accepts a rounded figure, so the rounding
+        # was the only difference -- and it is the published total that a
+        # reader takes away.
+        grouped_contract = bool(
+            (
+                isinstance(question_contract, dict)
+                and question_contract.get("kind") == "metric_registry"
+            )
+            or getattr(question_mapping, "dimension", None)
+        )
+        if grouped_contract or getattr(question_mapping, "confident", False):
             canonical_ids = {
                 item.finding_id for item in supported if item.verifier_rule == "engine_canonical"
             }
@@ -608,10 +624,18 @@ def build_graph(ctx: RunContext) -> Any:
                                 finding_id=item.finding_id,
                                 status="unsupported",
                                 reason=(
-                                    "The engine published the complete registry-grounded answer "
-                                    "instead of a partial summary."
+                                    "The engine published the complete "
+                                    "registry-grounded answer instead of a partial "
+                                    "summary."
+                                    if grouped_contract
+                                    else "The engine published its own answer, computed "
+                                    "from the executed result, instead of a restatement."
                                 ),
-                                rule="partial_metric_answer",
+                                rule=(
+                                    "partial_metric_answer"
+                                    if grouped_contract
+                                    else "restated_engine_answer"
+                                ),
                                 evidence_supported=item.evidence_supported,
                                 answers_question=False,
                             )
