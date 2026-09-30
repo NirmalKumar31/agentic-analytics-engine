@@ -256,6 +256,27 @@ silent guesses, zero cross-run leaks, zero unexpected failures. A case may
 answer, refuse, or complete with nothing published; the manifest records
 which of those are honest for each question.
 
+**The two modes now agree on every case.** Both passes are compared on
+outcome and publication count, and the divergence is zero. It was five, and
+all five had one cause: the AI path recorded a period's column in
+`time_field`, where the rule path records it in `period_field` and reserves
+`time_field` for a trend's axis. That changed the canonical contract without
+changing the SQL, so revalidation at the MCP boundary refused the engine's
+own contract and the AI pass published nothing where the deterministic pass
+answered.
+
+This is worth stating as a measured number because Compare Both puts the two
+side by side and gives a reader no way to tell a planner disagreement from a
+data problem. It is compared on outcome rather than on wording: the reporter
+may phrase a finding differently, and that is not a divergence.
+
+What it does not establish is that a *real* model agrees. Both passes are
+driven by the scripted provider — the AI pass differs in declaring itself
+remote and retaining its prompts, not in who plans. A real model's plan is
+bounded by the checks in §5a and by the AI-plan rules in ARCHITECTURE §14,
+and the only evidence about its actual behaviour is the paid runs recorded
+in §11.
+
 ---
 
 ## 5b. Exact versus conservative cost
@@ -373,6 +394,25 @@ the two mapping guards the interval-grained family was added for -- a
 measure taken from the first of several candidates, and a grouping matched
 by substring so that "by airport" silently becomes `origin_airport`.
 
+The typed-AI-plan bounds and the answer-first report were measured the same
+way. Reverted one at a time: the `time_field`/`period_field` fold restored;
+the identifier-grouping check removed; the stated-period check removed; the
+ranking-direction check removed; the sort-order coverage component removed;
+the contract diff made to report nothing; the rows-counted figure taken from
+the result's own row count instead of summed across groups; the direct
+answer taken as the first published finding instead of the one citing the
+executed contract; the answer block's print rules dropped; filters compared
+in order rather than as a set. **Eleven mutations, eleven caught** — five in
+the engine, five in the frontend, and the cross-mode equivalence above,
+which the fold alone breaks.
+
+Two of these were regressions caught by a real suite rather than predicted.
+Making the answer its own block broke the browser tests, which select
+`article.finding`; hiding the findings panel when nothing was published then
+broke `waitForReport` on every refusal test, because that helper had no other
+signal that a report had rendered. Neither was visible to the jsdom suite,
+which never waits for a report.
+
 ---
 
 ## 6. Change decomposition
@@ -473,11 +513,23 @@ developer's machine is not the constraint the deployment is.
 - Vega is 298 kB gzipped, lazily loaded on first chart render, and dominates
   the bundle.
 - Tested with Vitest and Testing Library for components, and with Playwright
-  for the assembled application: **19 browser tests** covering the landing
+  for the assembled application: **21 browser tests** covering the landing
   page, a recorded run, a demo analysis, provenance, upload, refusal,
   session deletion, cross-session isolation, cookie flags, the MCP endpoint
   policy, mode selection and Compare Both. They run against a real server,
   not a mock.
+- The report leads with the answer, the population it covers, the rows it was
+  counted over and the grouped result, and puts the provenance after them.
+  "Rows counted" is summed from the engine's own `row_count` column across
+  the groups, not read from the result's row count — for a grouped answer
+  that is the number of *groups*, and reporting four where the answer covers
+  four hundred rows misstates the population by two orders of magnitude. It
+  is omitted rather than guessed when a result does not carry one.
+- Print rules are maintained per block, and `printStyles.test.ts` reads the
+  stylesheet to enforce it. jsdom does not apply print media, so nothing else
+  in the suite can see those rules, and the screen palette is tuned for a
+  dark background — a block added without them renders close to white on
+  white in a saved PDF.
 - **Chromium only.** That is true of CI and it was true of the v0.1.0
   release: Firefox and WebKit were *not* run against the deployed build.
   An earlier version of this section said they were run at release time;
@@ -492,10 +544,17 @@ developer's machine is not the constraint the deployment is.
 ## 10. Deployed, and what the deployment has and has not shown
 
 Live at <https://agentic-analytics-engine.onrender.com>. Both public modes
-work there: credential-free acceptance passes **55 checks**, and a single
-authorised Compare Both run published the correct total on both the
-deterministic and the AI side for **$0.001160**. `docs/RELEASE-EVIDENCE-v0.1.0.md`
-carries the figures and the capture checksums.
+work there: credential-free acceptance passes **57 checks** against the
+deployed service, and a single authorised Compare Both run published the
+correct total on both the deterministic and the AI side for **$0.001160**.
+`docs/RELEASE-EVIDENCE-v0.1.0.md` carries the figures and the capture
+checksums for the v0.1.0 release, where the same script reported 55.
+
+The two figures are the same script, not a changed one. Two of its checks
+are HTTPS-only — that HSTS is set, and that it does not claim Render's
+shared parent domain — so a run against a local container reports 55 and a
+run against the deployed service reports 57. Neither number should be quoted
+without saying which it was.
 
 Behaviour behind a TLS-terminating proxy is now exercised rather than
 assumed, which is what `AAE_SESSION_COOKIE_SECURE` existed for.

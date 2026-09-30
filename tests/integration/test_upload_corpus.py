@@ -254,6 +254,42 @@ def test_the_remote_matrix_reports_no_disclosure(
         assert matrix[key] == 0, (key, matrix[key])
 
 
+def test_the_two_modes_reach_the_same_outcome_on_every_case(
+    observations: list[Observation],
+    remote_observations: list[Observation],
+) -> None:
+    """Planning through a cloud model must not change what is answerable.
+
+    The two modes differ in who reads the wording, not in what the engine
+    will execute, so a case answered in one and refused in the other is a
+    defect in whichever path is wrong -- and it is the reader who pays,
+    because Compare Both shows the two side by side and offers no way to
+    tell a planner disagreement from a data problem.
+
+    This stood at five divergent cases. All five had the same cause: the
+    AI path recorded a period's column in `time_field`, where the rule
+    path records it in `period_field` and reserves `time_field` for a
+    trend's axis. That changed the canonical contract without changing the
+    SQL, and the MCP boundary then refused the engine's own contract. It
+    is zero now, and this is what keeps it there.
+
+    Compared on outcome and publication count rather than on wording: the
+    reporter is free to phrase a finding differently and this is not a
+    text-equality test.
+    """
+    diverged = [
+        {
+            "case": d.case.case_id,
+            "question": d.case.question,
+            "deterministic": (d.outcome.name, d.published, d.withheld_rules),
+            "ai": (a.outcome.name, a.published, a.withheld_rules),
+        }
+        for d, a in zip(observations, remote_observations, strict=True)
+        if d.outcome is not a.outcome or d.published != a.published
+    ]
+    assert not diverged, diverged
+
+
 def test_no_case_fails_unexpectedly(observations: list[Observation]) -> None:
     failures = [(o.case.case_id, o.failure) for o in observations if o.failure]
     assert not failures, failures

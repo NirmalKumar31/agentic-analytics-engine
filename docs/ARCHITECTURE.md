@@ -294,6 +294,19 @@ metrics and kept out of the report. A critic that *fails* returns
 `partially_supported`, so a verifier that cannot answer never waves a finding
 through.
 
+Before those three, a direct answer must also **cover the accepted contract**
+(`verification/coverage.py`). One cited result has to carry the whole of it —
+operation, measure, grouping, row filters, period, answer shape and, for a
+ranking, sort order. A profile result can support context around an answer but
+cannot prove the aggregate used the requested population, so the canonical
+answer always cites the aggregate. Each component has its own rejection rule
+and its own sentence in the report, because "withheld as unsupported" tells a
+reader the engine found a data problem when it found a population problem.
+
+Sort order is a component for the same reason it is a bound on the AI plan:
+when a ranking runs the wrong way round every other component matches, so
+nothing else in this gate can notice.
+
 `verify_publication` is a final pass that strips any report reference or chart
 whose findings did not survive.
 
@@ -467,9 +480,55 @@ It takes a different route:
 
 For Compare Both the contract has a canonical hash that excludes planner
 provenance and filter order. Matching hashes mean both panes executed the same
-semantic request; a mismatch is disclosed rather than hidden.
+semantic request; a mismatch is disclosed rather than hidden, and the differing
+canonical fields are named side by side — a swapped measure and a dropped row
+restriction are very different things to have happened, and "different governed
+interpretations" alone is not something a reader can act on.
 
 An inferred measure is not a governed metric, and the UI says so.
+
+### What a typed AI plan may not do
+
+The cloud planner supplies language interpretation. It does not get authority
+over anything the engine can decide for itself, and "the plan was well-formed"
+is not evidence that it was faithful: a plan can validate against the response
+schema, name only real columns and ground every excerpt in the question while
+still answering a different question. So `mapping_from_plan` bounds it:
+
+* **Identifiers are not groupings.** A grouping must be a column this engine
+  would offer as one — a declared dimension, or a numeric column the question
+  named. A near-unique text column is classified as an identifier precisely
+  because grouping by it puts its raw values into the result as group labels,
+  and from there into a remote prompt. Both planners read the same
+  `_groupable`, because when only the rule path consulted it the privacy
+  boundary held in deterministic mode alone.
+* **Periods are rule-owned.** Date arithmetic has one correct answer — "Q2
+  2025" has one pair of bounds — so the plan's period must be the period the
+  question states. Dropping one is caught downstream as a missing restriction;
+  *adding* one was not caught anywhere, and narrows the population with
+  nothing in the question behind it.
+* **Ranking direction is part of the question.** "Highest" answered ascending
+  is the bottom of the table presented as the top, and the operation, measure,
+  grouping, filters and period all still agree.
+* **Explicitly named components are not reinterpretable.** Where the rules
+  resolved the question confidently, the plan may not change the operation, or
+  a measure or grouping the question named outright.
+
+A plan that breaches any of these is refused. It is not silently corrected to
+the rule interpretation: the visitor asked for AI planning, and a refusal
+tells them it disagreed, where a substitution would not. [ADR 0002](adr/0002-typed-ai-plan-authority.md)
+records how each of these was found and what the boundary costs.
+
+### `time_field` is not `period_field`
+
+`time_field` is the axis `build_sql` groups a trend along. `period_field` is
+the column a period filters. They coincide for a trend over a period and
+differ everywhere else, and folding them into one field cost a whole class of
+answers: every non-trend mapping came back from revalidation carrying a trend
+axis it never had, which changed its canonical hash without changing a line of
+its SQL, so the MCP boundary refused the engine's own contract and any question
+naming a period published nothing. A model is only ever asked for one date
+column; which slot it lands in is decided from the operation.
 
 ---
 

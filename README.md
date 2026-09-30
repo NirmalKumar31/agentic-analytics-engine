@@ -104,7 +104,7 @@ make dev          # build the frontend and serve on http://127.0.0.1:8000
 No `.env` required. `make verify` runs everything CI runs.
 
 ```bash
-make test         # 1,778 Python tests
+make test         # 1,851 Python tests
 make evaluate     # score the engine against the injected patterns
 make record       # re-record the three demo runs
 ```
@@ -207,7 +207,10 @@ Five gates, and they answer different questions:
    significance claim without a test.
 2. **Arithmetic** — every number in the sentence appears in a cited result.
 3. **Answer coverage** — a direct aggregate must preserve the accepted
-   operation, measure, grouping, row filters, period and output shape.
+   operation, measure, grouping, row filters, period, output shape and, for a
+   ranking, sort order. Each has its own rejection reason: "withheld as
+   unsupported" tells a reader the engine found a data problem when it found
+   a population problem.
 4. **Evidence support** — the wording fairly describes what the cited result
    shows.
 5. **Question relevance** — the finding materially answers the question, or a
@@ -308,10 +311,28 @@ execution. A rule-detectable restriction is a lower bound: an AI plan that
 omits “aged 30 to 40”, changes an inclusive bound, or names an unknown column
 is refused. The engine composes the SQL itself and it still passes the guard.
 
-The report shows the accepted calculation, measure, grouping, filters and
-period under **Applied analysis**. In Compare Both, the panes also state when
-they executed the same canonical contract; if interpretations differ, the page
-warns that the results are not like-for-like.
+Well-formed is not the same as faithful, so the plan is bounded in four more
+places. It may not group by a column the engine withholds as a grouping — an
+identifier's values would become group labels, and from there reach a remote
+prompt. It may not apply a time period the question did not state, or shift
+one it did; date arithmetic has one correct answer and is rule-owned in both
+modes. It may not reverse a ranking, because “highest” answered ascending is
+the bottom of the table presented as the top while every other field agrees.
+And where the rules resolved the question confidently, it may not change an
+operation, measure or grouping the question named outright. A plan that
+breaches any of these is refused rather than quietly corrected: the visitor
+asked for AI planning, and a refusal tells them it disagreed.
+
+The report leads with the answer, the population it covers, the rows it was
+counted over and the grouped result, and puts the provenance after them. The
+accepted calculation, measure, grouping, filters and period appear under
+**Applied analysis**.
+
+In Compare Both, the panes state when they executed the same canonical
+contract. If the interpretations differ, the page says the results are not
+like-for-like *and names which canonical fields diverged*, side by side — a
+swapped measure and a dropped row restriction are very different things to
+have happened.
 
 When the question cannot be resolved into a safe contract, **it is refused with the
 reason** and the table's profile is offered instead:
@@ -565,11 +586,12 @@ The full list is in [docs/LIMITATIONS.md](docs/LIMITATIONS.md).
 
 ## Verified
 
-1,778 Python tests, 54 frontend tests, and 21 Chromium browser tests. Each
+1,851 Python tests, 92 frontend tests, and 21 Chromium browser tests. Each
 figure comes from its own run; they are never summed across overlapping
 suites. 89% branch coverage. The deployed deterministic path passes a
-**55-check** credential-free acceptance run plus an independent Parquet
-upload, analysis, provenance and cleanup check.
+**57-check** credential-free acceptance run plus an independent Parquet
+upload, analysis, provenance and cleanup check. Two of those checks are
+HTTPS-only, so the same script reports 55 against a local container.
 
 Both public modes are verified against the live service. One authorised
 Compare Both run published the correct total on the deterministic and the
