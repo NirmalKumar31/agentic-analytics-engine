@@ -177,3 +177,48 @@ def test_a_tiny_file_does_not_turn_every_number_into_a_grouping(profile) -> None
     )
     assert _role(schema, "net_value") == "measure"
     assert _role(schema, "units") == "measure"
+
+
+# ──────────────────────────────── what may be suggested, not what may be asked
+def test_an_attribute_column_is_not_safe_to_suggest_totalling(profile) -> None:
+    """Summing ages is arithmetically fine and analytically meaningless.
+
+    The site suggested "Which team_size contributes most to age?". The
+    engine will still total `age` when a visitor asks for it; the point of
+    this flag is that nothing proposes it.
+    """
+    rng = random.Random(21)
+    schema = profile(
+        ["age", "annual_revenue", "region"],
+        [[20 + i % 41, round(rng.uniform(100, 9000), 2), ["n", "s"][i % 2]] for i in range(ROWS)],
+    )
+    additive = {f.name: f.additive for f in schema.fields}
+
+    assert additive["age"] == "weak"
+    assert additive["annual_revenue"] == "strong"
+    # Both are still measures: the flag governs suggestion, not capability.
+    assert {"age", "annual_revenue"} <= set(schema.measures)
+
+
+@pytest.mark.parametrize(
+    ("column", "expected"),
+    [
+        ("net_revenue", "strong"),
+        ("units_sold", "strong"),
+        ("total_spend", "strong"),
+        ("page_views", "strong"),
+        ("satisfaction_score", "weak"),
+        ("completion_rate", "weak"),
+        ("reported_year", "weak"),
+        ("noise_metric", "weak"),
+    ],
+)
+def test_additive_confidence_reads_the_name_only_for_suggestion(
+    profile, column: str, expected: str
+) -> None:
+    rng = random.Random(22)
+    schema = profile(
+        [column, "region"],
+        [[round(rng.uniform(1, 9000), 2), ["n", "s"][i % 2]] for i in range(ROWS)],
+    )
+    assert next(f.additive for f in schema.fields if f.name == column) == expected

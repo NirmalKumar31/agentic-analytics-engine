@@ -16,6 +16,7 @@ not a model -- so the same file always yields the same schema.
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass, field
 from typing import Any, Literal
 
@@ -138,6 +139,96 @@ def _looks_like_a_label(name: str) -> bool:
     return any(hint in lowered for hint in CODE_NAME_HINTS)
 
 
+#: Names that read as a quantity worth adding up. Summing one of these is
+#: a normal business question, so it may be suggested unprompted.
+STRONGLY_ADDITIVE_HINTS = (
+    "amount",
+    "balance",
+    "clicks",
+    "cost",
+    "count",
+    "gmv",
+    "impressions",
+    "orders",
+    "paid",
+    "payment",
+    "price",
+    "profit",
+    "qty",
+    "quantity",
+    "revenue",
+    "sales",
+    "sessions",
+    "spend",
+    "tickets",
+    "total",
+    "units",
+    "value",
+    "views",
+    "visits",
+    "volume",
+)
+
+#: Names that read as an attribute of a row rather than a quantity of it.
+#: Adding these up is arithmetically possible and analytically meaningless:
+#: the sum of ages, of ratings, of percentages. An explicit request to sum
+#: one is honoured; nothing suggests it.
+WEAKLY_ADDITIVE_HINTS = (
+    "age",
+    "average",
+    "avg",
+    "grade",
+    "index",
+    "latitude",
+    "level",
+    "longitude",
+    "margin_pct",
+    "median",
+    "percent",
+    "pct",
+    "position",
+    "rank",
+    "rate",
+    "ratio",
+    "rating",
+    "score",
+    "share",
+    "temperature",
+    "tenure",
+    "year",
+)
+
+#: Generated columns a suggestion must never name.
+NOISE_PREFIXES = ("noise_", "random_", "dummy_", "unused_")
+
+AdditiveConfidence = Literal["strong", "weak", "unknown"]
+
+
+def _additive_confidence(name: str, role: FieldRole, dtype: str) -> AdditiveConfidence:
+    """How safe it is to *suggest* summing this column.
+
+    Separate from whether it can be summed at all, which is the role's job.
+    The engine will total any numeric column a visitor names; what it must
+    not do is propose the total of a column whose sum means nothing. The
+    site suggested "Which team_size contributes most to age?", which is
+    reproducible arithmetic and not a question anyone wants answered.
+    """
+    if role != "measure" or dtype not in NUMERIC_TYPES:
+        return "unknown"
+    lowered = name.lower()
+    if any(lowered.startswith(prefix) for prefix in NOISE_PREFIXES):
+        return "weak"
+    # Matched on name *tokens*, not substrings. `page_views` contains
+    # "age", and so do `average`, `usage`, `package` and `coverage`, so
+    # substring matching called a page-view count an attribute.
+    tokens = {token for token in re.split(r"[^a-z0-9]+", lowered) if token}
+    if tokens & set(WEAKLY_ADDITIVE_HINTS):
+        return "weak"
+    if tokens & set(STRONGLY_ADDITIVE_HINTS):
+        return "strong"
+    return "unknown"
+
+
 # Column names that are keys regardless of how they are typed.
 IDENTIFIER_HINTS = ("_id", "id_", "uuid", "guid", "key", "code", "number", "no.")
 
@@ -152,6 +243,9 @@ class InferredField:
     null_pct: float
     distinct_count: int
     reason: str
+    #: How safe it is to *suggest* summing this column, as distinct from
+    #: whether it may be summed when asked. See `_additive_confidence`.
+    additive: AdditiveConfidence = "unknown"
     #: Whether the role was a close call. A numeric column can sit in a
     #: band where a code list and a genuine count are indistinguishable
     #: from the data; resolving that silently is how a store number became
@@ -167,6 +261,7 @@ class InferredField:
             "role": self.role,
             "null_pct": self.null_pct,
             "distinct_count": self.distinct_count,
+            "additive": self.additive,
             "ambiguous": self.ambiguous,
             "reason": self.reason,
             "min_value": self.min_value,
@@ -302,6 +397,7 @@ def infer_schema(session: AnalysisSession, table: str) -> InferredSchema:
                 distinct_count=distinct_count,
                 reason=reason,
                 ambiguous=ambiguous,
+                additive=_additive_confidence(str(name), role, str(dtype)),
                 min_value=str(low) if low is not None else None,
                 max_value=str(high) if high is not None else None,
             )

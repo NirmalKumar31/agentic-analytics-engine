@@ -245,7 +245,7 @@ export interface CanonicalContract {
   dimension?: string | null;
   time_field?: string | null;
   /** Only ever set from explicit analytical language, never a column name. */
-  time_grain?: 'day' | 'week' | 'month' | 'quarter' | 'year' | null;
+  time_grain?: "day" | "week" | "month" | "quarter" | "year" | null;
   period?: [string, string] | null;
   period_field?: string | null;
   filters: QueryFilter[];
@@ -254,23 +254,23 @@ export interface CanonicalContract {
 
 /** Components a question can fix, and the gate can therefore require. */
 export type CoverageComponent =
-  | 'operation'
-  | 'measure'
-  | 'dimensions'
-  | 'time_grain'
-  | 'period'
-  | 'filters'
-  | 'ranking_direction';
+  | "operation"
+  | "measure"
+  | "dimensions"
+  | "time_grain"
+  | "period"
+  | "filters"
+  | "ranking_direction";
 
 export type CoverageRejectionCode =
-  | 'unresolved_question'
-  | 'missing_requested_measure'
-  | 'missing_requested_grouping'
-  | 'missing_requested_time_grain'
-  | 'missing_requested_filter'
-  | 'changed_requested_operation'
-  | 'changed_ranking_direction'
-  | 'result_shape_too_large';
+  | "unresolved_question"
+  | "missing_requested_measure"
+  | "missing_requested_grouping"
+  | "missing_requested_time_grain"
+  | "missing_requested_filter"
+  | "changed_requested_operation"
+  | "changed_ranking_direction"
+  | "result_shape_too_large";
 
 /**
  * Whether the executed contract covers what the question fixed.
@@ -291,12 +291,7 @@ export interface QuestionCoverage {
 }
 
 export type ChartKind =
-  | 'bar'
-  | 'line'
-  | 'grouped_bar'
-  | 'ranked_bar'
-  | 'kpi'
-  | 'none';
+  "bar" | "line" | "grouped_bar" | "ranked_bar" | "kpi" | "none";
 
 /**
  * How the chart was chosen. A pure function of contract and result shape,
@@ -468,6 +463,15 @@ export interface InferredField {
   null_pct: number;
   distinct_count: number;
   reason: string;
+  /**
+   * How safe it is to *suggest* summing this column, as distinct from
+   * whether it may be summed when asked. The engine totals any numeric
+   * column a visitor names; nothing proposes the total of a column whose
+   * sum means nothing.
+   */
+  additive?: "strong" | "weak" | "unknown";
+  /** Whether the role was a close call. Ambiguous columns are marked. */
+  ambiguous?: boolean;
   min_value: string | null;
   max_value: string | null;
 }

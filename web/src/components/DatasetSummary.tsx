@@ -1,14 +1,20 @@
-import type { DatasetSummary as Summary } from '../lib/types'
+import type { DatasetSummary as Summary } from "../lib/types";
 
-const ROLE_ORDER = ['time', 'measure', 'dimension', 'identifier', 'ignored'] as const
+const ROLE_ORDER = [
+  "time",
+  "measure",
+  "dimension",
+  "identifier",
+  "ignored",
+] as const;
 
 const ROLE_LABEL: Record<string, string> = {
-  time: 'time',
-  measure: 'measure',
-  dimension: 'dimension',
-  identifier: 'identifier',
-  ignored: 'not used',
-}
+  time: "time",
+  measure: "measure",
+  dimension: "dimension",
+  identifier: "identifier",
+  ignored: "not used",
+};
 
 /**
  * What the engine worked out about an uploaded file, before any question.
@@ -21,12 +27,12 @@ export function DatasetSummary({
   summary,
   onAsk,
 }: {
-  summary: Summary
-  onAsk?: (question: string) => void
+  summary: Summary;
+  onAsk?: (question: string) => void;
 }) {
   const shown = [...summary.fields].sort(
     (a, b) => ROLE_ORDER.indexOf(a.role) - ROLE_ORDER.indexOf(b.role),
-  )
+  );
 
   return (
     <section className="panel">
@@ -58,7 +64,9 @@ export function DatasetSummary({
                   <td>{field.name}</td>
                   <td className="dim">{field.data_type}</td>
                   <td>
-                    <span className={`tag role-${field.role}`}>{ROLE_LABEL[field.role]}</span>
+                    <span className={`tag role-${field.role}`}>
+                      {ROLE_LABEL[field.role]}
+                    </span>
                   </td>
                   <td>{field.distinct_count.toLocaleString()}</td>
                   <td>{field.null_pct.toFixed(1)}</td>
@@ -70,8 +78,9 @@ export function DatasetSummary({
         </div>
 
         <p className="small dim" style={{ margin: 0 }}>
-          Roles are inferred from column types and cardinality. They are not governed
-          metric definitions — the engine does not know what your columns mean.
+          Roles are inferred from column types and cardinality. They are not
+          governed metric definitions — the engine does not know what your
+          columns mean.
         </p>
 
         {summary.ambiguities.length > 0 && (
@@ -88,7 +97,11 @@ export function DatasetSummary({
         {onAsk && summary.measures.length > 0 && (
           <div className="example-list">
             {suggestions(summary).map((question) => (
-              <button className="example" key={question} onClick={() => onAsk(question)}>
+              <button
+                className="example"
+                key={question}
+                onClick={() => onAsk(question)}
+              >
                 {question}
               </button>
             ))}
@@ -96,17 +109,51 @@ export function DatasetSummary({
         )}
       </div>
     </section>
-  )
+  );
 }
 
-/** Questions this dataset can actually answer, from its inferred shape. */
-function suggestions(summary: Summary): string[] {
-  const out: string[] = []
-  const measure = summary.measures[0]
-  const dimension = summary.dimensions[0]
-  const time = summary.time_fields[0]
-  if (measure && dimension) out.push(`What is total ${measure} by ${dimension}?`)
-  if (measure && time) out.push(`How did ${measure} change over time?`)
-  if (measure && dimension) out.push(`Which ${dimension} contributes most to ${measure}?`)
-  return out.slice(0, 3)
+/**
+ * Questions this dataset can actually answer, and that are worth asking.
+ *
+ * The first version took `measures[0]` and proposed totalling it. On a
+ * dataset whose only classified measure is `age` -- because the real
+ * measure is near-unique and reads as an identifier -- that produced
+ * "What is total age by team_size?" and "Which team_size contributes most
+ * to age?". Both are reproducible arithmetic and neither is a question
+ * anyone wants answered.
+ *
+ * So a sum is suggested only for a column whose name reads as a quantity,
+ * an average is offered for one that reads as an attribute, and a
+ * contribution question -- which only makes sense over an additive total
+ * -- is offered for neither unless the engine is confident.
+ */
+export function suggestions(summary: Summary): string[] {
+  const fields = summary.fields ?? [];
+  const confidence = (name: string) =>
+    fields.find((field) => field.name === name)?.additive ?? "unknown";
+  const usable = (name: string) => !/^(noise|random|dummy|unused)_/i.test(name);
+
+  const additive = summary.measures.find(
+    (name) => usable(name) && confidence(name) === "strong",
+  );
+  const attribute = summary.measures.find(
+    (name) => usable(name) && confidence(name) === "weak",
+  );
+  const dimension = summary.dimensions.find(usable);
+  const time = summary.time_fields.find(usable);
+
+  const out: string[] = [];
+  if (additive && dimension)
+    out.push(`What is total ${additive} by ${dimension}?`);
+  if (attribute && dimension)
+    out.push(`What is the average ${attribute} by ${dimension}?`);
+  if (additive && time) out.push(`How did ${additive} change over time?`);
+  if (additive && dimension) {
+    out.push(`Which ${dimension} has the highest total ${additive}?`);
+  }
+  if (out.length === 0 && dimension) {
+    // Nothing safe to total. Counting rows is always meaningful.
+    out.push(`How many rows by ${dimension}?`);
+  }
+  return out.slice(0, 3);
 }
