@@ -206,3 +206,38 @@ def test_a_trend_keeps_its_axis_and_a_rank_does_not_acquire_one() -> None:
     rank = resolve_question("Which region had the highest annual revenue in 2024?", SCHEMA)
     assert rank.time_field is None
     assert rank.period_field == "signup_date"
+
+
+def test_an_inert_sort_flag_does_not_split_two_identical_interpretations() -> None:
+    """Found by a paid Compare Both run.
+
+    Asked "the average annual revenue by region", the cloud plan returned
+    `ascending: true` and the rules `false`. Direction only reaches the SQL
+    for a ranking, so both executed identically -- same values, same
+    coverage -- and the page still reported "different governed
+    interpretations" over a field that changes nothing.
+    """
+    question = "What is the average annual revenue by region?"
+    rules = resolve_question(question, SCHEMA)
+    assert rules.confident and rules.operation == "average"
+
+    flipped = mapping_from_plan(
+        question,
+        SCHEMA,
+        _plan(dimension="region", dimension_source="region", ascending=True),
+    )
+
+    assert flipped.confident, flipped.explanation
+    assert flipped.contract_hash == rules.contract_hash
+    assert flipped.canonical_dict() == rules.canonical_dict()
+
+
+def test_a_ranking_still_distinguishes_its_direction() -> None:
+    """Normalising must not make top and bottom the same contract."""
+    highest = resolve_question("Which region has the highest annual revenue?", SCHEMA)
+    lowest = resolve_question("Which region has the lowest annual revenue?", SCHEMA)
+
+    assert highest.confident and lowest.confident
+    assert highest.operation == lowest.operation == "rank"
+    assert highest.ascending is False and lowest.ascending is True
+    assert highest.contract_hash != lowest.contract_hash

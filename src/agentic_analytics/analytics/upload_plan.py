@@ -399,7 +399,16 @@ class QuestionMapping:
             "period": list(self.period) if self.period else None,
             "period_field": self.period_field,
             "filters": [{k: v for k, v in item.items() if k != "source_text"} for item in filters],
-            "ascending": self.ascending,
+            # Sort direction only reaches the SQL for a ranking; every other
+            # operation orders by its dimension or its period. Carrying the
+            # raw flag made two identical interpretations hash differently:
+            # a paid Compare Both on "the average X by Y" had the cloud plan
+            # return `ascending: true` and the rules `false`, the engine
+            # executed both correctly -- same values, same coverage -- and
+            # the page reported "different governed interpretations" over a
+            # field that changes nothing. Normalised, so contract identity
+            # means what it says.
+            "ascending": self.ascending if self.operation == "rank" else False,
         }
 
     @property
