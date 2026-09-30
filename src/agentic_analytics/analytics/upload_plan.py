@@ -821,6 +821,16 @@ def resolve_question(question: str, schema: dict[str, Any]) -> QuestionMapping:
     )
 
 
+def alias_for(column: str) -> str:
+    """The output-column name a grouping by `column` is returned as.
+
+    Public so the verification layer can compare a requested dimension
+    against a result's columns through the same transformation the
+    compiler applied, rather than guessing at it.
+    """
+    return _alias(column)
+
+
 def _alias(*parts: str) -> str:
     """A safe output-column name built from the dataset's own vocabulary.
 
