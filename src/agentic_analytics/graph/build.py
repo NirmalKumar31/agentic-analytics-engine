@@ -196,6 +196,65 @@ def _verify_without_a_model(finding: Any, results: dict[str, Any], mapping: Any)
     )
 
 
+def _with_timings(state: Any, **stages: float) -> dict[str, float]:
+    """Add stage durations to whatever the run has recorded so far.
+
+    State fields without a reducer are last-write-wins, so a node returning
+    a fresh dict silently dropped the planning duration recorded upstream
+    -- and the AI lane then had no planning time to show.
+    """
+    merged = dict(state.get("timings") or {})
+    merged.update({name: round(value, 1) for name, value in stages.items()})
+    merged["total_ms"] = round(sum(v for k, v in merged.items() if k != "total_ms"), 1)
+    return merged
+
+
+def _shape_refusal(ctx: Any, mapping: Any) -> str | None:
+    """A refusal when the requested breakdown is larger than the engine
+    will return complete, or ``None``.
+
+    Counted before anything is dispatched. The MCP tool guards the same
+    ceiling, but a tool error ends the run as a *failure*: the reason lands
+    in a task's diagnostics, the stop reason stays the generic "no analysis
+    task produced a usable result", and a bounded engine declining a large
+    request is reported as if it had broken. Refusing here keeps the reason
+    and the outcome honest.
+    """
+    from agentic_analytics.analytics import upload_plan
+    from agentic_analytics.analytics.execute import QueryError, run_query
+
+    if mapping is None or not getattr(mapping, "confident", False):
+        return None
+    if not upload_plan.is_breakdown(mapping):
+        return None
+    sql = upload_plan.build_coverage_sql(mapping)
+    if not sql:
+        return None
+    ceiling = min(upload_plan.GROUP_RESULT_MAX, ctx.budgets.max_result_rows)
+    try:
+        counted = run_query(
+            ctx.session,
+            sql,
+            tool_name="shape_preflight",
+            max_rows=1,
+            timeout_seconds=ctx.budgets.query_timeout_seconds,
+            max_sql_length=ctx.budgets.max_sql_length,
+        )
+    except QueryError:  # pragma: no cover - the tool guard still applies
+        return None
+    if not counted.rows:
+        return None
+    groups = int(counted.to_records()[0].get("groups_total") or 0)
+    if groups <= ceiling:
+        return None
+    cuts = ", ".join(getattr(mapping, "dimensions", ()) or ()) or "the requested grouping"
+    return (
+        f"result_shape_too_large: a complete breakdown by {cuts} has {groups} groups, "
+        f"above the {ceiling} this engine will return complete. Narrow the period, "
+        "add a row filter, remove one grouping, or ask for a top or bottom ranking."
+    )
+
+
 def _resolve_intent(ctx: Any, question: str) -> Any:
     """The question mapped onto an uploaded table, or `None`.
 
@@ -249,17 +308,27 @@ def build_graph(ctx: RunContext) -> Any:
     # ----------------------------------------------------- analyze_question
     async def analyze_question(state: AnalysisState) -> dict[str, Any]:
         query_mapping: Any = None
+        upload_schema: dict[str, Any] = {}
+        planning_started = time.perf_counter()
+        calls_before = getattr(getattr(ctx.provider, "usage", None), "attempts", 0)
         if ctx.session.registry is None and len(ctx.session.table_names) == 1:
             from agentic_analytics.analytics.semantic import infer_schema
 
             table = next(iter(ctx.session.table_names))
             schema = infer_schema(ctx.session, table).as_dict()
+            upload_schema = schema
             try:
                 query_mapping = await analyst.resolve_upload_query(
                     ctx.provider, state["question"], schema
                 )
             except (LLMError, BudgetError) as exc:
                 return _abort("the uploaded-data question could not be grounded", exc, ctx)
+            refusal = _shape_refusal(ctx, query_mapping)
+            if refusal:
+                return _abort(refusal, None, ctx) | {
+                    "query_mapping": query_mapping,
+                    "upload_schema": upload_schema,
+                }
             analysis = analyst.analysis_from_upload_mapping(state["question"], query_mapping)
         elif ctx.session.registry is not None:
             # A direct metric question is resolved against the registry before
@@ -292,6 +361,20 @@ def build_graph(ctx: RunContext) -> Any:
             except (LLMError, BudgetError) as exc:
                 return _abort("the question could not be analysed", exc, ctx)
 
+        planning_ms = (time.perf_counter() - planning_started) * 1000
+        planning_calls = getattr(getattr(ctx.provider, "usage", None), "attempts", 0) - calls_before
+        if query_mapping is not None:
+            ctx.events.emit(
+                EventType.CONTRACT_RESOLVED,
+                planner=str(getattr(query_mapping, "interpretation", "rule-based")),
+                model_calls=int(planning_calls),
+                duration_ms=round(planning_ms, 1),
+                fallback=bool(getattr(query_mapping, "planner_note", "")),
+                confident=bool(getattr(query_mapping, "confident", False)),
+                contract_hash=str(getattr(query_mapping, "contract_hash", "")),
+                operation=str(getattr(query_mapping, "operation", "")),
+                dimensions=list(getattr(query_mapping, "dimensions", ()) or ()),
+            )
         ctx.events.emit(
             EventType.QUESTION_ANALYZED,
             intent=analysis.intent,
@@ -307,7 +390,144 @@ def build_graph(ctx: RunContext) -> Any:
         return {
             "analysis": analysis,
             "query_mapping": query_mapping,
+            "upload_schema": upload_schema,
             "limitations": limitations,
+            "timings": {"planning_ms": round(planning_ms, 1)},
+        }
+
+    # ------------------------------------------------------------ fast_path
+    def _is_canonical_upload_aggregate(state: AnalysisState) -> bool:
+        """Whether this run is an ordinary governed aggregate over an upload.
+
+        These need no model after planning. A worker choosing a tool, a
+        critic restating arithmetic, a visualizer picking an encoding and a
+        reporter writing a summary added six model calls to a seven-call
+        run and contributed no authority: the contract fixes the tool, the
+        engine computes the number, and the result determines the chart.
+        """
+        mapping = state.get("query_mapping")
+        if mapping is None or not getattr(mapping, "confident", False):
+            return False
+        canonical: Any = getattr(mapping, "canonical_dict", lambda: {})()
+        if isinstance(canonical, dict) and canonical.get("kind") == "metric_registry":
+            return False
+        return str(getattr(mapping, "operation", "")) in {
+            "count",
+            "sum",
+            "average",
+            "trend",
+            "rank",
+        }
+
+    async def fast_path(state: AnalysisState) -> dict[str, Any]:
+        """Execute the accepted contract and report it, with no model."""
+        from agentic_analytics.agents.schemas import AnalysisReport, ChartSpec
+        from agentic_analytics.analytics.charts import chart_for
+
+        mapping = state["query_mapping"]
+        started = time.perf_counter()
+        try:
+            await ctx.toolset.call(
+                "aggregate_for_question",
+                {
+                    "table": mapping.table,
+                    "question": state["question"],
+                    "contract": mapping.as_dict(),
+                },
+                task_id="task_01",
+                agent="fast_path",
+            )
+        except Exception as exc:  # the tool's own guard is the boundary
+            return _abort("the accepted contract could not be executed", exc, ctx)
+        execution_ms = (time.perf_counter() - started) * 1000
+
+        results = ctx.results()
+        snapshot = next(
+            (
+                s
+                for s in reversed(list(results.values()))
+                if s.tool_name == "aggregate_for_question"
+            ),
+            None,
+        )
+        if snapshot is None:  # pragma: no cover - the call above would have raised
+            return _abort("the accepted contract produced no result", None, ctx)
+
+        verify_started = time.perf_counter()
+        candidate = _canonical_for(mapping, results, [])
+        if candidate is None:
+            return _abort("the executed result could not be turned into a direct answer", None, ctx)
+        verdict = _verify_without_a_model(candidate, results, mapping)
+        verification_ms = (time.perf_counter() - verify_started) * 1000
+        if verdict.status != "supported":
+            return {
+                "verdicts": [verdict],
+                "rejected": [verdict],
+                "published": [],
+                "charts": [],
+                "report": AnalysisReport(
+                    question=state["question"],
+                    executive_summary="",
+                    key_findings=[],
+                    sections=[],
+                    limitations=rejection_limitations([verdict.rule]),
+                    next_questions=[],
+                ),
+                "timings": _with_timings(
+                    state, execution_ms=execution_ms, verification_ms=verification_ms
+                ),
+            }
+
+        published = [critic.publish(candidate, verdict)]
+        ctx.events.emit(
+            EventType.FINDING_VERIFIED,
+            finding_id=published[0].finding_id,
+            status=verdict.status,
+            rule=verdict.rule,
+        )
+
+        charts: list[Any] = []
+        chart = chart_for(mapping, snapshot)
+        if chart.get("kind") not in {"none", "kpi"}:
+            charts.append(
+                ChartSpec(
+                    title=str(chart.get("title") or "Result"),
+                    result_id=snapshot.result_id,
+                    finding_ids=[published[0].finding_id],
+                    spec=dict(chart.get("spec") or {}),
+                )
+            )
+        if charts:
+            ctx.events.emit(
+                EventType.CHART_CREATED,
+                chart_id=charts[0].chart_id,
+                chart_kind=str(chart.get("kind")),
+                result_id=snapshot.result_id,
+            )
+        else:
+            ctx.events.emit(
+                EventType.CHART_REJECTED,
+                reason=str(chart.get("no_chart_reason") or "a chart would not help here"),
+                chart_kind=str(chart.get("kind")),
+            )
+
+        return {
+            "verdicts": [verdict],
+            "published": published,
+            "rejected": [],
+            "charts": charts,
+            "chart_decision": chart,
+            "report": AnalysisReport(
+                question=state["question"],
+                executive_summary="",
+                key_findings=[],
+                sections=[],
+                limitations=[],
+                next_questions=[],
+            ),
+            "timings": _with_timings(
+                state, execution_ms=execution_ms, verification_ms=verification_ms
+            ),
         }
 
     # -------------------------------------------------------- plan_analysis
@@ -350,7 +570,7 @@ def build_graph(ctx: RunContext) -> Any:
                         "analysis_type": task.analysis_type,
                         "preferred_tool": task.preferred_tool,
                         "metrics": [mapping.measure] if mapping.measure else [],
-                        "dimensions": [mapping.dimension] if mapping.dimension else [],
+                        "dimensions": list(mapping.dimensions),
                         "priority": task.priority,
                     }
                 ],
@@ -853,6 +1073,7 @@ def build_graph(ctx: RunContext) -> Any:
     graph.add_node("dataset_context", dataset_context)
     graph.add_node("analyze_question", analyze_question)
     graph.add_node("plan_analysis", plan_analysis)
+    graph.add_node("fast_path", fast_path)
     graph.add_node("analysis_worker", analysis_worker, input_schema=WorkerInput)
     graph.add_node("aggregate_results", aggregate_results)
     graph.add_node("critique_findings", critique_findings)
@@ -864,7 +1085,17 @@ def build_graph(ctx: RunContext) -> Any:
 
     graph.add_edge(START, "dataset_context")
     graph.add_edge("dataset_context", "analyze_question")
-    graph.add_edge("analyze_question", "plan_analysis")
+
+    def route_after_analysis(state: AnalysisState) -> str:
+        """Canonical upload aggregates skip the agent graph entirely."""
+        if state.get("stopped_reason"):
+            return "plan_analysis"
+        return "fast_path" if _is_canonical_upload_aggregate(state) else "plan_analysis"
+
+    graph.add_conditional_edges(
+        "analyze_question", route_after_analysis, ["fast_path", "plan_analysis"]
+    )
+    graph.add_edge("fast_path", "verify_publication")
     graph.add_conditional_edges("plan_analysis", dispatch, ["analysis_worker", "aggregate_results"])
     graph.add_edge("analysis_worker", "aggregate_results")
     graph.add_edge("aggregate_results", "critique_findings")

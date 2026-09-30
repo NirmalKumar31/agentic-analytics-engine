@@ -14,7 +14,7 @@ from agentic_analytics.agents.schemas import (
     TaskOutcome,
     Verdict,
 )
-from agentic_analytics.analytics.results import ResultSnapshot
+from agentic_analytics.analytics.results import QuestionCoverage, ResultSnapshot
 from agentic_analytics.config import Settings, get_settings
 from agentic_analytics.events import EventBus, EventType
 from agentic_analytics.graph.build import RunContext, build_graph
@@ -65,6 +65,19 @@ class RunResult:
     #: The accepted meaning of an uploaded-data question.  It contains
     #: schema identifiers and user-stated restrictions, never raw cells.
     query_contract: dict[str, Any] | None = None
+    #: Question-to-contract completeness. This is not contract equality and
+    #: not claim support; it answers whether the executed shape preserved
+    #: every component the question fixed.
+    question_coverage: QuestionCoverage | None = None
+    #: Stage durations in milliseconds. Exposed so the UI can say where the
+    #: time went instead of implying the model computed the answer.
+    timings: dict[str, float] = field(default_factory=dict)
+    #: Why the chart is what it is, including the reason when there is none.
+    chart_decision: dict[str, Any] = field(default_factory=dict)
+    #: True when the cloud planner returned nothing usable and the engine's
+    #: own contract executed instead. Compare Both must not present that as
+    #: the model independently agreeing.
+    planner_fallback: bool = False
     stopped_reason: str = ""
     #: Set from the stop reason, or explicitly on the failure path. A caller
     #: must not infer success from the existence of this object.
@@ -97,6 +110,12 @@ class RunResult:
             "events": self.events,
             "metrics": self.metrics,
             "query_contract": self.query_contract,
+            "question_coverage": (
+                self.question_coverage.model_dump() if self.question_coverage else None
+            ),
+            "timings": dict(self.timings),
+            "chart_decision": dict(self.chart_decision),
+            "planner_fallback": self.planner_fallback,
             "stopped_reason": self.stopped_reason,
             "outcome": self.outcome,
         }
@@ -122,6 +141,7 @@ _STOP_OUTCOMES: tuple[tuple[str, RunOutcome], ...] = (
     ("reached its time limit", "timeout"),
     ("token limit", "budget_exhausted"),
     ("budget", "budget_exhausted"),
+    ("result_shape_too_large", "refused"),
     ("declined", "refused"),
     ("could not be grounded", "refused"),
     ("could not be mapped safely", "refused"),
@@ -145,6 +165,135 @@ def _outcome_from_reason(reason: str) -> RunOutcome:
         if needle in lowered:
             return outcome
     return "failed"
+
+
+def _question_coverage(
+    question: str,
+    schema: dict[str, Any] | None,
+    mapping: Any,
+    stopped_reason: str,
+) -> QuestionCoverage | None:
+    """Whether the executed contract covers what the question fixed.
+
+    Independent of three things it is easy to confuse it with: planner
+    agreement, result-group coverage, and claim support. Two planners can
+    agree on a contract that answers a different question; a claim can be
+    perfectly supported by a result that was never asked for.
+
+    The first version of this derived its requirements from the accepted
+    mapping, so a grouping the planner had dropped was never "required",
+    nothing was ever missing, and `complete` was a rename of `confident`.
+    Requirements now come from the question text.
+    """
+    from agentic_analytics.analytics.upload_plan import question_requirements
+
+    if mapping is None or schema is None:
+        return None
+
+    reason = stopped_reason or ""
+    codes: list[Any] = []
+    details: list[str] = []
+    if "result_shape_too_large" in reason:
+        codes.append("result_shape_too_large")
+        details.append(reason[:200])
+
+    try:
+        wanted = question_requirements(question, schema)
+    except Exception:  # pragma: no cover - coverage must not break a run
+        return None
+
+    confident = bool(getattr(mapping, "confident", False))
+    applied_dimensions = tuple(getattr(mapping, "dimensions", ()) or ())
+    applied_filters = {
+        (
+            str(item.get("column", "")),
+            str(item.get("operator", "")),
+            "" if item.get("value") is None else str(item.get("value")),
+        )
+        for item in (f.as_dict() for f in getattr(mapping, "filters", ()) or ())
+    }
+
+    required: list[Any] = []
+    missing: list[Any] = []
+
+    def check(component: Any, is_required: bool, satisfied: bool, detail: str, code: Any) -> None:
+        if not is_required:
+            return
+        required.append(component)
+        if satisfied:
+            return
+        missing.append(component)
+        if code not in codes:
+            codes.append(code)
+        details.append(detail)
+
+    check(
+        "operation",
+        wanted.operation is not None,
+        confident and getattr(mapping, "operation", None) == wanted.operation,
+        f"the question asks for {wanted.operation}, and the executed contract used "
+        f"{getattr(mapping, 'operation', None)}",
+        "changed_requested_operation",
+    )
+    check(
+        "measure",
+        wanted.measure is not None,
+        confident and getattr(mapping, "measure", None) == wanted.measure,
+        f"the question names {wanted.measure!r} as the measure, and the executed "
+        f"contract measured {getattr(mapping, 'measure', None)!r}",
+        "missing_requested_measure",
+    )
+    check(
+        "dimensions",
+        bool(wanted.dimensions),
+        confident and applied_dimensions == wanted.dimensions,
+        f"the question asks for a breakdown by {', '.join(wanted.dimensions)}, and the "
+        f"executed contract grouped by {', '.join(applied_dimensions) or 'nothing'}",
+        "missing_requested_grouping",
+    )
+    check(
+        "time_grain",
+        wanted.time_grain is not None,
+        confident and getattr(mapping, "time_grain", None) == wanted.time_grain,
+        f"the question asks for a {wanted.time_grain} grain, and the executed contract "
+        f"used {getattr(mapping, 'time_grain', None)}",
+        "missing_requested_time_grain",
+    )
+    check(
+        "period",
+        wanted.period is not None,
+        confident and tuple(getattr(mapping, "period", None) or ()) == wanted.period,
+        "the question states a time period that the executed contract did not apply",
+        "missing_requested_filter",
+    )
+    check(
+        "filters",
+        bool(wanted.filters),
+        confident and set(wanted.filters) <= applied_filters,
+        "the question states a row restriction that the executed contract did not apply",
+        "missing_requested_filter",
+    )
+    check(
+        "ranking_direction",
+        wanted.ascending is not None,
+        confident and bool(getattr(mapping, "ascending", False)) == wanted.ascending,
+        "the question asks for the other end of the ranking",
+        "changed_ranking_direction",
+    )
+
+    if not confident and "result_shape_too_large" not in codes:
+        codes.append("unresolved_question")
+        details.append(str(getattr(mapping, "explanation", "the question was not resolved")))
+
+    complete = confident and not missing and not codes
+    return QuestionCoverage(
+        complete=complete,
+        required_components=required,
+        applied_components=[c for c in required if c not in missing] if confident else [],
+        missing_components=missing,
+        rejection_codes=codes,
+        details=details[:6],
+    )
 
 
 async def run_analysis(
@@ -269,6 +418,15 @@ async def run_analysis(
         query_contract=(
             state["query_mapping"].as_dict() if state.get("query_mapping") is not None else None
         ),
+        question_coverage=_question_coverage(
+            question,
+            state.get("upload_schema") or None,
+            state.get("query_mapping"),
+            state.get("stopped_reason", ""),
+        ),
+        timings=dict(state.get("timings") or {}),
+        chart_decision=dict(state.get("chart_decision") or {}),
+        planner_fallback=bool(getattr(state.get("query_mapping"), "planner_note", "")),
         stopped_reason=state.get("stopped_reason", ""),
         outcome=_outcome_from_reason(state.get("stopped_reason", "")),
     )

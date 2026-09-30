@@ -201,6 +201,15 @@ export interface RunPayload {
   metrics: RunMetrics;
   stopped_reason: string;
   status?: string;
+  question_coverage?: QuestionCoverage | null;
+  chart_decision?: ChartDecision | null;
+  timings?: RunTimings | null;
+  /**
+   * True when the cloud planner returned nothing usable and the engine's
+   * own contract executed instead. Compare Both must not present that as
+   * the model independently agreeing.
+   */
+  planner_fallback?: boolean;
   title?: string;
   demonstrates?: string;
 }
@@ -223,12 +232,86 @@ export interface CanonicalContract {
   operation: string;
   table: string;
   measure?: string | null;
+  /**
+   * Authoritative, ordered, at most two. Read this, never `dimension`.
+   *
+   * `dimension` is a compatibility projection kept for one release: it is
+   * populated only when there is exactly one grouping, and is null for
+   * zero or two. A two-cut question read through the singular field looks
+   * like a question with no grouping at all, which is how a correct
+   * two-dimensional result came to publish an empty report.
+   */
+  dimensions: string[];
   dimension?: string | null;
   time_field?: string | null;
+  /** Only ever set from explicit analytical language, never a column name. */
+  time_grain?: "day" | "week" | "month" | "quarter" | "year" | null;
   period?: [string, string] | null;
   period_field?: string | null;
   filters: QueryFilter[];
   ascending: boolean;
+}
+
+/** Components a question can fix, and the gate can therefore require. */
+export type CoverageComponent =
+  | "operation"
+  | "measure"
+  | "dimensions"
+  | "time_grain"
+  | "period"
+  | "filters"
+  | "ranking_direction";
+
+export type CoverageRejectionCode =
+  | "unresolved_question"
+  | "missing_requested_measure"
+  | "missing_requested_grouping"
+  | "missing_requested_time_grain"
+  | "missing_requested_filter"
+  | "changed_requested_operation"
+  | "changed_ranking_direction"
+  | "result_shape_too_large";
+
+/**
+ * Whether the executed contract covers what the question fixed.
+ *
+ * Distinct from three things it is easy to conflate it with: the two
+ * planners agreeing (contract equality), the result holding every group
+ * (`GroupCoverage`), and a claim being supported by its cells. Two
+ * planners can agree on a contract that answers a different question, so
+ * agreement must never be displayed as coverage.
+ */
+export interface QuestionCoverage {
+  complete: boolean;
+  required_components: CoverageComponent[];
+  applied_components: CoverageComponent[];
+  missing_components: CoverageComponent[];
+  rejection_codes: CoverageRejectionCode[];
+  details: string[];
+}
+
+export type ChartKind =
+  "bar" | "line" | "grouped_bar" | "ranked_bar" | "kpi" | "none";
+
+/**
+ * How the chart was chosen. A pure function of contract and result shape,
+ * computed in the engine -- not a model call, which is why identical
+ * contracts over identical results now produce identical charts.
+ */
+export interface ChartDecision {
+  kind: ChartKind;
+  title?: string;
+  spec?: Record<string, unknown>;
+  /** Present when `kind` is `none`: why a chart would not help. */
+  no_chart_reason?: string;
+}
+
+/** Stage durations in milliseconds. */
+export interface RunTimings {
+  planning_ms?: number;
+  execution_ms?: number;
+  verification_ms?: number;
+  total_ms?: number;
 }
 
 export interface QueryContract extends CanonicalContract {
@@ -380,6 +463,15 @@ export interface InferredField {
   null_pct: number;
   distinct_count: number;
   reason: string;
+  /**
+   * How safe it is to *suggest* summing this column, as distinct from
+   * whether it may be summed when asked. The engine totals any numeric
+   * column a visitor names; nothing proposes the total of a column whose
+   * sum means nothing.
+   */
+  additive?: "strong" | "weak" | "unknown";
+  /** Whether the role was a close call. Ambiguous columns are marked. */
+  ambiguous?: boolean;
   min_value: string | null;
   max_value: string | null;
 }

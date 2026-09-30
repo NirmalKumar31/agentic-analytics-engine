@@ -101,18 +101,21 @@ def check_constraints(finding: Any, mapping: Any, snapshots: list[Any]) -> Const
         for f in (getattr(mapping, "filters", None) or ())
     ]
     measure = getattr(mapping, "measure", None)
-    dimension = getattr(mapping, "dimension", None)
+    dimensions = list(getattr(mapping, "dimensions", ()) or ())
+    if not dimensions and getattr(mapping, "dimension", None):
+        dimensions = [mapping.dimension]
     period = getattr(mapping, "period", None)
     operation = getattr(mapping, "operation", "")
 
     required = {
         "operation": operation,
         "measure": measure,
-        "dimension": dimension,
+        "dimension": dimensions[0] if len(dimensions) == 1 else None,
+        "dimensions": dimensions,
         "period": list(period) if period else None,
         "filters": required_filters,
     }
-    if not (required_filters or dimension or period):
+    if not (required_filters or dimensions or period):
         # Nothing the question fixed can have gone missing.
         return ConstraintVerdict(applicable=False, required=required)
 
@@ -129,7 +132,7 @@ def check_constraints(finding: Any, mapping: Any, snapshots: list[Any]) -> Const
     for snapshot in snapshots:
         params = _params(snapshot)
         applied = list(params.get("filters") or [])
-        verdict = _compare(params, applied, required, required_filters, measure, dimension, period)
+        verdict = _compare(params, applied, required, required_filters, measure, dimensions, period)
         if verdict is None:
             return ConstraintVerdict(applicable=True, preserved=True, required=required)
         if best is None:
@@ -144,7 +147,7 @@ def _compare(
     required: dict[str, Any],
     required_filters: list[dict[str, Any]],
     measure: Any,
-    dimension: Any,
+    dimensions: list[str],
     period: Any,
 ) -> ConstraintVerdict | None:
     """`None` when this result carried the whole contract."""
@@ -166,14 +169,18 @@ def _compare(
                 ),
                 required=required,
             )
-    if dimension and params.get("dimension") != dimension:
+    applied_dimensions = list(params.get("dimensions") or [])
+    if not applied_dimensions and params.get("dimension"):
+        applied_dimensions = [str(params["dimension"])]
+    if dimensions and applied_dimensions != dimensions:
         return ConstraintVerdict(
             applicable=True,
             preserved=False,
             rule=MISSING_DIMENSION,
             reason=(
-                f"the question asks for a breakdown by {str(dimension).replace('_', ' ')}, "
-                "and this result is not grouped by it"
+                "the question asks for a breakdown by "
+                f"{', '.join(item.replace('_', ' ') for item in dimensions)}, "
+                "and this result is not grouped by the same columns"
             ),
             required=required,
         )

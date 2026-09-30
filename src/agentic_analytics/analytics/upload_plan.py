@@ -75,8 +75,9 @@ _OPERATION_PATTERNS: list[tuple[str, Operation]] = [
         # year`). Column names are also stripped before this is matched, so
         # a measure called `trend_score` cannot trigger it either.
         r"\b(trend|trends|over time|time series|timeseries"
-        r"|by month|per month|by week|per week|by day|per day"
-        r"|by quarter|per quarter|by year|per year"
+        r"|by month|per month|for each month|by week|per week|for each week"
+        r"|by day|per day|for each day|by quarter|per quarter|for each quarter"
+        r"|by year|per year|for each year"
         r"|year over year|month over month|week over week)\b",
         "trend",
     ),
@@ -160,6 +161,49 @@ _PERIOD_WORDS = frozenset(
         "yearly",
     }
 )
+
+_TIME_GRAIN_PATTERNS: tuple[tuple[str, Literal["day", "week", "month", "quarter", "year"]], ...] = (
+    (r"\b(?:by|per|for each|grouped by|group by)\s+days?\b|\bdaily\b", "day"),
+    (r"\b(?:by|per|for each|grouped by|group by)\s+weeks?\b|\bweekly\b", "week"),
+    (r"\b(?:by|per|for each|grouped by|group by)\s+months?\b|\bmonthly\b", "month"),
+    (r"\b(?:by|per|for each|grouped by|group by)\s+quarters?\b|\bquarterly\b", "quarter"),
+    (r"\b(?:by|per|for each|grouped by|group by)\s+years?\b|\byearly\b", "year"),
+)
+
+
+def _time_grain(
+    question: str, schema: dict[str, Any]
+) -> Literal["day", "week", "month", "quarter", "year"] | None:
+    """Return a grain the visitor explicitly requested, never one from a column name."""
+    text = _without_column_names(question, schema)
+    for pattern, grain in _TIME_GRAIN_PATTERNS:
+        if re.search(pattern, text, re.IGNORECASE):
+            return grain
+    return None
+
+
+#: Words that begin a row restriction. A grouping phrase's capture runs to
+#: the end of the clause, so it spills across these into the filter's own
+#: text -- and everything after one of them belongs to the restriction, not
+#: to the grouping.
+_FILTER_LEAD = re.compile(r"\b(?:where|for|with|having|whose|filtered)\b", re.IGNORECASE)
+
+
+def _grouping_head(phrase: str) -> str:
+    """The part of a grouping phrase that actually names groupings.
+
+    "by territory for headcount 41 to 50" is one phrase mentioning two
+    groupable columns, and harvesting both turned a filtered breakdown by
+    territory into a two-cut breakdown by territory and headcount.
+    Excluding every filtered column instead was too blunt: "by store where
+    store at most 10" names a column as both a grouping and a restriction,
+    which is ordinary and must keep its grouping.
+
+    The boundary is textual. What comes before the first restriction word
+    is the grouping; what follows belongs to the filter.
+    """
+    match = _FILTER_LEAD.search(phrase)
+    return phrase[: match.start()] if match else phrase
 
 
 def _unresolved_grouping(text: str, schema: dict[str, Any]) -> str | None:
@@ -354,8 +398,13 @@ class QuestionMapping:
     operation: Operation
     table: str
     measure: str | None = None
+    #: Authoritative ordered grouping list. ``dimension`` below is retained
+    #: for one release as a compatibility projection only; all decisions,
+    #: hashing and SQL compilation use this tuple.
+    dimensions: tuple[str, ...] = ()
     dimension: str | None = None
     time_field: str | None = None
+    time_grain: Literal["day", "week", "month", "quarter", "year"] | None = None
     #: A period the question named, as inclusive ISO bounds, with the column
     #: it applies to. Carried rather than ignored: answering "total revenue
     #: in 1998" over every row in the table is a guessed answer, and it was
@@ -380,6 +429,21 @@ class QuestionMapping:
     #: contract, because the arithmetic is identical either way.
     planner_note: str = ""
 
+    def __post_init__(self) -> None:
+        """Keep the legacy singular grouping honest during migration.
+
+        A two-cut question must never masquerade as a one-cut question.  The
+        singular projection therefore exists only when there is exactly one
+        authoritative grouping.
+        """
+        ordered = tuple(dict.fromkeys(str(item) for item in self.dimensions if item))
+        if not ordered and self.dimension:
+            ordered = (self.dimension,)
+        if len(ordered) > 2:
+            raise ValueError("at most two grouping dimensions are supported")
+        self.dimensions = ordered
+        self.dimension = ordered[0] if len(ordered) == 1 else None
+
     def canonical_dict(self) -> dict[str, Any]:
         """The semantic contract, stable across planner implementations."""
         filters = [f.as_dict() for f in self.filters]
@@ -394,8 +458,9 @@ class QuestionMapping:
             "operation": self.operation,
             "table": self.table,
             "measure": self.measure,
-            "dimension": self.dimension,
+            "dimensions": list(self.dimensions),
             "time_field": self.time_field,
+            "time_grain": self.time_grain,
             "period": list(self.period) if self.period else None,
             "period_field": self.period_field,
             "filters": [{k: v for k, v in item.items() if k != "source_text"} for item in filters],
@@ -424,8 +489,11 @@ class QuestionMapping:
             "period": list(self.period) if self.period else None,
             "period_field": self.period_field,
             "filters": [f.as_dict() for f in self.filters],
+            # Compatibility only. New consumers must read ``dimensions``.
             "dimension": self.dimension,
+            "dimensions": list(self.dimensions),
             "time_field": self.time_field,
+            "time_grain": self.time_grain,
             "ascending": self.ascending,
             "confident": self.confident,
             "explanation": self.explanation,
@@ -595,8 +663,18 @@ def mapping_from_plan(question: str, schema: dict[str, Any], plan: Any) -> Quest
     measures, _dimensions, time_fields = _roles(schema)
     aggregatable = {str(c) for c in schema.get("aggregatable_if_named", [])}
     measure = payload.get("measure")
-    dimension = payload.get("dimension")
+    raw_dimensions = list(payload.get("dimensions") or [])
+    raw_sources = list(payload.get("dimension_sources") or [])
+    if not raw_dimensions and payload.get("dimension") is not None:
+        raw_dimensions = [payload.get("dimension")]
+        raw_sources = [payload.get("dimension_source", "")]
+    if len(raw_dimensions) > 2 or len(raw_sources) not in {0, len(raw_dimensions)}:
+        return refuse("the AI plan supplied an invalid grouping list")
+    if not raw_sources:
+        raw_sources = [""] * len(raw_dimensions)
+    dimensions = tuple(str(item) for item in raw_dimensions)
     time_field = payload.get("time_field")
+    time_grain = payload.get("time_grain")
 
     if measure is not None:
         measure = str(measure)
@@ -607,8 +685,7 @@ def mapping_from_plan(question: str, schema: dict[str, Any], plan: Any) -> Quest
     if operation in {"sum", "average", "rank"} and measure is None:
         return refuse(f"the {operation} operation needs a measure")
 
-    if dimension is not None:
-        dimension = str(dimension)
+    for dimension, dimension_source in zip(dimensions, raw_sources, strict=True):
         if dimension not in fields:
             return refuse(
                 f"the AI plan named a grouping column this table does not have: {dimension!r}"
@@ -626,15 +703,21 @@ def mapping_from_plan(question: str, schema: dict[str, Any], plan: Any) -> Quest
                 f"the AI plan asked to group by {dimension!r}, which this engine does not "
                 "offer as a grouping"
             )
-        if not _source_is_in_question(str(payload.get("dimension_source", "")), question):
+        if not _source_is_in_question(str(dimension_source), question):
             return refuse("the AI plan did not ground its grouping in the question")
-    if measure is not None and dimension == measure:
+    if len(set(dimensions)) != len(dimensions):
+        return refuse("the AI plan repeated the same grouping column")
+    if measure is not None and measure in dimensions:
         return refuse("the AI plan cannot aggregate a column by that same column")
 
     if time_field is not None:
         time_field = str(time_field)
         if time_field not in time_fields:
             return refuse(f"the AI plan named {time_field!r} as a time field, but it is not one")
+    if time_grain is not None and time_grain not in {"day", "week", "month", "quarter", "year"}:
+        return refuse("the AI plan supplied an unsupported time grain")
+    if time_grain is not None and time_field is None:
+        return refuse("the AI plan supplied a time grain without a time field")
 
     # The column a period filters is not the same thing as the axis a trend
     # is drawn along, and a model is only ever asked for the latter. A
@@ -726,8 +809,11 @@ def mapping_from_plan(question: str, schema: dict[str, Any], plan: Any) -> Quest
             return refuse("the AI plan changed the operation explicitly requested in the question")
         if rules.measure in rules.named_columns and measure != rules.measure:
             return refuse("the AI plan changed the measure explicitly named in the question")
-        if rules.dimension in rules.named_columns and dimension != rules.dimension:
+        grouping_is_explicit = any(item in rules.named_columns for item in rules.dimensions)
+        if grouping_is_explicit and dimensions != rules.dimensions:
             return refuse("the AI plan changed the grouping explicitly named in the question")
+        if rules.time_grain is not None and time_grain != rules.time_grain:
+            return refuse("the AI plan changed the time grain explicitly named in the question")
         # Direction is the whole of a ranking question.  "Which region has
         # the highest revenue" answered ascending is the bottom of the
         # table presented as the top, and every other field agrees, so
@@ -739,7 +825,7 @@ def mapping_from_plan(question: str, schema: dict[str, Any], plan: Any) -> Quest
         operation=operation,  # type: ignore[arg-type]
         table=table,
         measure=measure,
-        dimension=dimension,
+        dimensions=dimensions,
         # `time_field` is the axis `build_sql` groups a trend along, and
         # the rule path leaves it unset for every other operation. Setting
         # it here from the plan's date column put a trend axis on a rank,
@@ -748,6 +834,7 @@ def mapping_from_plan(question: str, schema: dict[str, Any], plan: Any) -> Quest
         # revalidation, and every non-trend question naming a period
         # ("what was the total revenue in 2024") published nothing.
         time_field=time_field if operation == "trend" else None,
+        time_grain=time_grain if operation == "trend" else None,
         period=period,
         period_field=period_field if period else None,
         filters=resolution.filters,
@@ -785,8 +872,15 @@ def mapping_from_contract(
         "operation_source": question,
         "measure": contract.get("measure"),
         "measure_source": question if contract.get("measure") else "",
-        "dimension": contract.get("dimension"),
-        "dimension_source": question if contract.get("dimension") else "",
+        "dimensions": contract.get("dimensions")
+        or ([contract.get("dimension")] if contract.get("dimension") else []),
+        "dimension_sources": [
+            question
+            for _ in (
+                contract.get("dimensions")
+                or ([contract.get("dimension")] if contract.get("dimension") else [])
+            )
+        ],
         "filters": [
             {
                 "column": item.get("column"),
@@ -797,6 +891,7 @@ def mapping_from_contract(
             for item in (contract.get("filters") or [])
         ],
         "time_field": contract.get("time_field") or contract.get("period_field"),
+        "time_grain": contract.get("time_grain"),
         "period_field": contract.get("period_field") or contract.get("time_field"),
         "period_start": period[0],
         "period_end": period[1],
@@ -816,6 +911,110 @@ def mapping_from_contract(
         )
     mapping.interpretation = str(contract.get("interpretation") or mapping.interpretation)
     return mapping
+
+
+@dataclass(frozen=True)
+class QuestionRequirements:
+    """What the question itself fixes, read without consulting any contract.
+
+    This exists because the first attempt at question coverage derived its
+    requirements *from the accepted contract*: a grouping the planner had
+    dropped was never "required", so nothing was ever missing and
+    `complete` was a rename of `confident`. A gate that asks the thing
+    under test what it should have done cannot fail.
+
+    So every field here comes from the question text and the schema, using
+    the same parsing primitives the resolver uses but none of its
+    decisions. A component appearing here and absent from the executed
+    contract is a coverage failure whatever the planner thought.
+    """
+
+    operation: Operation | None = None
+    measure: str | None = None
+    dimensions: tuple[str, ...] = ()
+    time_grain: Literal["day", "week", "month", "quarter", "year"] | None = None
+    period: tuple[str, str] | None = None
+    filters: tuple[tuple[str, str, str], ...] = ()
+    ascending: bool | None = None
+
+
+def question_requirements(question: str, schema: dict[str, Any]) -> QuestionRequirements:
+    """Extract the components the question states outright.
+
+    Deliberately conservative: it reports only what the wording fixes
+    beyond doubt. A component it cannot see is not treated as required, so
+    the gate never invents an obligation -- but anything it does see must
+    survive into the executed contract.
+    """
+    text = _normalise(question)
+    intent_text = _normalise(_without_column_names(question, schema))
+
+    operation: Operation | None = None
+    for pattern, matched_operation in _OPERATION_PATTERNS:
+        if re.search(pattern, intent_text, re.IGNORECASE):
+            operation = matched_operation
+            break
+
+    groupable = _groupable(schema)
+    all_columns = [str(f.get("name", "")) for f in schema.get("fields") or []]
+    named = [c for c in all_columns if _mentions(text, c) >= 0]
+
+    resolution = parse_filters(question, schema)
+    # A column a filter claimed is not a grouping the question asked for.
+    # The phrase capture runs to the end of the clause, so "by region for
+    # age 30 to 40" mentions two groupable columns -- and counting `age` as
+    # a requested grouping made coverage demand a cut the question never
+    # asked for, which would have failed a correct contract. The resolver
+    # excludes these for the same reason; both must agree or the gate
+    # fights the planner.
+    dimensions: list[str] = []
+    for phrase in _GROUPING_PHRASE.findall(_normalise(question)):
+        head = _normalise(_grouping_head(phrase))
+        for candidate in groupable:
+            if candidate not in dimensions and _mentions(head, candidate) >= 0:
+                dimensions.append(candidate)
+
+    # A measure is required only where the question names a column that
+    # could be one and did not claim it as the grouping.
+    measures, _dims, _time = _roles(schema)
+    aggregatable = [str(c) for c in schema.get("aggregatable_if_named", [])]
+    measure_candidates = [
+        c for c in named if c not in dimensions and (c in measures or c in aggregatable)
+    ]
+    # An explicitly named numeric column stays a measure candidate even
+    # where inference called it an identifier: 98% distinct makes a column
+    # a poor grouping, not a thing that cannot be summed.
+    if not measure_candidates:
+        numeric = {
+            str(f.get("name", ""))
+            for f in schema.get("fields") or []
+            if _base_numeric(str(f.get("data_type") or f.get("type") or ""))
+        }
+        measure_candidates = [c for c in named if c not in dimensions and c in numeric]
+    measure = measure_candidates[0] if len(measure_candidates) == 1 else None
+
+    filters = tuple(
+        (
+            str(item.get("column", "")),
+            str(item.get("operator", "")),
+            "" if item.get("value") is None else str(item.get("value")),
+        )
+        for item in (f.as_dict() for f in resolution.filters)
+    )
+
+    ascending: bool | None = None
+    if operation == "rank":
+        ascending = bool(_ASCENDING.search(question))
+
+    return QuestionRequirements(
+        operation=operation,
+        measure=measure,
+        dimensions=tuple(dimensions),
+        time_grain=_time_grain(question, schema),
+        period=_named_period(question, schema),
+        filters=filters,
+        ascending=ascending,
+    )
 
 
 def resolve_question(question: str, schema: dict[str, Any]) -> QuestionMapping:
@@ -967,30 +1166,35 @@ def resolve_question(question: str, schema: dict[str, Any]) -> QuestionMapping:
     # explicitly, and reading that as anything other than a grouping
     # produced "average Store by Holiday_Flag" for a question that said
     # "by Store": both roles inverted.
-    dimension: str | None = None
+    requested_dimensions: list[str] = []
     # Widened to *numeric* columns only, never to text.
     #
     # See `_groupable` for why text columns are not widened into.
     groupable = _groupable(schema)
+    # A column a filter already claimed is not a grouping. The phrase
+    # capture runs to the end of the clause, so "by territory for headcount
+    # 41 to 50" is one phrase mentioning two groupable columns -- and
+    # harvesting both turned a filtered breakdown by territory into a
+    # two-cut breakdown by territory and headcount, which silently changed
+    # the answer.
+    filter_claimed = {str(getattr(f, "column", "")) for f in resolution.filters}
     for phrase in _GROUPING_PHRASE.findall(text):
+        head = _normalise(_grouping_head(phrase))
         for candidate in groupable:
-            if _mentions(_normalise(phrase), candidate) >= 0:
-                dimension = candidate
-                break
-        if dimension:
-            break
-    if dimension is None and operation == "rank":
+            if candidate not in requested_dimensions and _mentions(head, candidate) >= 0:
+                requested_dimensions.append(candidate)
+    if not requested_dimensions and operation == "rank":
         # "Which store had the highest total sales" names its grouping as
         # the subject of the question. Restricted to a ranking: elsewhere
         # "which" is usually asking about the answer, not the grouping.
         for phrase in _SUBJECT_PHRASE.findall(text):
             for candidate in groupable:
                 if _mentions(_normalise(phrase), candidate) >= 0:
-                    dimension = candidate
+                    requested_dimensions.append(candidate)
                     break
-            if dimension:
+            if requested_dimensions:
                 break
-    if dimension is None:
+    if not requested_dimensions:
         # Otherwise a dimension the question merely named is still a
         # grouping -- "returns by category" and "category returns" ask the
         # same thing.
@@ -998,11 +1202,17 @@ def resolve_question(question: str, schema: dict[str, Any]) -> QuestionMapping:
         # for. "total revenue where promo_flag is 1" restricts to one value
         # of that column; grouping by it then returns a single group and
         # presents a restriction as a breakdown.
-        filter_claimed = {str(getattr(f, "column", "")) for f in resolution.filters}
         mentioned_dims = [c for c in named if c in dimensions and c not in filter_claimed]
-        dimension = mentioned_dims[0] if mentioned_dims else None
+        requested_dimensions = mentioned_dims[:2]
 
-    if dimension is None:
+    if len(requested_dimensions) > 2:
+        return refuse(
+            "the question requests more than two grouping columns; narrow it to one or two"
+        )
+    grouping = tuple(requested_dimensions)
+    grain = _time_grain(question, schema)
+
+    if not grouping and grain is None:
         # A grouping was asked for and nothing in the table answers to it.
         # Dropping it and returning an ungrouped total was the wrong
         # outcome twice over: the visitor asked for a breakdown and got a
@@ -1026,7 +1236,9 @@ def resolve_question(question: str, schema: dict[str, Any]) -> QuestionMapping:
             operation="trend",
             table=table,
             measure=measure,
+            dimensions=grouping,
             time_field=time_field,
+            time_grain=grain or "month",
             confident=True,
             filters=row_filters,
             explanation=(
@@ -1041,10 +1253,10 @@ def resolve_question(question: str, schema: dict[str, Any]) -> QuestionMapping:
         return QuestionMapping(
             operation="count",
             table=table,
-            dimension=dimension,
+            dimensions=grouping,
             confident=True,
             filters=row_filters,
-            explanation=(f"row count by {dimension}" if dimension else "total row count"),
+            explanation=(f"row count by {', '.join(grouping)}" if grouping else "total row count"),
             named_columns=named,
             period=named_period,
             period_field=period_field,
@@ -1061,14 +1273,16 @@ def resolve_question(question: str, schema: dict[str, Any]) -> QuestionMapping:
     # took the flag from the `by` phrase, averaged it, and published 0.07
     # as the answer: a measure silently replaced by the column the
     # question asked to group by.
-    widening = [c for c in aggregatable if c != dimension]
+    widening = [c for c in aggregatable if c not in grouping]
     # A column a filter already claimed is not also a candidate measure.
     # "total Weekly_Revenue with Avg_Temp_C at least 50" names two numeric
     # columns, and both being measures made the measure ambiguous -- so a
     # question that says plainly what to total was refused because it also
     # said what to restrict.
     filtered_columns = {str(getattr(f, "column", "")) for f in resolution.filters}
-    candidates = [c for c in named if c not in filtered_columns] or named
+    candidates = [c for c in named if c not in filtered_columns and c not in grouping] or [
+        c for c in named if c not in grouping
+    ]
     measure, why = _pick(candidates, measures, "numeric column", widening)
 
     # The guard applies only where a substitution is possible: the measure
@@ -1095,22 +1309,35 @@ def resolve_question(question: str, schema: dict[str, Any]) -> QuestionMapping:
     # dimension -- "total units_sold by store_code" matched `units_sold` on
     # the grouping search first, and then totalled it as well, so the
     # answer was grouped by the very column it was summing.
-    if measure is not None and dimension == measure:
-        others = [c for c in named if c in dimensions and c != measure]
-        dimension = others[0] if others else None
+    if measure is not None and measure in grouping:
+        # Refuse rather than repair. This branch used to replace the
+        # grouping with whatever other dimension the question mentioned,
+        # or delete it outright -- and that deletion is exactly how "total
+        # website_visits by age" became SUM(age) with no grouping and was
+        # published as an answer about website visits.
+        #
+        # Reaching here means the resolver picked one column for both
+        # roles, which is an ambiguity in the question or a gap in the
+        # role rules. Either way the visitor asked for something this
+        # engine cannot represent, and saying so is the only honest
+        # outcome.
+        return refuse(
+            f"{measure!r} was read as both the value to aggregate and the column to "
+            "group by; name a different column for one of them"
+        )
 
     if measure is None:
-        if operation == "rank" and dimension:
+        if operation == "rank" and grouping:
             # "top regions" with no measure named is a frequency ranking,
             # which needs no numeric column at all.
             return QuestionMapping(
                 operation="rank",
                 table=table,
-                dimension=dimension,
+                dimensions=grouping,
                 ascending=bool(_ASCENDING.search(question)),
                 confident=True,
                 filters=row_filters,
-                explanation=f"{dimension} values ranked by how often they occur",
+                explanation=f"{', '.join(grouping)} values ranked by how often they occur",
                 named_columns=named,
             )
         return refuse(str(why))
@@ -1123,15 +1350,15 @@ def resolve_question(question: str, schema: dict[str, Any]) -> QuestionMapping:
         # could be grouped.
         rankable = [c for c in _groupable(schema) if c != measure]
         rank_dimension, why = _pick(named, rankable, "grouping column")
-        if dimension:
-            rank_dimension = dimension
+        if grouping:
+            rank_dimension = grouping[0]
         if rank_dimension is None:
             return refuse(str(why))
         return QuestionMapping(
             operation="rank",
             table=table,
             measure=measure,
-            dimension=rank_dimension,
+            dimensions=(rank_dimension,),
             ascending=bool(_ASCENDING.search(question)),
             confident=True,
             filters=row_filters,
@@ -1149,10 +1376,12 @@ def resolve_question(question: str, schema: dict[str, Any]) -> QuestionMapping:
         operation=operation,
         table=table,
         measure=measure,
-        dimension=dimension,
+        dimensions=grouping,
         confident=True,
         filters=row_filters,
-        explanation=(f"{verb} {measure} by {dimension}" if dimension else f"{verb} {measure}"),
+        explanation=(
+            f"{verb} {measure} by {', '.join(grouping)}" if grouping else f"{verb} {measure}"
+        ),
         named_columns=named,
         period=named_period,
         period_field=period_field,
@@ -1200,16 +1429,16 @@ def sql_lineage(mapping: QuestionMapping) -> dict[str, dict[str, str]]:
     if not mapping.confident or mapping.operation == "profile":
         return {}
     out: dict[str, dict[str, str]] = {}
-    if mapping.dimension:
-        out[_alias(mapping.dimension)] = {
+    for dimension in mapping.dimensions:
+        out[_alias(dimension)] = {
             "kind": "grouping",
             "table": mapping.table,
-            "column": mapping.dimension,
+            "column": dimension,
         }
     if mapping.time_field and mapping.operation == "trend":
         out["period"] = {
             "kind": "derived",
-            "aggregate": "MONTH",
+            "aggregate": (mapping.time_grain or "month").upper(),
             "table": mapping.table,
             "column": mapping.time_field,
         }
@@ -1293,7 +1522,23 @@ def is_breakdown(mapping: QuestionMapping) -> bool:
     A ranking is grouped too, but it is a short list the question asked
     for, so its limit is the answer rather than a shortfall.
     """
-    return bool(mapping.dimension) and mapping.operation in {"count", "sum", "average"}
+    return (bool(mapping.dimensions) and mapping.operation in {"count", "sum", "average"}) or (
+        mapping.operation == "trend" and mapping.time_field is not None
+    )
+
+
+def _trend_period_expression(mapping: QuestionMapping) -> str:
+    """Deterministic display/sort key for the accepted temporal grain."""
+    stamp = _quote(mapping.time_field or "")
+    grain = mapping.time_grain or "month"
+    truncated = f"date_trunc('{grain}', CAST({stamp} AS TIMESTAMP))"
+    if grain == "year":
+        return f"strftime({truncated}, '%Y')"
+    if grain == "month":
+        return f"strftime({truncated}, '%Y-%m')"
+    if grain in {"day", "week"}:
+        return f"strftime({truncated}, '%Y-%m-%d')"
+    return f"concat(strftime({truncated}, '%Y'), '-Q', CAST(quarter({truncated}) AS VARCHAR))"
 
 
 def build_coverage_sql(mapping: QuestionMapping) -> str | None:
@@ -1307,12 +1552,16 @@ def build_coverage_sql(mapping: QuestionMapping) -> str | None:
         return None
     table = _quote(mapping.table)
     where = _where(mapping)
-    dim = _quote(mapping.dimension or "")
+    grouping = [_quote(item) for item in mapping.dimensions]
+    if mapping.operation == "trend" and mapping.time_field:
+        grouping.insert(0, _trend_period_expression(mapping))
+    select = ", ".join(f"{expr} AS g{index}" for index, expr in enumerate(grouping, 1))
+    ordinals = ", ".join(str(index) for index in range(1, len(grouping) + 1))
     return (
         "SELECT COUNT(*) AS groups_total, "
         "COALESCE(SUM(group_rows), 0) AS rows_matching FROM ("
-        f"SELECT {dim} AS g, COUNT(*) AS group_rows "
-        f"FROM {table}{where} GROUP BY 1) AS grouped"
+        f"SELECT {select}, COUNT(*) AS group_rows "
+        f"FROM {table}{where} GROUP BY {ordinals}) AS grouped"
     )
 
 
@@ -1337,38 +1586,42 @@ def build_sql(mapping: QuestionMapping) -> str | None:
         if mapping.time_field is None:
             return None
         stamp = _quote(mapping.time_field)
-        # Formatted as `2025-03` rather than left as a timestamp: the label
-        # is what a chart axis and a finding both show, and `%Y-%m` sorts
-        # lexically in the same order it sorts chronologically.
-        period = f"strftime(date_trunc('month', CAST({stamp} AS TIMESTAMP)), '%Y-%m')"
+        period = _trend_period_expression(mapping)
+        grouping_select = [f"{period} AS period"] + [
+            f"{_quote(item)} AS {_alias(item)}" for item in mapping.dimensions
+        ]
+        group_count = len(grouping_select)
+        group_by = ", ".join(str(index) for index in range(1, group_count + 1))
         if mapping.measure is None:
             value = "COUNT(*) AS row_total"
         else:
             label = _alias("total", mapping.measure)
             value = f"ROUND(SUM(CAST({_quote(mapping.measure)} AS DOUBLE)), 4) AS {label}"
         return (
-            f"SELECT {period} AS period, {value}, COUNT(*) AS row_count "
+            f"SELECT {', '.join(grouping_select)}, {value}, COUNT(*) AS row_count "
             f"FROM {table} WHERE {stamp} IS NOT NULL{where.replace(' WHERE ', ' AND ', 1)} "
-            f"GROUP BY 1 ORDER BY 1 LIMIT {TREND_LIMIT}"
+            f"GROUP BY {group_by} ORDER BY {group_by} LIMIT {TREND_LIMIT + 1}"
         )
 
     if mapping.operation == "count":
-        if not mapping.dimension:
+        if not mapping.dimensions:
             return f"SELECT COUNT(*) AS row_count FROM {table}{where}"
-        dim = _quote(mapping.dimension)
+        selected = [f"{_quote(item)} AS {_alias(item)}" for item in mapping.dimensions]
+        ordinals = ", ".join(str(index) for index in range(1, len(selected) + 1))
         return (
-            f"SELECT {dim} AS {_alias(mapping.dimension)}, COUNT(*) AS row_count "
-            f"FROM {table}{where} GROUP BY 1 ORDER BY 1 NULLS LAST "
+            f"SELECT {', '.join(selected)}, COUNT(*) AS row_count "
+            f"FROM {table}{where} GROUP BY {ordinals} ORDER BY {ordinals} NULLS LAST "
             f"LIMIT {GROUP_RESULT_MAX + 1}"
         )
 
     if mapping.operation == "rank" and mapping.measure is None:
-        if mapping.dimension is None:
+        if not mapping.dimensions:
             return None
-        dim = _quote(mapping.dimension)
+        dimension = mapping.dimensions[0]
+        dim = _quote(dimension)
         direction = "ASC" if mapping.ascending else "DESC"
         return (
-            f"SELECT {dim} AS {_alias(mapping.dimension)}, COUNT(*) AS row_count "
+            f"SELECT {dim} AS {_alias(dimension)}, COUNT(*) AS row_count "
             f"FROM {table}{where} GROUP BY 1 ORDER BY 2 {direction} NULLS LAST LIMIT {RANK_LIMIT}"
         )
 
@@ -1378,17 +1631,19 @@ def build_sql(mapping: QuestionMapping) -> str | None:
     label = _alias("average" if mapping.operation == "average" else "total", mapping.measure)
     value = f"ROUND({aggregate}(CAST({_quote(mapping.measure)} AS DOUBLE)), 4) AS {label}"
 
-    if not mapping.dimension:
+    if not mapping.dimensions:
         return f"SELECT {value}, COUNT(*) AS row_count FROM {table}{where}"
 
-    dim = _quote(mapping.dimension)
+    selected = [f"{_quote(item)} AS {_alias(item)}" for item in mapping.dimensions]
+    ordinals = ", ".join(str(index) for index in range(1, len(selected) + 1))
     if mapping.operation == "rank":
         # The question asked for a top or bottom list, so ordering by the
         # measure is the answer rather than an artefact of the limit.
         direction = "ASC" if mapping.ascending else "DESC"
         return (
-            f"SELECT {dim} AS {_alias(mapping.dimension)}, {value}, COUNT(*) AS row_count "
-            f"FROM {table}{where} GROUP BY 1 ORDER BY 2 {direction} NULLS LAST "
+            f"SELECT {', '.join(selected)}, {value}, COUNT(*) AS row_count "
+            f"FROM {table}{where} GROUP BY {ordinals} "
+            f"ORDER BY {len(selected) + 1} {direction} NULLS LAST "
             f"LIMIT {RANK_LIMIT}"
         )
     # A breakdown. Ordered by the dimension, because ordering by the measure
@@ -1396,7 +1651,7 @@ def build_sql(mapping: QuestionMapping) -> str | None:
     # undeclared top-list -- which is exactly how a 25-of-45 result came to
     # be published as the complete breakdown.
     return (
-        f"SELECT {dim} AS {_alias(mapping.dimension)}, {value}, COUNT(*) AS row_count "
-        f"FROM {table}{where} GROUP BY 1 ORDER BY 1 NULLS LAST "
+        f"SELECT {', '.join(selected)}, {value}, COUNT(*) AS row_count "
+        f"FROM {table}{where} GROUP BY {ordinals} ORDER BY {ordinals} NULLS LAST "
         f"LIMIT {GROUP_RESULT_MAX + 1}"
     )

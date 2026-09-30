@@ -17,6 +17,26 @@ from pydantic import BaseModel, Field
 
 Scalar = str | int | float | bool | None
 
+CoverageComponent = Literal[
+    "operation",
+    "measure",
+    "dimensions",
+    "time_grain",
+    "period",
+    "filters",
+    "ranking_direction",
+]
+CoverageRejectionCode = Literal[
+    "unresolved_question",
+    "missing_requested_measure",
+    "missing_requested_grouping",
+    "missing_requested_time_grain",
+    "missing_requested_filter",
+    "changed_requested_operation",
+    "changed_ranking_direction",
+    "result_shape_too_large",
+]
+
 
 def new_result_id() -> str:
     return f"res_{uuid.uuid4().hex[:12]}"
@@ -118,6 +138,22 @@ class GroupCoverage(BaseModel):
         if self.groups_total is None:
             return None
         return max(self.groups_total - self.groups_returned, 0)
+
+
+class QuestionCoverage(BaseModel):
+    """Whether the accepted executable contract covers the question.
+
+    This is independent of planner equality and claim verification. Two
+    planners may agree on the same incomplete contract; a supported claim
+    may faithfully describe a result that answered a different question.
+    """
+
+    complete: bool
+    required_components: list[CoverageComponent] = Field(default_factory=list)
+    applied_components: list[CoverageComponent] = Field(default_factory=list)
+    missing_components: list[CoverageComponent] = Field(default_factory=list)
+    rejection_codes: list[CoverageRejectionCode] = Field(default_factory=list)
+    details: list[str] = Field(default_factory=list)
 
 
 #: Profile columns whose values are individual cells rather than summaries.

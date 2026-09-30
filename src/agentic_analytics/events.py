@@ -28,6 +28,13 @@ class EventType(StrEnum):
     RUN_STARTED = "run_started"
     DATASET_LOADED = "dataset_loaded"
     QUESTION_ANALYZED = "question_analyzed"
+    #: The question became a typed analytical contract, and who did it.
+    #: Carries the planner, the model calls it cost, how long it took and
+    #: whether the cloud plan was usable. Without this the AI lane of the
+    #: flow diagram had nothing to render, so a run that spent one model
+    #: call on planning and none on arithmetic looked identical to one
+    #: where the model had computed the answer.
+    CONTRACT_RESOLVED = "contract_resolved"
     PLAN_GENERATED = "plan_generated"
     ANALYSIS_TASK_STARTED = "analysis_task_started"
     MCP_TOOL_CALLED = "mcp_tool_called"

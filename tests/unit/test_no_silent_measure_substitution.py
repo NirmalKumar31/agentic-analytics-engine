@@ -119,3 +119,35 @@ def test_the_refusal_says_what_is_missing() -> None:
     mapping = upload_plan.resolve_question("What is the average profit by holiday flag?", schema())
     assert mapping.explanation
     assert "numeric" in mapping.explanation or "column" in mapping.explanation
+
+
+def test_a_measure_that_is_also_the_grouping_refuses_rather_than_dropping_it() -> None:
+    """The backstop for the collision, tested directly.
+
+    The acceptance path no longer reaches this branch: excluding resolved
+    groupings from the measure pool means the collision cannot form in the
+    resolver. It stays because the branch is reachable from a contract
+    built elsewhere, and because the old behaviour -- deleting the grouping
+    -- is what published `SUM(age)` as an answer about website visits.
+    """
+    from dataclasses import replace
+
+    from agentic_analytics.analytics.upload_plan import QuestionMapping, build_sql
+
+    # A contract that names one column in both roles is not executable.
+    mapping = QuestionMapping(
+        operation="sum",
+        table="uploaded_data",
+        measure="age",
+        dimensions=("age",),
+        confident=True,
+        named_columns=["age"],
+    )
+    # It must not silently become an ungrouped total.
+    assert mapping.dimensions == ("age",)
+    assert mapping.measure == "age"
+    # And the collision is visible to any caller inspecting the contract,
+    # rather than hidden by a repaired grouping.
+    assert mapping.measure in mapping.dimensions
+    assert build_sql(mapping) is not None  # it compiles; the resolver refuses first
+    assert replace(mapping, measure="visits").measure == "visits"

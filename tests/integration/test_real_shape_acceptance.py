@@ -21,6 +21,7 @@ import pytest
 from tests.corpus.runner import RemoteFakeProvider
 from tests.fixtures.retail_weekly import BRANCHES, ROWS, write_csv
 
+from agentic_analytics.analytics.upload_plan import GROUP_RESULT_MAX
 from agentic_analytics.config import Settings
 from agentic_analytics.graph.runner import RunResult, run_analysis
 from agentic_analytics.llm.fake import FakeProvider
@@ -302,3 +303,97 @@ def test_the_engines_answer_is_not_said_twice(dataset: Path) -> None:
     assert len(result.published) == 1, [f.text for f in result.published]
     rules = [v.rule for v in result.rejected]
     assert "restated_engine_answer" in rules or not rules, rules
+
+
+# ─────────────────────────────── two cuts: preserved, or refused honestly
+def test_a_store_and_month_request_preserves_both_cuts_or_refuses(
+    dataset: Path, oracle: duckdb.DuckDBPyConnection
+) -> None:
+    """The question the released build answered by dropping a cut.
+
+    "Weekly sales by store over time" returned monthly totals with no
+    store, and "by store for each month" returned store totals with no
+    month. Either answer is to a different question. The contract can now
+    carry both, so the only two honest outcomes are a complete two-cut
+    result or a refusal that says how large it would be.
+    """
+    combinations = int(
+        oracle.execute(
+            "SELECT count(*) FROM (SELECT DISTINCT Branch_No, "
+            "date_trunc('month', Trading_Date) FROM t)"
+        ).fetchone()[0]
+    )
+    assert combinations > GROUP_RESULT_MAX, (
+        f"{combinations} combinations no longer exceeds the ceiling; this test "
+        "needs a fixture that does, or it proves nothing"
+    )
+
+    result = _run(dataset, "What is the total Weekly_Revenue by Branch_No for each month?")
+
+    assert result.outcome == "refused", result.outcome
+    reason = result.stopped_reason or ""
+    assert "result_shape_too_large" in reason, reason
+    assert str(combinations) in reason, reason
+    # Neither cut was silently dropped to make it fit.
+    assert not result.published
+    assert not [s for s in result.results.values() if s.tool_name == "aggregate_for_question"]
+    coverage = result.question_coverage
+    assert coverage is not None and "result_shape_too_large" in coverage.rejection_codes
+
+
+def test_a_two_cut_request_within_the_ceiling_returns_every_combination(
+    dataset: Path, oracle: duckdb.DuckDBPyConnection
+) -> None:
+    """Both cuts, complete, when the shape fits."""
+    expected = {
+        (int(branch), str(flag)): round(float(total), 2)
+        for branch, flag, total in oracle.execute(
+            "SELECT Branch_No, Promo_Flag, sum(Weekly_Revenue) FROM t "
+            "WHERE Branch_No <= 10 GROUP BY 1, 2"
+        ).fetchall()
+    }
+    assert 1 < len(expected) <= GROUP_RESULT_MAX
+
+    result = _run(
+        dataset,
+        "What is the total Weekly_Revenue by Branch_No and Promo_Flag where Branch_No at most 10?",
+    )
+    contract = result.query_contract or {}
+    assert contract.get("dimensions") == ["Branch_No", "Promo_Flag"], contract.get("dimensions")
+    assert contract.get("dimension") is None
+
+    snapshot = _aggregate(result)
+    got = {(int(row[0]), str(row[1])): round(float(row[2]), 2) for row in snapshot.rows}
+    assert got == expected
+    assert snapshot.group_coverage is not None
+    assert snapshot.group_coverage.complete
+
+
+def test_a_monthly_trend_keeps_one_cut_and_stays_chronological(
+    dataset: Path, oracle: duckdb.DuckDBPyConnection
+) -> None:
+    """A trend is a time grain with no other grouping, and must stay that."""
+    expected = oracle.execute(
+        "SELECT strftime(date_trunc('month', Trading_Date), '%Y-%m'), "
+        "round(sum(Weekly_Revenue), 2) FROM t GROUP BY 1 ORDER BY 1"
+    ).fetchall()
+
+    result = _run(dataset, "Show the monthly trend of Weekly_Revenue")
+    contract = result.query_contract or {}
+    assert contract.get("time_grain") == "month"
+    assert contract.get("dimensions") == []
+
+    snapshot = _aggregate(result)
+    periods = [str(row[0]) for row in snapshot.rows]
+    assert periods == sorted(periods)
+    assert periods == [str(period) for period, _ in expected]
+
+
+def test_a_grain_is_not_taken_from_a_column_name(dataset: Path) -> None:
+    """`Weekly_Revenue` contains "weekly" and must not imply a weekly grain."""
+    result = _run(dataset, "What is the total Weekly_Revenue by Branch_No?")
+    contract = result.query_contract or {}
+
+    assert contract.get("time_grain") is None, contract.get("time_grain")
+    assert contract.get("operation") == "sum"
+    assert contract.get("dimensions") == ["Branch_No"]

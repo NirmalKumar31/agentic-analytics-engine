@@ -19,7 +19,7 @@ export function sampleCsv(rows = 200): string {
  * before it renders is not testing the flow.
  */
 export async function waitForReport(page: Page): Promise<void> {
-  await expect(page.getByRole('heading', { name: 'Key findings' })).toBeVisible({
+  await expect(page.getByTestId('report-panel')).toBeVisible({
     timeout: 90_000,
   })
 }

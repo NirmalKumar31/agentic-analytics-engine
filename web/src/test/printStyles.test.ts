@@ -47,11 +47,28 @@ describe("print stylesheet", () => {
     expect(block).toContain(selector);
   });
 
-  it("keeps the answer off a page boundary", () => {
-    const answer = block.slice(block.indexOf(".direct-answer {"));
-    expect(answer.slice(0, answer.indexOf("}"))).toContain(
-      "break-inside: avoid",
+  it("lets a large answer card and its table split across pages", () => {
+    // The opposite of what this asserted before, and the cause of the
+    // nearly blank pages in the saved PDFs: a card taller than a page that
+    // may not be divided is pushed whole to the next one, leaving the
+    // first mostly empty. Rows stay intact; the containers do not.
+    expect(block).toMatch(/\.direct-answer \{[^}]*break-inside: auto/);
+    expect(block).toMatch(/table\.data \{[^}]*break-inside: auto/);
+    expect(block).toMatch(/table\.data tr \{[^}]*break-inside: avoid/);
+  });
+
+  it("repeats table headers on every printed page", () => {
+    expect(block).toMatch(
+      /table\.data thead \{[^}]*display: table-header-group/,
     );
+  });
+
+  it("does not leave a heading as the last thing on a page", () => {
+    expect(block).toMatch(/break-after: avoid/);
+  });
+
+  it("hides controls that cannot be used on paper", () => {
+    expect(block).toMatch(/\.result-foot \.btn[^}]*display: none/);
   });
 
   it("does not print a control that cannot be used on paper", () => {

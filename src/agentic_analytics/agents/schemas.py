@@ -40,6 +40,7 @@ AnalysisType = Literal[
 
 UploadOperation = Literal["count", "sum", "average", "trend", "rank", "profile"]
 UploadFilterOperator = Literal["=", "!=", ">", ">=", "<", "<=", "IS NULL", "IS NOT NULL"]
+UploadTimeGrain = Literal["day", "week", "month", "quarter", "year"]
 
 
 class UploadFilterPlan(BaseModel):
@@ -72,10 +73,15 @@ class UploadQueryPlan(BaseModel):
     operation_source: str
     measure: str | None = None
     measure_source: str = ""
+    dimensions: list[str] = Field(default_factory=list, max_length=2)
+    dimension_sources: list[str] = Field(default_factory=list, max_length=2)
+    # One-release input compatibility for recordings and older scripted
+    # providers.  New providers must populate the plural fields above.
     dimension: str | None = None
     dimension_source: str = ""
     filters: list[UploadFilterPlan] = Field(default_factory=list, max_length=6)
     time_field: str | None = None
+    time_grain: UploadTimeGrain | None = None
     period_start: str | None = None
     period_end: str | None = None
     ascending: bool = False
