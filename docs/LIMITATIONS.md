@@ -313,6 +313,31 @@ engine's.
 
 ---
 
+## 5a-ii. Two cuts, and the ceiling that refuses them
+
+The contract carries at most two groupings, plus an optional time grain.
+That covers "by store", "by region and channel" and "by store for each
+month", and refuses anything wider rather than dropping a cut.
+
+The refusal is reachable on ordinary data. Store x month on 45 stores and
+33 months is 1,485 groups, against a ceiling of `min(GROUP_RESULT_MAX,
+max_result_rows)` = 500. The engine counts the shape before executing it
+and declines with the group count, the ceiling and four ways to narrow.
+
+**This is a limitation of the deployment, not of the question.** Raising
+`max_result_rows` would answer it, at a memory cost on a 512 MB instance,
+and that is a deployment decision rather than something the engine should
+take for itself. What it must not do -- and what it did -- is return the
+first 25 groups and call them the breakdown.
+
+A consequence worth stating plainly: a >200-group breakdown cannot arise
+from an *inferred* dimension at all, because a column with more than 200
+distinct values is not classified as groupable. The partial-coverage path
+is therefore exercised by the 501-group boundary test rather than by
+normal inference.
+
+---
+
 ## 5b. Exact versus conservative cost
 
 Two different numbers, and the distinction is load-bearing.

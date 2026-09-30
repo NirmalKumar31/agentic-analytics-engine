@@ -521,6 +521,51 @@ how many rows it covers.
 A result carrying no coverage block means "not a grouped answer". It never
 means "complete".
 
+### The canonical upload fast path
+
+A governed aggregate over an uploaded table needs a model once, to read the
+question. It used to need seven calls: a planner, two worker tool choices,
+a worker findings pass, a critic, a visualizer and a reporter. Only the
+first carried authority — the contract fixes the tool, DuckDB computes the
+number, and the result determines the chart — so the other six added
+latency, run-to-run variance and a redundant rejected draft.
+
+    resolve the contract   rules, or one typed cloud planning call
+    validate it            locally, against the schema and the question
+    compile SQL            deterministic
+    execute                DuckDB through MCP
+    compose the answer     from the snapshot, at the snapshot's precision
+    verify                 numeric, coverage, provenance -- no model
+    select the chart       a pure function of contract and result shape
+
+Deterministic mode makes no model call at all. The broader agent graph
+still exists for analyses that genuinely need planning over several tasks;
+canonical upload aggregates are routed past it explicitly, and a test
+pins that routing.
+
+`timings` records planning, execution, verification and a total, and
+`CONTRACT_RESOLVED` carries the planner, its model calls and whether the
+plan was usable, so the UI can say where the time went rather than leaving
+MCP as the only visible stage.
+
+### Question coverage is not planner agreement
+
+Four distinct checks, and conflating any two of them has produced a bug:
+
+| Check | Question it answers |
+|---|---|
+| Contract equality | did the two planners choose the same request? |
+| `QuestionCoverage` | does that request answer what was asked? |
+| `GroupCoverage` | does the result hold every group of it? |
+| Numeric verification | do the stated figures come from the cited cells? |
+
+`QuestionCoverage` extracts requirements from the question text and
+compares them to the executed contract. Deriving them from the contract
+instead made it a rename of `confident`: a grouping the planner had
+dropped was never "required", so nothing was ever missing. Two planners
+agreeing on an incomplete contract is reported as agreement on an
+incomplete contract, never as a successful comparison.
+
 ### What a typed AI plan may not do
 
 The cloud planner supplies language interpretation. It does not get authority

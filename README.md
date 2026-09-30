@@ -315,6 +315,22 @@ execution. A rule-detectable restriction is a lower bound: an AI plan that
 omits “aged 30 to 40”, changes an inclusive bound, or names an unknown column
 is refused. The engine composes the SQL itself and it still passes the guard.
 
+**AI Analytics uses a cloud model to translate a natural-language question
+into a typed analytical contract. SQL generation, computation, coverage
+checks, verification, tables and charts are deterministic and governed.**
+One planning call; the model never calculates a result, chooses a chart, or
+restates a number the engine computed.
+
+Supported: totals, averages, counts, minima and maxima; grouped
+breakdowns of one or two cuts; explicit filters; rankings; explicit time
+trends; and a safe refusal when the requested meaning cannot be mapped or
+the complete result would exceed the configured limit.
+
+Not supported, and refused rather than approximated: causal conclusions,
+forecasts, arbitrary joins, significance claims without an implemented
+test, invented measures or populations, and grouping by an identifier or
+near-unique text. See [ADR 0003](docs/adr/0003-bounded-upload-analytics.md).
+
 Where the rules resolve a question unambiguously, their contract is what
 executes. A cloud planner that returns `profile` for `total sales by store`
 does not cost the visitor the answer: the engine's own contract runs, the
