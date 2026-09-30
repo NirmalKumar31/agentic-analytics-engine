@@ -9,6 +9,7 @@ import { ThemeToggle, useTheme } from "./components/ThemeToggle";
 import { ModeSelector } from "./components/ModeSelector";
 import { ProvenanceDrawer } from "./components/ProvenanceDrawer";
 import { ReportView } from "./components/ReportView";
+import { runState } from "./lib/runState";
 import { RightRail } from "./components/RightRail";
 import { ApiError, api } from "./lib/api";
 import type {
@@ -462,20 +463,21 @@ export function App() {
                   ),
                 pending: Boolean(aiRun && aiRun.status === "running"),
                 usage: aiRun?.usage,
-                children: aiRun ? (
-                  <ReportView
-                    question={aiRun.question}
-                    report={aiRun.report}
-                    findings={aiRun.findings}
-                    rejected={aiRun.rejected}
-                    charts={aiRun.charts}
-                    results={aiRun.results}
-                    queryContract={aiRun.query_contract}
-                    onShowWork={(id) =>
-                      setTarget({ side: "ai", findingId: id })
-                    }
-                  />
-                ) : null,
+                children:
+                  aiRun && runState(aiRun).showsReport ? (
+                    <ReportView
+                      question={aiRun.question}
+                      report={aiRun.report}
+                      findings={aiRun.findings}
+                      rejected={aiRun.rejected}
+                      charts={aiRun.charts}
+                      results={aiRun.results}
+                      queryContract={aiRun.query_contract}
+                      onShowWork={(id) =>
+                        setTarget({ side: "ai", findingId: id })
+                      }
+                    />
+                  ) : null,
               }}
             />
           ) : (

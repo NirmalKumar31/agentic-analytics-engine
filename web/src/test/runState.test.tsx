@@ -207,3 +207,28 @@ describe("Compare Both terminal states", () => {
     }
   });
 });
+
+describe("whether a pane renders a report", () => {
+  it("renders one for every state that has a run, including a refusal", () => {
+    // `App` asks `runState` this rather than testing the status string
+    // itself. Rendering the AI report only for `status === "completed"` is
+    // what left a refused pane blank in production, and the decision was
+    // in a component no test renders.
+    for (const status of [
+      "completed",
+      "refused",
+      "failed",
+      "timeout",
+      "budget_exhausted",
+      "cancelled",
+    ]) {
+      expect(runState(run({ status })).showsReport).toBe(true);
+    }
+  });
+
+  it("renders none when there is nothing to render", () => {
+    expect(runState(null).showsReport).toBe(false);
+    expect(runState(null, { pending: true }).showsReport).toBe(false);
+    expect(runState(run({ status: "running" })).showsReport).toBe(false);
+  });
+});

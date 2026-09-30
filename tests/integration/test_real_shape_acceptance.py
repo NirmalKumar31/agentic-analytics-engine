@@ -241,3 +241,28 @@ def test_the_two_provider_modes_agree_on_this_dataset(dataset: Path) -> None:
     assert local.outcome == remote.outcome
     assert len(local.published) == len(remote.published)
     assert _answer(local) == _answer(remote)
+
+
+def test_filter_words_do_not_decide_the_analysis(dataset: Path) -> None:
+    """A clause a filter owns must not also choose the operation.
+
+    "with Avg_Temp_C at least 50" contains "least", the ranking pattern
+    matched it, the run then needed a grouping it was never given, and a
+    plain filtered total was refused.
+    """
+    result = _run(dataset, "What is the total Weekly_Revenue with Avg_Temp_C at least 50?")
+
+    assert result.outcome == "completed", result.stopped_reason
+    contract = result.query_contract or {}
+    assert contract.get("operation") == "sum"
+    assert contract.get("dimension") is None
+    assert [f["column"] for f in contract.get("filters") or []] == ["Avg_Temp_C"]
+
+
+def test_a_filtered_total_is_not_grouped_by_the_filtered_column(dataset: Path) -> None:
+    """Restricting to one value of a column is not a breakdown of it."""
+    result = _run(dataset, "What is the total Weekly_Revenue where Promo_Flag is 1?")
+
+    contract = result.query_contract or {}
+    assert contract.get("dimension") is None
+    assert [f["column"] for f in contract.get("filters") or []] == ["Promo_Flag"]
