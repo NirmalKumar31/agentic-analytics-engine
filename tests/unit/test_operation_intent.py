@@ -131,3 +131,133 @@ def test_an_explicit_grouping_is_not_discarded() -> None:
         "What is the average weekly sales by holiday flag?", SALES
     )
     assert mapping.dimension == "Holiday_Flag"
+
+
+# ─────────────────────── the same contract, whichever mode resolves it
+def _resolved(question: str, rows: list[tuple[object, ...]], header: str):
+    """Compile and execute a question against a small real table.
+
+    The mapping is a pure function of the question and the schema, so both
+    modes resolve the same contract by construction. What this pins is
+    that the *compiled query and its numbers* are the same -- the property
+    Compare Both depends on, and the one a future planner change could
+    break without any test noticing.
+    """
+    import tempfile
+    from pathlib import Path
+
+    from agentic_analytics.analytics.execute import run_query
+    from agentic_analytics.analytics.semantic import infer_schema
+    from agentic_analytics.warehouse.session import SessionManager, open_upload_session
+
+    body = "\n".join(",".join(str(v) for v in row) for row in rows)
+    manager = SessionManager()
+    with tempfile.TemporaryDirectory() as directory:
+        path = Path(directory) / "fixture.csv"
+        path.write_text(f"{header}\n{body}\n")
+        try:
+            session = manager.add(open_upload_session(path, path.name, "csv"))
+            schema = infer_schema(session, "uploaded_data").as_dict()
+            mapping = upload_plan.resolve_question(question, schema)
+            sql = upload_plan.build_sql(mapping)
+            if sql is None:
+                return mapping, None, None
+            snapshot = run_query(
+                session,
+                sql,
+                tool_name="aggregate_for_question",
+                parameters={"table": "uploaded_data"} | mapping.as_dict(),
+                guard=False,
+            )
+            return mapping, sql, snapshot
+        finally:
+            manager.close_all()
+
+
+#: A week-grained table with a flag to group by, two groups with
+#: different means, and a date column a trend could legitimately use.
+HEADER = "Store,Date,Weekly_Sales,Holiday_Flag"
+#: Sized past the cardinality threshold on purpose. Below it an integer
+#: column stays a measure rather than becoming a dimension, so a handful
+#: of rows cannot express "group by a flag" at all -- a six-row version of
+#: this fixture refused while the real 6,435-row table worked.
+#:
+#: 120 rows per flag. Means 300 and 400; totals 36,000 and 48,000.
+ROWS = [
+    (store, f"2010-{(index % 12) + 1:02d}-05", value, flag)
+    for index, (store, value, flag) in enumerate(
+        (s, v, f)
+        for s in range(1, 41)
+        for v, f in ((100.0, 0), (300.0, 0), (500.0, 0), (200.0, 1), (400.0, 1), (600.0, 1))
+    )
+]
+
+
+def test_the_grouped_average_is_computed_per_group() -> None:
+    mapping, sql, snapshot = _resolved(
+        "What is the average Weekly_Sales by Holiday_Flag?", ROWS, HEADER
+    )
+    assert snapshot is not None and sql is not None
+    assert mapping.operation == "average"
+    assert mapping.dimension == "Holiday_Flag"
+    # Every requested group, not a highest/lowest pair.
+    assert len(snapshot.rows) == 2
+    values = {str(r[0]): round(float(r[1]), 2) for r in snapshot.rows}
+    assert values == {"0": 300.0, "1": 400.0}
+
+
+def test_the_grouped_total_is_computed_per_group() -> None:
+    _, _, snapshot = _resolved("What is the total Weekly_Sales by Holiday_Flag?", ROWS, HEADER)
+    assert snapshot is not None
+    values = {str(r[0]): round(float(r[1]), 2) for r in snapshot.rows}
+    assert values == {"0": 36000.0, "1": 48000.0}
+
+
+def test_the_contract_hash_is_stable_for_one_question() -> None:
+    """Both modes resolve the contract from the question and the schema
+    alone, so the hash they compare in Compare Both must not depend on
+    anything else. Resolved twice, it has to agree with itself."""
+    first, _, _ = _resolved("What is the average Weekly_Sales by Holiday_Flag?", ROWS, HEADER)
+    second, _, _ = _resolved("What is the average Weekly_Sales by Holiday_Flag?", ROWS, HEADER)
+    assert first.contract_hash == second.contract_hash
+    assert first.contract_hash
+
+
+def test_wording_that_means_the_same_thing_hashes_the_same() -> None:
+    """`average` and `mean` are one request, so Compare Both must not
+    report an interpretation mismatch between them."""
+    a, _, _ = _resolved("average Weekly_Sales by Holiday_Flag", ROWS, HEADER)
+    b, _, _ = _resolved("mean Weekly_Sales by Holiday_Flag", ROWS, HEADER)
+    assert a.contract_hash == b.contract_hash
+
+
+def test_a_different_operation_hashes_differently() -> None:
+    """The hash has to be able to say two interpretations differ, or
+    reporting equality with it means nothing."""
+    a, _, _ = _resolved("average Weekly_Sales by Holiday_Flag", ROWS, HEADER)
+    b, _, _ = _resolved("total Weekly_Sales by Holiday_Flag", ROWS, HEADER)
+    assert a.contract_hash != b.contract_hash
+
+
+def test_a_column_literally_named_trend_does_not_request_one() -> None:
+    """The case only the column-name stripping can handle.
+
+    Narrowing the pattern removed the bare period adjectives, but `trend`
+    itself has to stay in it -- a user asking for a trend says "trend".
+    So a column *called* `trend_score` would still match unless column
+    references are removed before intent is read. The two halves of this
+    fix are otherwise redundant; this is what makes the stripping
+    load-bearing on its own.
+    """
+    sch = schema(trend_score="DOUBLE", region="VARCHAR", Date="DATE")
+    mapping = upload_plan.resolve_question("average trend_score by region", sch)
+    assert mapping.operation == "average", mapping.explanation
+    assert mapping.measure == "trend_score"
+    assert mapping.dimension == "region"
+
+
+def test_a_column_named_over_time_does_not_request_a_series() -> None:
+    sch = schema(time_series_id="BIGINT", amount="DOUBLE", region="VARCHAR", Date="DATE")
+    mapping = upload_plan.resolve_question("total amount by region", sch)
+    assert mapping.operation == "sum", mapping.explanation
+    assert mapping.dimension == "region"
