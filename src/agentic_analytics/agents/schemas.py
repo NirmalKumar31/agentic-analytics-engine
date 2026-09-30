@@ -184,7 +184,38 @@ class CandidateFinding(BaseModel):
     @field_validator("text")
     @classmethod
     def _text_is_a_claim_not_an_essay(cls, v: str) -> str:
-        return v.strip()[:400]
+        return _shorten_without_splitting_a_number(v.strip())
+
+
+#: Longest claim text kept. A claim is a sentence, not an essay.
+MAX_CLAIM_CHARS = 400
+
+
+def _shorten_without_splitting_a_number(text: str) -> str:
+    """Shorten a claim without inventing a value it never stated.
+
+    A plain slice at 400 characters cut a 45-group breakdown in the middle
+    of `301,397,792.46`, leaving `301,397`. Numeric verification then
+    rejected the engine's own complete answer for stating a value that is
+    not in its results -- and the partial summary naming two groups was
+    published in its place. The truncation created the false claim it was
+    then blamed for.
+
+    So the cut falls on the last entry boundary before the limit, and never
+    inside a run of digits, commas or a decimal point.
+    """
+    if len(text) <= MAX_CLAIM_CHARS:
+        return text
+    window = text[:MAX_CLAIM_CHARS]
+    # Prefer a complete entry: these separate the groups of a breakdown.
+    for separator in ("; ", ", ", ". ", " "):
+        cut = window.rfind(separator)
+        if cut > 0:
+            return window[:cut].rstrip(" ;,.") + "."
+    # No boundary at all: back off out of any number rather than split it.
+    while window and (window[-1].isdigit() or window[-1] in ",.-+"):
+        window = window[:-1]
+    return window.rstrip() or text[:MAX_CLAIM_CHARS]
 
 
 class Verdict(BaseModel):
