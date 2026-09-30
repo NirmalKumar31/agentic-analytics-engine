@@ -109,12 +109,21 @@ def _canonical_for(mapping: Any, results: dict[str, Any], already: list[Any]) ->
         return None
     from agentic_analytics.verification.canonical import canonical_answer
 
+    canonical: Any = getattr(mapping, "canonical_dict", lambda: {})()
+    metric_contract = isinstance(canonical, dict) and canonical.get("kind") == "metric_registry"
     for snapshot in reversed(list(results.values())):
-        if snapshot.tool_name != "aggregate_for_question":
+        expected_tool = "compute_metric" if metric_contract else "aggregate_for_question"
+        if snapshot.tool_name != expected_tool:
             continue
         finding = canonical_answer(mapping, snapshot)
         if finding is None:
             continue
+        # A model summary of one or more rows is not equivalent to the
+        # registry contract's complete answer.  It may cite the same cells
+        # (for example, only the largest region), so evidence overlap cannot
+        # suppress the canonical grouped result.
+        if metric_contract:
+            return finding
         cited = {(c.result_id, c.row, c.column) for c in finding.evidence_cells}
         for published in already:
             if cited & {(c.result_id, c.row, c.column) for c in published.evidence_cells}:
@@ -247,6 +256,26 @@ def build_graph(ctx: RunContext) -> Any:
             except (LLMError, BudgetError) as exc:
                 return _abort("the uploaded-data question could not be grounded", exc, ctx)
             analysis = analyst.analysis_from_upload_mapping(state["question"], query_mapping)
+        elif ctx.session.registry is not None:
+            # A direct metric question is resolved against the registry before
+            # any model sees it.  The old generic planner could transform
+            # "total revenue by region" into a trend or one chosen region;
+            # both outputs were cited yet did not answer the question.
+            from agentic_analytics.analytics.metric_plan import resolve_question
+
+            query_mapping = resolve_question(state["question"], ctx.session.registry)
+            if query_mapping is not None:
+                analysis = analyst.analysis_from_metric_mapping(state["question"], query_mapping)
+            else:
+                try:
+                    analysis = await analyst.analyze_question(
+                        ctx.provider,
+                        state["question"],
+                        state["dataset_catalog"],
+                        state["metric_catalog"],
+                    )
+                except (LLMError, BudgetError) as exc:
+                    return _abort("the question could not be analysed", exc, ctx)
         else:
             try:
                 analysis = await analyst.analyze_question(
@@ -286,16 +315,21 @@ def build_graph(ctx: RunContext) -> Any:
                 return _abort(
                     f"the question could not be mapped safely: {mapping.explanation}", None, ctx
                 )
+            metric_contract = mapping.canonical_dict().get("kind") == "metric_registry"
             task = AnalysisTask(
                 task_id="task_01",
                 objective="Compute the accepted query contract",
                 analysis_type=state["analysis"].analysis_type,
-                preferred_tool="aggregate_for_question",
+                preferred_tool="compute_metric" if metric_contract else "aggregate_for_question",
                 priority=1,
-                table=mapping.table,
+                required_metrics=[mapping.metric] if metric_contract and mapping.metric else [],
+                dimensions=list(mapping.dimensions) if metric_contract else [],
+                table=getattr(mapping, "table", None),
                 variables={
                     "question": state["question"],
-                    "query_contract": mapping.as_dict(),
+                    "metric_query_contract"
+                    if metric_contract
+                    else "query_contract": mapping.as_dict(),
                 },
             )
             tasks = [task]
@@ -553,6 +587,35 @@ def build_graph(ctx: RunContext) -> Any:
             else:
                 rejected.append(verdict)
 
+        # A direct metric contract is the engine's full answer.  Model prose
+        # may summarize a best segment or a trend, but neither is permitted
+        # to replace a requested grouped aggregate.  Keep the deterministic
+        # complete result rather than mixing it with partial model claims.
+        question_contract: Any = getattr(question_mapping, "canonical_dict", lambda: {})()
+        if (
+            isinstance(question_contract, dict)
+            and question_contract.get("kind") == "metric_registry"
+        ):
+            canonical_ids = {
+                item.finding_id for item in supported if item.verifier_rule == "engine_canonical"
+            }
+            for item in supported[:]:
+                if item.finding_id not in canonical_ids:
+                    supported.remove(item)
+                    rejected.append(
+                        Verdict(
+                            finding_id=item.finding_id,
+                            status="unsupported",
+                            reason=(
+                                "The engine published the complete registry-grounded answer "
+                                "instead of a partial summary."
+                            ),
+                            rule="partial_metric_answer",
+                            evidence_supported=item.evidence_supported,
+                            answers_question=False,
+                        )
+                    )
+
         # Exact duplicates, collapsed after verification rather than before.
         # A real run published "The product family 'Home' has the highest
         # total net value of 40189.25." twice, from two tasks that had found
@@ -600,6 +663,12 @@ def build_graph(ctx: RunContext) -> Any:
     def needs_followup(state: AnalysisState) -> str:
         """At most one extra round, and only when it can still help."""
         if state.get("stopped_reason"):
+            return "build_visualizations"
+        # A resolved contract has exactly one permitted computation.  A
+        # follow-up cannot safely broaden, regroup or substitute it when the
+        # resulting claim is withheld; it would recreate the partial-answer
+        # failure this contract prevents.
+        if state.get("query_mapping") is not None:
             return "build_visualizations"
         if state.get("followup_rounds", 0) >= ctx.budgets.max_followup_rounds:
             return "build_visualizations"

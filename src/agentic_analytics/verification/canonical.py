@@ -46,6 +46,15 @@ def _format(value: Decimal) -> str:
     return f"{value:,f}".rstrip("0").rstrip(".")
 
 
+def _format_metric(value: Decimal, metric_format: str) -> str:
+    """Present registry values without exposing binary floating-point noise."""
+    if metric_format == "currency":
+        return f"${value:,.2f}"
+    if metric_format == "percent":
+        return f"{value:,.2f}%"
+    return _format(value)
+
+
 def canonical_answer(
     mapping: Any, snapshot: ResultSnapshot, task_id: str | None = None
 ) -> Any | None:
@@ -60,6 +69,53 @@ def canonical_answer(
 
     if mapping is None or not getattr(mapping, "confident", False):
         return None
+    canonical: Any = getattr(mapping, "canonical_dict", lambda: {})()
+    if isinstance(canonical, dict) and canonical.get("kind") == "metric_registry":
+        if snapshot.tool_name != "compute_metric":
+            return None
+        metric = getattr(mapping, "metric", None)
+        dimensions = list(getattr(mapping, "dimensions", ()) or ())
+        if not metric or metric not in snapshot.columns:
+            return None
+        if any(dimension not in snapshot.columns for dimension in dimensions):
+            # A follow-up or an unrelated task may have computed the same
+            # metric without the required grouping.  It is not a direct
+            # answer, and it must not be allowed to crash verification.
+            return None
+        metric_format = str(getattr(mapping, "metric_format", "number"))
+        entries: list[str] = []
+        cells: list[EvidenceCell] = []
+        for row_index, _row in enumerate(snapshot.rows):
+            value_cell = snapshot.cell(row_index, metric)
+            value = as_number(value_cell, declared_type=snapshot.declared_type(metric))
+            if value is None:
+                return None
+            label = " / ".join(
+                str(snapshot.cell(row_index, dimension) or "") for dimension in dimensions
+            )
+            if not label:
+                label = metric.replace("_", " ")
+            entries.append(f"{label}: {_format_metric(value, metric_format)}")
+            cells.append(
+                EvidenceCell(
+                    result_id=snapshot.result_id,
+                    row=row_index,
+                    column=metric,
+                    value=value_cell,
+                    label=f"{metric.replace('_', ' ')} for {label}",
+                )
+            )
+        if not entries:
+            return None
+        what = metric.replace("_", " ")
+        by = " by " + " and ".join(d.replace("_", " ") for d in dimensions) if dimensions else ""
+        return CandidateFinding(
+            text=f"{what.capitalize()}{by}: " + "; ".join(entries) + ".",
+            kind="calculated_fact",
+            task_id=task_id,
+            result_ids=[snapshot.result_id],
+            evidence_cells=cells,
+        )
     operation = getattr(mapping, "operation", "")
     if operation not in _PHRASING or getattr(mapping, "dimension", None):
         return None

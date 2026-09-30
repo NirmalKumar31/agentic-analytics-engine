@@ -211,6 +211,37 @@ async def test_an_uploaded_table_is_analysed_without_a_metric_layer(
             assert snapshot.cell(cell.row, cell.column) == cell.value
 
 
+async def test_metric_layer_grouped_total_cannot_be_replanned_as_a_trend_or_one_segment(
+    warehouse_dir: Path,
+) -> None:
+    """Regression for the hosted Compare Both failure.
+
+    Both panes previously produced cited figures yet neither answered
+    ``total revenue by region``: one chose a trend and the other selected one
+    region.  The registry contract now owns the tool call and the complete
+    grouped result is the only publishable direct answer.
+    """
+    manager = SessionManager()
+    session = manager.add(open_demo_session(warehouse_dir))
+    try:
+        result = await run_analysis(
+            "What is the total revenue by region?", session, build_server(manager)
+        )
+    finally:
+        manager.close_all()
+
+    assert result.stopped_reason == ""
+    assert result.query_contract is not None
+    assert result.query_contract["metric"] == "revenue"
+    assert result.query_contract["dimensions"] == ["region"]
+    assert [call["tool_name"] for call in result.mcp_trace] == ["compute_metric"]
+    assert len(result.published) == 1, [(v.rule, v.reason) for v in result.rejected]
+    finding = result.published[0]
+    assert finding.verifier_rule == "engine_canonical"
+    assert "Revenue by region:" in finding.text
+    assert len(finding.evidence_cells) == len(result.results[finding.result_ids[0]].rows)
+
+
 async def test_an_upload_still_refuses_write_sql(tmp_path: Path) -> None:
     """The guard applies to the SQL the profiling loop composes, too."""
     from agentic_analytics.warehouse.session import open_upload_session
