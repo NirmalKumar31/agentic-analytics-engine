@@ -182,6 +182,30 @@ def _time_grain(
     return None
 
 
+#: Words that begin a row restriction. A grouping phrase's capture runs to
+#: the end of the clause, so it spills across these into the filter's own
+#: text -- and everything after one of them belongs to the restriction, not
+#: to the grouping.
+_FILTER_LEAD = re.compile(r"\b(?:where|for|with|having|whose|filtered)\b", re.IGNORECASE)
+
+
+def _grouping_head(phrase: str) -> str:
+    """The part of a grouping phrase that actually names groupings.
+
+    "by territory for headcount 41 to 50" is one phrase mentioning two
+    groupable columns, and harvesting both turned a filtered breakdown by
+    territory into a two-cut breakdown by territory and headcount.
+    Excluding every filtered column instead was too blunt: "by store where
+    store at most 10" names a column as both a grouping and a restriction,
+    which is ordinary and must keep its grouping.
+
+    The boundary is textual. What comes before the first restriction word
+    is the grouping; what follows belongs to the filter.
+    """
+    match = _FILTER_LEAD.search(phrase)
+    return phrase[: match.start()] if match else phrase
+
+
 def _unresolved_grouping(text: str, schema: dict[str, Any]) -> str | None:
     """A grouping the question named that matches nothing in the table.
 
@@ -943,15 +967,11 @@ def question_requirements(question: str, schema: dict[str, Any]) -> QuestionRequ
     # asked for, which would have failed a correct contract. The resolver
     # excludes these for the same reason; both must agree or the gate
     # fights the planner.
-    filter_claimed = {str(getattr(f, "column", "")) for f in resolution.filters}
     dimensions: list[str] = []
     for phrase in _GROUPING_PHRASE.findall(_normalise(question)):
+        head = _normalise(_grouping_head(phrase))
         for candidate in groupable:
-            if (
-                candidate not in filter_claimed
-                and candidate not in dimensions
-                and _mentions(_normalise(phrase), candidate) >= 0
-            ):
+            if candidate not in dimensions and _mentions(head, candidate) >= 0:
                 dimensions.append(candidate)
 
     # A measure is required only where the question names a column that
@@ -1159,12 +1179,9 @@ def resolve_question(question: str, schema: dict[str, Any]) -> QuestionMapping:
     # the answer.
     filter_claimed = {str(getattr(f, "column", "")) for f in resolution.filters}
     for phrase in _GROUPING_PHRASE.findall(text):
+        head = _normalise(_grouping_head(phrase))
         for candidate in groupable:
-            if (
-                candidate not in filter_claimed
-                and candidate not in requested_dimensions
-                and _mentions(_normalise(phrase), candidate) >= 0
-            ):
+            if candidate not in requested_dimensions and _mentions(head, candidate) >= 0:
                 requested_dimensions.append(candidate)
     if not requested_dimensions and operation == "rank":
         # "Which store had the highest total sales" names its grouping as
