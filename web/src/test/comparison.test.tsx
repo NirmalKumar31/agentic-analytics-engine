@@ -4,6 +4,7 @@
  */
 
 import { describe, expect, it } from "vitest";
+import { laneStages } from "../components/ExecutionLanes";
 import { compareRuns } from "../lib/comparison";
 import type {
   CanonicalContract,
@@ -164,5 +165,61 @@ describe("compareRuns", () => {
   it("says nothing before both sides finish", () => {
     expect(compareRuns(run(), null).verdict).toBe("not_comparable");
     expect(compareRuns(null, null).shareOneResult).toBe(false);
+  });
+});
+
+describe("execution lanes", () => {
+  it("shows the planner each mode used, and the shared computation", () => {
+    const withPlanning = run({
+      events: [
+        {
+          type: "contract_resolved",
+          data: { model_calls: 1, planner: "ai-grounded" },
+        },
+        { type: "mcp_tool_called", data: {} },
+      ],
+      timings: { planning_ms: 820, execution_ms: 44, verification_ms: 2 },
+    } as never);
+
+    const ai = laneStages(withPlanning, "ai");
+    const deterministicStages = laneStages(withPlanning, "deterministic");
+    expect(ai).toHaveLength(5);
+    expect(deterministicStages).toHaveLength(5);
+    const aiPlanner = ai[0]!;
+    const detPlanner = deterministicStages[0]!;
+    expect(aiPlanner.label).toBe("Cloud semantic planner");
+    expect(aiPlanner.detail).toMatch(/1 model call/);
+    expect(aiPlanner.detail).toMatch(/820ms/);
+
+    expect(detPlanner.label).toBe("Rule resolver");
+    expect(detPlanner.detail).toMatch(/no model calls/);
+
+    // Everything after the planner is the same lane.
+    expect(ai.slice(1).map((stage) => stage.label)).toEqual(
+      deterministicStages.slice(1).map((stage) => stage.label),
+    );
+    expect(ai[2]!.label).toBe("DuckDB via MCP");
+  });
+
+  it("says the planner fell back rather than implying it agreed", () => {
+    const stages = laneStages(
+      run({
+        planner_fallback: true,
+        events: [{ type: "contract_resolved", data: { model_calls: 1 } }],
+      } as never),
+      "ai",
+    );
+    expect(stages[0]!.detail).toMatch(/fell back to the rules contract/i);
+    expect(stages[0]!.state).toBe("failed");
+  });
+
+  it("marks computation skipped when the request was refused first", () => {
+    const stages = laneStages(
+      run({ status: "refused", findings: [], events: [] } as never),
+      "deterministic",
+    );
+    const compute = stages.find((stage) => stage.key === "compute")!;
+    expect(compute.state).toBe("skipped");
+    expect(compute.detail).toMatch(/refused first/i);
   });
 });

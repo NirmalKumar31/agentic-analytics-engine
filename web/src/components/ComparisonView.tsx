@@ -9,6 +9,7 @@
 
 import type { ReactNode } from "react";
 import { compareRuns } from "../lib/comparison";
+import { ExecutionLane } from "./ExecutionLanes";
 import { runState } from "../lib/runState";
 import type { RunPayload, RunUsage } from "../lib/types";
 
@@ -197,6 +198,22 @@ export function ComparisonView({ question, deterministic, ai }: Props) {
               ) : null}
             </div>
           ) : null}
+        </div>
+      </section>
+
+      <section className="panel">
+        <div className="panel-head">
+          <h2>What each mode did</h2>
+        </div>
+        <div className="panel-body">
+          <div className="lane-grid">
+            <ExecutionLane
+              run={deterministic.run}
+              mode="deterministic"
+              title="Deterministic Analytics"
+            />
+            <ExecutionLane run={ai.run} mode="ai" title="AI Analytics" />
+          </div>
         </div>
       </section>
 

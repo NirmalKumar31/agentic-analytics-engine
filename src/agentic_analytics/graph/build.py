@@ -196,6 +196,19 @@ def _verify_without_a_model(finding: Any, results: dict[str, Any], mapping: Any)
     )
 
 
+def _with_timings(state: Any, **stages: float) -> dict[str, float]:
+    """Add stage durations to whatever the run has recorded so far.
+
+    State fields without a reducer are last-write-wins, so a node returning
+    a fresh dict silently dropped the planning duration recorded upstream
+    -- and the AI lane then had no planning time to show.
+    """
+    merged = dict(state.get("timings") or {})
+    merged.update({name: round(value, 1) for name, value in stages.items()})
+    merged["total_ms"] = round(sum(v for k, v in merged.items() if k != "total_ms"), 1)
+    return merged
+
+
 def _shape_refusal(ctx: Any, mapping: Any) -> str | None:
     """A refusal when the requested breakdown is larger than the engine
     will return complete, or ``None``.
@@ -296,6 +309,8 @@ def build_graph(ctx: RunContext) -> Any:
     async def analyze_question(state: AnalysisState) -> dict[str, Any]:
         query_mapping: Any = None
         upload_schema: dict[str, Any] = {}
+        planning_started = time.perf_counter()
+        calls_before = getattr(getattr(ctx.provider, "usage", None), "attempts", 0)
         if ctx.session.registry is None and len(ctx.session.table_names) == 1:
             from agentic_analytics.analytics.semantic import infer_schema
 
@@ -346,6 +361,20 @@ def build_graph(ctx: RunContext) -> Any:
             except (LLMError, BudgetError) as exc:
                 return _abort("the question could not be analysed", exc, ctx)
 
+        planning_ms = (time.perf_counter() - planning_started) * 1000
+        planning_calls = getattr(getattr(ctx.provider, "usage", None), "attempts", 0) - calls_before
+        if query_mapping is not None:
+            ctx.events.emit(
+                EventType.CONTRACT_RESOLVED,
+                planner=str(getattr(query_mapping, "interpretation", "rule-based")),
+                model_calls=int(planning_calls),
+                duration_ms=round(planning_ms, 1),
+                fallback=bool(getattr(query_mapping, "planner_note", "")),
+                confident=bool(getattr(query_mapping, "confident", False)),
+                contract_hash=str(getattr(query_mapping, "contract_hash", "")),
+                operation=str(getattr(query_mapping, "operation", "")),
+                dimensions=list(getattr(query_mapping, "dimensions", ()) or ()),
+            )
         ctx.events.emit(
             EventType.QUESTION_ANALYZED,
             intent=analysis.intent,
@@ -363,6 +392,7 @@ def build_graph(ctx: RunContext) -> Any:
             "query_mapping": query_mapping,
             "upload_schema": upload_schema,
             "limitations": limitations,
+            "timings": {"planning_ms": round(planning_ms, 1)},
         }
 
     # ------------------------------------------------------------ fast_path
@@ -443,10 +473,9 @@ def build_graph(ctx: RunContext) -> Any:
                     limitations=rejection_limitations([verdict.rule]),
                     next_questions=[],
                 ),
-                "timings": {
-                    "execution_ms": round(execution_ms, 1),
-                    "verification_ms": round(verification_ms, 1),
-                },
+                "timings": _with_timings(
+                    state, execution_ms=execution_ms, verification_ms=verification_ms
+                ),
             }
 
         published = [critic.publish(candidate, verdict)]
@@ -496,10 +525,9 @@ def build_graph(ctx: RunContext) -> Any:
                 limitations=[],
                 next_questions=[],
             ),
-            "timings": {
-                "execution_ms": round(execution_ms, 1),
-                "verification_ms": round(verification_ms, 1),
-            },
+            "timings": _with_timings(
+                state, execution_ms=execution_ms, verification_ms=verification_ms
+            ),
         }
 
     # -------------------------------------------------------- plan_analysis
