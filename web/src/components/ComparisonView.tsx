@@ -7,40 +7,44 @@
  * the engine cannot support.
  */
 
-import type { ReactNode } from 'react'
-import type { RunPayload, RunUsage } from '../lib/types'
+import type { ReactNode } from "react";
+import { contractDifferences } from "../lib/contractDiff";
+import type { RunPayload, RunUsage } from "../lib/types";
 
 interface Side {
-  title: string
-  subtitle: string
-  run: RunPayload | null
-  error: string | null
-  pending: boolean
-  usage?: RunUsage
-  children: ReactNode
+  title: string;
+  subtitle: string;
+  run: RunPayload | null;
+  error: string | null;
+  pending: boolean;
+  usage?: RunUsage;
+  children: ReactNode;
 }
 
 interface Props {
-  question: string
-  deterministic: Side
-  ai: Side
+  question: string;
+  deterministic: Side;
+  ai: Side;
 }
 
 function statusLabel(side: Side): string {
-  if (side.error) return 'Failed'
-  if (side.pending) return 'Running'
-  if (side.run) return 'Complete'
-  return 'Not started'
+  if (side.error) return "Failed";
+  if (side.pending) return "Running";
+  if (side.run) return "Complete";
+  return "Not started";
 }
 
 function Pane({ side }: { side: Side }) {
-  const status = statusLabel(side)
+  const status = statusLabel(side);
   return (
     <section className="compare-pane" aria-label={side.title}>
       <div className="panel-head">
         <h2>{side.title}</h2>
         <span className="spacer" style={{ flex: 1 }} />
-        <span className={`tag status-${status.toLowerCase()}`} aria-live="polite">
+        <span
+          className={`tag status-${status.toLowerCase()}`}
+          aria-live="polite"
+        >
           {status}
         </span>
       </div>
@@ -71,15 +75,21 @@ function Pane({ side }: { side: Side }) {
 
       <div className="compare-body">{side.children}</div>
     </section>
-  )
+  );
 }
 
 export function ComparisonView({ question, deterministic, ai }: Props) {
-  const leftContract = deterministic.run?.query_contract
-  const rightContract = ai.run?.query_contract
-  const comparable = Boolean(leftContract && rightContract)
+  const leftContract = deterministic.run?.query_contract;
+  const rightContract = ai.run?.query_contract;
+  const comparable = Boolean(leftContract && rightContract);
   const sameContract =
-    comparable && leftContract?.contract_hash === rightContract?.contract_hash
+    comparable && leftContract?.contract_hash === rightContract?.contract_hash;
+  // Named rather than left to the reader. "Different governed
+  // interpretations" is not actionable on its own: a different measure and
+  // a dropped row restriction are very different things to have happened.
+  const differences = sameContract
+    ? []
+    : contractDifferences(leftContract, rightContract);
 
   return (
     <div className="stack">
@@ -90,21 +100,51 @@ export function ComparisonView({ question, deterministic, ai }: Props) {
         <div className="panel-body stack">
           <p style={{ margin: 0 }}>{question}</p>
           <p className="small dim" style={{ margin: 0 }}>
-            The same question, planned two ways. Deterministic Analytics uses rule-based
-            planning; AI Analytics uses a cloud model to plan and interpret. Both run the
-            same analytics engine, the same SQL guard, the same statistics, the same
-            verification and the same publication checks, against the same dataset. The
-            results are shown independently and are not ranked.
+            The same question, planned two ways. Deterministic Analytics uses
+            rule-based planning; AI Analytics uses a cloud model to plan and
+            interpret. Both run the same analytics engine, the same SQL guard,
+            the same statistics, the same verification and the same publication
+            checks, against the same dataset. The results are shown
+            independently and are not ranked.
           </p>
           {comparable ? (
             <div
-              className={`notice ${sameContract ? 'success' : 'warn'}`}
+              className={`notice ${sameContract ? "success" : "warn"}`}
               role="status"
               data-testid="contract-comparison"
             >
               {sameContract
-                ? 'Same governed interpretation: both panes executed the same measure, grouping, filters and period.'
-                : 'Different governed interpretations: these panes are not a like-for-like comparison. Review the applied analysis in each report.'}
+                ? "Same governed interpretation: both panes executed the same measure, grouping, filters and period."
+                : "Different governed interpretations: these panes are not a like-for-like comparison."}
+              {!sameContract && differences.length > 0 ? (
+                <table className="contract-diff" data-testid="contract-diff">
+                  <caption className="small dim">
+                    Where the two governed interpretations differ
+                  </caption>
+                  <thead>
+                    <tr>
+                      <th scope="col">Part of the question</th>
+                      <th scope="col">Deterministic Analytics</th>
+                      <th scope="col">AI Analytics</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {differences.map((row) => (
+                      <tr key={row.label}>
+                        <th scope="row">{row.label}</th>
+                        <td>{row.deterministic}</td>
+                        <td>{row.ai}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              ) : null}
+              {!sameContract && differences.length === 0 ? (
+                <p className="small" style={{ margin: "0.5rem 0 0" }}>
+                  The differing part of the interpretation is not one this
+                  report breaks out. Review the applied analysis in each pane.
+                </p>
+              ) : null}
             </div>
           ) : null}
         </div>
@@ -115,5 +155,5 @@ export function ComparisonView({ question, deterministic, ai }: Props) {
         <Pane side={ai} />
       </div>
     </div>
-  )
+  );
 }

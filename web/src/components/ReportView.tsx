@@ -1,16 +1,29 @@
-import { kindLabel } from '../lib/format'
-import type { ChartSpec, Finding, QueryContract, ResultSnapshot, Verdict } from '../lib/types'
-import { Chart } from './Chart'
+import {
+  answerResult,
+  directAnswer,
+  populationClauses,
+  rowsInScope,
+} from "../lib/answer";
+import { kindLabel } from "../lib/format";
+import type {
+  ChartSpec,
+  Finding,
+  QueryContract,
+  ResultSnapshot,
+  Verdict,
+} from "../lib/types";
+import { Chart } from "./Chart";
+import { ResultTable } from "./ResultTable";
 
 interface Props {
-  question: string
-  report: import('../lib/types').Report | null
-  findings: Finding[]
-  rejected: Verdict[]
-  charts: ChartSpec[]
-  results: Record<string, ResultSnapshot>
-  queryContract?: QueryContract | null
-  onShowWork: (findingId: string) => void
+  question: string;
+  report: import("../lib/types").Report | null;
+  findings: Finding[];
+  rejected: Verdict[];
+  charts: ChartSpec[];
+  results: Record<string, ResultSnapshot>;
+  queryContract?: QueryContract | null;
+  onShowWork: (findingId: string) => void;
 }
 
 export function ReportView({
@@ -23,7 +36,14 @@ export function ReportView({
   queryContract,
   onShowWork,
 }: Props) {
-  const byId = new Map(findings.map((f) => [f.finding_id, f]))
+  const byId = new Map(findings.map((f) => [f.finding_id, f]));
+  const answer = directAnswer(findings, results);
+  const answerSnapshot = answerResult(answer, results);
+  const rows = rowsInScope(answerSnapshot);
+  const population = populationClauses(queryContract);
+  const supporting = findings.filter(
+    (f) => f.finding_id !== answer?.finding_id,
+  );
 
   return (
     <div className="stack">
@@ -34,7 +54,10 @@ export function ReportView({
           <span className="small dim">
             {findings.length} published · {rejected.length} withheld
           </span>
-          <button className="btn ghost small no-print" onClick={() => window.print()}>
+          <button
+            className="btn ghost small no-print"
+            onClick={() => window.print()}
+          >
             Print / Save PDF
           </button>
         </div>
@@ -43,6 +66,65 @@ export function ReportView({
             Question
           </p>
           <p style={{ margin: 0, fontSize: 15 }}>{question}</p>
+
+          {answer ? (
+            <article
+              className="finding direct-answer"
+              data-testid="direct-answer"
+            >
+              <h3>Answer</h3>
+              <p className="answer-text">{answer.text}</p>
+              <dl className="answer-scope small">
+                <div>
+                  <dt>Population</dt>
+                  <dd data-testid="answer-population">
+                    {population.length > 0
+                      ? population.join("; ")
+                      : "every row in the dataset"}
+                  </dd>
+                </div>
+                {rows !== null ? (
+                  <div>
+                    <dt>Rows counted</dt>
+                    <dd data-testid="answer-rows">{rows.toLocaleString()}</dd>
+                  </div>
+                ) : null}
+              </dl>
+              {answerSnapshot ? (
+                <div className="answer-result">
+                  <ResultTable
+                    snapshot={answerSnapshot}
+                    highlight={answer.evidence_cells}
+                    maxRows={12}
+                  />
+                </div>
+              ) : null}
+              <div className="finding-foot">
+                <span className={`tag ${answer.verification_status}`}>
+                  {answer.verification_status === "supported"
+                    ? "Supported"
+                    : "Held back"}
+                </span>
+                <span className="spacer" style={{ flex: 1 }} />
+                <button
+                  className="btn ghost small"
+                  onClick={() => onShowWork(answer.finding_id)}
+                >
+                  Show work →
+                </button>
+              </div>
+            </article>
+          ) : (
+            <p
+              className="small dim"
+              style={{ margin: 0 }}
+              data-testid="no-direct-answer"
+            >
+              {findings.length === 0
+                ? "No verified finding answered the requested analysis."
+                : "No published finding answered this question directly; the findings below are supporting context."}
+            </p>
+          )}
 
           {queryContract?.confident ? (
             <div className="applied-analysis" data-testid="applied-analysis">
@@ -55,21 +137,23 @@ export function ReportView({
                 {queryContract.measure ? (
                   <div>
                     <dt>Measure</dt>
-                    <dd>{queryContract.measure.replaceAll('_', ' ')}</dd>
+                    <dd>{queryContract.measure.replaceAll("_", " ")}</dd>
                   </div>
                 ) : null}
                 {queryContract.dimension ? (
                   <div>
                     <dt>Grouped by</dt>
-                    <dd>{queryContract.dimension.replaceAll('_', ' ')}</dd>
+                    <dd>{queryContract.dimension.replaceAll("_", " ")}</dd>
                   </div>
                 ) : null}
                 {queryContract.filters.map((filter, index) => (
                   <div key={`${filter.column}-${filter.operator}-${index}`}>
                     <dt>Filter</dt>
                     <dd>
-                      {filter.column.replaceAll('_', ' ')} {filter.operator}
-                      {filter.value === null || filter.value === '' ? '' : ` ${filter.value}`}
+                      {filter.column.replaceAll("_", " ")} {filter.operator}
+                      {filter.value === null || filter.value === ""
+                        ? ""
+                        : ` ${filter.value}`}
                     </dd>
                   </div>
                 ))}
@@ -87,7 +171,13 @@ export function ReportView({
 
           {report && (
             <>
-              <h3 style={{ margin: '6px 0 0', fontSize: 13, color: 'var(--text-muted)' }}>
+              <h3
+                style={{
+                  margin: "6px 0 0",
+                  fontSize: 13,
+                  color: "var(--text-muted)",
+                }}
+              >
                 Executive summary
               </h3>
               <p className="muted" style={{ margin: 0 }}>
@@ -102,24 +192,38 @@ export function ReportView({
         <div className="panel-head">
           <h2>Key findings</h2>
           <span className="spacer" />
-          <span className="small dim">click any finding to see how it was derived</span>
+          <span className="small dim">
+            click any finding to see how it was derived
+          </span>
         </div>
         <div className="panel-body stack">
-          {findings.length === 0 ? (
+          {supporting.length === 0 ? (
             <p className="small dim" style={{ margin: 0 }}>
-              No verified finding answered the requested analysis.
+              {answer
+                ? "The answer above is the only published finding."
+                : "None were published for this question."}
             </p>
           ) : (
-            findings.map((finding) => (
-              <article className={`finding ${finding.kind}`} key={finding.finding_id}>
+            supporting.map((finding) => (
+              <article
+                className={`finding ${finding.kind}`}
+                key={finding.finding_id}
+              >
                 <p className="finding-text">{finding.text}</p>
                 <div className="finding-foot">
                   <span className={`tag ${finding.verification_status}`}>
-                    {finding.verification_status === 'supported' ? 'Supported' : 'Held back'}
+                    {finding.verification_status === "supported"
+                      ? "Supported"
+                      : "Held back"}
                   </span>
-                  <span className={`tag ${finding.kind}`}>{kindLabel(finding.kind)}</span>
+                  <span className={`tag ${finding.kind}`}>
+                    {kindLabel(finding.kind)}
+                  </span>
                   <span className="spacer" style={{ flex: 1 }} />
-                  <button className="btn ghost small" onClick={() => onShowWork(finding.finding_id)}>
+                  <button
+                    className="btn ghost small"
+                    onClick={() => onShowWork(finding.finding_id)}
+                  >
                     Show work →
                   </button>
                 </div>
@@ -161,19 +265,21 @@ export function ReportView({
                 {section.finding_ids.length > 0 && (
                   <div className="chip-row">
                     {section.finding_ids.map((id) => {
-                      const finding = byId.get(id)
-                      const ordinal = finding ? findings.indexOf(finding) + 1 : null
+                      const finding = byId.get(id);
+                      const ordinal = finding
+                        ? findings.indexOf(finding) + 1
+                        : null;
                       return (
                         <button
                           key={id}
                           className="chip"
                           onClick={() => onShowWork(id)}
                           title={finding?.text}
-                          style={{ cursor: 'pointer' }}
+                          style={{ cursor: "pointer" }}
                         >
-                          {ordinal ? `Finding ${ordinal}` : 'Finding'}
+                          {ordinal ? `Finding ${ordinal}` : "Finding"}
                         </button>
-                      )
+                      );
                     })}
                   </div>
                 )}
@@ -188,12 +294,16 @@ export function ReportView({
           <div className="panel-head">
             <h2>Withheld findings</h2>
             <span className="spacer" />
-            <span className="small dim">proposed but withheld by publication checks</span>
+            <span className="small dim">
+              proposed but withheld by publication checks
+            </span>
           </div>
           <div className="panel-body stack">
             {rejected.map((verdict) => (
               <div className="notice" key={verdict.finding_id}>
-                <span className={`tag ${verdict.status}`}>{verdict.status.replace('_', ' ')}</span>{' '}
+                <span className={`tag ${verdict.status}`}>
+                  {verdict.status.replace("_", " ")}
+                </span>{" "}
                 {verdict.reason}
               </div>
             ))}
@@ -201,39 +311,40 @@ export function ReportView({
         </section>
       )}
 
-      {report && (report.limitations.length > 0 || report.next_questions.length > 0) && (
-        <section className="panel">
-          <div className="panel-head">
-            <h2>Limitations and next questions</h2>
-          </div>
-          <div className="panel-body stack">
-            {report.limitations.length > 0 && (
-              <div>
-                <p className="small dim" style={{ margin: '0 0 6px' }}>
-                  Limitations
-                </p>
-                <ul className="list small">
-                  {report.limitations.map((item) => (
-                    <li key={item}>{item}</li>
-                  ))}
-                </ul>
-              </div>
-            )}
-            {report.next_questions.length > 0 && (
-              <div>
-                <p className="small dim" style={{ margin: '0 0 6px' }}>
-                  Worth asking next
-                </p>
-                <ul className="list small">
-                  {report.next_questions.map((item) => (
-                    <li key={item}>{item}</li>
-                  ))}
-                </ul>
-              </div>
-            )}
-          </div>
-        </section>
-      )}
+      {report &&
+        (report.limitations.length > 0 || report.next_questions.length > 0) && (
+          <section className="panel">
+            <div className="panel-head">
+              <h2>Limitations and next questions</h2>
+            </div>
+            <div className="panel-body stack">
+              {report.limitations.length > 0 && (
+                <div>
+                  <p className="small dim" style={{ margin: "0 0 6px" }}>
+                    Limitations
+                  </p>
+                  <ul className="list small">
+                    {report.limitations.map((item) => (
+                      <li key={item}>{item}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              {report.next_questions.length > 0 && (
+                <div>
+                  <p className="small dim" style={{ margin: "0 0 6px" }}>
+                    Worth asking next
+                  </p>
+                  <ul className="list small">
+                    {report.next_questions.map((item) => (
+                      <li key={item}>{item}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
+          </section>
+        )}
     </div>
-  )
+  );
 }

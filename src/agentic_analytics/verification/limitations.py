@@ -66,6 +66,10 @@ _REASONS: tuple[tuple[str, str], ...] = (
     ("wrong_period", "the executed result covered a different time period"),
     ("wrong_output_shape", "the executed result did not have the requested answer shape"),
     (
+        "wrong_sort_order",
+        "the executed result ranked the rows in the opposite direction from the one asked for",
+    ),
+    (
         "critic",
         "the verifier judged the cited results not to support them",
     ),

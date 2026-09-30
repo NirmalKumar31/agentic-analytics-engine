@@ -16,6 +16,7 @@ from agentic_analytics.verification.constraints import (
 
 WRONG_PERIOD = "wrong_period"
 WRONG_OUTPUT_SHAPE = "wrong_output_shape"
+WRONG_SORT_ORDER = "wrong_sort_order"
 
 
 @dataclass(frozen=True)
@@ -30,6 +31,10 @@ class AnswerCoverage:
     filters: bool = True
     period: bool = True
     output_shape: bool = True
+    #: Whether the executed result ranked the way the question asked.
+    #: Direction is the whole of a ranking question and every other
+    #: component agrees when it is wrong, so nothing else here catches it.
+    sort_order: bool = True
     rule: str = ""
     reason: str = ""
     required: dict[str, Any] = field(default_factory=dict)
@@ -45,6 +50,7 @@ class AnswerCoverage:
             "filters": self.filters,
             "period": self.period,
             "output_shape": self.output_shape,
+            "sort_order": self.sort_order,
             "rule": self.rule,
             "reason": self.reason,
             "required": self.required,
@@ -109,6 +115,7 @@ def _failure(
         filters=missing != "filters",
         period=missing != "period",
         output_shape=missing != "output_shape",
+        sort_order=missing != "sort_order",
         rule=rule,
         reason=reason,
         required=mapping.canonical_dict(),
@@ -225,6 +232,26 @@ def check_answer_coverage(mapping: Any, snapshots: list[Any]) -> AnswerCoverage:
                 )
             )
             continue
+
+        # A ranking executed the other way round is the bottom of the table
+        # presented as the top. The operation, measure, grouping, filters
+        # and period all match, so every other component above passes.
+        if not metric_contract and operation == "rank":
+            wanted_order = bool(getattr(mapping, "ascending", False))
+            if bool(params.get("ascending", False)) != wanted_order:
+                failures.append(
+                    _failure(
+                        mapping,
+                        rule=WRONG_SORT_ORDER,
+                        reason=(
+                            "the question asks for the "
+                            f"{'lowest' if wanted_order else 'highest'} value, but this "
+                            "result was ranked the other way round"
+                        ),
+                        missing="sort_order",
+                    )
+                )
+                continue
 
         if not _shape_holds(snapshot, mapping):
             failures.append(

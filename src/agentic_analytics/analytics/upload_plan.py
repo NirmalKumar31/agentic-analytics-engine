@@ -227,6 +227,49 @@ def _base_numeric(declared: str) -> bool:
     return declared.split("(")[0].strip().upper() in _GROUPABLE_NUMERIC
 
 
+def _groupable(schema: dict[str, Any]) -> list[str]:
+    """Columns this engine will group by, in preference order.
+
+    A near-unique text column is classified as an identifier and kept out
+    of `dimensions` precisely because grouping by it puts its raw values
+    into the result as group labels -- and from there into a remote
+    prompt. Widening to every column reopened that: three privacy tests
+    caught an uploaded city name reaching a prompt. A numeric column
+    named in a `by` phrase carries no such disclosure.
+
+    Shared with the AI plan validator on purpose. When only the rule path
+    consulted this list, a cloud plan could group by an identifier that
+    the rules would not offer, and the boundary held in one mode only.
+    """
+    dimensions = [str(c) for c in schema.get("dimensions", [])]
+    return dimensions + [
+        name
+        for f in schema.get("fields") or []
+        if (name := str(f.get("name", "")))
+        and name not in dimensions
+        and _base_numeric(str(f.get("data_type") or f.get("type") or ""))
+    ]
+
+
+def _named_period(question: str, schema: dict[str, Any]) -> tuple[str, str] | None:
+    """The period this question states, as inclusive ISO bounds.
+
+    Read from the question with any column name removed first. A column
+    called `2024 sales ($)` otherwise made every question about it a
+    question about the year 2024, and the table had no date column to
+    apply that to, so it was refused.
+
+    Date arithmetic is rule-owned in both modes. There is nothing for a
+    language model to add here -- "Q2 2025" has one correct pair of bounds
+    -- and a model that supplies its own can only agree or narrow the
+    population without saying so.
+    """
+    from agentic_analytics.agents.timescope import parse_time_scope
+
+    window = parse_time_scope(_without_column_names(question, schema))
+    return None if window is None else (window.start, window.end)
+
+
 def _unresolved_measure(text: str, schema: dict[str, Any]) -> str | None:
     """A measure the question named that matches nothing in the table.
 
@@ -508,12 +551,22 @@ def mapping_from_plan(question: str, schema: dict[str, Any], plan: Any) -> Quest
 
     if dimension is not None:
         dimension = str(dimension)
-        # A named numeric column can be a grouping even when the inference
-        # layer did not classify it as a dimension.  The source excerpt is
-        # the authority that the visitor actually asked for it.
         if dimension not in fields:
             return refuse(
                 f"the AI plan named a grouping column this table does not have: {dimension!r}"
+            )
+        # A named numeric column can be a grouping even when the inference
+        # layer did not classify it as a dimension, and the source excerpt
+        # is the authority that the visitor asked for it.  An identifier or
+        # a free-text column cannot: grouping by one puts its raw values
+        # into the result as group labels, and from there into a remote
+        # prompt.  Checking only `fields` here left that boundary holding
+        # in deterministic mode alone -- an AI plan could group by
+        # `customer_name` on a question the rules refuse outright.
+        if dimension not in _groupable(schema):
+            return refuse(
+                f"the AI plan asked to group by {dimension!r}, which this engine does not "
+                "offer as a grouping"
             )
         if not _source_is_in_question(str(payload.get("dimension_source", "")), question):
             return refuse("the AI plan did not ground its grouping in the question")
@@ -524,6 +577,16 @@ def mapping_from_plan(question: str, schema: dict[str, Any], plan: Any) -> Quest
         time_field = str(time_field)
         if time_field not in time_fields:
             return refuse(f"the AI plan named {time_field!r} as a time field, but it is not one")
+
+    # The column a period filters is not the same thing as the axis a trend
+    # is drawn along, and a model is only ever asked for the latter. A
+    # contract being revalidated carries both, so it is read here rather
+    # than folded into one field; see the construction at the end.
+    period_field = payload.get("period_field") or time_field
+    if period_field is not None:
+        period_field = str(period_field)
+        if period_field not in time_fields:
+            return refuse(f"the AI plan named {period_field!r} as a time field, but it is not one")
 
     filter_specs = [
         item.model_dump() if hasattr(item, "model_dump") else dict(item)
@@ -568,7 +631,7 @@ def mapping_from_plan(question: str, schema: dict[str, Any], plan: Any) -> Quest
     end = payload.get("period_end")
     period: tuple[str, str] | None = None
     if start is not None or end is not None:
-        if not (start and end and time_field):
+        if not (start and end and period_field):
             return refuse("the AI plan supplied only part of a time restriction")
         try:
             start_date = date.fromisoformat(str(start))
@@ -579,6 +642,25 @@ def mapping_from_plan(question: str, schema: dict[str, Any], plan: Any) -> Quest
             return refuse("the AI plan supplied a reversed time period")
         period = (str(start), str(end))
 
+    # The period must be the one the question states, not one the plan
+    # chose.  Both directions matter and only one was covered: a plan that
+    # drops "in Q2" is caught downstream as a missing restriction, but a
+    # plan that *adds* a period narrows the population with nothing in the
+    # question behind it, and the answer published is to a different
+    # question.  Asked "what is the average annual revenue", a plan
+    # restricting to 2024 was executed.
+    stated = _named_period(question, schema)
+    if period != stated:
+        if stated is None:
+            return refuse("the AI plan applied a time period the question did not state")
+        if period is None:
+            if not time_fields:
+                return refuse(
+                    "the question names a period, and this table has no date column to apply it to"
+                )
+            return refuse("the AI plan dropped the time period stated in the question")
+        return refuse("the AI plan changed the time period stated in the question")
+
     # Protect explicit rule-resolved components from being reinterpreted.
     rules = resolve_question(question, schema)
     if rules.confident:
@@ -588,15 +670,28 @@ def mapping_from_plan(question: str, schema: dict[str, Any], plan: Any) -> Quest
             return refuse("the AI plan changed the measure explicitly named in the question")
         if rules.dimension in rules.named_columns and dimension != rules.dimension:
             return refuse("the AI plan changed the grouping explicitly named in the question")
+        # Direction is the whole of a ranking question.  "Which region has
+        # the highest revenue" answered ascending is the bottom of the
+        # table presented as the top, and every other field agrees, so
+        # nothing downstream can notice.
+        if rules.operation == "rank" and bool(payload.get("ascending", False)) != rules.ascending:
+            return refuse("the AI plan reversed the ranking direction the question asked for")
 
     return QuestionMapping(
         operation=operation,  # type: ignore[arg-type]
         table=table,
         measure=measure,
         dimension=dimension,
-        time_field=time_field,
+        # `time_field` is the axis `build_sql` groups a trend along, and
+        # the rule path leaves it unset for every other operation. Setting
+        # it here from the plan's date column put a trend axis on a rank,
+        # which changed the canonical contract without changing the SQL --
+        # so the engine's own accepted contract failed its own
+        # revalidation, and every non-trend question naming a period
+        # ("what was the total revenue in 2024") published nothing.
+        time_field=time_field if operation == "trend" else None,
         period=period,
-        period_field=time_field if period else None,
+        period_field=period_field if period else None,
         filters=resolution.filters,
         ascending=bool(payload.get("ascending", False)),
         confident=True,
@@ -644,6 +739,7 @@ def mapping_from_contract(
             for item in (contract.get("filters") or [])
         ],
         "time_field": contract.get("time_field") or contract.get("period_field"),
+        "period_field": contract.get("period_field") or contract.get("time_field"),
         "period_start": period[0],
         "period_end": period[1],
         "ascending": bool(contract.get("ascending", False)),
@@ -680,17 +776,9 @@ def resolve_question(question: str, schema: dict[str, Any]) -> QuestionMapping:
     # A period the question named. Needs a time column to apply to; without
     # one there is nothing to filter and the question is refused below
     # rather than answered over the whole table.
-    from agentic_analytics.agents.timescope import parse_time_scope
-
-    # Read the period from the question with any column name the question
-    # mentions removed first. A column called `2024 sales ($)` otherwise
-    # made every question about it a question about the year 2024, and the
-    # table had no date column to apply that to, so it was refused.
-    period_text = _without_column_names(question, schema)
-    window = parse_time_scope(period_text)
-    named_period: tuple[str, str] | None = None
+    named_period = _named_period(question, schema)
     period_field: str | None = None
-    if window is not None:
+    if named_period is not None:
         if not time_fields:
             return QuestionMapping(
                 operation="profile",
@@ -701,7 +789,6 @@ def resolve_question(question: str, schema: dict[str, Any]) -> QuestionMapping:
                 ),
                 named_columns=[],
             )
-        named_period = (window.start, window.end)
         period_field = time_fields[0]
 
     # Row restrictions, resolved before anything else is decided.
@@ -808,19 +895,8 @@ def resolve_question(question: str, schema: dict[str, Any]) -> QuestionMapping:
     dimension: str | None = None
     # Widened to *numeric* columns only, never to text.
     #
-    # A near-unique text column is classified as an identifier and kept out
-    # of `dimensions` precisely because grouping by it puts its raw values
-    # into the result as group labels -- and from there into a remote
-    # prompt. Widening to every column reopened that: three privacy tests
-    # caught an uploaded city name reaching a prompt. A numeric column
-    # named in a `by` phrase carries no such disclosure.
-    groupable = list(dimensions) + [
-        name
-        for f in schema.get("fields") or []
-        if (name := str(f.get("name", "")))
-        and name not in dimensions
-        and _base_numeric(str(f.get("data_type") or f.get("type") or ""))
-    ]
+    # See `_groupable` for why text columns are not widened into.
+    groupable = _groupable(schema)
     for phrase in _GROUPING_PHRASE.findall(text):
         for candidate in groupable:
             if _mentions(_normalise(phrase), candidate) >= 0:
