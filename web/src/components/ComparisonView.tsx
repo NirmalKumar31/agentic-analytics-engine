@@ -8,6 +8,7 @@
  */
 
 import type { ReactNode } from 'react'
+import { contractDifferences } from '../lib/contractDiff'
 import type { RunPayload, RunUsage } from '../lib/types'
 
 interface Side {
@@ -80,6 +81,10 @@ export function ComparisonView({ question, deterministic, ai }: Props) {
   const comparable = Boolean(leftContract && rightContract)
   const sameContract =
     comparable && leftContract?.contract_hash === rightContract?.contract_hash
+  // Named rather than left to the reader. "Different governed
+  // interpretations" is not actionable on its own: a different measure and
+  // a dropped row restriction are very different things to have happened.
+  const differences = sameContract ? [] : contractDifferences(leftContract, rightContract)
 
   return (
     <div className="stack">
@@ -104,7 +109,36 @@ export function ComparisonView({ question, deterministic, ai }: Props) {
             >
               {sameContract
                 ? 'Same governed interpretation: both panes executed the same measure, grouping, filters and period.'
-                : 'Different governed interpretations: these panes are not a like-for-like comparison. Review the applied analysis in each report.'}
+                : 'Different governed interpretations: these panes are not a like-for-like comparison.'}
+              {!sameContract && differences.length > 0 ? (
+                <table className="contract-diff" data-testid="contract-diff">
+                  <caption className="small dim">
+                    Where the two governed interpretations differ
+                  </caption>
+                  <thead>
+                    <tr>
+                      <th scope="col">Part of the question</th>
+                      <th scope="col">Deterministic Analytics</th>
+                      <th scope="col">AI Analytics</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {differences.map((row) => (
+                      <tr key={row.label}>
+                        <th scope="row">{row.label}</th>
+                        <td>{row.deterministic}</td>
+                        <td>{row.ai}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              ) : null}
+              {!sameContract && differences.length === 0 ? (
+                <p className="small" style={{ margin: '0.5rem 0 0' }}>
+                  The differing part of the interpretation is not one this report breaks
+                  out. Review the applied analysis in each pane.
+                </p>
+              ) : null}
             </div>
           ) : null}
         </div>

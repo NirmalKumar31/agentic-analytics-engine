@@ -432,6 +432,27 @@ pre.sql {
 .notice.success { border-color: rgb(var(--supported-rgb) / 45%); color: var(--supported); }
 .notice.info { border-color: var(--border-strong); }
 
+/* Where two governed interpretations of one question diverge. Inside a
+   `.notice`, so it inherits that block's warn colouring. */
+.contract-diff {
+  width: 100%;
+  margin: 10px 0 0;
+  border-collapse: collapse;
+  font-size: 13px;
+  color: var(--text);
+}
+.contract-diff caption { text-align: left; padding-bottom: 6px; }
+.contract-diff th,
+.contract-diff td {
+  text-align: left;
+  padding: 5px 9px 5px 0;
+  border-top: 1px solid var(--border);
+  vertical-align: top;
+  overflow-wrap: anywhere;
+}
+.contract-diff thead th { border-top: 0; color: var(--text-muted); font-weight: 600; }
+.contract-diff tbody th { color: var(--text-dim); font-weight: 500; white-space: nowrap; }
+
 .applied-analysis {
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);

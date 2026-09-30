@@ -182,7 +182,14 @@ export interface QueryFilter {
   source_text?: string
 }
 
-export interface QueryContract {
+/**
+ * The semantic contract, stable across planner implementations.
+ *
+ * Deliberately excludes `explanation` and `interpretation`: those record who
+ * read the wording, which differs between the two modes by construction and
+ * would make every comparison read as a disagreement.
+ */
+export interface CanonicalContract {
   operation: string
   table: string
   measure?: string | null
@@ -192,10 +199,14 @@ export interface QueryContract {
   period_field?: string | null
   filters: QueryFilter[]
   ascending: boolean
+}
+
+export interface QueryContract extends CanonicalContract {
   confident: boolean
   explanation: string
   interpretation: string
   contract_hash: string
+  canonical_contract?: CanonicalContract | null
 }
 
 export type EventType =
