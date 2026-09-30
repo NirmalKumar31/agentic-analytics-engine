@@ -599,22 +599,23 @@ def build_graph(ctx: RunContext) -> Any:
             canonical_ids = {
                 item.finding_id for item in supported if item.verifier_rule == "engine_canonical"
             }
-            for item in supported[:]:
-                if item.finding_id not in canonical_ids:
-                    supported.remove(item)
-                    rejected.append(
-                        Verdict(
-                            finding_id=item.finding_id,
-                            status="unsupported",
-                            reason=(
-                                "The engine published the complete registry-grounded answer "
-                                "instead of a partial summary."
-                            ),
-                            rule="partial_metric_answer",
-                            evidence_supported=item.evidence_supported,
-                            answers_question=False,
+            if canonical_ids:
+                for item in supported[:]:
+                    if item.finding_id not in canonical_ids:
+                        supported.remove(item)
+                        rejected.append(
+                            Verdict(
+                                finding_id=item.finding_id,
+                                status="unsupported",
+                                reason=(
+                                    "The engine published the complete registry-grounded answer "
+                                    "instead of a partial summary."
+                                ),
+                                rule="partial_metric_answer",
+                                evidence_supported=item.evidence_supported,
+                                answers_question=False,
+                            )
                         )
-                    )
 
         # Exact duplicates, collapsed after verification rather than before.
         # A real run published "The product family 'Home' has the highest
