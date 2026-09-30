@@ -60,6 +60,12 @@ class AnalysisState(TypedDict, total=False):
     # The validated uploaded-data contract.  Kept as Any because the graph
     # state schema must not import the analytics compiler's dataclass.
     query_mapping: Any
+    #: The inferred schema for a single uploaded table, as a plain dict.
+    #: Carried so question coverage can re-read what the question asked
+    #: for without consulting the contract that answered it -- deriving
+    #: requirements from the contract is what made the first coverage gate
+    #: vacuous.
+    upload_schema: dict[str, Any]
     plan: AnalysisPlan
     pending_tasks: list[AnalysisTask]
     task_outcomes: Annotated[list[TaskOutcome], merge_outcomes]

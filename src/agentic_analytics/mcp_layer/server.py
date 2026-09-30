@@ -185,7 +185,7 @@ def _attach_group_coverage(
     if not upload_plan.is_breakdown(mapping):
         return
 
-    ceiling = upload_plan.GROUP_RESULT_MAX
+    ceiling = min(upload_plan.GROUP_RESULT_MAX, budgets.max_result_rows)
     # Two different limits can cut a breakdown short, and either one means
     # the answer is partial. The probe row is the query's own limit; the
     # transport limit fires first when `max_result_rows` is at or below the
@@ -248,7 +248,7 @@ def _attach_group_coverage(
         rows_matching=rows_matching,
         rows_represented=rows_represented,
         query_limit=ceiling if overflowed else None,
-        ordering="dimension",
+        ordering="period" if mapping.operation == "trend" else "dimension",
         ranked_by_request=False,
     )
 
@@ -755,6 +755,31 @@ def build_server(manager: SessionManager, settings: Settings | None = None) -> M
             if len(json.dumps(contract, sort_keys=True).encode("utf-8")) > 16_384:
                 raise ToolError("the query contract is too large")
             mapping = upload_plan.mapping_from_contract(question, schema.as_dict(), contract)
+        # Count the requested result shape before executing it.  Returning
+        # the first N groups is not an approximation of a breakdown: it is a
+        # different answer whose missing groups may contain most of the
+        # population.  Refuse with an actionable bound instead.
+        coverage_sql = upload_plan.build_coverage_sql(mapping)
+        if coverage_sql:
+            coverage = _guarded(
+                run_query,
+                session,
+                coverage_sql,
+                tool_name="aggregate_for_question:shape",
+                max_rows=1,
+                timeout_seconds=budgets.query_timeout_seconds,
+                max_sql_length=budgets.max_sql_length,
+            )
+            if coverage.rows:
+                groups_total = int(coverage.to_records()[0].get("groups_total") or 0)
+                ceiling = min(upload_plan.GROUP_RESULT_MAX, budgets.max_result_rows)
+                if groups_total > ceiling:
+                    raise ToolError(
+                        "result_shape_too_large: the requested breakdown has "
+                        f"{groups_total} groups, above the safe limit of {ceiling}; "
+                        "narrow the period, add a row filter, remove one grouping, "
+                        "or ask for a top/bottom ranking"
+                    )
         sql = upload_plan.build_sql(mapping)
         if sql is None:
             # Refusing is the feature. Returning the sum of whichever numeric

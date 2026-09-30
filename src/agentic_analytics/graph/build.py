@@ -196,6 +196,52 @@ def _verify_without_a_model(finding: Any, results: dict[str, Any], mapping: Any)
     )
 
 
+def _shape_refusal(ctx: Any, mapping: Any) -> str | None:
+    """A refusal when the requested breakdown is larger than the engine
+    will return complete, or ``None``.
+
+    Counted before anything is dispatched. The MCP tool guards the same
+    ceiling, but a tool error ends the run as a *failure*: the reason lands
+    in a task's diagnostics, the stop reason stays the generic "no analysis
+    task produced a usable result", and a bounded engine declining a large
+    request is reported as if it had broken. Refusing here keeps the reason
+    and the outcome honest.
+    """
+    from agentic_analytics.analytics import upload_plan
+    from agentic_analytics.analytics.execute import QueryError, run_query
+
+    if mapping is None or not getattr(mapping, "confident", False):
+        return None
+    if not upload_plan.is_breakdown(mapping):
+        return None
+    sql = upload_plan.build_coverage_sql(mapping)
+    if not sql:
+        return None
+    ceiling = min(upload_plan.GROUP_RESULT_MAX, ctx.budgets.max_result_rows)
+    try:
+        counted = run_query(
+            ctx.session,
+            sql,
+            tool_name="shape_preflight",
+            max_rows=1,
+            timeout_seconds=ctx.budgets.query_timeout_seconds,
+            max_sql_length=ctx.budgets.max_sql_length,
+        )
+    except QueryError:  # pragma: no cover - the tool guard still applies
+        return None
+    if not counted.rows:
+        return None
+    groups = int(counted.to_records()[0].get("groups_total") or 0)
+    if groups <= ceiling:
+        return None
+    cuts = ", ".join(getattr(mapping, "dimensions", ()) or ()) or "the requested grouping"
+    return (
+        f"result_shape_too_large: a complete breakdown by {cuts} has {groups} groups, "
+        f"above the {ceiling} this engine will return complete. Narrow the period, "
+        "add a row filter, remove one grouping, or ask for a top or bottom ranking."
+    )
+
+
 def _resolve_intent(ctx: Any, question: str) -> Any:
     """The question mapped onto an uploaded table, or `None`.
 
@@ -249,17 +295,25 @@ def build_graph(ctx: RunContext) -> Any:
     # ----------------------------------------------------- analyze_question
     async def analyze_question(state: AnalysisState) -> dict[str, Any]:
         query_mapping: Any = None
+        upload_schema: dict[str, Any] = {}
         if ctx.session.registry is None and len(ctx.session.table_names) == 1:
             from agentic_analytics.analytics.semantic import infer_schema
 
             table = next(iter(ctx.session.table_names))
             schema = infer_schema(ctx.session, table).as_dict()
+            upload_schema = schema
             try:
                 query_mapping = await analyst.resolve_upload_query(
                     ctx.provider, state["question"], schema
                 )
             except (LLMError, BudgetError) as exc:
                 return _abort("the uploaded-data question could not be grounded", exc, ctx)
+            refusal = _shape_refusal(ctx, query_mapping)
+            if refusal:
+                return _abort(refusal, None, ctx) | {
+                    "query_mapping": query_mapping,
+                    "upload_schema": upload_schema,
+                }
             analysis = analyst.analysis_from_upload_mapping(state["question"], query_mapping)
         elif ctx.session.registry is not None:
             # A direct metric question is resolved against the registry before
@@ -307,6 +361,7 @@ def build_graph(ctx: RunContext) -> Any:
         return {
             "analysis": analysis,
             "query_mapping": query_mapping,
+            "upload_schema": upload_schema,
             "limitations": limitations,
         }
 
@@ -350,7 +405,7 @@ def build_graph(ctx: RunContext) -> Any:
                         "analysis_type": task.analysis_type,
                         "preferred_tool": task.preferred_tool,
                         "metrics": [mapping.measure] if mapping.measure else [],
-                        "dimensions": [mapping.dimension] if mapping.dimension else [],
+                        "dimensions": list(mapping.dimensions),
                         "priority": task.priority,
                     }
                 ],

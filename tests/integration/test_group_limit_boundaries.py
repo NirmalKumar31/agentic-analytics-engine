@@ -101,24 +101,47 @@ def test_exactly_the_ceiling_is_still_complete(tmp_path: Path) -> None:
     assert len(snapshot.rows) == GROUP_RESULT_MAX
 
 
-def test_one_group_past_the_ceiling_is_reported_as_partial(tmp_path: Path) -> None:
-    """The engine asks for one group more than it accepts, so it can tell."""
+def test_one_group_past_the_ceiling_is_refused_with_an_actionable_reason(
+    tmp_path: Path,
+) -> None:
+    """Past the ceiling the answer is a refusal, not a partial breakdown.
+
+    This test previously asserted a partial result carrying its coverage
+    counters, which was the honest version of the wrong behaviour: the
+    missing groups may hold most of the population, so the first N groups
+    are not an approximation of a breakdown but a different answer. The
+    engine now counts the requested shape before executing it and declines.
+    """
     groups = GROUP_RESULT_MAX + 1
     path = _dataset(tmp_path, groups)
-    snapshot, coverage = _coverage(_run(path, "What is the total Net_Value by Branch_No?"))
+    result = _run(path, "What is the total Net_Value by Branch_No?")
 
+    assert result.outcome == "refused", result.outcome
+    assert not result.published
+    reason = result.stopped_reason or ""
+    assert "result_shape_too_large" in reason, reason
+    # The exact numbers, so a visitor can judge how much to narrow by.
+    assert str(groups) in reason, reason
+    assert str(GROUP_RESULT_MAX) in reason, reason
+    # And at least one concrete way forward.
+    assert any(
+        hint in reason
+        for hint in ("narrow the period", "add a row filter", "remove one grouping", "ranking")
+    ), reason
+    # No aggregate result was produced, so nothing can be cited as an answer.
+    assert not [s for s in result.results.values() if s.tool_name == "aggregate_for_question"]
+
+
+def test_the_refusal_is_reported_as_coverage_not_as_a_crash(tmp_path: Path) -> None:
+    """An oversized request is a bounded engine declining, not a failure."""
+    path = _dataset(tmp_path, GROUP_RESULT_MAX + 1)
+    result = _run(path, "What is the total Net_Value by Branch_No?")
+
+    coverage = result.question_coverage
     assert coverage is not None
     assert not coverage.complete
-    assert coverage.groups_returned == GROUP_RESULT_MAX
-    assert coverage.groups_total == groups
-    assert coverage.query_limit == GROUP_RESULT_MAX
-    # The overflow group is dropped before anything can cite it: a reader
-    # must not see a group the coverage block says was not returned.
-    assert len(snapshot.rows) == GROUP_RESULT_MAX
-    # Rows behind the returned groups, not rows matching the filters.
-    assert coverage.rows_represented == GROUP_RESULT_MAX * ROWS_PER_GROUP
-    assert coverage.rows_matching == groups * ROWS_PER_GROUP
-    assert coverage.rows_represented < coverage.rows_matching
+    assert "result_shape_too_large" in coverage.rejection_codes
+    assert result.outcome == "refused"
 
 
 def test_an_explicit_ranking_is_short_by_request_not_by_shortfall(tmp_path: Path) -> None:

@@ -54,6 +54,9 @@ def _upload_plan_fixture(question: str, mapping: upload_plan.QuestionMapping) ->
         "operation_source": question,
         "measure": mapping.measure,
         "measure_source": question if mapping.measure else "",
+        "dimensions": list(mapping.dimensions),
+        "dimension_sources": [question for _ in mapping.dimensions],
+        # Compatibility projection; ignored when plural fields are present.
         "dimension": mapping.dimension,
         "dimension_source": question if mapping.dimension else "",
         "filters": [
@@ -66,6 +69,7 @@ def _upload_plan_fixture(question: str, mapping: upload_plan.QuestionMapping) ->
             for item in (f.as_dict() for f in mapping.filters)
         ],
         "time_field": mapping.time_field or mapping.period_field,
+        "time_grain": mapping.time_grain,
         "period_start": mapping.period[0] if mapping.period else None,
         "period_end": mapping.period[1] if mapping.period else None,
         "ascending": mapping.ascending,
@@ -159,7 +163,7 @@ def analysis_from_upload_mapping(
     """One brief derived from the accepted contract, without reinterpreting it."""
     if mapping.operation == "trend":
         analysis_type: AnalysisType = "timeseries"
-    elif mapping.dimension or mapping.operation == "rank":
+    elif mapping.dimensions or mapping.operation == "rank":
         analysis_type = "segmentation"
     elif mapping.operation == "profile":
         analysis_type = "profiling"
@@ -173,7 +177,7 @@ def analysis_from_upload_mapping(
         intent=question,
         analysis_type=analysis_type,
         target_metrics=[mapping.measure] if mapping.measure else [],
-        dimensions=[mapping.dimension] if mapping.dimension else [],
+        dimensions=list(mapping.dimensions),
         time_scope=period or None,
         ambiguities=ambiguities,
     )
