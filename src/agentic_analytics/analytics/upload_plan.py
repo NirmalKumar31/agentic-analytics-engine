@@ -151,6 +151,112 @@ def _unresolved_grouping(text: str, schema: dict[str, Any]) -> str | None:
     return None
 
 
+#: Words that sit in measure position without naming one: articles, the
+#: operation itself, and the filler a question is built from.
+_MEASURE_NOISE = frozenset(
+    {
+        "the",
+        "a",
+        "an",
+        "of",
+        "is",
+        "what",
+        "whats",
+        "total",
+        "sum",
+        "average",
+        "avg",
+        "mean",
+        "median",
+        "count",
+        "number",
+        "how",
+        "much",
+        "many",
+        "value",
+        "values",
+        "amount",
+        "figure",
+        "figures",
+        "overall",
+        "combined",
+        "per",
+        "for",
+        "all",
+        "each",
+        "top",
+        "bottom",
+        "highest",
+        "lowest",
+        "rank",
+        "ranked",
+        "show",
+        "me",
+        "give",
+        "list",
+        "and",
+        "in",
+        "by",
+    }
+)
+
+
+#: Declared types a grouping may be widened to. Text is excluded: see
+#: the note at the widening itself.
+_GROUPABLE_NUMERIC = frozenset(
+    {
+        "BIGINT",
+        "INTEGER",
+        "SMALLINT",
+        "TINYINT",
+        "HUGEINT",
+        "UBIGINT",
+        "UINTEGER",
+        "USMALLINT",
+        "UTINYINT",
+        "DOUBLE",
+        "DECIMAL",
+        "FLOAT",
+        "REAL",
+        "NUMERIC",
+    }
+)
+
+
+def _base_numeric(declared: str) -> bool:
+    return declared.split("(")[0].strip().upper() in _GROUPABLE_NUMERIC
+
+
+def _unresolved_measure(text: str, schema: dict[str, Any]) -> str | None:
+    """A measure the question named that matches nothing in the table.
+
+    Naming a column that does not exist is not the same as naming none.
+    Without this, "the average profit by holiday flag" on a table with no
+    `profit` fell through to "the table offers exactly one numeric column,
+    so there is nothing to choose" and published that column's average as
+    the answer -- the measure the question asked for, silently replaced.
+
+    Column references are removed first, in both spellings, because a
+    question says "weekly sales" where the schema says `Weekly_Sales`.
+    Checking word by word instead rejected that question: neither
+    "weekly" nor "sales" alone names the column.
+
+    Only the words before the grouping phrase are read, so the grouping's
+    own noun is never mistaken for an unresolved measure.
+    """
+    head = _GROUPING_PHRASE.split(text)[0] if _GROUPING_PHRASE.search(text) else text
+    remaining = _without_column_names(head, schema)
+    content = [
+        w
+        for w in re.split(r"[^a-z0-9_]+", remaining.lower())
+        if w and w not in _MEASURE_NOISE and not w.isdigit() and len(w) > 2
+    ]
+    # Nothing left means every content word in measure position named a
+    # real column. Nothing there to begin with means no measure was named,
+    # which is a different situation the single-candidate rule may settle.
+    return " ".join(content[:3]) if content else None
+
+
 @dataclass
 class QuestionMapping:
     """What the engine decided the question asked of this table.
@@ -692,9 +798,31 @@ def resolve_question(question: str, schema: dict[str, Any]) -> QuestionMapping:
         )
 
     # A grouping the question spelled out: "by region", "per store".
+    #
+    # Declared dimensions are tried first, then any other column the
+    # phrase names. A numeric column is not *offered* as a grouping --
+    # choosing one unprompted would be a guess -- but "by store" names it
+    # explicitly, and reading that as anything other than a grouping
+    # produced "average Store by Holiday_Flag" for a question that said
+    # "by Store": both roles inverted.
     dimension: str | None = None
+    # Widened to *numeric* columns only, never to text.
+    #
+    # A near-unique text column is classified as an identifier and kept out
+    # of `dimensions` precisely because grouping by it puts its raw values
+    # into the result as group labels -- and from there into a remote
+    # prompt. Widening to every column reopened that: three privacy tests
+    # caught an uploaded city name reaching a prompt. A numeric column
+    # named in a `by` phrase carries no such disclosure.
+    groupable = list(dimensions) + [
+        name
+        for f in schema.get("fields") or []
+        if (name := str(f.get("name", "")))
+        and name not in dimensions
+        and _base_numeric(str(f.get("data_type") or f.get("type") or ""))
+    ]
     for phrase in _GROUPING_PHRASE.findall(text):
-        for candidate in dimensions:
+        for candidate in groupable:
             if _mentions(_normalise(phrase), candidate) >= 0:
                 dimension = candidate
                 break
@@ -756,7 +884,32 @@ def resolve_question(question: str, schema: dict[str, Any]) -> QuestionMapping:
         )
 
     # sum, average and rank all need a measure.
-    measure, why = _pick(named, measures, "numeric column", aggregatable)
+    #
+    # A column the question named as the *grouping* is withheld from the
+    # widening that lets a named numeric dimension be aggregated. The
+    # widening is right in itself -- if a question names a numeric column
+    # as the thing to measure, the user has said which to use -- but it
+    # could not tell a measure reference from a grouping reference. So
+    # "the average profit by holiday flag", on a table with no `profit`,
+    # took the flag from the `by` phrase, averaged it, and published 0.07
+    # as the answer: a measure silently replaced by the column the
+    # question asked to group by.
+    widening = [c for c in aggregatable if c != dimension]
+    measure, why = _pick(named, measures, "numeric column", widening)
+
+    # The guard applies only where a substitution is possible: the measure
+    # was not named by the question and came from "the table offers
+    # exactly one numeric column, so there is nothing to choose". A
+    # question that named a real measure column needs no checking, and
+    # checking it anyway read interrogatives like "which region has" as
+    # unresolved measures.
+    if measure is not None and measure not in named:
+        unresolved = _unresolved_measure(question, schema)
+        if unresolved is not None:
+            return refuse(
+                f"the question asks about {unresolved!r}, which is not a column of "
+                "this table; name a numeric column that is"
+            )
 
     # A column cannot be both the thing being totalled and the thing being
     # grouped by. This happens when a numeric column was read as a
