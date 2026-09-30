@@ -441,11 +441,21 @@ def main(argv: list[str]) -> int:
         if run is not None:
             checks.ok("an unmappable question ends as a refusal", run.get("status") == "refused")
             report = run.get("report") or {}
-            limitations = " ".join(report.get("limitations", []))
+            recorded = list(report.get("limitations", []))
+            limitations = " ".join(recorded)
+            # Matched on the sentence written for a reader. This used to
+            # look for the engine's own stop string, which appeared in the
+            # report three times in three phrasings; it is now said once,
+            # so both the presence and the count are worth checking.
             checks.ok(
                 "an unmappable question is refused rather than answered",
-                "could not be mapped" in limitations,
+                "was not executed" in limitations or "was not answered" in limitations,
                 limitations[:200] or "(no limitation recorded)",
+            )
+            checks.ok(
+                "the refusal is stated once, not repeated",
+                sum(1 for x in recorded if "was not executed" in x or "was not answered" in x) == 1,
+                f"{len(recorded)} limitation(s): {limitations[:160]}",
             )
 
     # ----------------------------------------------------- end of session
