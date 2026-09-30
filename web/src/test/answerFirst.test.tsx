@@ -167,8 +167,11 @@ describe("ReportView order", () => {
     const answerAt = text.indexOf("Average annual revenue by region");
     expect(answerAt).toBeGreaterThan(-1);
     expect(answerAt).toBeLessThan(text.indexOf("Applied analysis"));
-    expect(answerAt).toBeLessThan(text.indexOf("Summary sentence."));
     expect(answerAt).toBeLessThan(text.indexOf("A limitation."));
+    // The executive summary is gone beside a canonical answer. It said
+    // "Each finding below passed the publication checks", which is true of
+    // every report; a real one would restate the answer above it.
+    expect(text).not.toContain("Summary sentence.");
   });
 
   it("states the population and the rows counted", () => {
@@ -205,12 +208,14 @@ describe("ReportView order", () => {
     // The answer is itself an `article.finding`, so the rest of the app and
     // the browser suite still select it; it must not also appear twice.
     expect(container.querySelectorAll("article.finding")).toHaveLength(1);
-    // `waitForReport` in the browser suite anchors on this heading, so it
-    // has to be present whether or not anything was published.
-    expect(screen.getByText("Key findings")).toBeVisible();
-    expect(container.textContent).toContain(
-      "The answer above is the only published finding.",
-    );
+    // The findings panel is gone: with the answer above it, its whole
+    // content was "the answer above is the only published finding", a
+    // heading explaining its own emptiness. The browser suite waits on
+    // `report-panel` instead of on this heading.
+    expect(screen.queryByText("Key findings")).toBeNull();
+    expect(screen.getByTestId("report-panel")).toBeInTheDocument();
+    // And the sentence that panel used to carry is gone with it.
+    expect(container.textContent).not.toContain("only published finding");
   });
 
   it("says so plainly when nothing answered the question", () => {
@@ -283,6 +288,8 @@ describe("the report anchor the browser suite waits on", () => {
     // Hiding this panel on a refusal broke `waitForReport` for every
     // browser test that asserts a refusal, because the helper had no
     // other signal that the report had rendered at all.
+    // Nothing published at all: the panel still appears, because now it
+    // is saying something a reader needs rather than restating the answer.
     expect(screen.getByText("Key findings")).toBeVisible();
     expect(
       screen.getByText("None were published for this question."),

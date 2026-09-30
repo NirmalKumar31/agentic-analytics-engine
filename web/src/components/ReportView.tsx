@@ -15,7 +15,7 @@ import type {
   Verdict,
 } from "../lib/types";
 import { Chart } from "./Chart";
-import { ResultTable } from "./ResultTable";
+import { ResultPanel } from "./ResultPanel";
 
 interface Props {
   question: string;
@@ -51,7 +51,7 @@ export function ReportView({
 
   return (
     <div className="stack">
-      <section className="panel">
+      <section className="panel" data-testid="report-panel">
         <div className="panel-head">
           <h2>Report</h2>
           <span className="spacer" />
@@ -113,10 +113,10 @@ export function ReportView({
               ) : null}
               {answerSnapshot ? (
                 <div className="answer-result">
-                  <ResultTable
+                  <ResultPanel
                     snapshot={answerSnapshot}
+                    question={question}
                     highlight={answer.evidence_cells}
-                    maxRows={12}
                   />
                 </div>
               ) : null}
@@ -199,70 +199,65 @@ export function ReportView({
               </dl>
             </div>
           ) : null}
-
-          {report && (
-            <>
-              <h3
-                style={{
-                  margin: "6px 0 0",
-                  fontSize: 13,
-                  color: "var(--text-muted)",
-                }}
-              >
-                Executive summary
-              </h3>
-              <p className="muted" style={{ margin: 0 }}>
-                {report.executive_summary}
-              </p>
-            </>
-          )}
-        </div>
-      </section>
-
-      <section className="panel">
-        <div className="panel-head">
-          <h2>Key findings</h2>
-          <span className="spacer" />
-          <span className="small dim">
-            click any finding to see how it was derived
-          </span>
-        </div>
-        <div className="panel-body stack">
-          {supporting.length === 0 ? (
-            <p className="small dim" style={{ margin: 0 }}>
-              {answer
-                ? "The answer above is the only published finding."
-                : "None were published for this question."}
+          {/* No executive summary beside a canonical answer. It said "Each
+              finding below passed the publication checks", which is true of
+              every report and tells a reader nothing they cannot see; a real
+              one would restate the answer directly above it. */}
+          {report?.executive_summary && !answer ? (
+            <p className="muted" style={{ margin: 0 }}>
+              {report.executive_summary}
             </p>
-          ) : (
-            supporting.map((finding) => (
-              <article
-                className={`finding ${finding.kind}`}
-                key={finding.finding_id}
-              >
-                <p className="finding-text">{finding.text}</p>
-                <div className="finding-foot">
-                  <span className={`tag ${finding.verification_status}`}>
-                    {finding.verification_status === "supported"
-                      ? "Supported"
-                      : "Held back"}
-                  </span>
-                  <span className={`tag ${finding.kind}`}>
-                    {kindLabel(finding.kind)}
-                  </span>
-                  <span className="spacer" style={{ flex: 1 }} />
-                  <button
-                    className="btn ghost small"
-                    onClick={() => onShowWork(finding.finding_id)}
-                  >
-                    Show work →
-                  </button>
-                </div>
-              </article>
-            ))
-          )}
+          ) : null}
         </div>
       </section>
+
+      {/* Only when there is something to list. A panel whose whole content
+          was "the answer above is the only published finding" is a heading
+          explaining its own emptiness. */}
+      {(supporting.length > 0 || findings.length === 0) && (
+        <section className="panel">
+          <div className="panel-head">
+            <h2>Key findings</h2>
+            <span className="spacer" />
+            <span className="small dim">
+              click any finding to see how it was derived
+            </span>
+          </div>
+          <div className="panel-body stack">
+            {supporting.length === 0 ? (
+              <p className="small dim" style={{ margin: 0 }}>
+                None were published for this question.
+              </p>
+            ) : (
+              supporting.map((finding) => (
+                <article
+                  className={`finding ${finding.kind}`}
+                  key={finding.finding_id}
+                >
+                  <p className="finding-text">{finding.text}</p>
+                  <div className="finding-foot">
+                    <span className={`tag ${finding.verification_status}`}>
+                      {finding.verification_status === "supported"
+                        ? "Supported"
+                        : "Held back"}
+                    </span>
+                    <span className={`tag ${finding.kind}`}>
+                      {kindLabel(finding.kind)}
+                    </span>
+                    <span className="spacer" style={{ flex: 1 }} />
+                    <button
+                      className="btn ghost small"
+                      onClick={() => onShowWork(finding.finding_id)}
+                    >
+                      Show work →
+                    </button>
+                  </div>
+                </article>
+              ))
+            )}
+          </div>
+        </section>
+      )}
 
       {charts.length > 0 && (
         <section className="panel">

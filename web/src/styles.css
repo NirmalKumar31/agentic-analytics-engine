@@ -1064,6 +1064,30 @@ pre.sql {
 .answer-result {
   margin: 0 0 9px;
 }
+.result-panel {
+  gap: 7px;
+}
+.result-foot {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  flex-wrap: wrap;
+  color: var(--text-dim);
+}
+.th-sort {
+  appearance: none;
+  background: none;
+  border: 0;
+  padding: 0;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  text-align: left;
+}
+.th-sort:hover {
+  color: var(--text);
+  text-decoration: underline;
+}
 
 .applied-analysis {
   border: 1px solid var(--border);
@@ -1475,6 +1499,45 @@ table.data .tag {
   [data-testid="pane-status"] {
     color: #111;
     border: 0.5pt solid #777;
+  }
+
+  /* Tables paginate rather than being held together. A card kept
+     indivisible and taller than a page is pushed whole to the next one,
+     which is what produced the nearly blank pages in the saved PDFs. */
+  .direct-answer {
+    break-inside: auto;
+  }
+  .answer-result,
+  .result-panel,
+  .table-wrap {
+    break-inside: auto;
+    overflow: visible;
+  }
+  table.data {
+    break-inside: auto;
+    width: 100%;
+  }
+  table.data thead {
+    display: table-header-group;
+  }
+  table.data tr {
+    break-inside: avoid;
+  }
+  table.data th,
+  table.data td {
+    color: #111;
+  }
+  /* A heading must not be the last thing on a page. */
+  .panel-head,
+  .lane-title,
+  .direct-answer h3 {
+    break-after: avoid;
+  }
+  .result-foot {
+    color: #333;
+  }
+  .result-foot .btn {
+    display: none !important;
   }
   .lane-stage {
     break-inside: avoid;
