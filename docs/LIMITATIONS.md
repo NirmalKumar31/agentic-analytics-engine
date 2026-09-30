@@ -616,6 +616,58 @@ Runs are checkpointed per question and resumable, with a status file so a
 stalled sweep is diagnosable while it runs. There is a whole-question
 timeout as well as a per-call one.
 
+### What three paid Compare Both runs showed about typed AI planning
+
+The bounds on a typed cloud plan (ARCHITECTURE §14, ADR 0002) are enforced
+in code and tested against plans written by hand. Neither the corpus nor the
+unit tests say anything about how a real model behaves, because both drive
+the scripted provider. Three authorised runs against the deployed service on
+30 Sep 2026 are the only evidence there is, and they are three samples.
+
+One question, over a 300-row upload: *"What was the total annual revenue in
+2024?"* The expected total, computed with DuckDB before any run, is
+`77781.76` over 150 rows.
+
+| Run | AI outcome | Canonical hash vs rules | Cost |
+|---|---|---|---|
+| 1 | confident, published `77,781.76 across 150 rows` | identical | $0.001422 |
+| 2 | declared the question ambiguous; engine refused | differs — refused, so `profile` | $0.000399 |
+| 3 | confident, published `77,781.76 across 150 rows` | identical | $0.001349 |
+
+Total $0.003170. The deterministic pane published `77,782` in all three.
+
+**What this supports.** The typed plan validated to *byte-identical canonical
+contract* as the schema-grounded rules in two of three runs — same operation,
+measure, period, `period_field` and `time_field`, hash
+`adc71a559eaa58a9be…`. When the model declined to commit, the engine
+**refused with the model's stated reason** rather than guessing or silently
+falling back to the rule contract, which is the behaviour ADR 0002 chose.
+
+**What it does not support.** That the model agrees reliably. Two of three is
+two of three. The variance is real and a reader of a single Compare Both
+cannot see it.
+
+**No bound was breached in any run** — but none was *attacked* either. No run
+attempted to add a period, shift one, group by an identifier or reverse a
+ranking, so these runs are not evidence that the bounds hold under a model
+that tries. They are evidence that an agreeing plan is accepted and a
+hesitant one refuses safely.
+
+**The disagreement was substantive, not noise.** Run 2's stated ambiguity was
+that "2024" might not refer to `signup_date`, the table's only date column.
+The critic raised the same point in runs 1 and 3 when withholding an
+*additional* proposed finding:
+
+> The result sums annual_revenue for the 150 rows whose signup_date falls in
+> 2024. It supports the value 77781.76 for that filtered group, but does not
+> establish total revenue earned during 2024 across the dataset; the filter
+> is on signup date, not a revenue-period date.
+
+That is a fair reading of a fixture whose only date column is a signup date,
+and it is the distinction the rule planner does not draw — it uses the one
+date column available. Recorded here because it is a limitation of the
+*question-to-schema mapping*, in both modes, rather than a model failure.
+
 ---
 
 ## 12. Deliberately out of scope
