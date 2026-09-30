@@ -196,9 +196,14 @@ describe("ReportView order", () => {
     expect(table?.textContent).toContain("511.24");
   });
 
-  it("does not repeat the answer as a supporting finding", () => {
+  it("does not repeat the answer in the findings list below", () => {
     const { container } = render_();
-    expect(container.textContent).not.toContain("Supporting findings");
+    // The answer is itself an `article.finding`, so the rest of the app and
+    // the browser suite still select it; it must not also appear twice.
+    expect(container.querySelectorAll("article.finding")).toHaveLength(1);
+    expect(container.textContent).toContain(
+      "The answer above is the only published finding.",
+    );
   });
 
   it("says so plainly when nothing answered the question", () => {
@@ -228,11 +233,19 @@ describe("ReportView empty states", () => {
     onShowWork: () => {},
   };
 
-  it("reads as a completion, not a crash, when nothing was published", () => {
-    render(<ReportView {...base} findings={[]} results={{}} />);
+  it("reads as a completion, not a crash, and says it once", () => {
+    const { container } = render(
+      <ReportView {...base} findings={[]} results={{}} />,
+    );
     expect(
       screen.getByText(/no verified finding answered the requested analysis/i),
     ).toBeVisible();
+    // Said twice is how the refusal wording went wrong before. A reader
+    // reads a repeated caveat as two separate problems.
+    const said = (container.textContent ?? "").match(
+      /no verified finding answered the requested analysis/gi,
+    );
+    expect(said).toHaveLength(1);
   });
 
   it("distinguishes supporting context from a missing direct answer", () => {
@@ -242,6 +255,6 @@ describe("ReportView empty states", () => {
     expect(screen.getByTestId("no-direct-answer")).toHaveTextContent(
       /supporting context/i,
     );
-    expect(screen.getByText("Supporting findings")).toBeVisible();
+    expect(screen.getByText("Key findings")).toBeVisible();
   });
 });

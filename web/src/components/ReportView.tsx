@@ -68,7 +68,10 @@ export function ReportView({
           <p style={{ margin: 0, fontSize: 15 }}>{question}</p>
 
           {answer ? (
-            <div className="direct-answer" data-testid="direct-answer">
+            <article
+              className="finding direct-answer"
+              data-testid="direct-answer"
+            >
               <h3>Answer</h3>
               <p className="answer-text">{answer.text}</p>
               <dl className="answer-scope small">
@@ -110,7 +113,7 @@ export function ReportView({
                   Show work →
                 </button>
               </div>
-            </div>
+            </article>
           ) : (
             <p
               className="small dim"
@@ -185,10 +188,10 @@ export function ReportView({
         </div>
       </section>
 
-      {supporting.length > 0 && (
+      {findings.length > 0 && (
         <section className="panel">
           <div className="panel-head">
-            <h2>Supporting findings</h2>
+            <h2>Key findings</h2>
             <span className="spacer" />
             <span className="small dim">
               click any finding to see how it was derived
@@ -197,7 +200,7 @@ export function ReportView({
           <div className="panel-body stack">
             {supporting.length === 0 ? (
               <p className="small dim" style={{ margin: 0 }}>
-                No verified finding answered the requested analysis.
+                The answer above is the only published finding.
               </p>
             ) : (
               supporting.map((finding) => (
