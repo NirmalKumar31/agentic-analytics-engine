@@ -114,7 +114,7 @@ def test_every_rule_the_engine_can_emit_has_prose() -> None:
     # filtered the scan *by* `known_rules`, which made it a subset by
     # construction -- it could not report a rule that was missing from the
     # table, which is the only thing it exists to report.
-    undescribed = _assigned_rules_in_source() - known_rules()
+    undescribed = _assigned_rules_in_source() - known_rules() - SUCCESS_ONLY_RULES
     assert not undescribed, (
         "these rules are assigned somewhere in the engine and have no "
         f"sentence, so a reader sees the rule name: {sorted(undescribed)}"
@@ -130,6 +130,23 @@ def test_every_rule_the_engine_can_emit_has_prose() -> None:
 #: verifier may reject on that basis in future, and prose arriving later
 #: than the rule is how a rule ends up described wrongly.
 REFUSES_UPSTREAM_INSTEAD = {"ambiguous_mapping"}
+
+
+#: Rules that only ever label a *published* verdict, so they never reach
+#: the rejection prose.
+#:
+#: `engine_canonical` marks an answer the engine composed itself from an
+#: executed result, and `passed` marks a claim that cleared every gate.
+#: Neither can appear in a limitations list, because a limitations list is
+#: built from rejections. Listed here rather than given prose, so the scan
+#: stays able to report a genuinely undescribed rejection rule.
+SUCCESS_ONLY_RULES = frozenset({"engine_canonical", "passed"})
+
+
+def test_the_success_only_allowance_is_not_a_dumping_ground() -> None:
+    """Each entry must still be absent from the prose table -- otherwise
+    it is described after all and the exemption is stale."""
+    assert not (SUCCESS_ONLY_RULES & known_rules())
 
 
 def _assigned_rules_in_source() -> set[str]:
