@@ -261,3 +261,45 @@ def test_a_column_named_over_time_does_not_request_a_series() -> None:
     mapping = upload_plan.resolve_question("total amount by region", sch)
     assert mapping.operation == "sum", mapping.explanation
     assert mapping.dimension == "region"
+
+
+def test_a_measure_named_weekly_does_not_yield_a_weekly_grain() -> None:
+    """The grain comes from analytical language, never from a column name.
+
+    The contract-level assertion cannot reach this: a `sum` carries no
+    grain whatever the extractor returns, so the mutation that reads the
+    raw question was invisible there.
+    """
+    from agentic_analytics.analytics.upload_plan import _time_grain
+
+    schema = {
+        "table": "t",
+        "fields": [
+            {"name": "Weekly_Revenue", "data_type": "DOUBLE"},
+            {"name": "Branch_No", "data_type": "BIGINT"},
+            {"name": "Trading_Date", "data_type": "DATE"},
+        ],
+        "measures": ["Weekly_Revenue"],
+        "dimensions": ["Branch_No"],
+        "time_fields": ["Trading_Date"],
+        "aggregatable_if_named": [],
+    }
+
+    assert _time_grain("What is the total Weekly_Revenue by Branch_No?", schema) is None
+    assert _time_grain("total Weekly_Revenue", schema) is None
+
+    # The underscore in `Weekly_Revenue` already blocks the word boundary,
+    # so that case alone does not prove the stripping does anything. A
+    # spaced column name is the one that needs it: without removing column
+    # references first, "total Monthly Spend by Branch_No" reads as a
+    # monthly trend of a column that merely happens to be called monthly.
+    spaced = dict(
+        schema,
+        fields=[*schema["fields"], {"name": "Monthly Spend", "data_type": "DOUBLE"}],
+        measures=["Weekly_Revenue", "Monthly Spend"],
+    )
+    assert _time_grain("What is the total Monthly Spend by Branch_No?", spaced) is None
+    assert _time_grain("Show the trend of Monthly Spend by quarter", spaced) == "quarter"
+    # Explicit analytical language still works.
+    assert _time_grain("Show the monthly trend of Weekly_Revenue", schema) == "month"
+    assert _time_grain("total Weekly_Revenue for each quarter", schema) == "quarter"

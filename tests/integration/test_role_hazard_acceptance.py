@@ -74,6 +74,11 @@ def _aggregate(result: RunResult) -> Any:
     return next(s for s in result.results.values() if s.tool_name == "aggregate_for_question")
 
 
+def _answer(result: RunResult) -> str:
+    assert result.published, f"nothing published: {result.stopped_reason}"
+    return result.published[0].text
+
+
 def _contract(result: RunResult) -> dict[str, Any]:
     return dict(result.query_contract or {})
 
@@ -215,6 +220,14 @@ def test_two_explicit_groupings_are_both_preserved(
     snapshot = _aggregate(result)
     got = {(str(row[0]), str(row[1])): int(row[2]) for row in snapshot.rows}
     assert got == expected
+
+    # And it was published. Computing a correct two-cut result and then
+    # publishing nothing is what happened when the answer composer read the
+    # singular projection, which is null for two groupings.
+    published = _answer(result)
+    assert "region" in published.lower()
+    assert "business type" in published.lower()
+    assert " / " in published, published
     # More groups than either cut alone would produce, which is what
     # distinguishes a preserved two-cut result from a collapsed one. The
     # fixture's two columns correlate, so not every combination occurs --
