@@ -44,16 +44,8 @@ const VIEWPORTS = [
  * those is what made this suite silently skip tests.
  */
 const SHAPES = [
-  {
-    name: "2 groups",
-    question: "What is the total revenue by region?",
-    groups: 4,
-  },
-  {
-    name: "ranking",
-    question: "Which region had the highest total revenue?",
-    groups: 4,
-  },
+  { name: "ranking", question: "Which region had the highest total revenue?" },
+  { name: "time series", question: "Show the monthly trend of revenue" },
 ] as const;
 
 async function fractionOfContainer(page: Page): Promise<number | null> {
@@ -79,29 +71,46 @@ async function hasHorizontalOverflow(page: Page): Promise<boolean> {
 }
 
 test.describe("the report at every supported width", () => {
-  for (const viewport of VIEWPORTS) {
-    test(`${viewport.label} (${viewport.width}px): answer first, chart fills, nothing overflows`, async ({
-      page,
-    }) => {
+  test("answer first, chart fills, nothing overflows, at all six widths", async ({
+    page,
+  }) => {
+    // One session, six measurements, rather than one session per width.
+    //
+    // A test per breakpoint opened a demo session each, and the server
+    // keeps a bounded pool of them: later tests found no dataset, so no
+    // report, so no chart -- the same bounded-resource failure that made
+    // this suite silently skip before the guard was added.
+    //
+    // Resizing an existing report is also the stronger test: it exercises
+    // the ResizeObserver path, which is what actually broke. A fresh load
+    // at each width would only prove the initial measurement.
+    // The upload path, because it is the only one whose report carries
+    // both an answer and a chart. On the demo warehouse the two do not
+    // co-occur: "total revenue by region" renders an answer and no chart,
+    // and the ranking question renders a chart and no `direct-answer`.
+    // Testing layout needs a report with both in it.
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto("/");
+    await uploadFile(page, "layout.csv", sampleCsv());
+    await ask(page, "What is the total revenue by region?");
+    await waitForReport(page);
+    await expect(
+      page.locator(".chart-card .chart-host svg").first(),
+    ).toBeVisible({ timeout: 20_000 });
+
+    for (const viewport of VIEWPORTS) {
       await page.setViewportSize({
         width: viewport.width,
         height: viewport.height,
       });
-      await page.goto("/");
-      await page
-        .getByRole("button", { name: /Commerce demo warehouse/ })
-        .click();
-      await expect(page.getByRole("heading", { name: "Ask" })).toBeVisible();
-      await ask(page, "What is the total revenue by region?");
-      await waitForReport(page);
 
-      // 1. The answer precedes the technical detail. Measured by position,
-      //    not by DOM order: a CSS reorder would pass an order check and
-      //    still bury the answer.
+      // The answer precedes the technical detail. Measured by position
+      // rather than DOM order: a CSS reorder would pass an order check
+      // and still bury the answer.
       const answer = page.getByTestId("direct-answer");
-      await expect(answer).toBeVisible();
+      await expect(answer, `${viewport.label}: no answer`).toBeVisible();
       const answerBox = await answer.boundingBox();
-      expect(answerBox).not.toBeNull();
+      expect(answerBox, `${viewport.label}: answer has no box`).not.toBeNull();
 
       const technical = page.locator("details").first();
       if ((await technical.count()) > 0) {
@@ -109,41 +118,43 @@ test.describe("the report at every supported width", () => {
         if (technicalBox) {
           expect(
             answerBox!.y,
-            "the answer must come before the technical disclosure",
+            `${viewport.label}: the answer must precede the technical disclosure`,
           ).toBeLessThan(technicalBox.y);
         }
       }
 
-      // 2. The chart fills the width available to it. This is the defect
-      //    the redesign exists to fix: cardinality must not decide width.
+      // The chart fills the width available to it. This is the defect the
+      // redesign exists to fix: cardinality must not decide width.
+      await expect
+        .poll(() => fractionOfContainer(page), { timeout: 10_000 })
+        .not.toBeNull();
       const fraction = await fractionOfContainer(page);
-      if (fraction !== null) {
-        expect(
-          fraction,
-          `chart used ${(fraction * 100).toFixed(0)}% of its container`,
-        ).toBeGreaterThan(0.8);
-        expect(fraction, "chart overflows its container").toBeLessThanOrEqual(
-          1.02,
-        );
-      }
+      expect(
+        fraction!,
+        `${viewport.label}: chart used ${((fraction ?? 0) * 100).toFixed(0)}% of its container`,
+      ).toBeGreaterThan(0.8);
+      expect(
+        fraction!,
+        `${viewport.label}: chart overflows its container`,
+      ).toBeLessThanOrEqual(1.02);
 
-      // 3. Nothing pushes the page sideways. A table that does not scroll
-      //    internally takes the whole document with it.
+      // Nothing pushes the page sideways. A table that does not scroll
+      // internally takes the whole document with it.
       expect(
         await hasHorizontalOverflow(page),
-        "the document scrolls horizontally",
+        `${viewport.label}: the document scrolls horizontally`,
       ).toBe(false);
 
-      // 4. The report stays inside the viewport horizontally.
+      // And the report stays inside the viewport.
       const report = page.getByTestId("report-panel");
       const reportBox = await report.boundingBox();
-      expect(reportBox).not.toBeNull();
+      expect(reportBox, `${viewport.label}: no report box`).not.toBeNull();
       expect(reportBox!.x).toBeGreaterThanOrEqual(-1);
       expect(reportBox!.x + reportBox!.width).toBeLessThanOrEqual(
         viewport.width + 2,
       );
-    });
-  }
+    }
+  });
 });
 
 test.describe("chart width is independent of cardinality", () => {
@@ -161,19 +172,14 @@ test.describe("chart width is independent of cardinality", () => {
       await ask(page, shape.question);
       await waitForReport(page);
 
+      await expect(
+        page.locator(".chart-card .chart-host svg").first(),
+      ).toBeVisible({ timeout: 20_000 });
       const fraction = await fractionOfContainer(page);
-      if (fraction === null) {
-        // No chart is a legitimate outcome, but it must be explained
-        // rather than left as an empty card.
-        const card = page.locator(".chart-card").first();
-        if ((await card.count()) > 0) {
-          await expect(card).toContainText(/\w/);
-        }
-        return;
-      }
+      expect(fraction, `${shape.name}: no chart was rendered`).not.toBeNull();
       expect(
-        fraction,
-        `${shape.name}: chart used ${(fraction * 100).toFixed(0)}% of its container`,
+        fraction!,
+        `${shape.name}: chart used ${((fraction ?? 0) * 100).toFixed(0)}% of its container`,
       ).toBeGreaterThan(0.8);
     });
   }
@@ -189,10 +195,12 @@ test.describe("chart width is independent of cardinality", () => {
     await ask(page, "What is the total revenue by region?");
     await waitForReport(page);
 
+    await expect(
+      page.locator(".chart-card .chart-host svg").first(),
+    ).toBeVisible({ timeout: 20_000 });
     const fraction = await fractionOfContainer(page);
-    if (fraction !== null) {
-      expect(fraction).toBeGreaterThan(0.8);
-    }
+    expect(fraction, "no chart was rendered on the upload path").not.toBeNull();
+    expect(fraction!).toBeGreaterThan(0.8);
     expect(await hasHorizontalOverflow(page)).toBe(false);
   });
 });
