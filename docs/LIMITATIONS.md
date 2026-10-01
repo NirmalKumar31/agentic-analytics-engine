@@ -767,29 +767,6 @@ change with its own corpus evidence.
 
 ---
 
-## 11c. An empty result is reported as a failure, not as an outcome
-
-A question whose filter matches no rows comes back with `outcome: failed`
-and the reason *"the executed result could not be turned into a direct
-answer"*. Measured on an uploaded dataset: `What is total revenue by region
-where region is Atlantis?`
-
-Nothing wrong is published, so this is safe. But it is not accurate. An
-empty result set is an analytical outcome -- the engine ran the contract and
-the data contained no matching rows -- and calling it a failure tells a
-reader the system broke when it worked. The interface now distinguishes
-`no findings` from `withheld by verification` and from `failed`, so there is
-somewhere truthful for this to land; what is missing is the classification
-on the engine side.
-
-Fixing it means changing `_outcome_from_reason`, which is a backend decision
-with its own test corpus, and it was out of scope for the change that found
-it. Until then the frontend reports what the engine says rather than
-second-guessing it, which is the right default: an interface that relabels
-the engine's own outcome is a second source of truth about what happened.
-
----
-
 ## 12. Deliberately out of scope
 
 No authentication, billing, multi-tenant persistence or scheduled jobs. No

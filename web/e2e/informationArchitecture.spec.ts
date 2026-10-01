@@ -5,15 +5,19 @@
  * produced that way. Three can:
  *
  *   - `refused`     -- a question naming a measure the table does not have.
- *   - `failed`      -- a filter that matches no rows. See the note on that
- *                      test: the classification is arguably wrong, and this
- *                      asserts what the engine does today rather than what
- *                      it should do.
+ *   - `no_findings` -- a filter that matches no rows. This used to come back
+ *                      `failed`, and the assertion here used to accept any
+ *                      of three states because the classification was wrong.
+ *                      The engine now completes it and says why.
  *   - `completed`   -- an ordinary mappable question.
  *
- * Three cannot be produced locally with the scripted provider, and are
+ * The rest cannot be produced locally with the scripted provider and are
  * driven by intercepting the run payload at the network boundary instead:
- * `verification_withheld`, `no_findings`, `cancelled`. That is the pattern
+ * `verification_withheld`, `cancelled`, `quota_stopped`, and `execution_failed`
+ * -- the last of which *was* reachable through the empty-filter question
+ * until that was corrected, and now needs a genuine tool error to produce.
+ * The backend suite covers that case directly, by making the engine's own
+ * SQL execution raise. That is the pattern
  * the quota test in `dualmode.spec.ts` already uses. It is weaker than a
  * real run and stronger than a component test: the payload is server-shaped
  * and every derivation, class name and piece of copy is the application's
@@ -250,19 +254,22 @@ test.describe("terminal states, produced by the engine", () => {
   });
 
   test("a filter matching no rows is reported, and not as a verified answer", async () => {
-    // The engine classifies this as `failed`, with the reason "the executed
-    // result could not be turned into a direct answer". That is arguably
-    // the wrong classification -- an empty result set is an analytical
-    // outcome, not a breakage -- but changing it is a backend decision and
-    // this change does not touch backend behaviour. So this asserts what
-    // the engine does today, and the limitation is recorded in the PR.
+    // This used to come back `failed`, with the reason "the executed result
+    // could not be turned into a direct answer", and the assertion here
+    // accepted any of three states because the classification was wrong and
+    // out of scope to fix. The engine now completes it: the contract ran and
+    // the table held no matching rows, which is a result.
     await ask(page, "What is total revenue by region where region is Atlantis?");
 
     const card = page.getByTestId("run-state-card");
     await expect(card).toBeVisible({ timeout: 90_000 });
+    await expect(card).toHaveAttribute("data-state", "no_findings");
     await expect(card).not.toContainText(/\bComplete\b/);
-    const state = await card.getAttribute("data-state");
-    expect(["execution_failed", "no_findings", "refused"]).toContain(state);
+    await expect(card).not.toContainText(/failed/i);
+    // And the reason names the restriction that emptied it.
+    await expect(
+      page.getByText(/No rows matched the requested filters/),
+    ).toBeVisible();
   });
 
   test("an answered question shows no state card at all", async ({ page }) => {
