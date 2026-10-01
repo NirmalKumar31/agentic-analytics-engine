@@ -24,6 +24,7 @@ import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
 import { ComparisonView } from "../components/ComparisonView";
+import { QuestionComposer } from "../components/QuestionComposer";
 import { DatasetIdentity } from "../components/DatasetIdentity";
 import { ReportWorkspace } from "../components/ReportWorkspace";
 import { SchemaInspector } from "../components/SchemaInspector";
@@ -429,5 +430,56 @@ describe("dataset identity", () => {
   it("renders nothing when there is no dataset", () => {
     render(<DatasetIdentity catalog={null} />);
     expect(screen.queryByTestId("dataset-identity")).toBeNull();
+  });
+});
+
+// ------------------------------------------------------------- 6. examples
+
+describe("question examples come from the dataset at hand", () => {
+  const config = {
+    demo_questions: [
+      { id: "d1", question: "Why did gross margin fall in Q3 2025?", why: "a curated demo question" },
+    ],
+    capabilities: undefined,
+  } as unknown as Parameters<typeof QuestionComposer>[0]["config"];
+
+  const uploaded = summary([
+    field("revenue", "measure", { additive: "strong" }),
+    field("region", "dimension"),
+  ]);
+
+  function composer(summaryProp: SummaryPayload | null) {
+    return render(
+      <QuestionComposer
+        config={config}
+        summary={summaryProp}
+        question=""
+        onQuestionChange={() => undefined}
+        onAsk={() => undefined}
+        busy={false}
+        uiMode="auto"
+        onModeChange={() => undefined}
+      />,
+    );
+  }
+
+  it("offers schema-derived questions for an uploaded file", () => {
+    composer(uploaded);
+    const list = screen.getByTestId("question-examples");
+    expect(list).toHaveAttribute("data-source", "schema");
+    // Naming this file's columns, not the demo warehouse's.
+    expect(list).toHaveTextContent(/revenue/i);
+    expect(list).not.toHaveTextContent(/gross margin/i);
+  });
+
+  it("keeps the curated questions when there is no uploaded schema", () => {
+    // The demo session also carries a summary, so App passes null unless the
+    // dataset kind is an upload. Gating on the summary's presence alone
+    // replaced the curated questions -- which demonstrate the governed
+    // metric registry -- with generic ones derived from its tables.
+    composer(null);
+    const list = screen.getByTestId("question-examples");
+    expect(list).toHaveAttribute("data-source", "demo");
+    expect(list).toHaveTextContent(/gross margin/i);
   });
 });

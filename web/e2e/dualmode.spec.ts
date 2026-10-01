@@ -185,9 +185,19 @@ test.describe("AI and Compare, with the API intercepted", () => {
     ).toBeVisible();
 
     // The AI side failed; the deterministic side still produced a report.
-    await expect(page.getByRole("alert")).toContainText(
-      /public demo usage limit/i,
-    );
+    //
+    // Scoped to the AI pane's state card. An unscoped `getByRole("alert")`
+    // matched both this card and the contract-comparison notice, which also
+    // carries `role="alert"` when the two interpretations could not be
+    // compared -- a strict-mode violation that appeared on Firefox and not
+    // on Chromium, because the two engines differ on when the comparison
+    // becomes computable. Naming the element is both stable and a stronger
+    // claim than "some alert somewhere says this".
+    await expect(
+      page
+        .getByRole("region", { name: "AI Analytics", exact: true })
+        .getByTestId("run-state-card"),
+    ).toContainText(/public demo usage limit/i);
     await expect(
       page
         .getByRole("region", { name: "Deterministic Analytics", exact: true })

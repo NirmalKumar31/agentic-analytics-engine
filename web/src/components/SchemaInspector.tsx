@@ -35,8 +35,16 @@ export function SchemaInspector({
     <details className="technical-audit" data-testid="schema-inspector">
       <summary>
         Dataset understanding
+        {/*
+          The `inferred` marker stays on the summary line rather than inside
+          the body. It was a tag in the old panel head, and collapsing the
+          panel would have hidden the single most important caveat about
+          everything in it: these roles come from types and cardinality, not
+          from a definition anyone wrote down. A reader who never opens the
+          disclosure still has to be told that.
+        */}
+        <span className="tag">inferred</span>
         <span className="small dim">
-          {" — "}
           {fields.length} {fields.length === 1 ? "column" : "columns"} read
           {ambiguous > 0
             ? `, ${ambiguous} role${ambiguous === 1 ? "" : "s"} the data cannot settle`

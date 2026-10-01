@@ -183,7 +183,16 @@ export function App() {
         )}
         <input ref={fileInput} type="file" accept=".csv,.parquet" className="sr-only" aria-label="Upload a CSV or Parquet file" onChange={(event) => { const file = event.target.files?.[0]; if (file) void upload(file); event.target.value = ""; }} />
         {session?.summary && session.catalog.dataset_kind === "upload" && !hasRun && <SchemaInspector summary={session.summary} />}
-        {session && !hasRun && <QuestionComposer config={config} summary={session?.summary ?? null} question={question} onQuestionChange={setQuestion} onAsk={() => void ask()} busy={busy} uiMode={uiMode} onModeChange={setUiMode} />}
+        {session && !hasRun && <QuestionComposer config={config} summary={
+                  // Only an uploaded file gets schema-derived examples. The
+                  // demo session also carries a summary, so gating on its
+                  // presence alone replaced the curated demo questions --
+                  // which exist to demonstrate the governed metric registry
+                  // -- with generic ones derived from its tables.
+                  session?.catalog.dataset_kind === "upload"
+                    ? session.summary
+                    : null
+                } question={question} onQuestionChange={setQuestion} onAsk={() => void ask()} busy={busy} uiMode={uiMode} onModeChange={setUiMode} />}
         {hasRun && <RunProgress run={run} events={recordedEvents} replay={replay} uiMode={uiMode} showTrace={showTrace} onToggleTrace={() => setShowTrace((value) => !value)} running={Boolean(runId) && !finished} />}
         <ReportWorkspace comparison={comparison} run={run} aiRun={aiRun} aiError={aiError} config={config} deterministicPending={Boolean(runId) && !finished} onShowWork={(side, findingId) => setTarget({ side, findingId })} />
       </div>
