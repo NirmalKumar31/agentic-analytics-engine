@@ -57,7 +57,7 @@ export function PresentationReportView({ question, presentation, results, onShow
   const primaryFinding = presentation.provenance_refs?.[0]?.finding_id;
 
   return (
-    <section className="panel presentation-report" data-testid="report-panel">
+    <section className="panel presentation-report report-workspace" data-testid="report-panel">
       <div className="panel-head">
         <h2>Report</h2>
         <span className="spacer" />

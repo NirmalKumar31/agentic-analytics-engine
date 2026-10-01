@@ -2032,6 +2032,22 @@ table.data td.cited {
 .chart-card { width: 100%; min-width: 0; overflow: hidden; }
 .chart-host { width: 100%; min-height: 20rem; }
 .chart-host > div, .chart-host svg { max-width: 100%; }
+/* App retains the execution panels in DOM before the report so an in-flight
+   run can stream them. Once a report exists, the document workspace is the
+   first thing a reader sees; the technical trace remains available below. */
+.column > .report-workspace { order: -1; }
+.technical-audit {
+  padding: var(--space-3) var(--space-4);
+  border-top: 1px solid var(--rule-hairline);
+  color: var(--ink-secondary);
+}
+.technical-audit summary { cursor: pointer; font-weight: var(--weight-medium); }
+.technical-audit-body { display: grid; gap: var(--space-3); padding: var(--space-3) 0 var(--space-1); }
+.audit-grid { display: flex; flex-wrap: wrap; gap: var(--space-3) var(--space-5); margin: 0; }
+.audit-grid dt { color: var(--ink-muted); font-size: var(--text-xs); }
+.audit-grid dd { margin: var(--space-1) 0 0; font-family: var(--font-mono); font-variant-numeric: var(--numeric); }
+.audit-contract h3, .audit-contract p { margin: 0; }
+.audit-contract { display: grid; gap: var(--space-1); }
 
 @media print {
   .presentation-report .answer-card { break-inside: avoid; }

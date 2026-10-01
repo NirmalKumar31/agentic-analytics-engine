@@ -741,3 +741,22 @@ an identifier; `auto` routes through `mapping_from_plan`, not around it.
 before.
 
 See [ADR 0005](adr/0005-automatic-governed-planning.md).
+
+## Reader-facing workspace and planning audit
+
+The report renderer consumes `AnalysisPresentation`, not finding prose. The
+backend owns the answer shape, labels, units, boolean labels, coverage, table
+columns, chart decision and caveats; the client only renders those facts. This
+keeps the same verified result from becoming a different claim in the browser.
+
+The ordinary workspace is ordered as answer, scope, visualisation, table and
+notes. Execution details are a disclosure: the planning audit records the
+accepted contract, resolver route, model-call count, governed fallback,
+coverage and measured timing. It deliberately excludes prompts, raw provider
+responses and chain-of-thought.
+
+`auto` is the default planning policy. Exact questions execute through the
+rule resolver without opening a cloud provider. Only ambiguity can open the
+governed planner, and the resulting typed proposal must still pass the same
+contract and coverage gates as a deterministic interpretation. Deterministic,
+AI-assisted and Compare Both remain explicit audit modes.

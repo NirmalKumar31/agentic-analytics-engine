@@ -22,6 +22,7 @@ export type TerminalState =
   | "verification_withheld"
   | "refused"
   | "execution_failed"
+  | "quota_stopped"
   | "cancelled"
   | "unavailable"
   | "not_started";
@@ -45,13 +46,14 @@ const LABELS: Record<TerminalState, { label: string; tone: RunState["tone"] }> =
     verification_withheld: { label: "Nothing published", tone: "warn" },
     refused: { label: "Refused", tone: "warn" },
     execution_failed: { label: "Failed", tone: "error" },
+    quota_stopped: { label: "Quota limit reached", tone: "warn" },
     cancelled: { label: "Cancelled", tone: "neutral" },
     unavailable: { label: "Unavailable", tone: "neutral" },
     not_started: { label: "Not started", tone: "neutral" },
   };
 
 /** Statuses that mean the run could not run, rather than could not answer. */
-const FAILED = new Set(["failed", "timeout", "budget_exhausted"]);
+const FAILED = new Set(["failed", "timeout"]);
 
 export function runState(
   run: RunPayload | null | undefined,
@@ -85,6 +87,9 @@ export function runState(
       reason = run.stopped_reason ?? "";
     } else if (status === "refused") {
       state = "refused";
+      reason = run.stopped_reason ?? "";
+    } else if (status === "budget_exhausted") {
+      state = "quota_stopped";
       reason = run.stopped_reason ?? "";
     } else if (FAILED.has(status)) {
       state = "execution_failed";

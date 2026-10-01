@@ -56,7 +56,7 @@ export function ReportView({
   );
 
   return (
-    <div className="stack">
+    <div className="stack report-workspace">
       <section className="panel" data-testid="report-panel">
         <div className="panel-head">
           <h2>Report</h2>

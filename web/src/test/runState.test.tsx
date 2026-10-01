@@ -50,12 +50,18 @@ describe("runState", () => {
     );
   });
 
-  it.each(["failed", "timeout", "budget_exhausted"])(
+  it.each(["failed", "timeout"])(
     "reports %s as an execution failure",
     (status) => {
       expect(runState(run({ status })).state).toBe("execution_failed");
     },
   );
+
+  it("calls a budget stop a quota limit rather than an execution failure", () => {
+    const state = runState(run({ status: "budget_exhausted" }));
+    expect(state.state).toBe("quota_stopped");
+    expect(state.label).toBe("Quota limit reached");
+  });
 
   it("keeps cancelled, running and unavailable distinct", () => {
     expect(runState(run({ status: "cancelled" })).state).toBe("cancelled");
