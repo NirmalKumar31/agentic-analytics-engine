@@ -748,6 +748,25 @@ inference. See [ADR 0004](adr/0004-deterministic-presentation-contract.md).
 
 ---
 
+## 11b. A category filter value stops at the first space
+
+`where chronotype is Night Owl` binds as `chronotype = 'Night'`. The
+equality grammar captures a single token, so a multi-word value is
+truncated, the filter matches no rows, and the run is declined by the
+empty-population guard rather than answered.
+
+The failure is safe -- no wrong number is published -- but the question is
+one a reader would reasonably expect to work, and the message does not say
+that the value was cut. Widening the capture is not a one-line change: the
+clause runs to the end of the sentence, so `where chronotype is
+Intermediate by region` would swallow the grouping, which is the same
+over-capture that once turned a filtered breakdown into a two-cut one.
+
+Quote the value or use a single-word category until this has its own
+change with its own corpus evidence.
+
+---
+
 ## 12. Deliberately out of scope
 
 No authentication, billing, multi-tenant persistence or scheduled jobs. No

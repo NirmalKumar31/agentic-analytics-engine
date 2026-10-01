@@ -705,3 +705,39 @@ published verbatim and marks itself derived, rather than rewriting evidence
 to look like it came from a build that did not exist yet.
 
 See [ADR 0004](adr/0004-deterministic-presentation-contract.md).
+
+## Automatic governed planning
+
+A visitor had to choose an implementation strategy before asking a
+question. The obstacle to a sensible default was not the interface: the
+resolver reported every unresolvable question as one `confident=False`
+boolean, so the only available policies were *never ask a model* and
+*always ask a model*. One refuses questions a model could read correctly;
+the other spends a billable request on every question whose column does
+not exist.
+
+`analytics/resolution.py` makes the resolver's own conclusions typed.
+Twelve `ResolutionIssue` codes classify into five states, and exactly one
+of them is worth a planning request:
+
+* `exact` — every column named. Executes immediately, no provider call.
+* `ambiguous` — the dataset can answer it and the wording did not say how.
+  One typed request, validated against the schema and the question.
+* `unresolved`, `unsupported`, `unsafe` — certain refusals. A model cannot
+  overturn a missing column, so none is asked.
+
+The cost argument rests on lazy construction. Building the governed cloud
+provider *is* the ledger admission, so construction is where quota is
+spent. `RunContext.open_planner` is therefore a factory the graph calls
+only once ambiguity is established, and the tests count constructions
+rather than requests. An exact question reads no credential and consults
+no ledger — which also means a deployment with a missing or broken
+credential still answers everything the rules can resolve.
+
+The model's authority is unchanged. A plan still cannot alter an operation
+or measure the question named, add a period, reverse a ranking or group by
+an identifier; `auto` routes through `mapping_from_plan`, not around it.
+`deterministic`, `ai` and `compare` remain selectable and behave exactly as
+before.
+
+See [ADR 0005](adr/0005-automatic-governed-planning.md).

@@ -147,15 +147,30 @@ def test_a_finished_run_records_how_it_was_executed(client: TestClient) -> None:
 
 
 # ------------------------------------------------------------ capabilities
-def test_capabilities_describe_both_modes(client: TestClient) -> None:
+def test_capabilities_describe_every_mode(client: TestClient) -> None:
+    """The closed set a browser may choose from, with AI turned off.
+
+    `auto` is offered here even though no cloud planner exists, and that
+    is the point of it: the rules are always available, so every question
+    they can resolve still executes. An ambiguous one is refused with a
+    reason rather than failing, which is a weaker product and not a
+    broken one.
+    """
     caps = client.get("/api/config").json()["capabilities"]
     modes = {m["mode"]: m for m in caps["modes"]}
-    assert set(modes) == {"deterministic", "ai"}
+    assert set(modes) == {"auto", "deterministic", "ai"}
     assert modes["deterministic"]["available"] is True
+    assert modes["auto"]["available"] is True
     assert modes["ai"]["available"] is False
     assert modes["ai"]["reason"] == AI_DISABLED
     assert caps["compare_available"] is False
     assert caps["ai_limits"] is None
+
+    # Automatic routing must not be described as a model deciding things.
+    description = modes["auto"]["description"].lower()
+    assert "only when" in description
+    for overclaim in ("autonomous", "the model computes", "ai decides"):
+        assert overclaim not in description
 
 
 def test_capabilities_never_carry_a_secret(demo_data_dir: Path) -> None:

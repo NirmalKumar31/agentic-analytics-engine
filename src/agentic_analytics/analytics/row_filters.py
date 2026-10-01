@@ -518,7 +518,24 @@ def parse_filters(question: str, schema: dict[str, Any]) -> FilterResolution:
                 ),
             )
         if column is None:
-            continue
+            # A restriction was stated and could not be bound to a column.
+            #
+            # This used to `continue`, so the clause vanished and the
+            # question was answered over every row -- "average sleep where
+            # mood is good" returned the average for everyone, confidently,
+            # on a table with no mood column. That is not a slightly worse
+            # answer, it is an answer to a different question, and it is
+            # the exact failure the sibling `ambiguous` branch above
+            # refuses. This module's own policy is to err toward detecting:
+            # a false detection costs a refusal with a reason, a missed one
+            # costs a wrong answer presented as the right one.
+            return FilterResolution(
+                constraint_detected=True,
+                refusal=(
+                    f"the question restricts rows by {match.group('col').strip()!r}, "
+                    "which is not a column of this table; name a column that is"
+                ),
+            )
         if _base_type(every.get(column)) in _NUMERIC_TYPES:
             # A number written as a word against a numeric column is a
             # comparison, not a category, and `_COMPARISON` owns it.

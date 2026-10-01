@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from collections.abc import Awaitable, Callable
+from dataclasses import dataclass
 from typing import Any
 
 from agentic_analytics.agents.base import ask_into, bullet_list
@@ -17,6 +19,7 @@ from agentic_analytics.agents.timescope import comparison_window as _comparison_
 from agentic_analytics.agents.timescope import parse_time_scope
 from agentic_analytics.analytics import upload_plan
 from agentic_analytics.analytics.metric_plan import MetricQuestionMapping
+from agentic_analytics.analytics.resolution import ResolutionAssessment, assess
 from agentic_analytics.llm.base import LLMProvider
 
 # Tools that do not require a metric from the semantic layer. A dataset with
@@ -155,6 +158,118 @@ Return the grounded upload query plan."""
 
     # Neither resolved it. The AI's reason is the more specific one.
     return proposed
+
+
+#: What decided the contract for one automatic run. Stable identifiers:
+#: the UI maps them to copy and the planning audit groups by them.
+ROUTE_RULES_EXACT = "rules_exact"
+ROUTE_AI_RESOLVED = "ai_resolved"
+ROUTE_AI_UNAVAILABLE = "ai_unavailable"
+ROUTE_REFUSED = "refused"
+
+
+@dataclass(frozen=True)
+class AutoResolution:
+    """The outcome of resolving one question automatically.
+
+    Carries the route and the assessment as well as the contract, because
+    "the rules settled it" and "a model settled it" are different facts
+    about a run and a reader is entitled to know which happened.
+    """
+
+    mapping: upload_plan.QuestionMapping
+    assessment: ResolutionAssessment
+    route: str
+    #: Planning requests actually issued. Zero for every exact question,
+    #: which is the property that makes automatic routing affordable.
+    planning_calls: int = 0
+
+
+async def resolve_upload_query_automatically(
+    question: str,
+    schema: dict[str, Any],
+    *,
+    open_planner: Callable[[], Awaitable[LLMProvider]] | None = None,
+) -> AutoResolution:
+    """Resolve one upload question, asking a model only when rules cannot.
+
+    The deterministic resolver runs first, always, and its assessment
+    decides whether a provider is needed at all. An exact question
+    executes immediately having made no provider call and consulted no
+    ledger -- which is the whole point: the common case must not cost
+    anything, or automatic routing is just the AI mode with extra steps.
+
+    `open_planner` is a factory rather than a provider because constructing
+    the governed cloud provider *is* the ledger admission. Taking a
+    durable slot for a question the rules already answered would charge a
+    quota against work that never happened, so the provider is built only
+    once ambiguity is established, and only then.
+
+    A model is asked only when the question is ambiguous: the dataset can
+    answer it and the wording did not say how. A missing column, an
+    unimplemented operation and an unsafe grouping are certain refusals,
+    and a model cannot overturn any of them -- asking would spend a
+    request to be told what the rules already knew.
+    """
+    assessment = assess(question, schema)
+    # `assess` always runs the resolver, so there is always a contract
+    # here -- an exact one, or the refusing one that carries the reason.
+    contract = assessment.deterministic_contract
+    assert contract is not None, "assess always runs the resolver"
+
+    if assessment.executable:
+        return AutoResolution(
+            mapping=contract,
+            assessment=assessment,
+            route=ROUTE_RULES_EXACT,
+            planning_calls=0,
+        )
+
+    if not assessment.ai_eligible:
+        return AutoResolution(
+            mapping=contract,
+            assessment=assessment,
+            route=ROUTE_REFUSED,
+            planning_calls=0,
+        )
+
+    if open_planner is None:
+        # Ambiguous, and no planner to ask. This is a refusal with a
+        # precise reason, not an execution failure: nothing broke, and the
+        # question is answerable once the wording names a column.
+        return AutoResolution(
+            mapping=contract,
+            assessment=assessment,
+            route=ROUTE_AI_UNAVAILABLE,
+            planning_calls=0,
+        )
+
+    provider = await open_planner()
+    try:
+        proposed = await resolve_upload_query(provider, question, schema)
+        calls = int(getattr(getattr(provider, "usage", None), "attempts", 0) or 0)
+    finally:
+        closer = getattr(provider, "aclose", None)
+        if closer is not None:
+            await closer()
+
+    if proposed.confident:
+        return AutoResolution(
+            mapping=proposed,
+            assessment=assessment,
+            route=ROUTE_AI_RESOLVED,
+            planning_calls=max(calls, 1),
+        )
+
+    # The plan was unusable and the rules had already declined. Neither
+    # settled it, so the question is refused with the more specific
+    # reason -- and never silently answered as a different question.
+    return AutoResolution(
+        mapping=proposed,
+        assessment=assessment,
+        route=ROUTE_REFUSED,
+        planning_calls=max(calls, 1),
+    )
 
 
 def analysis_from_upload_mapping(
