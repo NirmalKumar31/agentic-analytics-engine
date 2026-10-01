@@ -101,6 +101,26 @@ test.describe("a chart on an uploaded dataset", () => {
     await page.emulateMedia({ media: "screen" });
   });
 
+  test("draws a trend as a line, not just a bar chart", async ({ page }) => {
+    // The hydration walks encoding channels, so it is kind-agnostic -- but
+    // a trend plots the engine's synthesised `period` column rather than a
+    // column of the uploaded file, which is the one field name that could
+    // fail to resolve against the result.
+    await page.goto("/");
+    await uploadFile(page, "trend.csv", sampleCsv());
+    await ask(page, "Show the monthly trend of revenue");
+    await waitForReport(page);
+
+    await expectDrawnChart(page);
+    await expectNoChartFailure(page);
+    const card = page.locator(".chart-card").first();
+    // A line chart draws its series as a path; a bar chart would not.
+    expect(
+      await card.locator(".chart-host svg path.line, .chart-host svg path").count(),
+    ).toBeGreaterThan(0);
+    await expect(card.locator("h4")).toContainText(/over time/i);
+  });
+
   test("a revenue axis reads at the same precision as the table", async ({
     page,
   }) => {
@@ -175,5 +195,90 @@ test.describe("the stage lane", () => {
     await expect(lane).toContainText(/contract validation/i);
     await expect(lane).toContainText(/DuckDB via MCP/i);
     await expect(lane).not.toContainText(/not reached|not accepted/i);
+  });
+});
+
+test.describe("Compare Both, in a browser", () => {
+  /**
+   * Advertise AI so the selector offers Compare, then answer the
+   * comparison with one real deterministic run used for both sides.
+   *
+   * Pointing both panes at the same run is the honest way to reach the
+   * shared-result path with real engine data: identical contracts,
+   * identical values and identical withheld findings are exactly the
+   * conditions `shareOneResult` requires, and no model is called to
+   * manufacture them.
+   */
+  async function compareOverOneRun(page: import("@playwright/test").Page) {
+    await page.route("**/api/config", async (route) => {
+      const response = await route.fetch();
+      const body = await response.json();
+      body.capabilities.modes = body.capabilities.modes.map(
+        (m: { mode: string }) =>
+          m.mode === "ai"
+            ? { ...m, available: true, reason: "", message: "" }
+            : m,
+      );
+      body.capabilities.compare_available = true;
+      body.capabilities.ai_limits = {
+        runs_per_session: 3,
+        max_model_calls_per_run: 24,
+        max_runtime_seconds: 180,
+      };
+      await route.fulfill({ response, json: body });
+    });
+
+    await page.route("**/api/comparisons", async (route) => {
+      const request = route.request().postDataJSON() as {
+        session_id: string;
+        question: string;
+      };
+      const started = await route.fetch({
+        url: new URL("/api/analyses", page.url()).toString(),
+        method: "POST",
+        postData: JSON.stringify({ ...request, mode: "deterministic" }),
+        headers: { "content-type": "application/json" },
+      });
+      const { run_id } = (await started.json()) as { run_id: string };
+      await route.fulfill({
+        status: 202,
+        json: {
+          comparison_id: "cmp_shared",
+          session_id: request.session_id,
+          question: request.question,
+          deterministic_run_id: run_id,
+          ai_run_id: run_id,
+        },
+      });
+    });
+  }
+
+  test("shows one result, with both planning lanes above it", async ({
+    page,
+  }) => {
+    await compareOverOneRun(page);
+    await page.goto("/");
+    await uploadFile(page, "shared.csv", sampleCsv());
+    await page.getByRole("radio", { name: /^Compare Both/ }).click();
+    await page.getByLabel("Business question").fill(
+      "What is the total revenue by region?",
+    );
+    await page.getByRole("button", { name: /Run both/ }).click();
+    await waitForReport(page);
+
+    // One shared result, not two copies of it.
+    await expect(page.getByTestId("shared-result")).toBeVisible({
+      timeout: 60_000,
+    });
+    await expect(page.locator('[data-testid="pane-status"]')).toHaveCount(0);
+    // One report, not the same report twice.
+    await expect(page.getByTestId("report-panel")).toHaveCount(1);
+
+    // The two planning lanes stay: that is what actually differed.
+    await expect(page.locator(".lane")).toHaveCount(2);
+
+    // And the one chart it shows is drawn, not described.
+    await expectDrawnChart(page);
+    await expectNoChartFailure(page);
   });
 });

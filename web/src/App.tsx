@@ -354,7 +354,12 @@ export function App() {
                 what they actually produced, so the stronger path stops
                 looking like the weaker one.
               */}
-              {run && (
+              {/*
+                Compare Both renders its own lane per mode, side by side.
+                A third lane here would describe one of those runs again,
+                in a panel that does not say which.
+              */}
+              {run && uiMode !== 'compare' && (
                 <div className="lane-grid single">
                   <ExecutionLane
                     run={run}
