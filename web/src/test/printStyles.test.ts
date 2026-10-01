@@ -79,4 +79,19 @@ describe("print stylesheet", () => {
     // `--supported` and friends resolve against the dark theme.
     expect(block).not.toMatch(/var\(--(supported|warning|rejected)/);
   });
+
+  it("restates the chart's screen palette in ink", () => {
+    // The chart is drawn for a dark background: axis labels at #9aa5b8 are
+    // close to invisible on white paper, and the chart was the whole point
+    // of printing the page.
+    const block = printBlock();
+    expect(block).toMatch(/\.chart-host svg text/);
+    expect(block).toMatch(/fill: #222 !important/);
+  });
+
+  it("keeps the chart within the page rather than clipping it", () => {
+    const block = printBlock();
+    expect(block).toMatch(/\.chart-host svg[\s\S]*max-height: 230px !important/);
+    expect(block).toMatch(/\.chart-card[\s\S]*break-inside: avoid/);
+  });
 });

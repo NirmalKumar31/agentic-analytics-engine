@@ -32,6 +32,12 @@ from agentic_analytics.verification.typing import as_number
 #: Groups enumerated in the answer sentence. The rest are in the cited
 #: result, which the report renders in full beside the answer.
 ENUMERATED_GROUPS = 12
+#: Groups that read as a sentence. Above this, enumerating them produced a
+#: semicolon run that trailed off in "and further groups in the cited
+#: result" -- a paragraph that repeated the table badly and said nothing the
+#: table did not already say. Beyond this the answer describes the
+#: breakdown's shape and leaves the enumeration to the table.
+PROSE_GROUPS = 4
 
 _PHRASING = {
     "sum": "The total {what} is {value}",
@@ -78,13 +84,20 @@ _OPERATION_WORD = {"sum": "total", "average": "average", "count": "count of"}
 
 
 def _format(value: Decimal) -> str:
-    """Thousands separators, and no more precision than a reader wants."""
+    """Thousands separators, at the precision the table uses.
+
+    The same figure has to read identically in the sentence and in the
+    table beside it. Stripping trailing zeros printed a revenue total as
+    `12,296,516.7` in the answer and `12,296,516.70` in the table, which a
+    reader has to stop and reconcile. A whole number carries no decimals in
+    either place; a fractional one carries two in both.
+    """
     if value == value.to_integral_value():
         return f"{int(value):,}"
     quantised = round(value, DISPLAY_PLACES)
     if quantised == quantised.to_integral_value():
         return f"{int(quantised):,}"
-    return f"{quantised:,f}".rstrip("0").rstrip(".")
+    return f"{quantised:,.{DISPLAY_PLACES}f}"
 
 
 def _format_metric(value: Decimal, metric_format: str) -> str:
@@ -134,11 +147,13 @@ def _rank_answer(mapping: Any, snapshot: ResultSnapshot, task_id: str | None) ->
     ascending = bool(getattr(mapping, "ascending", False))
     extreme = "lowest" if ascending else "highest"
     what = measure.replace("_", " ")
+    # The group first, then its figure. "The highest total weekly revenue by
+    # branch no is 45 at 12,296,516.70" reads as though 45 were the answer;
+    # the branch and the revenue are both numbers and the sentence gave the
+    # reader no way to tell which was which.
+    subject = f"{dimension.replace('_', ' ')} {label}" if label.isdigit() else label
     return CandidateFinding(
-        text=(
-            f"The {extreme} total {what} by {dimension.replace('_', ' ')} is "
-            f"{label} at {_format(value)}."
-        ),
+        text=(f"{subject.capitalize()} has the {extreme} total {what}, at {_format(value)}."),
         kind="calculated_fact",
         task_id=task_id,
         result_ids=[snapshot.result_id],
@@ -152,6 +167,26 @@ def _rank_answer(mapping: Any, snapshot: ResultSnapshot, task_id: str | None) ->
             )
         ],
     )
+
+
+def _group_label(snapshot: ResultSnapshot, row: int, columns: list[str], names: list[str]) -> str:
+    """How one group is named in prose.
+
+    A bare key reads badly on its own: a store table grouped by `Branch_No`
+    produced "1: 222,402,808.85", where the leading "1" looks like a list
+    marker rather than the store it identifies. A numeric key is therefore
+    introduced by what it is a key of.
+    """
+    parts: list[str] = []
+    for column, name in zip(columns, names, strict=False):
+        value = snapshot.cell(row, column)
+        text = str(value)
+        # `bool` is caught by the same branch deliberately: a 0/1 flag needs
+        # naming for exactly the same reason a store number does.
+        if isinstance(value, bool | int | float | Decimal):
+            text = f"{name.replace('_', ' ')} {text}"
+        parts.append(text)
+    return " / ".join(parts)
 
 
 def _trend_answer(mapping: Any, snapshot: ResultSnapshot, task_id: str | None) -> Any | None:
@@ -385,35 +420,86 @@ def canonical_answer(
         # so the closing clause deliberately carries no count: how many
         # groups there are, and how many rows they cover, is reported from
         # `group_coverage` as data rather than asserted here as prose.
-        shown = min(len(snapshot.rows), ENUMERATED_GROUPS)
-        for row in range(shown):
-            value = as_number(
+        names = [str(d) for d in dimensions]
+        values: list[tuple[int, Decimal]] = []
+        for row in range(len(snapshot.rows)):
+            measured = as_number(
                 snapshot.cell(row, target), declared_type=snapshot.declared_type(target)
             )
-            if value is None:
+            if measured is None:
                 return None
-            label = " / ".join(str(snapshot.cell(row, column)) for column in dimension_columns)
-            grouped_entries.append(f"{label}: {_format(value)}")
-            grouped_cells.append(
-                EvidenceCell(
-                    result_id=snapshot.result_id,
-                    row=row,
-                    column=target,
-                    value=snapshot.cell(row, target),
-                    label=f"{operation} of {measure} for {label}",
-                )
-            )
+            values.append((row, measured))
+        if not values:
+            return None
+
         what = (measure or "rows").replace("_", " ")
-        tail = "." if shown == len(snapshot.rows) else "; and further groups in the cited result."
+        subject = (
+            f"{_OPERATION_WORD.get(operation, operation).capitalize()} {what} "
+            f"by {' and '.join(name.replace('_', ' ') for name in names)}"
+        )
+
+        def cell_for(row: int) -> EvidenceCell:
+            return EvidenceCell(
+                result_id=snapshot.result_id,
+                row=row,
+                column=target,
+                value=snapshot.cell(row, target),
+                label=(
+                    f"{operation} of {measure} for "
+                    f"{_group_label(snapshot, row, dimension_columns, names)}"
+                ),
+            )
+
+        if len(values) <= PROSE_GROUPS:
+            # Few enough to read as a sentence.
+            for row, value in values:
+                label = _group_label(snapshot, row, dimension_columns, names)
+                grouped_entries.append(f"{label}: {_format(value)}")
+                grouped_cells.append(cell_for(row))
+            return CandidateFinding(
+                text=f"{subject}: " + "; ".join(grouped_entries) + ".",
+                kind="calculated_fact",
+                task_id=task_id,
+                result_ids=[snapshot.result_id],
+                evidence_cells=grouped_cells,
+            )
+
+        # Too many to enumerate. Describe the shape of the breakdown and
+        # leave the groups to the table beside it, which carries all of
+        # them. The extremes are the two figures a reader looks for first
+        # and they are the two the table makes hardest to find.
+        #
+        # "Highest" and "lowest" are claims about every group, so they are
+        # only made when the result holds every group. A breakdown cut
+        # short describes what it has instead, and never implies it is the
+        # whole picture -- the same overclaim that once reported the tenth
+        # of a top-ten list as the minimum.
+        coverage = snapshot.group_coverage
+        whole = coverage.complete if coverage is not None else True
+        highest_row, highest = max(values, key=lambda pair: pair[1])
+        lowest_row, lowest = min(values, key=lambda pair: pair[1])
+        top_label = _group_label(snapshot, highest_row, dimension_columns, names)
+        bottom_label = _group_label(snapshot, lowest_row, dimension_columns, names)
+
+        if whole:
+            text = (
+                f"{subject} is highest for {top_label}, at {_format(highest)}, "
+                f"and lowest for {bottom_label}, at {_format(lowest)}. "
+                "Every group is listed in the result below."
+            )
+        else:
+            text = (
+                f"{subject}: the largest group in this result is {top_label}, "
+                f"at {_format(highest)}, and the smallest is {bottom_label}, "
+                f"at {_format(lowest)}. This result does not carry every group "
+                "the question asked for; the groups it does carry are listed below."
+            )
         return CandidateFinding(
-            text=f"{_OPERATION_WORD.get(operation, operation).capitalize()} {what} "
-            f"by {' and '.join(d.replace('_', ' ') for d in dimensions)}: "
-            + "; ".join(grouped_entries)
-            + tail,
+            text=text,
             kind="calculated_fact",
             task_id=task_id,
             result_ids=[snapshot.result_id],
-            evidence_cells=grouped_cells,
+            evidence_cells=[cell_for(highest_row), cell_for(lowest_row)],
         )
 
     value = as_number(snapshot.cell(0, target), declared_type=snapshot.declared_type(target))
