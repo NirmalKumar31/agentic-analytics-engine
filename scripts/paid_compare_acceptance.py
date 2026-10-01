@@ -72,6 +72,17 @@ def _canonical(run: dict[str, Any]) -> dict[str, Any]:
     return dict(contract.get("canonical_contract") or contract)
 
 
+def _has_exact_dimension(contract: dict[str, Any], expected: str) -> bool:
+    """Check the plural, canonical grouping contract.
+
+    ``dimension`` is retained only on the non-canonical compatibility
+    projection.  A canonical contract deliberately has one authoritative
+    ``dimensions`` list, so an acceptance test must not look for the legacy
+    field after calling :func:`_canonical`.
+    """
+    return contract.get("dimensions") == [expected]
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("base_url")
@@ -173,9 +184,9 @@ def main() -> int:
             str(contract.get("measure")),
         )
         checks.ok(
-            f"{label}: dimension is the one named",
-            contract.get("dimension") == "Promo_Flag",
-            str(contract.get("dimension")),
+            f"{label}: grouping is the one named",
+            _has_exact_dimension(contract, "Promo_Flag"),
+            str(contract.get("dimensions")),
         )
         checks.ok(
             f"{label}: no invented filter",
