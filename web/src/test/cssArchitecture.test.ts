@@ -291,6 +291,19 @@ describe("rules stay in the module that owns their place in the cascade", () => 
     expect(withoutComments(moduleSource("styles/tokens.css"))).toMatch(/--z-[\w-]+\s*:/);
   });
 
+  it("keeps the state card with the report it explains", () => {
+    // `.report-workspace` is pulled to the top of the column with
+    // `order: -1`. The state card is a sibling, so without its own order it
+    // stayed in document order -- below the execution panels, a long scroll
+    // from the outcome it describes. A reader met "Not answered" at the top
+    // and found "Refused." somewhere further down.
+    const states = withoutComments(moduleSource("styles/states.css"));
+    expect(states).toMatch(/\.column\s*>\s*\.report-workspace\s*\{[^}]*order:\s*-1/);
+    expect(states).toMatch(
+      /\.column\s*>\s*\[data-testid="run-state-card"\]\s*\{[^}]*order:\s*-2/,
+    );
+  });
+
   it("adds no !important beyond the thirteen already justified", () => {
     // Not forbidden outright: all thirteen predate this change and each has
     // a reason that `!important` is the correct tool for.

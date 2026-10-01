@@ -26,6 +26,7 @@ import { describe, expect, it } from "vitest";
 import { ComparisonView } from "../components/ComparisonView";
 import { QuestionComposer } from "../components/QuestionComposer";
 import { DatasetIdentity } from "../components/DatasetIdentity";
+import { PresentationReportView } from "../components/PresentationReportView";
 import { ReportWorkspace } from "../components/ReportWorkspace";
 import { SchemaInspector } from "../components/SchemaInspector";
 import { WorkflowIndex } from "../components/WorkflowIndex";
@@ -539,5 +540,87 @@ describe("a query that matched nothing", () => {
     workspace(emptyResult);
     const card = screen.getByTestId("run-state-card");
     expect(card).toHaveTextContent(/nothing was withheld/i);
+  });
+});
+
+// ------------------------------------------------ 8. what the card claims
+
+describe("the report card says what it actually is", () => {
+  function present(shape: string, headline: string, caveats: unknown[] = []) {
+    return render(
+      <PresentationReportView
+        question="What is the total gross margin by region?"
+        presentation={
+          {
+            schema_version: "1.0",
+            shape,
+            headline,
+            secondary_summary: null,
+            highlights: [],
+            caveats,
+            display_fields: [],
+            // Never null in a real payload: the schema gives it a
+            // default_factory, so the builder always carries one.
+            scope: {
+              rows_total: null,
+              rows_matching: null,
+              rows_represented: null,
+              filters: [],
+              period: null,
+              complete: null,
+            },
+            chart: null,
+            table: null,
+            finding_ids: [],
+            compatibility_derived: false,
+          } as never
+        }
+        results={{}}
+        onShowWork={() => undefined}
+      />,
+    );
+  }
+
+  it("does not call a refusal a verified answer", () => {
+    // It labelled every shape "Verified answer", so a question the engine
+    // declined to map was presented as a verified answer to it, with the
+    // refusal reason as the answer. Nothing was verified.
+    present("refusal", "the question could not be mapped safely");
+    const card = screen.getByTestId("direct-answer");
+    expect(card).not.toHaveTextContent(/verified answer/i);
+    expect(card).toHaveTextContent(/not answered/i);
+  });
+
+  it("does not call a failure a verified answer", () => {
+    present("failure", "The analysis could not be completed.");
+    const card = screen.getByTestId("direct-answer");
+    expect(card).not.toHaveTextContent(/verified answer/i);
+    expect(card).toHaveTextContent(/not completed/i);
+  });
+
+  it("still calls a real answer a verified answer", () => {
+    present("breakdown", "Revenue by region: North $1.00.");
+    expect(screen.getByTestId("direct-answer")).toHaveTextContent(
+      /verified answer/i,
+    );
+  });
+
+  it("does not repeat the headline in the notes", () => {
+    // The builder sets a refusal's headline and its blocking caveat from the
+    // same sentence, so Notes restated the headline directly beneath it.
+    const reason = "the question could not be mapped safely";
+    present("refusal", reason, [
+      { code: "refused", message: reason, severity: "blocking" },
+    ]);
+    expect(screen.getAllByText(new RegExp(reason))).toHaveLength(1);
+    expect(screen.queryByRole("heading", { name: "Notes" })).toBeNull();
+  });
+
+  it("keeps a note that says something the headline does not", () => {
+    present("breakdown", "Revenue by region: North $1.00.", [
+      { code: "coverage", message: "Two groups were omitted.", severity: "warn" },
+    ]);
+    expect(screen.getByRole("heading", { name: "Notes" })).toBeVisible();
+    expect(screen.getByText("Two groups were omitted.")).toBeVisible();
   });
 });

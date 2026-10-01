@@ -490,6 +490,32 @@ def _presentation_for(result: RunResult, state: Any) -> Any | None:
     mapping = state.get("query_mapping") if hasattr(state, "get") else None
     if mapping is None and snapshot is None:
         return None
+
+    if snapshot is None and result.outcome == "completed":
+        # A completed run this contract cannot describe.
+        #
+        # The presentation is built around an `aggregate_for_question`
+        # snapshot: it reads the result's columns, cells and row counts to
+        # say what the answer is. The demo warehouse does not produce one --
+        # it resolves through the metric registry and executes different
+        # tools -- while still setting `query_mapping`. So `mapping` was not
+        # None, this guard let it through, and the builder's own "no
+        # snapshot" branch returned a FAILURE presentation.
+        #
+        # Every demo run that published a verified finding was therefore
+        # rendered as "The analysis could not be completed.", with the
+        # finding it had just verified replaced by that sentence. The
+        # workflow index still showed Verify complete beside it. That is the
+        # demo path, which is the first thing a visitor sees.
+        #
+        # There is nothing to describe and nothing wrong: returning None
+        # degrades to the findings-based report, which is exactly what the
+        # docstring above says losing a presentation should do.
+        #
+        # Deliberately scoped to `completed`. A refusal or a failure has no
+        # snapshot either, and its presentation is the useful one -- it
+        # carries the reason. Those must keep being built.
+        return None
     try:
         return build_presentation(
             mapping=mapping,

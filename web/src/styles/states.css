@@ -235,6 +235,15 @@
 .column > .report-workspace {
   order: -1;
 }
+/* The state card belongs with the report it explains.
+   `ReportWorkspace` renders it as a sibling of the report, so the rule
+   above moved the report to the top and left the card in document order --
+   below the execution panels, a long scroll from the outcome it describes.
+   A reader met "Not answered" at the top and found "Refused." somewhere
+   further down. -2 puts it immediately above the report. */
+.column > [data-testid="run-state-card"] {
+  order: -2;
+}
 .technical-audit {
   padding: var(--space-3) var(--space-4);
   border-top: 1px solid var(--rule-hairline);
