@@ -294,12 +294,24 @@ jobs:
       # and the suite uploads several times per browser from one address.
       # Raised here so every test runs; the ceiling itself is covered by
       # tests/security and by the live acceptance run.
+      #
+      # 60 was not enough and failed in a way that pointed at the wrong
+      # thing. The suite uploads 21 times per engine and runs on three, so
+      # 63 uploads arrive from one address before retries -- and WebKit,
+      # running last, had 15 upload-dependent tests refused with "too many
+      # uploads from this address". Most of them were pre-existing chart and
+      # golden tests, so the failure read as a WebKit problem rather than as
+      # a shared ceiling being exhausted.
+      #
+      # 150 leaves room for three engines plus the one retry CI allows. The
+      # real fix is not uploading needlessly: specs share a profiled dataset
+      # across tests that only differ in what they ask of it.
       - name: Boot the container
         run: |
           docker run -d --name aae-e2e -p 8000:8000 \
             -e AAE_LIVE_ANALYTICS_ENABLED=true \
             -e AAE_UPLOADS_ENABLED=true \
-            -e AAE_UPLOADS_PER_IP_PER_HOUR=60 \
+            -e AAE_UPLOADS_PER_IP_PER_HOUR=150 \
             -e AAE_ANALYSES_PER_IP_PER_HOUR=200 \
             -e AAE_ANALYSES_PER_SESSION=40 \
             agentic-analytics-engine:e2e

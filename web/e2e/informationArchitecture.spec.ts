@@ -72,12 +72,36 @@ function plainCsv(): string {
 }
 
 test.describe("the schema inspector tells the truth about ambiguity", () => {
-  test("marks a role the data cannot settle, and offers no override", async ({
-    page,
-  }) => {
+  // Serial, with one upload shared across the three tests.
+  //
+  // Uploads are rate limited per address, and the whole suite runs three
+  // times -- once per engine -- against one container. At one upload per
+  // test the third engine was refused mid-run and fifteen upload-dependent
+  // tests failed, including pre-existing ones that have nothing to do with
+  // this file. A profiled dataset does not change between these
+  // assertions, so there is no reason to pay for it three times.
+  test.describe.configure({ mode: "serial" });
+  let page: Page;
+
+  test.beforeAll(async ({ browser }) => {
+    page = await browser.newPage();
     await page.goto("/");
     await uploadFile(page, "ia-ambiguous.csv", ambiguousCsv());
+  });
 
+  test.afterAll(async () => {
+    await page.close();
+  });
+
+  test.beforeEach(async () => {
+    // Each test starts from the collapsed state, whatever the last one did.
+    const inspector = page.getByTestId("schema-inspector");
+    if (await inspector.evaluate((el) => (el as HTMLDetailsElement).open)) {
+      await inspector.locator("summary").click();
+    }
+  });
+
+  test("marks a role the data cannot settle, and offers no override", async () => {
     const inspector = page.getByTestId("schema-inspector");
     // Collapsed, with the count of unsettled roles legible without opening.
     await expect(inspector).not.toHaveAttribute("open", "");
@@ -101,21 +125,7 @@ test.describe("the schema inspector tells the truth about ambiguity", () => {
     ).toHaveCount(0);
   });
 
-  test("says nothing about close calls when every role is settled", async ({
-    page,
-  }) => {
-    await page.goto("/");
-    await uploadFile(page, "ia-plain.csv", plainCsv());
-    const inspector = page.getByTestId("schema-inspector");
-    await expect(inspector).not.toContainText(/cannot settle/);
-    await inspector.locator("summary").click();
-    await expect(inspector.getByTestId("ambiguous-field")).toHaveCount(0);
-    await expect(inspector.getByTestId("ambiguity-note")).toHaveCount(0);
-  });
-
-  test("is operable from the keyboard", async ({ page }) => {
-    await page.goto("/");
-    await uploadFile(page, "ia-keyboard.csv", ambiguousCsv());
+  test("is operable from the keyboard", async () => {
     const inspector = page.getByTestId("schema-inspector");
     await inspector.locator("summary").focus();
     await page.keyboard.press("Enter");
@@ -125,11 +135,32 @@ test.describe("the schema inspector tells the truth about ambiguity", () => {
   });
 });
 
-test.describe("the question composer offers examples from the dataset at hand", () => {
-  test("an uploaded file never gets demo-warehouse questions", async ({
-    page,
-  }) => {
+test.describe("a dataset with nothing ambiguous in it", () => {
+  // Serial, sharing one upload: both assertions are about the same profiled
+  // dataset, and uploads are rate limited per address across three engines.
+  test.describe.configure({ mode: "serial" });
+  let page: Page;
+
+  test.beforeAll(async ({ browser }) => {
+    page = await browser.newPage();
     await page.goto("/");
+    await uploadFile(page, "ia-plain.csv", plainCsv());
+  });
+
+  test.afterAll(async () => {
+    await page.close();
+  });
+
+  test("says nothing about close calls when every role is settled", async () => {
+    const inspector = page.getByTestId("schema-inspector");
+    await expect(inspector).not.toContainText(/cannot settle/);
+    await inspector.locator("summary").click();
+    await expect(inspector.getByTestId("ambiguous-field")).toHaveCount(0);
+    await expect(inspector.getByTestId("ambiguity-note")).toHaveCount(0);
+    await inspector.locator("summary").click();
+  });
+
+  test("never gets demo-warehouse questions", async () => {
     // The demo questions, so the test knows what must not appear.
     const demo = await page.evaluate(async () => {
       const response = await fetch("/api/config");
@@ -140,7 +171,6 @@ test.describe("the question composer offers examples from the dataset at hand", 
     });
     expect(demo.length).toBeGreaterThan(0);
 
-    await uploadFile(page, "ia-examples.csv", plainCsv());
     const examples = page.getByTestId("question-examples");
     await expect(examples).toBeVisible();
     await expect(examples).toHaveAttribute("data-source", "schema");
@@ -157,6 +187,9 @@ test.describe("the question composer offers examples from the dataset at hand", 
     expect(offered.join(" ")).toMatch(/revenue|region|month/i);
   });
 
+});
+
+test.describe("the demo dataset keeps its curated questions", () => {
   test("the demo dataset still gets the curated questions", async ({ page }) => {
     await page.goto("/");
     await page.getByRole("button", { name: /Commerce demo warehouse/ }).click();
@@ -167,15 +200,36 @@ test.describe("the question composer offers examples from the dataset at hand", 
 });
 
 test.describe("terminal states, produced by the engine", () => {
-  test("a refused question is reported as refused, not as an empty report", async ({
-    page,
-  }) => {
+  // Serial, sharing one upload. Both states are reached by asking the same
+  // profiled dataset a different question, so a second upload buys nothing,
+  // and uploads are rate limited per address across three engine runs.
+  //
+  // Verified against the real engine before either test was written: on an
+  // uploaded dataset a question naming a measure the table does not have
+  // comes back `refused`, and a filter matching no rows comes back
+  // `failed`. The demo warehouse routes through the governed metric
+  // registry instead and does not behave the same way, so these are uploads.
+  test.describe.configure({ mode: "serial" });
+  let page: Page;
+
+  test.beforeAll(async ({ browser }) => {
+    page = await browser.newPage();
     await page.goto("/");
-    // Verified against the real engine on an uploaded dataset: a question
-    // naming a measure the table does not have comes back `refused`. The
-    // demo warehouse routes through the governed metric registry instead
-    // and does not refuse this way, so this must be an upload.
-    await uploadFile(page, "ia-refused.csv", plainCsv());
+    await uploadFile(page, "ia-terminal.csv", plainCsv());
+  });
+
+  test.afterAll(async () => {
+    await page.close();
+  });
+
+  test.beforeEach(async () => {
+    // Back to the composer, so each test starts a fresh run on the session.
+    const startOver = page.getByRole("button", { name: "Start over" });
+    if (await startOver.count()) await startOver.click();
+    await expect(page.getByLabel("Business question")).toBeVisible();
+  });
+
+  test("a refused question is reported as refused, not as an empty report", async () => {
     await ask(page, "What is the total gross margin by region?");
 
     const card = page.getByTestId("run-state-card");
@@ -195,17 +249,13 @@ test.describe("terminal states, produced by the engine", () => {
     await expect(report).toHaveAttribute("data-state", "idle");
   });
 
-  test("a filter matching no rows is reported, and not as a verified answer", async ({
-    page,
-  }) => {
+  test("a filter matching no rows is reported, and not as a verified answer", async () => {
     // The engine classifies this as `failed`, with the reason "the executed
     // result could not be turned into a direct answer". That is arguably
     // the wrong classification -- an empty result set is an analytical
     // outcome, not a breakage -- but changing it is a backend decision and
     // this change does not touch backend behaviour. So this asserts what
     // the engine does today, and the limitation is recorded in the PR.
-    await page.goto("/");
-    await uploadFile(page, "ia-empty.csv", plainCsv());
     await ask(page, "What is total revenue by region where region is Atlantis?");
 
     const card = page.getByTestId("run-state-card");
