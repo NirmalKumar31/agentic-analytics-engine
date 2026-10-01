@@ -313,16 +313,42 @@ jobs:
         working-directory: web
         run: |
           npm ci --no-audit --no-fund
-          npx playwright install --with-deps chromium
+          npx playwright install --with-deps chromium firefox webkit
 
-      # Chromium only here. Firefox and WebKit are run against the deployed
-      # URL at release time, where the cross-browser question is real;
-      # installing three engines on every push costs more than it finds.
+      # All three engines. Chromium alone was cheaper and missed real
+      # defects: running Firefox and WebKit locally found a textarea with
+      # no focus ring, a disclosure summary falling back to the user-agent
+      # ring, and a page that scrolled sideways on a phone. None of those
+      # were visible to a Chromium-only run, so the saving was illusory.
+      #
+      # Each engine runs separately so a failure names the engine, and so
+      # the zero-skip guard is evaluated per engine rather than across a
+      # pooled total that could hide one engine skipping everything.
       - name: Chromium end to end
         working-directory: web
         env:
           AAE_E2E_BASE_URL: http://127.0.0.1:8000
           AAE_E2E_BROWSERS: chromium
+        run: npm run test:e2e
+
+      # Firefox skips the same browser-PDF test as WebKit.
+      - name: Firefox end to end
+        working-directory: web
+        env:
+          AAE_E2E_BASE_URL: http://127.0.0.1:8000
+          AAE_E2E_BROWSERS: firefox
+          AAE_E2E_ALLOWED_SKIPS: "1"
+        run: npm run test:e2e
+
+      # WebKit skips the browser-PDF test, which uses `page.pdf()` -- a
+      # Chromium-only Playwright API, gated in the spec rather than
+      # failing. The guard is told to expect exactly that one.
+      - name: WebKit end to end
+        working-directory: web
+        env:
+          AAE_E2E_BASE_URL: http://127.0.0.1:8000
+          AAE_E2E_BROWSERS: webkit
+          AAE_E2E_ALLOWED_SKIPS: "1"
         run: npm run test:e2e
 
       - name: Playwright report
