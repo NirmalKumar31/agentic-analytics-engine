@@ -16,6 +16,7 @@ import type {
 } from "../lib/types";
 import { Chart } from "./Chart";
 import { ResultPanel } from "./ResultPanel";
+import { PresentationReportView } from "./PresentationReportView";
 
 interface Props {
   question: string;
@@ -25,6 +26,7 @@ interface Props {
   charts: ChartSpec[];
   results: Record<string, ResultSnapshot>;
   queryContract?: QueryContract | null;
+  presentation?: import("../lib/types").AnalysisPresentation | null;
   onShowWork: (findingId: string) => void;
 }
 
@@ -36,8 +38,12 @@ export function ReportView({
   charts,
   results,
   queryContract,
+  presentation,
   onShowWork,
 }: Props) {
+  if (presentation) {
+    return <PresentationReportView question={question} presentation={presentation} results={results} onShowWork={onShowWork} />;
+  }
   const byId = new Map(findings.map((f) => [f.finding_id, f]));
   const answer = directAnswer(findings, results);
   const answerSnapshot = answerResult(answer, results);

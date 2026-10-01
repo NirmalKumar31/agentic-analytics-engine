@@ -177,14 +177,17 @@ test.describe("uploading a file", () => {
     await page.getByRole("button", { name: "Start over" }).click();
     await ask(page, "Explain the root cause of customer churn in this file");
     await waitForReport(page);
+    // A refusal is a terminal state of its own, rather than a failed run
+    // or a completed report with nothing in it.
+    await expect(page.locator("body")).toHaveAttribute("data-phase", "refused");
     // The activity log keeps the engine's own reason verbatim.
     await expect(page.getByText(/could not be mapped/i).first()).toBeVisible();
     // The report records it too, in a sentence written for a reader. This
     // used to be the same raw string repeated in three phrasings; it is
     // now said once, so the assertion is on the reader-facing wording and
     // on there being exactly one of it.
-    const refusals = page.locator("li", {
-      hasText: /was not (executed|answered)/i,
+    const refusals = page.locator("[data-testid='direct-answer']", {
+      hasText: /could not be mapped|could not be answered safely/i,
     });
     await expect(
       refusals.first(),

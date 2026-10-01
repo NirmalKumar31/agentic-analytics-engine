@@ -323,7 +323,7 @@ jobs:
         env:
           AAE_E2E_BASE_URL: http://127.0.0.1:8000
           AAE_E2E_BROWSERS: chromium
-        run: npx playwright test
+        run: npm run test:e2e
 
       - name: Playwright report
         if: failure()

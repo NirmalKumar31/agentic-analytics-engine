@@ -134,6 +134,108 @@ export interface Report {
   next_questions: string[];
 }
 
+export type PresentationShape =
+  | "scalar"
+  | "boolean_comparison"
+  | "categorical_breakdown"
+  | "ordered_numeric_series"
+  | "time_series"
+  | "ranking"
+  | "multi_dimensional"
+  | "statistical_test"
+  | "refusal"
+  | "failure";
+
+export interface PresentationValue {
+  raw_value: Cell;
+  formatted_value: string;
+  unit: string | null;
+}
+
+export interface DisplayField {
+  source_name: string;
+  display_label: string;
+  semantic_kind: "measure" | "category" | "boolean" | "ordered_numeric" | "time" | "identifier" | "count";
+  unit: string | null;
+  precision: number | null;
+  boolean_labels: Record<string, string> | null;
+  ordered: boolean;
+  identifier: boolean;
+  sensitive: boolean;
+}
+
+export interface PresentationHighlight {
+  highlight_id: string;
+  label: string;
+  value: PresentationValue;
+  comparison_value: PresentationValue | null;
+  delta: PresentationValue | null;
+  evidence_cells: EvidenceCell[];
+  interpretation_level: "measured" | "derived";
+}
+
+export interface PresentationScope {
+  rows_total: number | null;
+  rows_matching: number | null;
+  rows_represented: number | null;
+  groups_returned: number | null;
+  groups_total: number | null;
+  complete: boolean | null;
+  filters: string[];
+  period: string | null;
+  ordering: "dimension" | "measure" | "period" | null;
+}
+
+export interface PresentationTable {
+  result_id: string;
+  visible_columns: string[];
+  display_fields: DisplayField[];
+  default_sort: string | null;
+  preview_limit: number | null;
+  complete: boolean | null;
+}
+
+export interface PresentationChart {
+  chart_id: string | null;
+  result_id: string | null;
+  kind: string;
+  title: string | null;
+  subtitle: string | null;
+  x_field: string | null;
+  y_field: string | null;
+  series_field: string | null;
+  no_chart_reason: string | null;
+  spec: Record<string, unknown> | null;
+}
+
+export interface PresentationCaveat {
+  code: string;
+  message: string;
+  severity: "note" | "warning" | "blocking";
+  related_component: string | null;
+}
+
+export interface PresentationProvenanceRef {
+  finding_id: string;
+  result_id: string;
+  evidence_cells: EvidenceCell[];
+}
+
+export interface AnalysisPresentation {
+  schema_version: string;
+  shape: PresentationShape;
+  headline: string;
+  secondary_summary: string | null;
+  highlights: PresentationHighlight[];
+  scope: PresentationScope;
+  display_fields: DisplayField[];
+  table: PresentationTable | null;
+  chart: PresentationChart | null;
+  caveats: PresentationCaveat[];
+  provenance_refs: PresentationProvenanceRef[];
+  compatibility_derived: boolean;
+}
+
 export interface TraceCall {
   tool_name: string;
   agent: string;
@@ -201,6 +303,13 @@ export interface RunPayload {
   metrics: RunMetrics;
   stopped_reason: string;
   status?: string;
+  /**
+   * How the run ended, as the engine classified it. Distinct from
+   * `status`: a run can be `completed` as an HTTP resource while its
+   * outcome is `refused`, and the interface must not read the first as
+   * the second. Optional because payloads predating it exist.
+   */
+  outcome?: string;
   question_coverage?: QuestionCoverage | null;
   chart_decision?: ChartDecision | null;
   timings?: RunTimings | null;
@@ -210,6 +319,9 @@ export interface RunPayload {
    * the model independently agreeing.
    */
   planner_fallback?: boolean;
+  /** Backend-owned description of the verified answer. UI must render this
+   * rather than re-interpreting finding prose. */
+  presentation?: AnalysisPresentation | null;
   title?: string;
   demonstrates?: string;
 }
@@ -357,7 +469,7 @@ export interface RunEvent {
 export type ExecutionMode = "recorded" | "deterministic_live" | "ai_live";
 
 /** Which decision-maker drives a run. The server validates this too. */
-export type RunMode = "deterministic" | "ai";
+export type RunMode = "deterministic" | "ai" | "auto";
 
 /** A user choice. `compare` runs both and is not a provider mode. */
 export type UiMode = RunMode | "compare";

@@ -101,7 +101,7 @@ describe("ResultPanel", () => {
   it("sorts a complete result, because reordering it changes nothing", async () => {
     render(<ResultPanel snapshot={snapshot(5)} question="q" />);
     await userEvent.click(
-      screen.getByRole("button", { name: /sort by total_sales/i }),
+      screen.getByRole("button", { name: /sort by total sales/i }),
     );
     const first = screen.getAllByRole("row")[1]!;
     expect(first).toHaveTextContent("996");

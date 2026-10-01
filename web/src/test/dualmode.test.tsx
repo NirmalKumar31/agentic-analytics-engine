@@ -9,6 +9,14 @@ import type { Capabilities, QueryContract, RunPayload } from "../lib/types";
 const BOTH_AVAILABLE: Capabilities = {
   modes: [
     {
+      mode: "auto",
+      available: true,
+      label: "Governed Analysis",
+      description: "Rules resolve clear questions before AI planning is considered.",
+      reason: "",
+      message: "",
+    },
+    {
       mode: "deterministic",
       available: true,
       label: "Deterministic Analytics",
@@ -36,6 +44,7 @@ const BOTH_AVAILABLE: Capabilities = {
 const AI_DISABLED: Capabilities = {
   modes: [
     BOTH_AVAILABLE.modes[0]!,
+    BOTH_AVAILABLE.modes[1]!,
     {
       mode: "ai",
       available: false,
@@ -50,7 +59,7 @@ const AI_DISABLED: Capabilities = {
 };
 
 describe("ModeSelector", () => {
-  it("offers the three choices as one accessible radio group", () => {
+  it("offers Governed Analysis plus three audit choices as one accessible radio group", () => {
     render(
       <ModeSelector
         capabilities={BOTH_AVAILABLE}
@@ -59,7 +68,8 @@ describe("ModeSelector", () => {
       />,
     );
     const group = screen.getByRole("radiogroup", { name: /analysis mode/i });
-    expect(within(group).getAllByRole("radio")).toHaveLength(3);
+    expect(within(group).getAllByRole("radio")).toHaveLength(4);
+    expect(screen.getByRole("radio", { name: /^Governed Analysis/ })).toBeEnabled();
     expect(
       screen.getByRole("radio", { name: /^Deterministic Analytics/ }),
     ).toBeChecked();

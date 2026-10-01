@@ -1,4 +1,4 @@
-import { expect, test, type APIRequestContext, type Page } from '@playwright/test'
+import { expect, type APIRequestContext, type Page } from '@playwright/test'
 
 /** A CSV whose columns the deterministic resolver can map to a question. */
 export function sampleCsv(rows = 200): string {
@@ -48,13 +48,12 @@ export function suggestedQuestions(page: Page) {
 }
 
 /**
- * Upload a file and wait for the profile, or skip if the server is
- * rate-limiting.
+ * Upload a file and wait for its profile.
  *
- * The public deployment allows a handful of uploads per address per hour.
- * A suite that uploads several times per browser will legitimately be
- * turned away, and a refused upload is the abuse control working -- so the
- * test skips with the reason rather than reporting a product failure.
+ * An acceptance suite must never turn a server-side capacity refusal into a
+ * skipped test: skipped is green in Playwright's summary and once concealed
+ * a mutation that had not run at all. CI provisions sufficient capacity for
+ * this suite; a refusal here is therefore a failure with useful evidence.
  */
 export async function uploadFile(
   page: Page,
@@ -71,10 +70,6 @@ export async function uploadFile(
   await expect(understanding.or(notice).first()).toBeVisible({ timeout: 30_000 })
   if (await notice.isVisible()) {
     const text = (await notice.textContent()) ?? ''
-    test.skip(
-      /too many uploads|at capacity/i.test(text),
-      `server is rate-limiting uploads: ${text.trim()}`,
-    )
     throw new Error(`upload was rejected: ${text.trim()}`)
   }
 }

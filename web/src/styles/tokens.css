@@ -1,0 +1,322 @@
+/**
+ * Design tokens: one authoritative source for colour, space and motion.
+ *
+ * The previous palette was warm orange and green on floating cards, with
+ * seventeen keyframe animations, twenty-seven animation declarations,
+ * eight gradients and a hover lift on every panel. None of that was the
+ * problem it was trying to solve: the reports were hard to read because
+ * the information had no hierarchy, and more effects cannot supply one.
+ *
+ * The concept here is a precision instrument -- a cartographic plate, a
+ * scientific report. Roughly ninety per cent of the surface is neutral, so
+ * the only saturated things on screen are the ones that mean something:
+ * the answer, a verification verdict, a refusal. Hierarchy comes from
+ * space, weight and alignment, then from a thin rule, and only then from a
+ * border. Nothing is separated by a shadow that could be separated by
+ * distance.
+ *
+ * Two rules keep this honest as it grows. A value used twice becomes a
+ * token. A token that encodes a meaning -- "this is a warning" -- is named
+ * for the meaning, not the colour, so dark mode can change the hue without
+ * changing what it says.
+ */
+
+:root {
+  color-scheme: light dark;
+
+  /* ------------------------------------------------------------ surface
+     Four levels, used in order: the page, the sheet a report sits on, the
+     raised surface of a panel, and an inset well for code or a table
+     header. A fifth level would be a card inside a card inside a card. */
+  --surface-canvas: #eef0ed;
+  --surface-paper: #fbfcf8;
+  --surface-raised: #ffffff;
+  --surface-inset: #e7eae6;
+
+  /* --------------------------------------------------------------- ink
+     Three weights. Body text, secondary text, and a muted weight for
+     labels that must be legible but must not compete with a figure. */
+  --ink-primary: #12161a;
+  --ink-secondary: #596167;
+  --ink-muted: #79828a;
+  --ink-inverse: #fbfcf8;
+
+  /* ------------------------------------------------------------- rules
+     A hairline for separating rows, and a stronger one for separating
+     regions. Both are rules rather than borders: they divide, they do not
+     enclose. */
+  --rule-hairline: #cdd2cf;
+  --rule-strong: #939b97;
+
+  /* ------------------------------------------------------------ signal
+     Named for meaning. `signal` is the engine speaking -- a contract, a
+     route, a citation. `action` is the one thing on screen the visitor
+     should press. `supported`, `warning` and `failure` are verdicts, and
+     a verdict colour never decorates anything that is not one. */
+  --signal: #274690;
+  --signal-weak: #dde3f2;
+  --action: #d94a36;
+  --action-weak: #f7e1dd;
+  --supported: #39715c;
+  --supported-weak: #dcebe4;
+  --warning: #a87522;
+  --warning-weak: #f6ebd8;
+  --failure: #a83b36;
+  --failure-weak: #f7e0de;
+
+  /* RGB triples for the few places that need an alpha blend. Kept beside
+     the hex so the two cannot drift apart. */
+  --signal-rgb: 39 70 144;
+  --supported-rgb: 57 113 92;
+  --warning-rgb: 168 117 34;
+  --failure-rgb: 168 59 54;
+
+  /* --------------------------------------------------------------- type
+     One grotesk for the interface and one mono for data. Both resolved
+     from what the system already has: a runtime font request is a
+     third-party dependency on the critical path, and a report that
+     reflows when a webfont lands is a report that looked broken first. */
+  --font-sans:
+    ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
+    "Helvetica Neue", Arial, sans-serif;
+  --font-mono:
+    ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, "Liberation Mono",
+    monospace;
+
+  /* A modular scale, not a set of arbitrary sizes. */
+  --text-xs: 0.75rem;
+  --text-sm: 0.8125rem;
+  --text-base: 0.9375rem;
+  --text-md: 1.0625rem;
+  --text-lg: 1.375rem;
+  --text-xl: 1.875rem;
+  --text-figure: 2.25rem;
+
+  --weight-regular: 400;
+  --weight-medium: 500;
+  --weight-semibold: 600;
+
+  --leading-tight: 1.2;
+  --leading-normal: 1.5;
+  --leading-prose: 1.6;
+
+  /* Figures must align in a column, in the table and in the sentence. */
+  --numeric: tabular-nums;
+
+  /* -------------------------------------------------------------- space
+     A strict 4px scale. An arbitrary one-off pixel value is allowed only
+     to align with something that is not on this scale, and it says so in
+     a comment where it is used. */
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.5rem;
+  --space-6: 2rem;
+  --space-7: 3rem;
+  --space-8: 4rem;
+
+  /* ------------------------------------------------------------- radius
+     Small and almost square. A large radius reads as a consumer app; an
+     instrument has edges. */
+  --radius-sm: 2px;
+  --radius-md: 4px;
+  --radius-lg: 6px;
+
+  /* ------------------------------------------------------------ shadow
+     Two, both barely there, and neither used to separate things that
+     space could separate. There is no glow.  */
+  --shadow-raised: 0 1px 2px rgb(18 22 26 / 6%);
+  --shadow-overlay: 0 8px 24px rgb(18 22 26 / 12%);
+
+  /* ------------------------------------------------------------ motion
+     Budgets rather than preferences. Feedback must land inside the
+     interval where it still feels like a response to the press; a layout
+     change needs long enough to be followed by eye. Ambient motion is
+     measured in tens of seconds because it must never read as progress.
+
+     No spring and no bounce: overshoot implies physical mass, and there
+     is no mass here, only a value being read. */
+  --motion-feedback: 100ms;
+  --motion-control: 180ms;
+  --motion-panel: 280ms;
+  --motion-sequence: 480ms;
+  --motion-ambient: 48s;
+  --ease-out: cubic-bezier(0.22, 0.61, 0.36, 1);
+  --ease-in-out: cubic-bezier(0.45, 0.05, 0.55, 0.95);
+
+  /* ------------------------------------------------------------ z-index
+     A named ladder. Numbers invented at the call site are how a drawer
+     ends up behind the thing it is explaining. */
+  --z-base: 0;
+  --z-raised: 10;
+  --z-sticky: 100;
+  --z-drawer: 200;
+  --z-overlay: 300;
+
+  /* ------------------------------------------------------------ measure
+     A reading column, and the width a report may occupy. Prose set wider
+     than about 80 characters loses the line it is on. */
+  --measure-prose: 68ch;
+  --measure-content: 1100px;
+  --measure-wide: 1400px;
+}
+
+/* Dark mode is the same instrument under different light: identical
+   meanings, identical spacing, different luminance. The hues shift only
+   as far as contrast requires. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --surface-canvas: #0e1216;
+    --surface-paper: #151b21;
+    --surface-raised: #1b232b;
+    --surface-inset: #121820;
+
+    --ink-primary: #edf0ea;
+    --ink-secondary: #aab2b3;
+    --ink-muted: #828b8f;
+    --ink-inverse: #0e1216;
+
+    --rule-hairline: #303a41;
+    --rule-strong: #4a565e;
+
+    --signal: #7188d4;
+    --signal-weak: #1d2740;
+    --action: #ff725e;
+    --action-weak: #3a1f1c;
+    --supported: #62a789;
+    --supported-weak: #16291f;
+    --warning: #d2a34b;
+    --warning-weak: #2e2415;
+    --failure: #e8695f;
+    --failure-weak: #331a1a;
+
+    --signal-rgb: 113 136 212;
+    --supported-rgb: 98 167 137;
+    --warning-rgb: 210 163 75;
+    --failure-rgb: 232 105 95;
+
+    --shadow-raised: 0 1px 2px rgb(0 0 0 / 40%);
+    --shadow-overlay: 0 8px 24px rgb(0 0 0 / 55%);
+  }
+}
+
+:root[data-theme="dark"] {
+  --surface-canvas: #0e1216;
+  --surface-paper: #151b21;
+  --surface-raised: #1b232b;
+  --surface-inset: #121820;
+
+  --ink-primary: #edf0ea;
+  --ink-secondary: #aab2b3;
+  --ink-muted: #828b8f;
+  --ink-inverse: #0e1216;
+
+  --rule-hairline: #303a41;
+  --rule-strong: #4a565e;
+
+  --signal: #7188d4;
+  --signal-weak: #1d2740;
+  --action: #ff725e;
+  --action-weak: #3a1f1c;
+  --supported: #62a789;
+  --supported-weak: #16291f;
+  --warning: #d2a34b;
+  --warning-weak: #2e2415;
+  --failure: #e8695f;
+  --failure-weak: #331a1a;
+
+  --signal-rgb: 113 136 212;
+  --supported-rgb: 98 167 137;
+  --warning-rgb: 210 163 75;
+  --failure-rgb: 232 105 95;
+
+  --shadow-raised: 0 1px 2px rgb(0 0 0 / 40%);
+  --shadow-overlay: 0 8px 24px rgb(0 0 0 / 55%);
+}
+
+/* Someone who has asked for less motion gets none that is decorative.
+   The ambient field stops entirely; transitions collapse to a duration
+   short enough to be imperceptible rather than being removed, so focus
+   and state changes still register. */
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --motion-feedback: 1ms;
+    --motion-control: 1ms;
+    --motion-panel: 1ms;
+    --motion-sequence: 1ms;
+    --motion-ambient: 0s;
+  }
+}
+
+/* ----------------------------------------------------------------- bridge
+ *
+ * The rules that make up this interface reference the previous palette's
+ * names 289 times across 32 variables. Rewriting all 289 call sites in the
+ * same change that replaces the palette would make the diff unreviewable
+ * and the regressions invisible: a missed one would simply inherit, and
+ * look plausible.
+ *
+ * So the old names are redefined in terms of the new tokens, once, here.
+ * The palette changes everywhere immediately and the mapping is a single
+ * block a reviewer can check against the design. Call sites migrate to the
+ * new names as the components they belong to are rewritten; this block
+ * shrinks as that happens and is deleted when it is empty.
+ *
+ * Two of these mappings are judgements rather than renames, and both are
+ * about `--accent`, which the old palette used for two different things:
+ * the one button to press, and the engine speaking. Those are now
+ * `--action` and `--signal`. The bridge sends `--accent` to `--signal`,
+ * because that is what most of its call sites are -- flow strokes, badges,
+ * selected borders, mode indicators -- and the genuinely actionable
+ * surfaces are restated below.
+ */
+:root {
+  /* surfaces */
+  --bg: var(--surface-canvas);
+  --bg-raised: var(--surface-raised);
+  --bg-panel: var(--surface-paper);
+  --bg-inset: var(--surface-inset);
+
+  /* rules. The old names say "border"; these are hairlines that divide. */
+  --border: var(--rule-hairline);
+  --border-strong: var(--rule-strong);
+  --line: var(--rule-hairline);
+
+  /* ink */
+  --text: var(--ink-primary);
+  --text-muted: var(--ink-secondary);
+  --text-dim: var(--ink-muted);
+
+  /* meaning */
+  --accent: var(--signal);
+  --accent-dim: var(--signal-weak);
+  --accent-rgb: var(--signal-rgb);
+  --rejected: var(--failure);
+  --rejected-rgb: var(--failure-rgb);
+  /* The old palette had separate hues for a statistical result and an
+     interpretation. Both are the engine reporting what it computed, so
+     both are the signal colour: a third and fourth hue implied a
+     distinction the reader was never told about. */
+  --statistical: var(--signal);
+  --statistical-rgb: var(--signal-rgb);
+  --interpretation: var(--signal);
+  --interpretation-rgb: var(--signal-rgb);
+
+  /* shape and type */
+  --radius: var(--radius-lg);
+  --mono: var(--font-mono);
+  --sans: var(--font-sans);
+
+  /* motion */
+  --ease: var(--ease-out);
+  --fast: var(--motion-feedback);
+  --med: var(--motion-panel);
+
+  --shadow: var(--shadow-raised);
+  /* There is no glow. The old `--glow` drew a coloured halo on focus and
+     on hover; focus is now a solid ring in the action colour, which is
+     both legible against every surface and visible to someone who cannot
+     distinguish the hue. */
+  --glow: 0 0 0 2px var(--action);
+}

@@ -31,7 +31,9 @@ export default defineConfig({
   retries: process.env.CI ? 1 : 0,
   timeout: 120_000,
   expect: { timeout: 20_000 },
-  reporter: process.env.CI ? [['list'], ['html', { open: 'never' }]] : [['list']],
+  reporter: process.env.CI
+    ? [['list'], ['json', { outputFile: 'playwright-results.json' }], ['html', { open: 'never' }]]
+    : [['list'], ['json', { outputFile: 'playwright-results.json' }]],
   use: {
     baseURL,
     trace: 'retain-on-failure',
