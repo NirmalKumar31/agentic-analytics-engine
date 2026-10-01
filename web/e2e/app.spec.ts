@@ -172,6 +172,14 @@ test.describe("uploading a file", () => {
     await expect(page.locator("article.finding").first()).toContainText(
       /region|revenue/i,
     );
+    // The audit is a disclosure rather than a permanent dashboard. It
+    // records the governed contract and coverage, not a provider prompt or
+    // hidden reasoning.
+    const audit = page.getByTestId("planning-audit");
+    await expect(audit).toBeVisible();
+    await audit.locator("summary").click();
+    await expect(audit).toContainText(/accepted contract/i);
+    await expect(audit).toContainText(/question coverage/i);
 
     // A question the rules cannot map must not be answered anyway.
     await page.getByRole("button", { name: "Start over" }).click();

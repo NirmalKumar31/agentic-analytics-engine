@@ -68,6 +68,7 @@ function RunStateCard({ state }: { state: ReturnType<typeof runState> }) {
 const RUN_STATE_FALLBACK: Record<string, string> = {
   refused: "The question could not be mapped to this dataset safely.",
   execution_failed: "The analysis could not be completed.",
+  quota_stopped: "The analysis stopped at its configured usage limit. No further provider request was made.",
   verification_withheld:
     "The analysis ran, but no finding survived the publication checks. The withheld findings below say why.",
   cancelled: "The run was stopped before it finished.",
@@ -157,7 +158,7 @@ export function ComparisonView({ question, deterministic, ai }: Props) {
   const differences = comparison.differences;
 
   return (
-    <div className="stack">
+    <div className="stack report-workspace">
       <section className="panel">
         <div className="panel-head">
           <h2>Compare Both</h2>

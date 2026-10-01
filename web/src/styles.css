@@ -290,10 +290,20 @@ pre,
   font: inherit;
   resize: vertical;
 }
+/* A pointer click changes the border only; a keyboard focus gets the same
+   ring every other control gets.
+   `:where()` has zero specificity by design, so this one class selector
+   was enough to defeat the global focus rule -- the composer's textarea
+   had no visible focus indicator, and the halo it had instead was the
+   treatment removed everywhere else. */
 .field:focus {
   outline: none;
-  border-color: var(--accent-dim);
-  box-shadow: 0 0 0 3px rgb(var(--accent-rgb) / 13%);
+  border-color: var(--rule-strong);
+}
+.field:focus-visible {
+  outline: 2px solid var(--action);
+  outline-offset: 2px;
+  border-color: var(--rule-strong);
 }
 .field::placeholder {
   color: var(--text-dim);
@@ -1803,13 +1813,9 @@ table.data td.cited {
   }
 }
 
-/* Focus is always visible and always amber. Keyboard users get the same
-   affordance the pointer gets, which is the minimum for this to be usable. */
-:where(button, a, input, select, textarea, [tabindex]):focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
-  border-radius: var(--radius-sm);
-}
+/* Focus is defined once, further down, in the action colour. This block
+   previously repeated it in the old accent and was already dead: the
+   later rule wins. */
 
 /* Everything above, withdrawn. Transitions are kept at a length short
    enough to be imperceptible rather than removed, so state changes still
@@ -1903,7 +1909,7 @@ table.data td.cited {
    a translucent halo of the accent hue, which disappeared against a
    light surface and conveyed nothing to a reader who cannot separate the
    hue from its background. */
-:where(a, button, input, select, textarea, [tabindex]):focus-visible {
+:where(a, button, input, select, textarea, summary, [tabindex]):focus-visible {
   outline: 2px solid var(--action);
   outline-offset: 2px;
   border-radius: var(--radius-sm);
@@ -2012,7 +2018,10 @@ table.data td.cited {
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
-.presentation-report .question-text { margin: 0; font-size: var(--text-md); }
+.presentation-report .question-text {
+  margin: 0;
+  font-size: var(--text-md);
+}
 .answer-card {
   display: grid;
   gap: var(--space-3);
@@ -2020,22 +2029,114 @@ table.data td.cited {
   border-inline-start: 3px solid var(--signal);
   background: var(--surface-inset);
 }
-.answer-card h3 { margin: 0; font-size: var(--text-xl); max-width: var(--measure-prose); }
-.answer-card p { margin: 0; max-width: var(--measure-prose); }
-.highlight-grid { display: flex; flex-wrap: wrap; gap: var(--space-3); margin: 0; }
-.highlight-grid > div { min-width: min(15rem, 100%); padding-inline-end: var(--space-5); }
-.highlight-grid dt { color: var(--ink-muted); font-size: var(--text-xs); }
-.highlight-grid dd { margin: var(--space-1) 0 0; font-family: var(--font-mono); font-variant-numeric: var(--numeric); font-size: var(--text-lg); }
-.answer-scope { color: var(--ink-secondary); font-size: var(--text-sm); }
-.report-visual, .report-table, .caveat-list { display: grid; gap: var(--space-3); }
-.report-table h3, .caveat-list h3 { margin: 0; font-size: var(--text-md); }
-.chart-card { width: 100%; min-width: 0; overflow: hidden; }
-.chart-host { width: 100%; min-height: 20rem; }
-.chart-host > div, .chart-host svg { max-width: 100%; }
+.answer-card h3 {
+  margin: 0;
+  font-size: var(--text-xl);
+  max-width: var(--measure-prose);
+}
+.answer-card p {
+  margin: 0;
+  max-width: var(--measure-prose);
+}
+.highlight-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  margin: 0;
+}
+.highlight-grid > div {
+  min-width: min(15rem, 100%);
+  padding-inline-end: var(--space-5);
+}
+.highlight-grid dt {
+  color: var(--ink-muted);
+  font-size: var(--text-xs);
+}
+.highlight-grid dd {
+  margin: var(--space-1) 0 0;
+  font-family: var(--font-mono);
+  font-variant-numeric: var(--numeric);
+  font-size: var(--text-lg);
+}
+.answer-scope {
+  color: var(--ink-secondary);
+  font-size: var(--text-sm);
+}
+.report-visual,
+.report-table,
+.caveat-list {
+  display: grid;
+  gap: var(--space-3);
+}
+.report-table h3,
+.caveat-list h3 {
+  margin: 0;
+  font-size: var(--text-md);
+}
+.chart-card {
+  width: 100%;
+  min-width: 0;
+  overflow: hidden;
+}
+.chart-host {
+  width: 100%;
+  min-height: 20rem;
+}
+.chart-host > div,
+.chart-host svg {
+  max-width: 100%;
+}
+/* App retains the execution panels in DOM before the report so an in-flight
+   run can stream them. Once a report exists, the document workspace is the
+   first thing a reader sees; the technical trace remains available below. */
+.column > .report-workspace {
+  order: -1;
+}
+.technical-audit {
+  padding: var(--space-3) var(--space-4);
+  border-top: 1px solid var(--rule-hairline);
+  color: var(--ink-secondary);
+}
+.technical-audit summary {
+  cursor: pointer;
+  font-weight: var(--weight-medium);
+}
+.technical-audit-body {
+  display: grid;
+  gap: var(--space-3);
+  padding: var(--space-3) 0 var(--space-1);
+}
+.audit-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3) var(--space-5);
+  margin: 0;
+}
+.audit-grid dt {
+  color: var(--ink-muted);
+  font-size: var(--text-xs);
+}
+.audit-grid dd {
+  margin: var(--space-1) 0 0;
+  font-family: var(--font-mono);
+  font-variant-numeric: var(--numeric);
+}
+.audit-contract h3,
+.audit-contract p {
+  margin: 0;
+}
+.audit-contract {
+  display: grid;
+  gap: var(--space-1);
+}
 
 @media print {
-  .presentation-report .answer-card { break-inside: avoid; }
-  .presentation-report .chart-host { min-height: 0; }
+  .presentation-report .answer-card {
+    break-inside: avoid;
+  }
+  .presentation-report .chart-host {
+    min-height: 0;
+  }
 }
 
 /* Reduced motion removes every animation here. The token overrides in
@@ -2048,5 +2149,75 @@ table.data td.cited {
   body::before,
   body::after {
     animation: none;
+  }
+}
+
+/* -------------------------------------------- narrow-viewport containment
+ *
+ * `overflow-x: auto` on the stepper and the flow diagram was already
+ * there and was already doing nothing. A flex or grid item defaults to
+ * `min-width: auto`, which means "at least as wide as my content", so a
+ * scroll container inside one expands to fit instead of scrolling and
+ * takes the document sideways with it. At 360px the page scrolled 495px
+ * wide: the flow diagram carries a hard minimum width of 700, the
+ * stepper does not wrap, and the header controls sit on one row.
+ *
+ * `min-width: 0` is what lets the existing overflow rules engage. It is
+ * applied to the chain rather than to the leaves, because any ancestor
+ * that refuses to shrink reintroduces the problem.
+ */
+/* Only the three elements that actually declare `overflow-x`. A flex or
+   grid item defaults to `min-width: auto`, so a scroll container inside
+   one expands to fit its content instead of scrolling.
+   Defensive rather than demonstrated: removing it does not currently fail
+   a test, because no committed fixture produces a table wide enough to
+   need it. It is kept because the alternative failure mode is the page
+   scrolling sideways, which is what the two rules below actually fixed. */
+.steps,
+.flow,
+.table-wrap {
+  min-width: 0;
+}
+
+/* The header wraps rather than pushing its controls off-screen. */
+.topbar {
+  flex-wrap: wrap;
+}
+
+@media (max-width: 640px) {
+  /* A thumb needs 44px on the shorter side. These controls are compact by
+     design on a desktop, where a pointer is precise; on a phone the
+     target has to grow even though the glyph does not. */
+  .btn,
+  .btn.small,
+  .mode-option,
+  .example {
+    min-height: 44px;
+  }
+
+  /* A standalone disclosure control gets a thumb-sized target. An
+     *inline* disclosure does not: `.disclosure > summary` is a link
+     inside a sentence, and giving it a 44px block height would break
+     the paragraph it belongs to. WCAG 2.2 SC 2.5.8 exempts a target
+     whose size is constrained by the line it sits in, which is exactly
+     this case. */
+  details:not(.disclosure) > summary {
+    display: flex;
+    align-items: center;
+    min-height: 44px;
+  }
+
+  /* The stepper scrolls inside itself. Hidden scrollbars would hide that
+     there is more to see, so it keeps them. */
+  .steps {
+    padding-inline: 12px;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* The flow diagram is the one element with an intrinsic minimum width.
+     It scrolls within its own container rather than being squeezed into
+     illegibility. */
+  .flow {
+    overflow-x: auto;
   }
 }

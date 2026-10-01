@@ -166,18 +166,71 @@ test.describe("motion restraint", () => {
     expect(haloed).toBe(0);
   });
 
-  test("focus is a visible solid ring", async ({ page }) => {
+  test("every tab stop carries a visible ring", async ({ page }) => {
+    // Driven with real key presses. `:focus-visible` is gated on keyboard
+    // interaction, so calling `element.focus()` from script does not match
+    // it -- an earlier version of this test did exactly that, matched
+    // nothing, and asserted over an empty list.
     await page.goto("/");
-    await page.keyboard.press("Tab");
-    const focused = await page.evaluate(() => {
-      const el = document.activeElement;
-      if (!el) return null;
-      const style = getComputedStyle(el);
-      return { width: style.outlineWidth, style: style.outlineStyle };
+    await page.getByRole("button", { name: /Commerce demo warehouse/ }).click();
+    await expect(page.getByRole("heading", { name: "Ask" })).toBeVisible();
+
+    const seen: { tag: string; style: string; width: number }[] = [];
+    for (let i = 0; i < 12; i += 1) {
+      await page.keyboard.press("Tab");
+      const entry = await page.evaluate(() => {
+        const el = document.activeElement as HTMLElement | null;
+        if (!el || el === document.body) return null;
+        const style = getComputedStyle(el);
+        return {
+          tag: el.tagName,
+          style: style.outlineStyle,
+          width: parseFloat(style.outlineWidth),
+        };
+      });
+      if (entry) seen.push(entry);
+    }
+
+    expect(seen.length, "Tab reached no focusable element").toBeGreaterThan(3);
+    for (const entry of seen) {
+      expect(entry.style, `${entry.tag} has no focus ring`).not.toBe("none");
+      expect(
+        entry.width,
+        `${entry.tag} ring is too thin`,
+      ).toBeGreaterThanOrEqual(2);
+    }
+  });
+
+  test("a disclosure summary is styled like every other control", async ({
+    page,
+  }) => {
+    // `summary` was missing from the focus-visible selector, so the
+    // Planning Audit disclosure fell back to the user-agent ring: visible,
+    // but not the action colour the rest of the interface uses, and
+    // different on every engine. WebKit focuses a summary first, which is
+    // how this surfaced.
+    //
+    // Asserted against the served stylesheet because `:focus-visible`
+    // cannot be triggered reliably from script, and the rule is the thing
+    // that was wrong.
+    await page.goto("/");
+    const css = await page.evaluate(async () => {
+      const hrefs = [
+        ...document.querySelectorAll('link[rel="stylesheet"]'),
+      ].map((link) => (link as HTMLLinkElement).href);
+      const texts = await Promise.all(
+        hrefs.map((href) => fetch(href).then((response) => response.text())),
+      );
+      return texts.join("\n");
     });
-    expect(focused).not.toBeNull();
-    expect(focused?.style).toBe("solid");
-    expect(parseFloat(focused?.width ?? "0")).toBeGreaterThanOrEqual(2);
+
+    const rules = css.match(/:where\([^)]*\):focus-visible/g) ?? [];
+    expect(rules.length, "no focus-visible rule was served").toBeGreaterThan(0);
+    for (const rule of rules) {
+      expect(rule, "a focus-visible selector omits summary").toContain(
+        "summary",
+      );
+    }
   });
 });
 

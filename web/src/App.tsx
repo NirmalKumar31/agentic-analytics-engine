@@ -10,6 +10,7 @@ import { badgeMode, ModeBadge } from "./components/ModeBadge";
 import { ThemeToggle, useTheme } from "./components/ThemeToggle";
 import { ModeSelector } from "./components/ModeSelector";
 import { ProvenanceDrawer } from "./components/ProvenanceDrawer";
+import { PlanningAudit } from "./components/PlanningAudit";
 import { ReportView } from "./components/ReportView";
 import { runState } from "./lib/runState";
 import { RightRail } from "./components/RightRail";
@@ -566,6 +567,8 @@ export function App() {
               />
             )
           )}
+
+          {run && !comparison ? <PlanningAudit run={run} /> : null}
         </div>
 
         {/* Run telemetry belongs behind the evidence inspector once an answer

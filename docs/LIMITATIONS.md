@@ -775,3 +775,17 @@ or web search. No warehouse OAuth connectors, BI integrations or write-back.
 No forecasting or model training.
 
 These are absent by design.
+
+## 13. Presentation and audit boundaries
+
+The presentation contract prevents the browser from inventing labels,
+coverage, chart semantics or numerical summaries. It does not establish a
+unit that the uploaded data did not declare, or distinguish an ordered
+quantity from a numeric entity key without user-confirmed metadata. Such a
+field remains ambiguous rather than being given a misleading visual meaning.
+
+The planning audit is an intentionally bounded operational record. It exposes
+the accepted governed contract, route, coverage and timings, but never model
+prompts, hidden reasoning, raw provider responses, credentials or uploaded
+rows. It is evidence of how a result was constrained, not a claim that a
+model's reasoning has been inspected.

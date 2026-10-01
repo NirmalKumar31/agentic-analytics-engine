@@ -438,6 +438,7 @@ export type EventType =
   | "run_started"
   | "dataset_loaded"
   | "question_analyzed"
+  | "contract_resolved"
   | "plan_generated"
   | "analysis_task_started"
   | "mcp_tool_called"
