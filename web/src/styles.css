@@ -2151,3 +2151,73 @@ table.data td.cited {
     animation: none;
   }
 }
+
+/* -------------------------------------------- narrow-viewport containment
+ *
+ * `overflow-x: auto` on the stepper and the flow diagram was already
+ * there and was already doing nothing. A flex or grid item defaults to
+ * `min-width: auto`, which means "at least as wide as my content", so a
+ * scroll container inside one expands to fit instead of scrolling and
+ * takes the document sideways with it. At 360px the page scrolled 495px
+ * wide: the flow diagram carries a hard minimum width of 700, the
+ * stepper does not wrap, and the header controls sit on one row.
+ *
+ * `min-width: 0` is what lets the existing overflow rules engage. It is
+ * applied to the chain rather than to the leaves, because any ancestor
+ * that refuses to shrink reintroduces the problem.
+ */
+/* Only the three elements that actually declare `overflow-x`. A flex or
+   grid item defaults to `min-width: auto`, so a scroll container inside
+   one expands to fit its content instead of scrolling.
+   Defensive rather than demonstrated: removing it does not currently fail
+   a test, because no committed fixture produces a table wide enough to
+   need it. It is kept because the alternative failure mode is the page
+   scrolling sideways, which is what the two rules below actually fixed. */
+.steps,
+.flow,
+.table-wrap {
+  min-width: 0;
+}
+
+/* The header wraps rather than pushing its controls off-screen. */
+.topbar {
+  flex-wrap: wrap;
+}
+
+@media (max-width: 640px) {
+  /* A thumb needs 44px on the shorter side. These controls are compact by
+     design on a desktop, where a pointer is precise; on a phone the
+     target has to grow even though the glyph does not. */
+  .btn,
+  .btn.small,
+  .mode-option,
+  .example {
+    min-height: 44px;
+  }
+
+  /* A standalone disclosure control gets a thumb-sized target. An
+     *inline* disclosure does not: `.disclosure > summary` is a link
+     inside a sentence, and giving it a 44px block height would break
+     the paragraph it belongs to. WCAG 2.2 SC 2.5.8 exempts a target
+     whose size is constrained by the line it sits in, which is exactly
+     this case. */
+  details:not(.disclosure) > summary {
+    display: flex;
+    align-items: center;
+    min-height: 44px;
+  }
+
+  /* The stepper scrolls inside itself. Hidden scrollbars would hide that
+     there is more to see, so it keeps them. */
+  .steps {
+    padding-inline: 12px;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* The flow diagram is the one element with an intrinsic minimum width.
+     It scrolls within its own container rather than being squeezed into
+     illegibility. */
+  .flow {
+    overflow-x: auto;
+  }
+}
