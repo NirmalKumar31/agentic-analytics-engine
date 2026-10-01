@@ -11,7 +11,7 @@ import { RunProgress } from "./components/RunProgress";
 import { SchemaInspector } from "./components/SchemaInspector";
 import { TerminalState } from "./components/TerminalState";
 import { useTheme } from "./components/ThemeToggle";
-import { WorkflowIndex, type WorkflowStage } from "./components/WorkflowIndex";
+import { WorkflowIndex } from "./components/WorkflowIndex";
 import { ApiError, api } from "./lib/api";
 import { phaseOf } from "./lib/phase";
 import type {
@@ -64,7 +64,6 @@ export function App() {
     () => (replay && run ? run.events : events),
     [replay, run, events],
   );
-  const stage: WorkflowStage = run ? "report" : runId ? "running" : session || replay ? "ask" : "dataset";
   const phase = phaseOf({ config, configError, session, replay, runId, run, busy, error, events });
 
   useEffect(() => {
@@ -173,7 +172,7 @@ export function App() {
       sessionId={session?.session_id}
       hasRun={hasRun}
       header={<ProductHeader config={config} hasRun={hasRun} hasSession={Boolean(session)} replaying={Boolean(replay)} uiMode={uiMode} theme={theme} onToggleTheme={toggleTheme} onEndSession={() => void endSession()} onReset={reset} />}
-      workflow={<WorkflowIndex stage={stage} />}
+      workflow={<WorkflowIndex phase={phase} />}
     >
       <div className="column">
         <TerminalState configError={configError} error={error} stoppedReason={run?.stopped_reason} />

@@ -45,9 +45,38 @@ describe("runState", () => {
     expect(
       runState(run({ status: "completed", findings: [finding] })).state,
     ).toBe("completed_verified");
-    expect(runState(run({ status: "completed", findings: [] })).state).toBe(
-      "verification_withheld",
+    expect(runState(run({ status: "completed", findings: [] })).state).not.toBe(
+      "completed_verified",
     );
+  });
+
+  it("separates a withheld run from one that found nothing to claim", () => {
+    // Both published no findings, and conflating them blamed a verifier
+    // that never ran. `rejected` is the difference: verification looked at
+    // a claim and declined it, versus the analysis producing no claim at
+    // all. A reader told "withheld" can go and read what was withheld.
+    const withheld = runState(
+      run({
+        status: "completed",
+        findings: [],
+        rejected: [
+          {
+            finding_id: "f1",
+            status: "unsupported" as const,
+            reason: "not supported by the cited cells",
+          },
+        ],
+      }),
+    );
+    expect(withheld.state).toBe("verification_withheld");
+    expect(withheld.label).not.toBe("Complete");
+
+    const nothing = runState(run({ status: "completed", findings: [], rejected: [] }));
+    expect(nothing.state).toBe("no_findings");
+    expect(nothing.label).not.toBe("Complete");
+
+    expect(withheld.state).not.toBe(nothing.state);
+    expect(withheld.label).not.toBe(nothing.label);
   });
 
   it.each(["failed", "timeout"])(
@@ -170,12 +199,14 @@ describe("Compare Both terminal states", () => {
         ai={side({ run: run({ status: "completed", findings: [] }) })}
       />,
     );
-    expect(paneStates()).toEqual([
-      "verification_withheld",
-      "verification_withheld",
-    ]);
+    // Neither side withheld anything, so both found nothing to claim.
+    expect(paneStates()).toEqual(["no_findings", "no_findings"]);
+    // The copy must say nothing was withheld, not blame a verifier.
     expect(screen.getAllByTestId("run-state-card")[0]).toHaveTextContent(
-      /no finding survived/i,
+      /found nothing it could claim/i,
+    );
+    expect(screen.getAllByTestId("run-state-card")[0]).not.toHaveTextContent(
+      /withheld findings below/i,
     );
   });
 

@@ -50,7 +50,7 @@ describe("frontend component architecture", () => {
   });
 
   it("preserves the derived workflow states", () => {
-    render(<WorkflowIndex stage="running" />);
+    render(<WorkflowIndex phase="executing" />);
     expect(screen.getByText("Dataset").closest(".step")).toHaveAttribute(
       "data-state",
       "done",
@@ -58,6 +58,41 @@ describe("frontend component architecture", () => {
     expect(screen.getByText("Analyse").closest(".step")).toHaveAttribute(
       "data-state",
       "active",
+    );
+    expect(screen.getByText("Report").closest(".step")).toHaveAttribute(
+      "data-state",
+      "idle",
+    );
+  });
+
+  it("can actually reach the Verify stage", () => {
+    // The index rendered a Verify step that no stage value could make
+    // active: it went idle -> done, so the interface named a stage it never
+    // showed the reader being in. The engine has a verifying phase and
+    // reports it, so the index now reads that.
+    render(<WorkflowIndex phase="verifying" />);
+    expect(screen.getByText("Verify").closest(".step")).toHaveAttribute(
+      "data-state",
+      "active",
+    );
+    expect(screen.getByText("Analyse").closest(".step")).toHaveAttribute(
+      "data-state",
+      "done",
+    );
+  });
+
+  it("marks the stage a stopped run stopped at", () => {
+    // Showing earlier stages done and the rest idle reads as a run still
+    // in progress. A refusal happens while the question is mapped onto the
+    // dataset, so Analyse is where it stopped -- and nothing was verified.
+    render(<WorkflowIndex phase="refused" />);
+    expect(screen.getByText("Analyse").closest(".step")).toHaveAttribute(
+      "data-state",
+      "stopped",
+    );
+    expect(screen.getByText("Verify").closest(".step")).toHaveAttribute(
+      "data-state",
+      "idle",
     );
     expect(screen.getByText("Report").closest(".step")).toHaveAttribute(
       "data-state",
