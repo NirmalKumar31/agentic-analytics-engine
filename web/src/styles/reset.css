@@ -1,0 +1,59 @@
+/* Two themes, one instrument.
+
+   The default is light, because this is a document about numbers and a
+   document about numbers should read like one. Dark is available and is a
+   real theme rather than an inversion -- both are tuned separately.
+
+   Colour carries meaning: verification state, task state, evidence kind.
+   Motion carries one meaning: that computation is progressing. Neither is
+   decoration, and all motion is withdrawn under `prefers-reduced-motion`.
+
+   Contrast is deliberate. Body text sits at or above 7:1 against its
+   surface in both themes, because the first version of this shipped muted
+   brown on near-black and was, correctly, called unreadable. */
+
+/* The palette, the space scale, the motion budgets and the z-index
+   ladder live in `styles/tokens.css`, which is imported before this
+   file.
+
+   That file used to end in a compatibility bridge redefining the old
+   palette's names -- `--bg`, `--text`, `--accent` and 23 others -- in
+   terms of the new tokens, so that replacing the palette did not require
+   touching 199 call sites in the same change. The call sites have now
+   been migrated and the bridge is gone. Use the token names in
+   `tokens.css` directly; there is no longer an alias that will quietly
+   resolve an old one. */
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--surface-canvas);
+  color: var(--ink-primary);
+  font-family: var(--font-sans);
+  font-size: 15.5px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  transition:
+    background-color var(--motion-panel) var(--ease-out),
+    color var(--motion-panel) var(--ease-out);
+}
+
+button {
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+code,
+pre,
+.mono {
+  font-family: var(--font-mono);
+}
