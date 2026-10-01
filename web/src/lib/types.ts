@@ -201,6 +201,13 @@ export interface RunPayload {
   metrics: RunMetrics;
   stopped_reason: string;
   status?: string;
+  /**
+   * How the run ended, as the engine classified it. Distinct from
+   * `status`: a run can be `completed` as an HTTP resource while its
+   * outcome is `refused`, and the interface must not read the first as
+   * the second. Optional because payloads predating it exist.
+   */
+  outcome?: string;
   question_coverage?: QuestionCoverage | null;
   chart_decision?: ChartDecision | null;
   timings?: RunTimings | null;

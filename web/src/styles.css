@@ -12,88 +12,11 @@
    surface in both themes, because the first version of this shipped muted
    brown on near-black and was, correctly, called unreadable. */
 
-:root {
-  --radius: 10px;
-  --radius-sm: 6px;
-  --mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
-  --sans:
-    -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", Roboto, sans-serif;
-  --ease: cubic-bezier(0.22, 0.61, 0.36, 1);
-  --fast: 140ms;
-  --med: 260ms;
-
-  /* Shared hues. Chosen to hold up on both a white and a dark surface, so
-     a verdict colour means the same thing whichever theme is on. */
-  --accent-rgb: 197 88 0;
-  --supported-rgb: 0 132 90;
-  --rejected-rgb: 194 42 42;
-  --warning-rgb: 158 100 0;
-  --statistical-rgb: 20 110 150;
-  --interpretation-rgb: 128 78 0;
-}
-
-/* ------------------------------------------------------------- light */
-:root,
-[data-theme="light"] {
-  color-scheme: light;
-
-  --bg: #f4f2ee;
-  --bg-raised: #ffffff;
-  --bg-panel: #ffffff;
-  --bg-inset: #f6f4f0;
-  --border: #ddd8d0;
-  --border-strong: #bdb6ab;
-
-  --text: #16130f;
-  --text-muted: #4a443c;
-  --text-dim: #6d6659;
-
-  --accent: #c55800;
-  --accent-dim: #e6a86b;
-  --supported: #00845a;
-  --rejected: #c22a2a;
-  --warning: #9e6400;
-  --statistical: #146e96;
-  --interpretation: #804e00;
-
-  --shadow: 0 1px 2px rgb(22 19 15 / 6%), 0 8px 24px -12px rgb(22 19 15 / 18%);
-  --glow: 0 0 0 3px rgb(var(--accent-rgb) / 16%);
-}
-
-/* -------------------------------------------------------------- dark */
-[data-theme="dark"] {
-  color-scheme: dark;
-
-  /* A lifted charcoal, not a void. The first attempt used near-black and
-     read as switched off rather than as a surface. */
-  --bg: #16181c;
-  --bg-raised: #1e2127;
-  --bg-panel: #1e2127;
-  --bg-inset: #191c21;
-  --border: #333840;
-  --border-strong: #4a515c;
-
-  --text: #f3f5f8;
-  --text-muted: #c2c8d2;
-  --text-dim: #949ba6;
-  --text-dim: #959daa;
-
-  --accent: #ff9e3d;
-  --accent-rgb: 255 158 61;
-  --supported: #3ddc9a;
-  --supported-rgb: 61 220 154;
-  --rejected: #ff7a6b;
-  --rejected-rgb: 255 122 107;
-  --warning: #ffcc5c;
-  --warning-rgb: 255 204 92;
-  --statistical: #5cc8e8;
-  --statistical-rgb: 92 200 232;
-  --interpretation: #e0b44a;
-  --interpretation-rgb: 224 180 74;
-
-  --shadow: 0 10px 34px rgb(0 0 0 / 50%);
-  --glow: 0 0 0 3px rgb(var(--accent-rgb) / 22%);
-}
+/* The palette, the space scale, the motion budgets and the z-index
+   ladder live in `styles/tokens.css`, which is imported before this
+   file. The previous names are redefined there in terms of the new
+   tokens, so the rules below are unchanged while the palette is
+   replaced; see the bridge block in that file. */
 
 * {
   box-sizing: border-box;
@@ -398,8 +321,8 @@ pre,
     transform 140ms ease;
 }
 .choice:hover:not(:disabled) {
-  border-color: var(--accent-dim);
-  transform: translateY(-1px);
+  /* Nothing moves under the pointer. The rule changes instead. */
+  border-color: var(--rule-strong);
 }
 .choice[aria-pressed="true"] {
   border-color: var(--accent);
@@ -1651,48 +1574,57 @@ table.data .tag {
    anyone who has asked for less motion. */
 
 /* The field the instrument sits on.
-
-   A plot grid that drifts, plus two slow colour fields. It is doing the
-   job a blank background cannot: giving the panels somewhere to be. Two
-   layers rather than one so the drift does not move the colour with it. */
+ *
+ * A plotting grid, and nothing else. What was here also drifted the grid
+ * continuously and breathed two coloured ellipses over it, for as long as
+ * the page was open -- underneath a report someone was trying to read.
+ *
+ * Three changes. The grid is static by default and drifts only while the
+ * page is in the idle state, which is when there is nothing to read and
+ * the texture is doing its job of giving the panels somewhere to be. The
+ * colour fields are gone: a wash of the accent hue behind a verdict
+ * colour is a wash that changes what the verdict looks like. And the
+ * whole thing fades to a quarter once a report exists, because at that
+ * point the most useful background is one that is not competing.
+ */
 body::before {
   content: "";
   position: fixed;
   inset: -40px;
-  z-index: 0;
+  z-index: var(--z-base);
   pointer-events: none;
   background-image:
     linear-gradient(to right, currentColor 1px, transparent 1px),
     linear-gradient(to bottom, currentColor 1px, transparent 1px);
   background-size: 46px 46px;
-  color: var(--border);
-  opacity: 0.5;
-  animation: grid-drift 32s linear infinite;
+  color: var(--rule-hairline);
+  opacity: 0.4;
+  /* Fades out over a panel transition, so arriving at a report does not
+     look like the background being switched off. */
+  transition: opacity var(--motion-panel) var(--ease-out);
   mask-image: radial-gradient(
     ellipse 120% 85% at 50% 0%,
     #000 35%,
     transparent 78%
   );
 }
-body::after {
-  content: "";
-  position: fixed;
-  inset: 0;
-  z-index: 0;
-  pointer-events: none;
-  background-image:
-    radial-gradient(
-      ellipse 60% 45% at 12% 8%,
-      rgb(var(--accent-rgb) / 10%),
-      transparent 70%
-    ),
-    radial-gradient(
-      ellipse 55% 45% at 88% 82%,
-      rgb(var(--statistical-rgb) / 9%),
-      transparent 70%
-    );
-  animation: field-breathe 22s var(--ease) infinite;
+
+/* Idle: nothing to read, so the texture may move. One animation, slow
+   enough that it reads as texture rather than as progress. */
+body[data-phase="choose_dataset"]::before,
+body[data-phase="ready_to_ask"]::before {
+  animation: grid-drift var(--motion-ambient) linear infinite;
 }
+
+/* A report is on screen. The grid holds still and recedes. */
+body[data-phase="presenting"]::before,
+body[data-phase="completed"]::before,
+body[data-phase="refused"]::before,
+body[data-phase="failed"]::before {
+  animation: none;
+  opacity: 0.12;
+}
+
 @keyframes grid-drift {
   from {
     transform: translate3d(0, 0, 0);
@@ -1701,17 +1633,23 @@ body::after {
     transform: translate3d(46px, 46px, 0);
   }
 }
-@keyframes field-breathe {
-  0%,
-  100% {
-    opacity: 0.75;
-    transform: scale(1);
-  }
-  50% {
-    opacity: 1;
-    transform: scale(1.06);
+
+/* A hidden tab animates nothing: it costs a reader's battery to render a
+   drifting grid nobody is looking at. `data-hidden` is set from the
+   visibility change, because CSS cannot see document visibility. */
+body[data-hidden="true"]::before {
+  animation: none;
+}
+
+/* A phone gets the texture without the motion. The grid is 46px, so on a
+   360px screen it is most of what is on the page. */
+@media (max-width: 600px) {
+  body::before {
+    animation: none !important;
+    opacity: 0.2;
   }
 }
+
 .shell {
   position: relative;
   z-index: 1;
@@ -1720,34 +1658,14 @@ body::after {
 /* Panels arrive rather than appear. Staggered by position so a column
    reads top-down, which is the order the engine produced it in. */
 .panel {
-  animation: rise var(--med) var(--ease) both;
-  transition:
-    border-color var(--fast) var(--ease),
-    box-shadow var(--med) var(--ease);
-}
-.column > .panel:nth-child(2) {
-  animation-delay: 40ms;
-}
-.column > .panel:nth-child(3) {
-  animation-delay: 80ms;
-}
-.column > .panel:nth-child(4) {
-  animation-delay: 120ms;
+  /* No entrance animation. A staggered rise delayed the answer behind
+     four panels of easing, which is motion charging the reader for the
+     privilege of waiting. */
+  transition: border-color var(--motion-control) var(--ease-out);
 }
 .column > .panel:nth-child(n + 5) {
   animation-delay: 160ms;
 }
-@keyframes rise {
-  from {
-    opacity: 0;
-    transform: translateY(8px);
-  }
-  to {
-    opacity: 1;
-    transform: none;
-  }
-}
-
 /* Interactive surfaces warm slightly. Amber on hover is the whole
    language of the theme: the thing under the cursor is powered. */
 .panel:hover {
@@ -1764,13 +1682,13 @@ body::after {
 }
 .btn:hover:not(:disabled),
 .example:hover {
-  box-shadow: var(--glow);
+  border-color: var(--rule-strong);
 }
 .btn:active:not(:disabled) {
   transform: translateY(1px);
 }
 .choice:hover:not(:disabled) {
-  box-shadow: var(--glow);
+  border-color: var(--rule-strong);
 }
 .choice[aria-pressed="true"] {
   box-shadow: inset 0 0 0 1px rgb(var(--accent-rgb) / 35%);
@@ -1785,16 +1703,9 @@ body::after {
     fill var(--med) var(--ease);
 }
 .flow-node.active rect {
-  animation: node-emit 1.9s ease-in-out infinite;
-}
-@keyframes node-emit {
-  0%,
-  100% {
-    filter: drop-shadow(0 0 0 rgb(var(--accent-rgb) / 0%));
-  }
-  50% {
-    filter: drop-shadow(0 0 7px rgb(var(--accent-rgb) / 55%));
-  }
+  /* No pulse. An active node is marked by its rule and its fill;
+     breathing it added a second, slower signal saying the same
+     thing, and it kept breathing after the stage had finished. */
 }
 .flow-node.done rect {
   fill: rgb(var(--supported-rgb) / 7%);
@@ -1811,18 +1722,10 @@ body::after {
 
 /* The live badge breathes only while a run is live. */
 .mode-pill.live .dot {
-  animation: beacon 2.1s ease-in-out infinite;
+  /* The panel's own reading rule already says a run is live; a
+     second beacon competed with it from the header. */
+  background: var(--signal);
 }
-@keyframes beacon {
-  0%,
-  100% {
-    box-shadow: 0 0 0 0 rgb(var(--supported-rgb) / 45%);
-  }
-  60% {
-    box-shadow: 0 0 0 5px rgb(var(--supported-rgb) / 0%);
-  }
-}
-
 /* Findings land one after another, so a report reads as being assembled
    rather than pasted. Capped so a long report does not crawl. */
 .finding {
@@ -1861,17 +1764,8 @@ body::after {
 
 /* A verified tag gets one confirming flash the moment it mounts. */
 .tag.supported {
-  animation: confirm 620ms var(--ease) both;
+  border-color: var(--rule-strong);
 }
-@keyframes confirm {
-  0% {
-    background: rgb(var(--supported-rgb) / 30%);
-  }
-  100% {
-    background: transparent;
-  }
-}
-
 /* Numbers are measurements: tabular, so they do not jitter as they update. */
 .metric-value,
 .activity-meta,
@@ -1967,173 +1861,155 @@ table.data td.cited {
   min-width: 74px;
 }
 
-/* --------------------------------------------------------------- effects */
+/* --------------------------------------------------------- state, not effect
+ *
+ * What was here: a lift on every panel hover, a sweep across any busy
+ * panel, a ripple under every button press, a glow on the active step, a
+ * self-drawing brand mark, a shimmer on skeletons, and a lit mode option.
+ * Seven simultaneous animations, none of which told the reader anything,
+ * all of which competed with the figure they surrounded.
+ *
+ * They are gone. What remains communicates state, and each earns its
+ * place by answering a question a reader would otherwise have to ask:
+ * is this interactive, is this focused, is this still running, was this
+ * withheld, which cell is this sentence about.
+ *
+ * The budget is three simultaneous animations. Hover is not one of them:
+ * a pointer is already a position indicator, and moving the thing under
+ * it costs a frame to say what the cursor said for free.
+ */
 
-/* Panels lift toward the pointer. Cheap, and it makes a dense page feel
-   like objects rather than regions. */
-.panel:hover {
-  transform: translateY(-1px);
-  box-shadow: var(--shadow), var(--glow);
+/* Interactive surfaces say so by changing their rule, not their position.
+   Nothing moves under the pointer. */
+.panel {
+  transition: border-color var(--motion-control) var(--ease-out);
 }
 
-/* A run is happening: the panel it is happening in gets a sweep, the way
-   an instrument shows a channel is being read. Bound to the class the
-   runner sets, so it cannot fire on a static page. */
+.btn,
+.mode-option,
+.cell-chip {
+  transition:
+    background-color var(--motion-feedback) var(--ease-out),
+    border-color var(--motion-feedback) var(--ease-out),
+    color var(--motion-feedback) var(--ease-out);
+}
+
+.btn:hover:not(:disabled),
+.cell-chip:hover {
+  border-color: var(--rule-strong);
+}
+
+/* Focus is a solid ring in the action colour. The previous treatment was
+   a translucent halo of the accent hue, which disappeared against a
+   light surface and conveyed nothing to a reader who cannot separate the
+   hue from its background. */
+:where(a, button, input, select, textarea, [tabindex]):focus-visible {
+  outline: 2px solid var(--action);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+
+/* A run in progress. One animation, on a two-pixel rule at the top of
+   the panel doing the work -- not a wash across the content being read.
+   It stops when the run stops, because a completed stage that keeps
+   pulsing is an instrument reporting activity that has ended. */
 .panel[data-busy="true"] {
   position: relative;
-  overflow: hidden;
 }
 .panel[data-busy="true"]::after {
   content: "";
   position: absolute;
-  inset: 0;
-  pointer-events: none;
-  background: linear-gradient(
-    100deg,
-    transparent 30%,
-    rgb(var(--accent-rgb) / 14%) 50%,
-    transparent 70%
-  );
-  background-size: 220% 100%;
-  animation: sweep 2.4s var(--ease) infinite;
+  inset-inline: 0;
+  top: 0;
+  height: 2px;
+  background: var(--signal);
+  transform-origin: left center;
+  animation: reading var(--motion-ambient) linear infinite;
+  animation-duration: 1.6s;
 }
-@keyframes sweep {
-  from {
-    background-position: 180% 0;
+@keyframes reading {
+  0% {
+    transform: scaleX(0);
+    opacity: 0.35;
   }
-  to {
-    background-position: -80% 0;
-  }
-}
-
-/* Buttons acknowledge the press with a ring that leaves. */
-.btn {
-  position: relative;
-  overflow: hidden;
-}
-.btn::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  background: radial-gradient(
-    circle at center,
-    rgb(var(--accent-rgb) / 34%),
-    transparent 62%
-  );
-  opacity: 0;
-  transform: scale(0.4);
-}
-.btn:active:not(:disabled)::after {
-  animation: ripple 460ms var(--ease);
-}
-@keyframes ripple {
-  from {
+  50% {
+    transform: scaleX(1);
     opacity: 1;
-    transform: scale(0.4);
   }
-  to {
-    opacity: 0;
-    transform: scale(1.7);
+  100% {
+    transform: scaleX(0);
+    transform-origin: right center;
+    opacity: 0.35;
   }
 }
 
-/* The stepper is a progress instrument, so it reads like one: the active
-   step glows, and completed steps fill from the left. */
+/* The active step is marked by weight and by its rule. A completed one is
+   marked by being complete. Neither needs to pulse. */
 .step {
-  position: relative;
   transition:
-    color var(--med) var(--ease),
-    border-color var(--med) var(--ease);
+    color var(--motion-control) var(--ease-out),
+    border-color var(--motion-control) var(--ease-out);
 }
 .step[data-state="active"] {
-  box-shadow: var(--glow);
+  border-color: var(--signal);
+  color: var(--ink-primary);
+  font-weight: var(--weight-medium);
 }
-.step[data-state="active"] .step-index {
-  animation: node-emit 1.9s ease-in-out infinite;
-}
-.step[data-state="done"] .step-index {
-  animation: confirm 620ms var(--ease) both;
-}
-
-/* The brand mark draws itself once, like a trace being plotted. */
-.brand-mark path,
-.brand-mark polyline {
-  stroke-dasharray: 64;
-  animation: trace 1.5s var(--ease) both;
-}
-@keyframes trace {
-  from {
-    stroke-dashoffset: 64;
-  }
-  to {
-    stroke-dashoffset: 0;
-  }
+.step[data-state="done"] {
+  color: var(--supported);
 }
 
-/* Charts and tables arrive rather than blink in. */
-.chart-card,
-.table-wrap {
-  animation: rise var(--med) var(--ease) both;
-}
-
-/* A withheld finding is dimmer and says so by leaning back slightly. */
+/* A withheld finding is stated as withheld; the dimming is a second,
+   quieter signal rather than the only one. */
 .finding[data-withheld="true"] {
   opacity: 0.86;
 }
 
-/* Evidence chips pulse once when the drawer links to them, so the eye
-   finds the cell the sentence is actually about. */
-.cell-chip {
-  transition:
-    transform var(--fast) var(--ease),
-    box-shadow var(--fast) var(--ease);
+/* A chart is drawn once, when it arrives. Redrawing on every render made
+   a report flicker while a reader was in the middle of it. */
+.chart-card {
+  animation: arrive var(--motion-panel) var(--ease-out) both;
 }
-.cell-chip:hover {
-  transform: translateY(-1px);
-  box-shadow: var(--glow);
-}
-
-/* Skeleton shimmer while a run is producing nothing to show yet. */
-.skeleton {
-  background: linear-gradient(
-    90deg,
-    var(--bg-inset) 25%,
-    rgb(var(--accent-rgb) / 9%) 37%,
-    var(--bg-inset) 63%
-  );
-  background-size: 400% 100%;
-  animation: shimmer 1.5s linear infinite;
-  border-radius: var(--radius-sm);
-}
-@keyframes shimmer {
+@keyframes arrive {
   from {
-    background-position: 100% 0;
+    opacity: 0;
   }
   to {
-    background-position: -100% 0;
+    opacity: 1;
   }
 }
 
-/* The mode selector: the chosen option is lit, not merely checked. */
-.mode-option {
-  transition: all var(--fast) var(--ease);
+/* Waiting, without implying progress that is not being measured. */
+.skeleton {
+  background: var(--surface-inset);
+  border-radius: var(--radius-sm);
+  animation: waiting 1.8s var(--ease-in-out) infinite;
 }
-.mode-option[aria-checked="true"] {
-  box-shadow: var(--glow);
-  border-color: var(--accent);
+@keyframes waiting {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.55;
+  }
 }
 
+/* The chosen mode is marked by its rule and its weight. */
+.mode-option[aria-checked="true"] {
+  border-color: var(--signal);
+  background: var(--signal-weak);
+}
+
+/* Reduced motion removes every animation here. The token overrides in
+   `tokens.css` already collapse the durations; these are the infinite
+   ones, which a duration cannot stop. */
 @media (prefers-reduced-motion: reduce) {
+  .panel[data-busy="true"]::after,
+  .skeleton,
+  .chart-card,
   body::before,
   body::after {
     animation: none;
-  }
-  .panel:hover {
-    transform: none;
-  }
-  .panel[data-busy="true"]::after {
-    animation: none;
-    opacity: 0;
   }
 }
