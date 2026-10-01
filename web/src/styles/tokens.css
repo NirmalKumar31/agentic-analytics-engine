@@ -220,6 +220,21 @@
     --warning-weak: #2e2415;
     --failure: #e8695f;
     --failure-weak: #331a1a;
+    /* The text-safe variants collapse into the vivid colours here.
+       They exist in the light palette because #d94a36 and #a87522 are too
+       dark to carry words on a pale surface -- 3.31:1 at worst. On these
+       surfaces the same two hues are the light end of the contrast and
+       measure 5.92:1 to 8.13:1 across all four, so a separate value would
+       be a second name for the same colour.
+    
+       They were previously left undefined here, which is not the same
+       thing: an undefined override inherits, so dark mode rendered the
+       *light* values -- #855c17 ochre on a near-black surface at 2.92:1.
+       A warning notice, an ambiguous-field tag and a stopped workflow step
+       all carried it, and no accessibility scan runs in dark mode, so
+       nothing caught it. */
+    --action-text: var(--action);
+    --warning-text: var(--warning);
 
     --signal-rgb: 113 136 212;
     --supported-rgb: 98 167 137;
@@ -255,6 +270,21 @@
   --warning-weak: #2e2415;
   --failure: #e8695f;
   --failure-weak: #331a1a;
+  /* The text-safe variants collapse into the vivid colours here.
+     They exist in the light palette because #d94a36 and #a87522 are too
+     dark to carry words on a pale surface -- 3.31:1 at worst. On these
+     surfaces the same two hues are the light end of the contrast and
+     measure 5.92:1 to 8.13:1 across all four, so a separate value would
+     be a second name for the same colour.
+  
+     They were previously left undefined here, which is not the same
+     thing: an undefined override inherits, so dark mode rendered the
+     *light* values -- #855c17 ochre on a near-black surface at 2.92:1.
+     A warning notice, an ambiguous-field tag and a stopped workflow step
+     all carried it, and no accessibility scan runs in dark mode, so
+     nothing caught it. */
+  --action-text: var(--action);
+  --warning-text: var(--warning);
 
   --signal-rgb: 113 136 212;
   --supported-rgb: 98 167 137;
