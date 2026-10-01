@@ -787,10 +787,15 @@ function AskPanel({
           />
         )}
         {uiMode === "auto" && (
-          <p className="notice info small" data-testid="interpretation-notice" style={{ margin: 0 }}>
-            Clear questions are resolved by rules without contacting a model. If the
-            question is genuinely ambiguous, one governed AI planning call may be used;
-            the engine still executes and verifies the calculation deterministically.
+          <p
+            className="notice info small"
+            data-testid="interpretation-notice"
+            style={{ margin: 0 }}
+          >
+            Clear questions are resolved by rules without contacting a model. If
+            the question is genuinely ambiguous, one governed AI planning call
+            may be used; the engine still executes and verifies the calculation
+            deterministically.
           </p>
         )}
         {uiMode === "deterministic" && (
@@ -826,7 +831,7 @@ function AskPanel({
             {busy
               ? "Starting…"
               : uiMode === "compare"
-                ? "Run both"
+                ? "Compare strategies"
                 : uiMode === "ai"
                   ? "Run with AI"
                   : "Run analysis"}

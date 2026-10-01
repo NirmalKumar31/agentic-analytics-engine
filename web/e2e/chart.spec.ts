@@ -259,11 +259,11 @@ test.describe("Compare Both, in a browser", () => {
     await compareOverOneRun(page);
     await page.goto("/");
     await uploadFile(page, "shared.csv", sampleCsv());
-    await page.getByRole("radio", { name: /^Compare Both/ }).click();
+    await page.getByRole("radio", { name: /^Compare planning strategies/ }).click();
     await page.getByLabel("Business question").fill(
       "What is the total revenue by region?",
     );
-    await page.getByRole("button", { name: /Run both/ }).click();
+    await page.getByRole("button", { name: /Compare strategies/ }).click();
     await waitForReport(page);
 
     // One shared result, not two copies of it.
