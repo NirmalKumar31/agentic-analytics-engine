@@ -483,3 +483,61 @@ describe("question examples come from the dataset at hand", () => {
     expect(list).toHaveTextContent(/gross margin/i);
   });
 });
+
+// ------------------------------------------------- 7. zero-row compatibility
+
+describe("a query that matched nothing", () => {
+  // The backend now completes these instead of failing them, carrying the
+  // reason as a report limitation. This pins that the frontend shows both
+  // halves: the state, and why.
+  const emptyResult = run({
+    status: "completed",
+    outcome: "completed",
+    findings: [],
+    rejected: [],
+    report: {
+      question: "What is total revenue by region where region is Atlantis?",
+      executive_summary: "",
+      key_findings: [],
+      sections: [],
+      limitations: [
+        "No rows matched the requested filters: region = Atlantis. The analysis ran; the data contained no matching rows.",
+      ],
+      next_questions: [],
+    },
+  } as Partial<RunPayload>);
+
+  function workspace(payload: RunPayload) {
+    return render(
+      <ReportWorkspace
+        comparison={null}
+        run={payload}
+        aiRun={null}
+        aiError={null}
+        config={null}
+        deterministicPending={false}
+        onShowWork={() => undefined}
+      />,
+    );
+  }
+
+  it("reads as no findings, not as a failure", () => {
+    workspace(emptyResult);
+    const card = screen.getByTestId("run-state-card");
+    expect(card).toHaveAttribute("data-state", "no_findings");
+    expect(card).not.toHaveTextContent(/failed/i);
+    expect(card).not.toHaveTextContent(/\bComplete\b/);
+  });
+
+  it("shows the reason the engine gave, naming the restriction", () => {
+    workspace(emptyResult);
+    expect(screen.getByText(/No rows matched the requested filters/)).toBeVisible();
+    expect(screen.getByText(/region = Atlantis/)).toBeVisible();
+  });
+
+  it("does not blame verification for withholding something", () => {
+    workspace(emptyResult);
+    const card = screen.getByTestId("run-state-card");
+    expect(card).toHaveTextContent(/nothing was withheld/i);
+  });
+});

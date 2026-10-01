@@ -491,6 +491,48 @@ def build_graph(ctx: RunContext) -> Any:
         if snapshot is None:  # pragma: no cover - the call above would have raised
             return _abort("the accepted contract produced no result", None, ctx)
 
+        if _matched_no_rows(snapshot):
+            # The contract executed and the data contained nothing matching it.
+            #
+            # This used to fall through to `_canonical_for`, which cannot build
+            # an answer out of no rows, and the abort below reported "the
+            # executed result could not be turned into a direct answer" -- a
+            # reason `_outcome_from_reason` does not recognise, so the run came
+            # back `failed`. A reader asking about a region that is not in
+            # their file was told the system broke.
+            #
+            # It did not break. It ran the accepted contract and the answer is
+            # that nothing matched, which is a result. This module's own test
+            # file says so: "a run that honestly found nothing publishable is
+            # complete and says why".
+            #
+            # No `stopped_reason` is set, so the outcome stays `completed`, and
+            # with no findings and nothing rejected the interface reports it as
+            # "no findings" rather than as a failure or as a withholding. The
+            # contract, its filters, the snapshot and its row count are already
+            # in the state and in `results`, so provenance is unaffected.
+            # No event is emitted here, matching the branch below that
+            # publishes nothing because verification withheld it. The fast
+            # path does not emit a task-completed event on its success path
+            # either, and emitting one only for this case would make the
+            # execution lane show a completed task for an empty result and
+            # none for an answered question.
+            return {
+                "verdicts": [],
+                "rejected": [],
+                "published": [],
+                "charts": [],
+                "report": AnalysisReport(
+                    question=state["question"],
+                    executive_summary="",
+                    key_findings=[],
+                    sections=[],
+                    limitations=[_no_rows_limitation(mapping)],
+                    next_questions=[],
+                ),
+                "timings": _with_timings(state, execution_ms=execution_ms, verification_ms=0.0),
+            }
+
         verify_started = time.perf_counter()
         candidate = _canonical_for(mapping, results, [])
         if candidate is None:
@@ -1151,6 +1193,79 @@ def build_graph(ctx: RunContext) -> Any:
     graph.add_edge("finalize", END)
 
     return graph.compile(name="agentic-analytics")
+
+
+def _matched_no_rows(snapshot: Any) -> bool:
+    """Whether the contract ran and nothing in the table matched it.
+
+    Two shapes, because an aggregate answers an empty set differently
+    depending on whether it groups:
+
+      - **Grouped**: `GROUP BY` can only emit groups that exist, so no
+        matching rows means no result rows at all.
+      - **Ungrouped**: `SELECT sum(x) ... WHERE false` still returns one row,
+        holding a NULL measure and a row count of zero. Testing `rows` alone
+        missed this, and the ungrouped case kept being reported as a failure
+        after the grouped one was fixed.
+
+    `row_count` is the count of underlying rows behind each output row, which
+    the aggregate tool always selects. Zero across every row is the only
+    reading of "the query ran and matched nothing": a group that appears in
+    the output had at least one row by definition.
+
+    Conservative on anything unexpected -- a snapshot without the column, or
+    rows that cannot be indexed -- because reporting a real answer as "no
+    rows" is a worse error than the one this fixes.
+    """
+    rows = list(getattr(snapshot, "rows", None) or [])
+    if not rows:
+        return True
+    columns = list(getattr(snapshot, "columns", None) or [])
+    if "row_count" not in columns:
+        return False
+    index = columns.index("row_count")
+    try:
+        return all(int(row[index] or 0) == 0 for row in rows)
+    except (IndexError, TypeError, ValueError):
+        return False
+
+
+def _no_rows_limitation(mapping: Any) -> str:
+    """Why nothing came back, naming the restrictions that produced it.
+
+    "No rows matched" on its own sends a reader looking for a fault in their
+    data. Naming the predicates tells them where to look, and is usually
+    enough to spot the cause -- a value spelled differently, a period outside
+    the file's range -- without opening the audit.
+
+    Built from the accepted contract rather than from the question text, so
+    it describes what actually ran.
+    """
+    parts: list[str] = []
+    for item in getattr(mapping, "filters", ()) or ():
+        column = getattr(item, "column", None)
+        operator = getattr(item, "operator", None)
+        value = getattr(item, "value", None)
+        if column and operator is not None and value is not None:
+            parts.append(f"{column} {operator} {value}")
+    period = getattr(mapping, "period", None)
+    period_field = getattr(mapping, "period_field", None)
+    if period and len(period) == 2:
+        field_name = period_field or "the period"
+        parts.append(f"{field_name} between {period[0]} and {period[1]}")
+
+    if not parts:
+        # Reachable: a grouped or ungrouped query over an empty table, or one
+        # whose measure is null throughout, has no restriction to blame.
+        return (
+            "No rows were available to answer this question. The analysis ran "
+            "and the table held nothing to aggregate."
+        )
+    return (
+        "No rows matched the requested filters: "
+        + "; ".join(parts)
+        + ". The analysis ran; the data contained no matching rows."
+    )
 
 
 def _abort(reason: str, exc: BaseException | None, ctx: RunContext) -> dict[str, Any]:
