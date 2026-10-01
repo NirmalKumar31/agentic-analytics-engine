@@ -20,6 +20,7 @@ export type TerminalState =
   | "running"
   | "completed_verified"
   | "verification_withheld"
+  | "no_findings"
   | "refused"
   | "execution_failed"
   | "quota_stopped"
@@ -43,7 +44,8 @@ const LABELS: Record<TerminalState, { label: string; tone: RunState["tone"] }> =
   {
     running: { label: "Running", tone: "neutral" },
     completed_verified: { label: "Complete", tone: "supported" },
-    verification_withheld: { label: "Nothing published", tone: "warn" },
+    verification_withheld: { label: "Withheld by verification", tone: "warn" },
+    no_findings: { label: "No findings", tone: "neutral" },
     refused: { label: "Refused", tone: "warn" },
     execution_failed: { label: "Failed", tone: "error" },
     quota_stopped: { label: "Quota limit reached", tone: "warn" },
@@ -96,10 +98,20 @@ export function runState(
       reason = run.error ?? run.stopped_reason ?? "";
     } else if ((run.findings?.length ?? 0) > 0) {
       state = "completed_verified";
-    } else {
-      // The run finished and published nothing. Telling a reader "Complete"
-      // here invites them to look for an answer that was never made.
+    } else if ((run.rejected?.length ?? 0) > 0) {
+      // Verification checked claims and declined to publish them. The
+      // engine computed an answer and then refused to stand behind it,
+      // which is a different thing to be told than "there was nothing
+      // here" -- and the reader can see the withheld claims and why.
       state = "verification_withheld";
+      reason = run.stopped_reason || "";
+    } else {
+      // Nothing was published and nothing was withheld: the analysis ran
+      // and found no claim to make. Collapsing this into
+      // `verification_withheld` blamed a verifier that never ran, and
+      // calling it "Complete" invites a reader to look for an answer that
+      // was never made.
+      state = "no_findings";
       reason = run.stopped_reason || "";
     }
   }

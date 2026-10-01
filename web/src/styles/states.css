@@ -96,6 +96,17 @@
 .step[data-state="done"] {
   color: var(--supported);
 }
+/* A run that stopped marks the stage it stopped at. Showing the earlier
+   stages as done and the rest as idle read as a run still in progress,
+   which is the opposite of what happened. Ochre rather than the failure
+   red: a refusal and a quota stop are not breakages, and the stage index
+   carries the same meaning as a glyph for a reader who cannot separate
+   the hues. */
+.step[data-state="stopped"] {
+  color: var(--warning-text);
+  border-color: rgb(var(--warning-rgb) / 45%);
+  font-weight: var(--weight-medium);
+}
 
 /* A withheld finding is stated as withheld; the dimming is a second,
    quieter signal rather than the only one. */

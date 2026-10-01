@@ -103,10 +103,17 @@ test.describe("accessibility", () => {
   test("an uploaded dataset after profiling", async ({ page }) => {
     await page.goto("/");
     await uploadFile(page, "a11y-profile.csv", sampleCsv());
-    await expect(
-      page.getByRole("heading", { name: "Dataset understanding" }),
-    ).toBeVisible();
-    await scan(page, "profiled upload");
+    // The inspector is a closed disclosure now, so assert on the disclosure
+    // rather than a heading that no longer exists -- and scan it both
+    // closed and open, because a `<details>` hides its body from axe while
+    // collapsed and the table inside it is the part most likely to have a
+    // contrast or header-association problem.
+    const inspector = page.getByTestId("schema-inspector");
+    await expect(inspector).toBeVisible();
+    await scan(page, "profiled upload, inspector collapsed");
+    await inspector.locator("summary").click();
+    await expect(inspector).toHaveAttribute("open", "");
+    await scan(page, "profiled upload, inspector open");
   });
 
   test("a completed deterministic report", async ({ page }) => {
@@ -138,15 +145,100 @@ test.describe("accessibility", () => {
     await ask(page, "What is the total revenue by region?");
     await waitForReport(page);
 
-    const audit = page
-      .locator("details")
-      .filter({ hasText: /planning audit/i })
-      .first();
-    if ((await audit.count()) > 0) {
-      await audit.locator("summary").first().click();
-      await expect(audit).toHaveAttribute("open", "");
-    }
+    // Unconditional. This was wrapped in `if (count > 0)`, so an audit that
+    // stopped rendering would have left the scan passing over a page that no
+    // longer contained the thing the test is named for.
+    const audit = page.getByTestId('planning-audit');
+    await expect(audit).toBeVisible();
+    await audit.locator('summary').first().click();
+    await expect(audit).toHaveAttribute('open', '');
     await scan(page, "planning audit open");
+  });
+
+  test("the Compare view, with the automatic-route disclosure", async ({
+    page,
+  }) => {
+    // AI mode is usually unavailable on a local or CI deployment, so the
+    // capability is enabled and the right-hand run is stubbed. The left pane
+    // is a real deterministic run, and the route disclosure derives from its
+    // real event stream.
+    await page.route("**/api/config", async (route) => {
+      const response = await route.fetch();
+      const body = await response.json();
+      body.capabilities.modes = body.capabilities.modes.map(
+        (mode: { mode: string }) =>
+          mode.mode === "ai"
+            ? { ...mode, available: true, reason: "", message: "" }
+            : mode,
+      );
+      body.capabilities.compare_available = true;
+      await route.fulfill({ response, json: body });
+    });
+    await page.route("**/api/comparisons", async (route) => {
+      const request = route.request().postDataJSON() as {
+        session_id: string;
+        question: string;
+      };
+      const started = await route.fetch({
+        url: new URL("/api/analyses", page.url()).toString(),
+        method: "POST",
+        postData: JSON.stringify({ ...request, mode: "deterministic" }),
+        headers: { "content-type": "application/json" },
+      });
+      const { run_id } = (await started.json()) as { run_id: string };
+      await route.fulfill({
+        status: 202,
+        json: {
+          comparison_id: "cmp_a11y",
+          session_id: request.session_id,
+          question: request.question,
+          deterministic_run_id: run_id,
+          ai_run_id: "run_a11y_ai",
+        },
+      });
+    });
+    await page.route("**/api/analyses/run_a11y_ai", async (route) => {
+      await route.fulfill({
+        status: 200,
+        json: {
+          run_id: "run_a11y_ai",
+          session_id: "x",
+          question: "What is total revenue by region?",
+          status: "refused",
+          outcome: "refused",
+          created_at: Date.now() / 1000,
+          mode: "ai",
+          provider_kind: "cloud",
+          stopped_reason: "the question could not be mapped safely",
+          findings: [],
+          rejected: [],
+          charts: [],
+          results: {},
+          tasks: [],
+          events: [],
+          mcp_trace: [],
+        },
+      });
+    });
+
+    await page.goto("/");
+    await page.getByRole("button", { name: /Commerce demo warehouse/ }).click();
+    await page
+      .getByRole("radio", { name: /^Compare planning strategies/ })
+      .click();
+    await page
+      .getByLabel("Business question")
+      .fill("What is total revenue by region?");
+    await page.getByRole("button", { name: /Compare strategies/ }).click();
+
+    await expect(
+      page.getByRole("region", { name: "Deterministic Analytics", exact: true }),
+    ).toBeVisible({ timeout: 90_000 });
+    // The surfaces this scan exists for: the route disclosure, and a state
+    // card for the refused lane.
+    await expect(page.getByTestId("auto-route-note")).toBeVisible();
+    await expect(page.getByTestId("run-state-card").first()).toBeVisible();
+    await scan(page, "compare with route disclosure");
   });
 
   test("a narrow-phone report", async ({ page }) => {

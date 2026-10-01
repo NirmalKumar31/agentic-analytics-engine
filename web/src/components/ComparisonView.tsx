@@ -10,6 +10,8 @@
 import type { ReactNode } from "react";
 import { compareRuns } from "../lib/comparison";
 import { ExecutionLane } from "./ExecutionLanes";
+import { PlanningRouteNote } from "./PlanningRouteNote";
+import { RunStateCard } from "./RunStateCard";
 import { runState } from "../lib/runState";
 import type { RunPayload, RunUsage } from "../lib/types";
 
@@ -38,43 +40,6 @@ function stateOf(side: Side) {
     unavailable: side.unavailable,
   });
 }
-
-/**
- * What happened, when it was not a verified answer.
- *
- * A refused or failed pane used to render nothing, so the reader saw an
- * empty column and a COMPLETE badge. The reason the engine gave is the
- * most useful thing on screen in those states, so it is shown rather than
- * left in the activity log.
- */
-function RunStateCard({ state }: { state: ReturnType<typeof runState> }) {
-  if (state.state === "completed_verified" || state.state === "running") {
-    return null;
-  }
-  if (state.state === "not_started") return null;
-  return (
-    <div
-      className={`notice ${state.tone === "error" ? "error" : "warn"}`}
-      role={state.tone === "error" ? "alert" : "status"}
-      data-testid="run-state-card"
-      data-state={state.state}
-    >
-      <strong>{state.label}.</strong>{" "}
-      {state.reason || RUN_STATE_FALLBACK[state.state]}
-    </div>
-  );
-}
-
-const RUN_STATE_FALLBACK: Record<string, string> = {
-  refused: "The question could not be mapped to this dataset safely.",
-  execution_failed: "The analysis could not be completed.",
-  quota_stopped:
-    "The analysis stopped at its configured usage limit. No further provider request was made.",
-  verification_withheld:
-    "The analysis ran, but no finding survived the publication checks. The withheld findings below say why.",
-  cancelled: "The run was stopped before it finished.",
-  unavailable: "This mode is not available on this deployment.",
-};
 
 /**
  * What one mode spent. Kept visible even when the result is shared,
@@ -176,6 +141,10 @@ export function ComparisonView({ question, deterministic, ai }: Props) {
             checks. The model never calculates a result. The two are shown
             independently and are not ranked.
           </p>
+          <PlanningRouteNote
+            deterministic={deterministic.run}
+            ai={ai.run}
+          />
           {comparable ? (
             <div
               className={`notice ${

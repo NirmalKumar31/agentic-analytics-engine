@@ -1,5 +1,6 @@
 import { ComparisonView } from "./ComparisonView";
 import { ReportView } from "./ReportView";
+import { RunStateCard } from "./RunStateCard";
 import { TechnicalInspector } from "./TechnicalInspector";
 import { runState } from "../lib/runState";
 import type {
@@ -73,12 +74,23 @@ export function ReportWorkspace({
   }
 
   if (!run) return null;
+
+  // Single mode is the default, and it had no terminal-state card at all:
+  // a refused, quota-stopped, cancelled or failed run rendered the report
+  // body as though it were an ordinary answer. The state comes first,
+  // because when it is not `completed_verified` it is the most useful thing
+  // on the screen -- and `showsReport` decides whether there is a report
+  // worth putting under it. A refusal has one; a failure does not.
+  const state = runState(run);
   return (
     <>
-      <RunReport
-        run={run}
-        onShowWork={(id) => onShowWork("deterministic", id)}
-      />
+      <RunStateCard state={state} />
+      {state.showsReport && (
+        <RunReport
+          run={run}
+          onShowWork={(id) => onShowWork("deterministic", id)}
+        />
+      )}
       <TechnicalInspector run={run} />
     </>
   );

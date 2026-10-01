@@ -5,13 +5,14 @@ import { DatasetIdentity } from "./components/DatasetIdentity";
 import { DatasetOnboarding } from "./components/DatasetOnboarding";
 import { ProductHeader } from "./components/ProductHeader";
 import { ProvenanceDrawer } from "./components/ProvenanceDrawer";
+import { RightRail } from "./components/RightRail";
 import { QuestionComposer } from "./components/QuestionComposer";
 import { ReportWorkspace, type ProvenanceSide } from "./components/ReportWorkspace";
 import { RunProgress } from "./components/RunProgress";
 import { SchemaInspector } from "./components/SchemaInspector";
 import { TerminalState } from "./components/TerminalState";
 import { useTheme } from "./components/ThemeToggle";
-import { WorkflowIndex, type WorkflowStage } from "./components/WorkflowIndex";
+import { WorkflowIndex } from "./components/WorkflowIndex";
 import { ApiError, api } from "./lib/api";
 import { phaseOf } from "./lib/phase";
 import type {
@@ -64,7 +65,6 @@ export function App() {
     () => (replay && run ? run.events : events),
     [replay, run, events],
   );
-  const stage: WorkflowStage = run ? "report" : runId ? "running" : session || replay ? "ask" : "dataset";
   const phase = phaseOf({ config, configError, session, replay, runId, run, busy, error, events });
 
   useEffect(() => {
@@ -173,20 +173,30 @@ export function App() {
       sessionId={session?.session_id}
       hasRun={hasRun}
       header={<ProductHeader config={config} hasRun={hasRun} hasSession={Boolean(session)} replaying={Boolean(replay)} uiMode={uiMode} theme={theme} onToggleTheme={toggleTheme} onEndSession={() => void endSession()} onReset={reset} />}
-      workflow={<WorkflowIndex stage={stage} />}
+      workflow={<WorkflowIndex phase={phase} />}
     >
       <div className="column">
+        <DatasetIdentity catalog={catalog} />
         <TerminalState configError={configError} error={error} stoppedReason={run?.stopped_reason} />
         {!run && !runId && config && (
           <DatasetOnboarding config={config} session={session} replay={replay} busy={busy} onDemo={() => void openDemo()} onUploadClick={() => fileInput.current?.click()} onFile={(file) => void upload(file)} onRecording={(recording) => void openRecording(recording)} />
         )}
         <input ref={fileInput} type="file" accept=".csv,.parquet" className="sr-only" aria-label="Upload a CSV or Parquet file" onChange={(event) => { const file = event.target.files?.[0]; if (file) void upload(file); event.target.value = ""; }} />
-        {session?.summary && session.catalog.dataset_kind === "upload" && !hasRun && <SchemaInspector summary={session.summary} onAsk={setQuestion} />}
-        {session && !hasRun && <QuestionComposer config={config} question={question} onQuestionChange={setQuestion} onAsk={() => void ask()} busy={busy} uiMode={uiMode} onModeChange={setUiMode} />}
+        {session?.summary && session.catalog.dataset_kind === "upload" && !hasRun && <SchemaInspector summary={session.summary} />}
+        {session && !hasRun && <QuestionComposer config={config} summary={
+                  // Only an uploaded file gets schema-derived examples. The
+                  // demo session also carries a summary, so gating on its
+                  // presence alone replaced the curated demo questions --
+                  // which exist to demonstrate the governed metric registry
+                  // -- with generic ones derived from its tables.
+                  session?.catalog.dataset_kind === "upload"
+                    ? session.summary
+                    : null
+                } question={question} onQuestionChange={setQuestion} onAsk={() => void ask()} busy={busy} uiMode={uiMode} onModeChange={setUiMode} />}
         {hasRun && <RunProgress run={run} events={recordedEvents} replay={replay} uiMode={uiMode} showTrace={showTrace} onToggleTrace={() => setShowTrace((value) => !value)} running={Boolean(runId) && !finished} />}
         <ReportWorkspace comparison={comparison} run={run} aiRun={aiRun} aiError={aiError} config={config} deterministicPending={Boolean(runId) && !finished} onShowWork={(side, findingId) => setTarget({ side, findingId })} />
       </div>
-      {!hasRun && <DatasetIdentity catalog={catalog} metrics={session?.metrics ?? []} />}
+      {!hasRun && <RightRail catalog={catalog} metrics={session?.metrics ?? []} usedMetrics={[]} results={{}} tasks={[]} runMetrics={null} onOpenResult={() => undefined} />}
       {finding && provenanceRun && <ProvenanceDrawer finding={finding} results={provenanceRun.results} tasks={provenanceRun.tasks} trace={provenanceRun.mcp_trace} onClose={() => setTarget(null)} />}
       {target && !finding && (
         <div className="drawer" role="dialog" aria-label="Provenance unavailable">

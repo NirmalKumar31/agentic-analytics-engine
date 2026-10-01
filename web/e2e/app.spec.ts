@@ -161,9 +161,23 @@ test.describe("uploading a file", () => {
     await uploadFile(page, "e2e-sales.csv", sampleCsv());
 
     // The dataset understanding step, marked inferred rather than governed.
+    //
+    // The inspector is a closed disclosure now, so the caveat has to be
+    // legible without opening it: a reader who never expands it must still
+    // know these roles were inferred from types and cardinality rather than
+    // defined by anyone. Asserted collapsed *and* expanded, because hiding
+    // the caveat behind a click would be the regression.
+    const inspector = page.getByTestId('schema-inspector');
+    await expect(inspector).toBeVisible();
+    await expect(inspector).not.toHaveAttribute('open', '');
+    // Scoped to the summary: "inferred" also appears in the body sentence,
+    // and an unscoped match resolves to two elements.
+    await expect(inspector.locator('summary .tag')).toHaveText('inferred');
+    await inspector.locator('summary').click();
     await expect(
-      page.getByText("Roles are inferred from column types"),
+      page.getByText('Roles are inferred from column types'),
     ).toBeVisible();
+    await inspector.locator('summary').click();
 
     await ask(page, "What is the total revenue by region?");
     await waitForReport(page);

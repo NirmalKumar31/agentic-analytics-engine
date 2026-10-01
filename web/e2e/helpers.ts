@@ -65,7 +65,13 @@ export async function uploadFile(
     mimeType: 'text/csv',
     buffer: Buffer.from(contents),
   })
-  const understanding = page.getByRole('heading', { name: 'Dataset understanding' })
+  // The schema inspector is the signal that profiling finished. It used to
+  // be a panel with a "Dataset understanding" heading and is now a closed
+  // `<details>`, so the heading no longer exists -- waiting for it timed out
+  // on every upload test. The test id is a stronger target than the heading
+  // was: it identifies the inspector itself rather than a string that two
+  // panels could both contain.
+  const understanding = page.getByTestId('schema-inspector')
   const notice = page.locator('.notice.error')
   await expect(understanding.or(notice).first()).toBeVisible({ timeout: 30_000 })
   if (await notice.isVisible()) {
