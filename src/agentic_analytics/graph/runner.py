@@ -314,8 +314,17 @@ async def run_analysis(
     events: EventBus | None = None,
     run_id: str | None = None,
     telemetry: dict[str, Any] | None = None,
+    open_planner: Any | None = None,
 ) -> RunResult:
-    """Execute one analysis end to end."""
+    """Execute one analysis end to end.
+
+    `open_planner` turns on automatic routing: the rules resolve the
+    question first and this factory is called only if they could not. It
+    is a factory because building the governed cloud provider takes the
+    ledger slot, and a question the rules already answered must not spend
+    quota on work that never happens. Omitted, the run behaves exactly as
+    before -- one provider, chosen by the caller.
+    """
     cfg = settings or get_settings()
     bus = events or EventBus()
     own_provider = provider is None
@@ -348,7 +357,15 @@ async def run_analysis(
             # cells even when the run beside it, driven locally, may.
             remote_inference=llm.remote_inference,
         ) as toolset:
-            ctx = RunContext(session, toolset, llm, bus, cfg.budgets, telemetry)
+            ctx = RunContext(
+                session,
+                toolset,
+                llm,
+                bus,
+                cfg.budgets,
+                telemetry,
+                open_planner=open_planner,
+            )
             if telemetry is not None:
                 # A live handle, not a copy. If the caller abandons this run
                 # on a timeout, the trace is the only record of what the

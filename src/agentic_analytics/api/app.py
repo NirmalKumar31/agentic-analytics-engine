@@ -544,8 +544,30 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             reason=availability.reason,
             message=availability.message,
         )
+        automatic = ModeCapability(
+            mode=str(RunMode.AUTO),
+            # Available wherever live analysis is, because the rules are
+            # always available. A deployment with no cloud planner answers
+            # every question the rules can resolve and says precisely what
+            # it could not resolve -- which is a weaker product, not a
+            # broken one, and so not a reason to withhold the mode.
+            available=cfg.live_analytics_enabled,
+            label="Governed Analysis",
+            description=(
+                "Rule-based planning resolves the question when it can, which "
+                "costs nothing and happens for most questions. A cloud model "
+                "is consulted only when the wording is genuinely ambiguous, "
+                "and never to compute, verify or approve a result."
+            ),
+            reason="" if cfg.live_analytics_enabled else "live_analytics_disabled",
+            message=(
+                ""
+                if cfg.live_analytics_enabled
+                else "Live analysis is disabled on this server; open a recorded run."
+            ),
+        )
         return Capabilities(
-            modes=[deterministic, ai],
+            modes=[automatic, deterministic, ai],
             compare_available=deterministic.available and ai.available,
             ai_limits=(
                 AILimits(
@@ -972,6 +994,11 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
         async def execute() -> None:
             provider: LLMProvider | None = None
+            #: Set for an automatic run that may consult a cloud planner.
+            #: `None` means the rules are the only planner available, which
+            #: is a refusal with a reason for an ambiguous question and no
+            #: obstacle at all for an exact one.
+            planner_factory: Any | None = None
             try:
                 if mode is RunMode.AI:
                     # The one governed construction site. Preflight runs
@@ -993,6 +1020,39 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                     record.pricing_reviewed = result.price.reviewed
                 else:
                     provider = build_provider_for_mode(cfg, mode)
+
+                if (
+                    mode is RunMode.AUTO
+                    and ai_availability(cfg, ledger_ready=ledger is not None).available
+                ):
+                    # Automatic routing needs a way to build the cloud
+                    # planner, not a built one. Constructing it is the
+                    # ledger admission, so a question the rules resolve
+                    # must never reach this -- and an exact question never
+                    # does, which is what makes the default affordable.
+                    #
+                    # Availability is checked in the condition above,
+                    # cheaply, so the graph knows whether a planner can be
+                    # had at all. A run with none still answers everything
+                    # the rules can resolve.
+
+                    async def open_planner() -> LLMProvider:
+                        assert ledger is not None
+                        built = await open_governed_cloud_provider(
+                            cfg,
+                            run_id=record.run_id,
+                            session_id=session.session_id,
+                            client_id=client_id,
+                            ledger=ledger,
+                        )
+                        preflight = built.preflight_result
+                        record.requested_model = preflight.requested_model
+                        record.resolved_model = preflight.resolved_model
+                        record.pricing_source = preflight.price.source
+                        record.pricing_reviewed = preflight.price.reviewed
+                        return built
+
+                    planner_factory = open_planner
             except (ModeUnavailable, PreflightFailed, AIBudgetExceeded) as exc:
                 record.error = str(exc)
                 record.bus.emit(EventType.RUN_FAILED, reason=record.error)
@@ -1022,6 +1082,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                         provider=provider,
                         events=record.bus,
                         run_id=record.run_id,
+                        open_planner=planner_factory,
                     ),
                 )
             except TimeoutError:

@@ -66,12 +66,23 @@ class RunContext:
         events: EventBus,
         budgets: Budgets,
         telemetry: dict[str, Any] | None = None,
+        open_planner: Any | None = None,
     ) -> None:
         self.session = session
         self.toolset = toolset
         self.provider = provider
         self.events = events
         self.budgets = budgets
+        #: Builds the cloud planner, when one is permitted, and only when
+        #: the rules could not settle the question.
+        #:
+        #: A factory rather than a provider because constructing the
+        #: governed provider *is* the ledger admission: a question the
+        #: rules already answered must not take a durable quota slot for
+        #: work that never happens. `None` means automatic routing has no
+        #: planner available, which is a refusal with a reason rather than
+        #: a failed run.
+        self.open_planner = open_planner
         #: Optional dict the real-model evaluation passes in to record where
         #: the engine intervened. `None` in production, and every write is
         #: guarded, so a normal run does none of this work.
@@ -318,9 +329,36 @@ def build_graph(ctx: RunContext) -> Any:
             schema = infer_schema(ctx.session, table).as_dict()
             upload_schema = schema
             try:
-                query_mapping = await analyst.resolve_upload_query(
-                    ctx.provider, state["question"], schema
-                )
+                if ctx.open_planner is not None:
+                    # Automatic routing. The rules decide first and a
+                    # planner is built only if they could not, so an exact
+                    # question makes no provider call and takes no quota.
+                    resolved = await analyst.resolve_upload_query_automatically(
+                        state["question"], schema, open_planner=ctx.open_planner
+                    )
+                    query_mapping = resolved.mapping
+                    route = resolved.route
+                    assessment = resolved.assessment
+                    ctx.events.emit(
+                        EventType.CONTRACT_RESOLVED,
+                        planner=route,
+                        model_calls=resolved.planning_calls,
+                        route=route,
+                        resolution_state=str(assessment.state),
+                        issues=[str(issue) for issue in assessment.issues],
+                        ai_eligible=assessment.ai_eligible,
+                        contract_hash=(
+                            query_mapping.contract_hash
+                            if getattr(query_mapping, "confident", False)
+                            else None
+                        ),
+                        duration_ms=round((time.perf_counter() - planning_started) * 1000, 3),
+                        fallback=route == analyst.ROUTE_AI_UNAVAILABLE,
+                    )
+                else:
+                    query_mapping = await analyst.resolve_upload_query(
+                        ctx.provider, state["question"], schema
+                    )
             except (LLMError, BudgetError) as exc:
                 return _abort("the uploaded-data question could not be grounded", exc, ctx)
             refusal = _shape_refusal(ctx, query_mapping)

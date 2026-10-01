@@ -36,6 +36,13 @@ class RunMode(StrEnum):
 
     DETERMINISTIC = "deterministic"
     AI = "ai"
+    #: Rules first, a planner only when the rules cannot settle it.
+    #:
+    #: Not a third kind of decision-maker: it is a policy over the other
+    #: two, which is why it does not change what may decide arithmetic.
+    #: `DETERMINISTIC` and `AI` remain selectable so a run can be audited
+    #: against one planner or compared across both.
+    AUTO = "auto"
 
 
 #: Why AI is not offered. Stable identifiers: the UI maps them to copy, and
@@ -111,7 +118,11 @@ def build_provider_for_mode(
     and nowhere else, so that it cannot exist without the ledger that
     bounds its spending.
     """
-    if mode is RunMode.DETERMINISTIC:
+    if mode in (RunMode.DETERMINISTIC, RunMode.AUTO):
+        # An automatic run gets the scripted provider for everything the
+        # graph does outside planning. Its cloud planner, if it needs one,
+        # is built lazily and separately -- see `RunContext.open_planner`
+        # -- so a question the rules answer never touches the credential.
         from agentic_analytics.llm.fake import FakeProvider
 
         return FakeProvider(max_calls=cfg.budgets.max_llm_calls)
@@ -130,5 +141,17 @@ def build_provider_for_mode(
 
 
 def provider_kind(mode: RunMode) -> str:
-    """The implementation behind a public mode, for the run record."""
-    return "scripted" if mode is RunMode.DETERMINISTIC else "cloud"
+    """The implementation behind a public mode, for the run record.
+
+    An automatic run does not know its own answer yet: whether a cloud
+    planner is used depends on whether the rules settle the question, and
+    that is decided inside the run. Recording "cloud" up front would
+    claim a billable path for a run that may well make no request, so the
+    record says `governed` and the route event says what actually
+    happened.
+    """
+    if mode is RunMode.DETERMINISTIC:
+        return "scripted"
+    if mode is RunMode.AUTO:
+        return "governed"
+    return "cloud"

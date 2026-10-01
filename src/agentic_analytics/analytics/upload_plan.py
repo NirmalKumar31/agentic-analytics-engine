@@ -34,6 +34,7 @@ from dataclasses import dataclass, field
 from datetime import date
 from typing import Any, Literal
 
+from agentic_analytics.analytics.resolution import ResolutionIssue
 from agentic_analytics.analytics.row_filters import filters_from_plan, parse_filters
 
 Operation = Literal["count", "sum", "average", "trend", "rank", "profile"]
@@ -428,6 +429,15 @@ class QuestionMapping:
     #: executed instead. Provenance only: excluded from the canonical
     #: contract, because the arithmetic is identical either way.
     planner_note: str = ""
+    #: Why this question could not be resolved, when it could not. Typed so
+    #: a router can tell "this dataset has no such column" from "the
+    #: wording did not say which column": those were the same
+    #: `confident=False` and therefore the same non-decision, which left
+    #: only two possible policies -- never ask a model, or always ask one.
+    #: Diagnostics, not semantics, and so excluded from the canonical
+    #: contract: two planners reaching the same contract must hash the same
+    #: however much they struggled to get there.
+    issues: tuple[ResolutionIssue, ...] = ()
 
     def __post_init__(self) -> None:
         """Keep the legacy singular grouping honest during migration.
@@ -588,7 +598,10 @@ def _pick(
     candidates: list[str],
     what: str,
     also_if_named: list[str] | None = None,
-) -> tuple[str | None, str | None]:
+    *,
+    unresolved: ResolutionIssue = ResolutionIssue.UNRESOLVED_MEASURE,
+    competing: ResolutionIssue = ResolutionIssue.COMPETING_MEASURE_CANDIDATES,
+) -> tuple[str | None, str | None, ResolutionIssue | None]:
     """Resolve one column, or say why it could not be resolved.
 
     Two acceptable outcomes: the question named a column of this role, or the
@@ -604,17 +617,24 @@ def _pick(
     """
     overlap = [c for c in named if c in candidates]
     if len(overlap) >= 1:
-        return overlap[0], None
+        return overlap[0], None, None
     explicit = [c for c in named if c in (also_if_named or [])]
     if explicit:
-        return explicit[0], None
+        return explicit[0], None, None
     if len(candidates) == 1:
-        return candidates[0], None
+        return candidates[0], None, None
     if not candidates:
-        return None, f"the table has no column that looks like a {what}"
-    return None, (
-        f"the question does not name which {what} to use, and the table has "
-        f"{len(candidates)} to choose from"
+        # Nothing to choose from. No planner resolves this, because the
+        # column is not in the file -- which is why this is a different
+        # issue from having several and not being told which.
+        return None, f"the table has no column that looks like a {what}", unresolved
+    return (
+        None,
+        (
+            f"the question does not name which {what} to use, and the table has "
+            f"{len(candidates)} to choose from"
+        ),
+        competing,
     )
 
 
@@ -1045,6 +1065,7 @@ def resolve_question(question: str, schema: dict[str, Any]) -> QuestionMapping:
                     "the question names a period, and this table has no date column to apply it to"
                 ),
                 named_columns=[],
+                issues=(ResolutionIssue.MISSING_PERIOD_FIELD,),
             )
         period_field = time_fields[0]
 
@@ -1066,6 +1087,7 @@ def resolve_question(question: str, schema: dict[str, Any]) -> QuestionMapping:
             named_columns=[],
             period=named_period,
             period_field=period_field,
+            issues=(ResolutionIssue.MISSING_FILTER_BINDING,),
         )
     row_filters = resolution.filters
     if resolution.constraint_detected and not row_filters:
@@ -1081,11 +1103,19 @@ def resolve_question(question: str, schema: dict[str, Any]) -> QuestionMapping:
             named_columns=[],
             period=named_period,
             period_field=period_field,
+            issues=(ResolutionIssue.MISSING_FILTER_BINDING,),
         )
 
     text = _normalise(question)
 
-    def refuse(reason: str) -> QuestionMapping:
+    def refuse(reason: str, *issues: ResolutionIssue) -> QuestionMapping:
+        """Decline, and say which kind of problem it was.
+
+        The issue codes are what let a router tell a question this dataset
+        cannot answer from one whose wording was merely underspecified.
+        A site that names none is still a refusal; it is just one no
+        planner will be asked to retry.
+        """
         return QuestionMapping(
             operation="profile",
             table=table,
@@ -1094,6 +1124,7 @@ def resolve_question(question: str, schema: dict[str, Any]) -> QuestionMapping:
             named_columns=named,
             period=named_period,
             period_field=period_field,
+            issues=tuple(issues),
         )
 
     # Columns the question actually named, in the order they were written.
@@ -1145,7 +1176,10 @@ def resolve_question(question: str, schema: dict[str, Any]) -> QuestionMapping:
             operation = "sum" if any(c in measures for c in named) else "count"
 
     if operation is None:
-        return refuse("the question does not ask for a count, total, average, ranking or trend")
+        return refuse(
+            "the question does not ask for a count, total, average, ranking or trend",
+            ResolutionIssue.UNSUPPORTED_OPERATION,
+        )
     if operation == "profile":
         return QuestionMapping(
             operation="profile",
@@ -1207,7 +1241,8 @@ def resolve_question(question: str, schema: dict[str, Any]) -> QuestionMapping:
 
     if len(requested_dimensions) > 2:
         return refuse(
-            "the question requests more than two grouping columns; narrow it to one or two"
+            "the question requests more than two grouping columns; narrow it to one or two",
+            ResolutionIssue.UNSUPPORTED_OPERATION,
         )
     grouping = tuple(requested_dimensions)
     grain = _time_grain(question, schema)
@@ -1222,13 +1257,20 @@ def resolve_question(question: str, schema: dict[str, Any]) -> QuestionMapping:
         unresolved = _unresolved_grouping(text, schema)
         if unresolved:
             return refuse(
-                f"the question groups by {unresolved!r}, which is not a column of this table"
+                f"the question groups by {unresolved!r}, which is not a column of this table",
+                ResolutionIssue.UNRESOLVED_DIMENSION,
             )
 
     if operation == "trend":
-        time_field, why = _pick(named, time_fields, "date column")
+        time_field, why, issue = _pick(
+            named,
+            time_fields,
+            "date column",
+            unresolved=ResolutionIssue.MISSING_PERIOD_FIELD,
+            competing=ResolutionIssue.COMPETING_DIMENSION_CANDIDATES,
+        )
         if time_field is None:
-            return refuse(str(why))
+            return refuse(str(why), *([issue] if issue else []))
         measure = next((c for c in named if c in measures), None)
         if measure is None and len(measures) == 1:
             measure = measures[0]
@@ -1283,7 +1325,14 @@ def resolve_question(question: str, schema: dict[str, Any]) -> QuestionMapping:
     candidates = [c for c in named if c not in filtered_columns and c not in grouping] or [
         c for c in named if c not in grouping
     ]
-    measure, why = _pick(candidates, measures, "numeric column", widening)
+    measure, why, issue = _pick(
+        candidates,
+        measures,
+        "numeric column",
+        widening,
+        unresolved=ResolutionIssue.UNRESOLVED_MEASURE,
+        competing=ResolutionIssue.COMPETING_MEASURE_CANDIDATES,
+    )
 
     # The guard applies only where a substitution is possible: the measure
     # was not named by the question and came from "the table offers
@@ -1301,7 +1350,8 @@ def resolve_question(question: str, schema: dict[str, Any]) -> QuestionMapping:
         if unresolved is not None:
             return refuse(
                 f"the question asks about {unresolved!r}, which is not a column of "
-                "this table; name a numeric column that is"
+                "this table; name a numeric column that is",
+                ResolutionIssue.UNRESOLVED_MEASURE,
             )
 
     # A column cannot be both the thing being totalled and the thing being
@@ -1323,7 +1373,8 @@ def resolve_question(question: str, schema: dict[str, Any]) -> QuestionMapping:
         # outcome.
         return refuse(
             f"{measure!r} was read as both the value to aggregate and the column to "
-            "group by; name a different column for one of them"
+            "group by; name a different column for one of them",
+            ResolutionIssue.ROLE_COLLISION,
         )
 
     if measure is None:
@@ -1340,7 +1391,7 @@ def resolve_question(question: str, schema: dict[str, Any]) -> QuestionMapping:
                 explanation=f"{', '.join(grouping)} values ranked by how often they occur",
                 named_columns=named,
             )
-        return refuse(str(why))
+        return refuse(str(why), *([issue] if issue else []))
 
     if operation == "rank":
         # The same groupable set a breakdown uses. Restricting a ranking to
@@ -1349,11 +1400,17 @@ def resolve_question(question: str, schema: dict[str, Any]) -> QuestionMapping:
         # the same column worked, so the two paths disagreed about what
         # could be grouped.
         rankable = [c for c in _groupable(schema) if c != measure]
-        rank_dimension, why = _pick(named, rankable, "grouping column")
+        rank_dimension, why, issue = _pick(
+            named,
+            rankable,
+            "grouping column",
+            unresolved=ResolutionIssue.UNRESOLVED_DIMENSION,
+            competing=ResolutionIssue.COMPETING_DIMENSION_CANDIDATES,
+        )
         if grouping:
             rank_dimension = grouping[0]
         if rank_dimension is None:
-            return refuse(str(why))
+            return refuse(str(why), *([issue] if issue else []))
         return QuestionMapping(
             operation="rank",
             table=table,
