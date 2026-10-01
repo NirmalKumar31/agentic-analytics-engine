@@ -16,7 +16,7 @@
 import { useMemo, useState } from "react";
 import { formatCell } from "../lib/format";
 import { csvFilename, resultToCsv } from "../lib/resultCsv";
-import type { Cell, EvidenceCell, ResultSnapshot } from "../lib/types";
+import type { Cell, DisplayField, EvidenceCell, ResultSnapshot } from "../lib/types";
 
 interface Props {
   snapshot: ResultSnapshot;
@@ -24,6 +24,8 @@ interface Props {
   highlight?: EvidenceCell[];
   /** Rows shown before "Show all". Never changes the analytical result. */
   previewRows?: number;
+  /** Backend-owned labels and semantic formatting. */
+  displayFields?: DisplayField[];
 }
 
 type SortState = { column: number; direction: "asc" | "desc" } | null;
@@ -33,6 +35,7 @@ export function ResultPanel({
   question,
   highlight = [],
   previewRows = 12,
+  displayFields = [],
 }: Props) {
   const [expanded, setExpanded] = useState(false);
   const [sort, setSort] = useState<SortState>(null);
@@ -42,6 +45,12 @@ export function ResultPanel({
   const sortable = complete !== false;
 
   const cited = new Set(highlight.map((cell) => `${cell.row}:${cell.column}`));
+  const fields = new Map(displayFields.map((field) => [field.source_name, field]));
+  const labelFor = (column: string) => fields.get(column)?.display_label ?? column.replaceAll("_", " ");
+  const valueFor = (column: string, value: Cell) => {
+    const labels = fields.get(column)?.boolean_labels;
+    return labels?.[String(value)] ?? formatCell(value);
+  };
 
   const ordered = useMemo(() => {
     const indexed = snapshot.rows.map((row, index) => ({ row, index }));
@@ -108,12 +117,12 @@ export function ResultPanel({
                       type="button"
                       className="th-sort"
                       onClick={() => toggleSort(index)}
-                      aria-label={`Sort by ${column}`}
+                      aria-label={`Sort by ${labelFor(column)}`}
                     >
-                      {column.replaceAll("_", " ")}
+                      {labelFor(column)}
                     </button>
                   ) : (
-                    column.replaceAll("_", " ")
+                    labelFor(column)
                   )}
                 </th>
               ))}
@@ -130,7 +139,7 @@ export function ResultPanel({
                       cited.has(`${index}:${column}`) ? "cited" : undefined
                     }
                   >
-                    {formatCell((row as Cell[])[columnIndex])}
+                    {valueFor(column, (row as Cell[])[columnIndex] ?? null)}
                   </td>
                 ))}
               </tr>

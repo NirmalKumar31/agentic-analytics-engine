@@ -26,10 +26,20 @@ interface Choice {
 
 export function ModeSelector({ capabilities, value, onChange, disabled }: Props) {
   const byMode = new Map(capabilities.modes.map((m) => [m.mode, m]))
+  const auto = byMode.get('auto')
   const deterministic = byMode.get('deterministic')
   const ai = byMode.get('ai')
 
-  const choices: Choice[] = [
+  const primary: Choice = {
+    mode: 'auto',
+    label: auto?.label ?? 'Governed Analysis',
+    description:
+      auto?.description ??
+      'Rules resolve clear questions locally. AI-assisted planning is used only when the question is genuinely ambiguous.',
+    available: auto?.available ?? false,
+    unavailableMessage: auto?.message ?? 'Governed Analysis is unavailable on this deployment.',
+  }
+  const auditChoices: Choice[] = [
     {
       mode: 'deterministic',
       label: deterministic?.label ?? 'Deterministic Analytics',
@@ -61,9 +71,9 @@ export function ModeSelector({ capabilities, value, onChange, disabled }: Props)
 
   return (
     <fieldset className="mode-selector" disabled={disabled}>
-      <legend className="small dim">Analysis mode</legend>
+      <legend className="small dim">Planning method</legend>
       <div className="mode-options" role="radiogroup" aria-label="Analysis mode">
-        {choices.map((choice) => {
+        {[primary, ...auditChoices].map((choice) => {
           const id = `mode-${choice.mode}`
           const describedBy = `${id}-description`
           return (
@@ -93,6 +103,14 @@ export function ModeSelector({ capabilities, value, onChange, disabled }: Props)
           )
         })}
       </div>
+
+      <details className="disclosure planning-audit">
+        <summary>Planning audit</summary>
+        <p className="small dim">
+          Deterministic, AI-assisted, and Compare Both are diagnostic paths.
+          Governed Analysis is the default product path.
+        </p>
+      </details>
 
       {value === 'ai' || value === 'compare' ? (
         <p className="small dim mode-note">

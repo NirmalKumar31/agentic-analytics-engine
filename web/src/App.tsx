@@ -57,7 +57,7 @@ export function App() {
   const [target, setTarget] = useState<ProvenanceTarget | null>(null);
   const [replay, setReplay] = useState<RecordingSummary | null>(null);
   // Deterministic by default. The server decides what else is on offer.
-  const [uiMode, setUiMode] = useState<UiMode>("deterministic");
+  const [uiMode, setUiMode] = useState<UiMode>("auto");
   const [theme, toggleTheme] = useTheme();
   const [comparison, setComparison] = useState<ComparisonStarted | null>(null);
   const [aiRun, setAiRun] = useState<RunPayload | null>(null);
@@ -506,6 +506,7 @@ export function App() {
                     charts={run.charts}
                     results={run.results}
                     queryContract={run.query_contract}
+                    presentation={run.presentation}
                     onShowWork={(id) =>
                       setTarget({ side: "deterministic", findingId: id })
                     }
@@ -540,6 +541,7 @@ export function App() {
                       charts={aiRun.charts}
                       results={aiRun.results}
                       queryContract={aiRun.query_contract}
+                      presentation={aiRun.presentation}
                       onShowWork={(id) =>
                         setTarget({ side: "ai", findingId: id })
                       }
@@ -557,6 +559,7 @@ export function App() {
                 charts={run.charts}
                 results={run.results}
                 queryContract={run.query_contract}
+                presentation={run.presentation}
                 onShowWork={(id) =>
                   setTarget({ side: "deterministic", findingId: id })
                 }
@@ -565,21 +568,20 @@ export function App() {
           )}
         </div>
 
-        <RightRail
-          catalog={catalog}
-          metrics={metrics}
-          usedMetrics={usedMetrics}
-          results={run?.results ?? {}}
-          tasks={run?.tasks ?? []}
-          runMetrics={run?.metrics ?? null}
-          onOpenResult={(resultId) => {
-            const match = run?.findings.find((f) =>
-              f.result_ids.includes(resultId),
-            );
-            if (match)
-              setTarget({ side: "deterministic", findingId: match.finding_id });
-          }}
-        />
+        {/* Run telemetry belongs behind the evidence inspector once an answer
+            exists; a permanent rail made task and MCP counts compete with the
+            answer. Keep dataset context on the onboarding screen only. */}
+        {!run && !runId && (
+          <RightRail
+            catalog={catalog}
+            metrics={metrics}
+            usedMetrics={usedMetrics}
+            results={{}}
+            tasks={[]}
+            runMetrics={null}
+            onOpenResult={() => undefined}
+          />
+        )}
       </main>
 
       {finding && provenanceRun && (
@@ -780,6 +782,13 @@ function AskPanel({
             onChange={setUiMode}
             disabled={busy}
           />
+        )}
+        {uiMode === "auto" && (
+          <p className="notice info small" data-testid="interpretation-notice" style={{ margin: 0 }}>
+            Clear questions are resolved by rules without contacting a model. If the
+            question is genuinely ambiguous, one governed AI planning call may be used;
+            the engine still executes and verifies the calculation deterministically.
+          </p>
         )}
         {uiMode === "deterministic" && (
           <p

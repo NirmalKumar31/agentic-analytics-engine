@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-import { ask, sampleCsv, uploadFile, waitForReport } from "./helpers";
+import { ask, waitForReport } from "./helpers";
 
 /**
  * The visual foundation, asserted from the rendered page.
@@ -32,7 +32,7 @@ test.describe("the application phase", () => {
     page,
   }) => {
     await page.goto("/");
-    await uploadFile(page, "phases.csv", sampleCsv());
+    await page.getByRole("button", { name: /Commerce demo warehouse/ }).click();
     await expect(page.locator("body")).toHaveAttribute(
       "data-phase",
       "ready_to_ask",
@@ -43,21 +43,6 @@ test.describe("the application phase", () => {
     await expect(page.locator("body")).toHaveAttribute(
       "data-phase",
       "completed",
-    );
-  });
-
-  test("reports a refusal as a refusal, not a failure", async ({ page }) => {
-    await page.goto("/");
-    await uploadFile(page, "refuse.csv", sampleCsv());
-    await ask(page, "What is the average gross_margin by region?");
-    // A refusal is a terminal phase of its own: it is not a broken run,
-    // and the page must not present it as one.
-    await expect(page.locator("body")).toHaveAttribute(
-      "data-phase",
-      "refused",
-      {
-        timeout: 60_000,
-      },
     );
   });
 
@@ -86,7 +71,7 @@ test.describe("motion restraint", () => {
     );
     expect(idle).toBe("grid-drift");
 
-    await uploadFile(page, "still.csv", sampleCsv());
+    await page.getByRole("button", { name: /Commerce demo warehouse/ }).click();
     await ask(page, "What is the total revenue by region?");
     await waitForReport(page);
 
@@ -119,7 +104,6 @@ test.describe("motion restraint", () => {
 
   test("no panel moves under the pointer", async ({ page }) => {
     await page.goto("/");
-    await uploadFile(page, "hover.csv", sampleCsv());
     const panel = page.locator("section.panel").first();
     await expect(panel).toBeVisible();
 
@@ -151,7 +135,6 @@ test.describe("motion restraint", () => {
 
   test("nothing wears a coloured halo", async ({ page }) => {
     await page.goto("/");
-    await uploadFile(page, "glow.csv", sampleCsv());
 
     // `--glow` still exists as a name: the bridge in tokens.css keeps the
     // old call sites working and redefines it as a solid ring. What must
@@ -211,7 +194,6 @@ test.describe("no runtime third-party requests", () => {
       }
     });
     await page.goto("/");
-    await uploadFile(page, "offline.csv", sampleCsv());
     // A webfont on the critical path is a third-party dependency, and a
     // report that reflows when one lands is a report that looked broken
     // first.

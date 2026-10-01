@@ -17,11 +17,12 @@ async function openDemo(page: import("@playwright/test").Page) {
 }
 
 test.describe("choosing a mode", () => {
-  test("deterministic is the default and is selectable", async ({ page }) => {
+  test("Governed Analysis is the default and deterministic remains selectable", async ({ page }) => {
     await openDemo(page);
     await expect(
-      page.getByRole("radio", { name: /^Deterministic Analytics/ }),
+      page.getByRole("radio", { name: /^Governed Analysis/ }),
     ).toBeChecked();
+    await expect(page.getByRole("radio", { name: /^Deterministic Analytics/ })).toBeEnabled();
   });
 
   test("AI and Compare are disabled, with a stated reason, when AI is off", async ({

@@ -10,7 +10,7 @@
     "typecheck": "tsc -b --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:e2e": "playwright test",
+    "test:e2e": "playwright test && node scripts/check-playwright-skips.mjs",
     "test:e2e:install": "playwright install --with-deps chromium"
   },
   "dependencies": {
