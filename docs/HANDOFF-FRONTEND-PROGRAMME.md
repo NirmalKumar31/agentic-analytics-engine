@@ -27,20 +27,35 @@ Not a chat wrapper, not an autonomous analyst, not a dashboard template.
 
 | | |
 |---|---|
-`origin/main` | `78f619b` |
-**Deployed** | `1f2446d` (older than main; the difference is test-only) |
+`origin/main` | `e7f008f` |
+**Deployed** | `e7f008f` — owner-confirmed live after the PR F merge batch |
 Worktree | clean |
+Open PRs | none |
 
-### Three PRs open, all awaiting the owner's merge
+### PRs F and the two fix PRs are merged and green
 
-| PR | Branch | Head | State |
+The owner merged #25, #26 and #27 on 2026-10-01 at 18:42:57, 18:43:02 and
+18:43:06 UTC.
+
+| PR | Merge commit | Pre-merge CI | What |
 |---|---|---|---|
-**#27** | `feat/cross-browser-and-a11y-gate` | `e406542` | **PR F.** 8/10 green; Docker + Browser E2E running at handoff |
-**#26** | `fix/compare-naming` | `506eff3` | Renames "Compare Both" → "Compare planning strategies" |
-**#25** | `docs/release-evidence-governed-analytics` | `6d97cc0` | Release evidence, docs only |
+**#25** | `6cc4211` | run 36899617534 **success** | Release evidence, docs only |
+**#26** | `ee439c1` | run 36900439060 **success** | "Compare Both" → "Compare planning strategies" |
+**#27** | `e7f008f` | run 36906730202 **success** | **PR F.** Cross-browser + accessibility gate |
 
-**Do not merge any of them yourself.** The owner merges. Report the exact
-head SHA and its CI verdict, then wait.
+**CI run 36908913357 on `e7f008f` — the merge SHA that contains all three
+— is `success` across all 10 jobs**, including `Browser end to end` with
+Chromium, Firefox and WebKit each passing on its own step. That run, not
+the per-PR runs, is the authoritative verdict on current `main`.
+
+Every file each merge introduced is byte-identical in `main` except
+`App.tsx`, which #27 touched after #26 to add `tabIndex={0}` to
+`nav.steps` and an `aria-label` to the file input. #26's renames survive
+at `App.tsx:844`, `ModeSelector.tsx:69`, `ComparisonView.tsx:165`.
+
+**Deployment is complete.** The owner confirmed `e7f008f` is live. No paid
+run is owed for this batch — all five changes are presentation-layer and
+touch no routing, admission or numeric path. Do not operate Render yourself.
 
 ### Merged and deployed already
 
@@ -94,12 +109,18 @@ beside the tokens in `tokens.css` — extend it rather than guessing.
 across two files initially, Vega requested only once a chart renders,
 153 ms to a visible report on a local fixture.
 
-### Local evidence at `e406542`
+### Evidence
 
-Python 2,078 tests 0 failures · frontend 197 · Chromium 55 passed 0
-skipped · Firefox 54 + 1 declared skip · WebKit 54 + 1 declared skip ·
-accessibility 11/11 on all three · ruff, ruff format, mypy src, mypy
-scripts, `git diff --check` clean · 4 mutations injected, 4 caught.
+Local, at the PR F head `e406542`: Python 2,078 tests 0 failures ·
+frontend 197 · Chromium 55 passed 0 skipped · Firefox 54 + 1 declared
+skip · WebKit 54 + 1 declared skip · accessibility 11/11 on all three ·
+ruff, ruff format, mypy src, mypy scripts, `git diff --check` clean · 4
+mutations injected, 4 caught.
+
+CI, at the merge SHA `e7f008f` (run 36908913357): all 10 jobs `success`,
+with `Chromium end to end`, `Firefox end to end` and `WebKit end to end`
+green as separate steps. Prefer this over the local figures — it is the
+run that covers `main` as it now stands.
 
 **No WCAG conformance claim.** What is true: zero serious or critical axe
 violations across six states on three engines, with no rule excluded.
@@ -429,6 +450,26 @@ mutation actually changed behaviour before concluding a test is vacuous.**
 
 **`grep | head` masks exit codes.** It reported two mutations as caught
 that were not.
+
+**`cancelled` looks like `failure` in the Actions list.** `ci.yml` sets
+`cancel-in-progress: true` on `${{ github.workflow }}-${{ github.ref }}`.
+Merging #25, #26 and #27 nine seconds apart meant each merge killed the
+run before it: #125 died at 1m33s, #126 at **5s**. GitHub draws both with
+a glyph close to a red failure, which read as "merge #26 is broken" when
+nothing had failed — no test in #126's run had even started. Check
+`conclusion`, not the icon, and treat a suspiciously short duration as
+evidence of cancellation. Only the run on the **final** merge SHA is
+authoritative, because its tree is what `main` actually is.
+
+**`git merge-base $head origin/main` returns `$head` once the PR is
+merged**, so a "what did this PR change" diff computed that way comes
+back empty — and an empty pathspec makes `git diff` compare *every* file.
+Use the merge commit's parents: `git diff --name-only $merge^1 $merge`.
+
+**zsh does not word-split unquoted expansions.** `for f in $files` runs
+once with the entire multi-line string as one argument, so a per-file
+loop silently checks nothing and prints one reassuring result. Use
+`printf '%s\n' "$files" | while IFS= read -r f`.
 
 ---
 
