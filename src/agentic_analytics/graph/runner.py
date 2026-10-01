@@ -74,6 +74,11 @@ class RunResult:
     timings: dict[str, float] = field(default_factory=dict)
     #: Why the chart is what it is, including the reason when there is none.
     chart_decision: dict[str, Any] = field(default_factory=dict)
+    #: How this answer should be presented, derived from the contract, the
+    #: verified result and the coverage records. Optional and additive: a
+    #: consumer that predates it still reads `report`, `findings` and
+    #: `results` exactly as before.
+    presentation: Any | None = None
     #: True when the cloud planner returned nothing usable and the engine's
     #: own contract executed instead. Compare Both must not present that as
     #: the model independently agreeing.
@@ -115,6 +120,9 @@ class RunResult:
             ),
             "timings": dict(self.timings),
             "chart_decision": dict(self.chart_decision),
+            "presentation": (
+                self.presentation.model_dump(mode="json") if self.presentation else None
+            ),
             "planner_fallback": self.planner_fallback,
             "stopped_reason": self.stopped_reason,
             "outcome": self.outcome,
@@ -438,6 +446,45 @@ async def run_analysis(
     )
     bus.close()
     result.events = [e.model_dump() for e in bus.history]
+    result.presentation = _presentation_for(result, state)
     if own_provider:
         await llm.aclose()
     return result
+
+
+def _presentation_for(result: RunResult, state: Any) -> Any | None:
+    """How this run's answer should be presented.
+
+    Built here rather than in the graph because it needs the finished run:
+    the verified findings, the coverage records and the chart decision all
+    exist only once the run has stopped.
+
+    A failure to build one must never fail the run. The presentation is an
+    additive description of a result that is already computed and already
+    verified; losing it degrades the report to the older rendering path,
+    which is a worse report rather than a wrong one.
+    """
+    from agentic_analytics.presentation import build_presentation
+
+    snapshot = next(
+        (s for s in result.results.values() if s.tool_name == "aggregate_for_question"),
+        None,
+    )
+    mapping = state.get("query_mapping") if hasattr(state, "get") else None
+    if mapping is None and snapshot is None:
+        return None
+    try:
+        return build_presentation(
+            mapping=mapping,
+            snapshot=snapshot,
+            findings=list(result.published),
+            question_coverage=result.question_coverage,
+            chart_decision=result.chart_decision,
+            schema=state.get("upload_schema") if hasattr(state, "get") else None,
+            planner_fallback=result.planner_fallback,
+            outcome=result.outcome,
+            stopped_reason=result.stopped_reason,
+        )
+    except Exception:  # pragma: no cover - defensive, see the docstring
+        log.warning("presentation_build_failed", run_id=result.run_id)
+        return None
