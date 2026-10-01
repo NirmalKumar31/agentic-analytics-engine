@@ -729,6 +729,25 @@ date column available. Recorded here because it is a limitation of the
 
 ---
 
+## 11a. An ordered quantity is indistinguishable from a numeric key
+
+`infer_schema` cannot tell a numeric dimension that measures something from
+one that identifies something. `age` (48 values, 18-65) and `Store` (45
+values, 1-45) receive identical classifications, down to the same reason
+string, because they are structurally identical: dense integer ranges whose
+values each recur across many rows.
+
+The presentation contract therefore phrases both the same way and uses the
+numeric order only to position marks on a chart axis, which is true of a
+store number as much as an age. What it will not do is read an order as a
+direction: an ordered breakdown states explicitly that it is descriptive
+and that no trend was tested.
+
+A rule separating the two would be a guess about column naming presented as
+inference. See [ADR 0004](adr/0004-deterministic-presentation-contract.md).
+
+---
+
 ## 12. Deliberately out of scope
 
 No authentication, billing, multi-tenant persistence or scheduled jobs. No

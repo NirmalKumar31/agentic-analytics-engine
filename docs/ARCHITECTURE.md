@@ -679,3 +679,29 @@ Every query path now holds the lock. The audit is a grep away: outside the
 single-threaded load phase in `session.py`, `con.execute` appears in three
 places -- two in `analytics/execute.py` and one in `analytics/stats.py` --
 and all three are inside `with session.lock`.
+
+## Presentation
+
+A verified result and a readable report are different problems, and the
+engine used to solve only the first. The frontend turned findings into a
+report by arranging `finding.text`, which made the browser decide which
+number was the answer, whether `0` meant a boolean, whether an axis was
+ordered, and whether a breakdown was complete. It had no way to know any of
+them, and the engine knew all four.
+
+`agentic_analytics.presentation` closes that gap. It returns a typed
+`AnalysisPresentation` built by a pure function from the accepted contract,
+the verified snapshot, the coverage records, the published findings and the
+chart decision — no model call, and no figure it cannot point at. Prose is
+checked rather than trusted: every number in a headline must resolve to a
+cited cell, a recorded coverage count, or a declared difference recomputed
+from two cells.
+
+The field is additive. `report`, `findings`, `charts`, `results` and
+`query_contract` are unchanged, and a run whose presentation fails to build
+still publishes its verified numbers through the older path. Archived
+recordings are read by a compatibility adapter that repeats what they
+published verbatim and marks itself derived, rather than rewriting evidence
+to look like it came from a build that did not exist yet.
+
+See [ADR 0004](adr/0004-deterministic-presentation-contract.md).

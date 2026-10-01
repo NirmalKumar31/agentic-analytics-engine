@@ -83,7 +83,7 @@ DISPLAY_PLACES = 2
 _OPERATION_WORD = {"sum": "total", "average": "average", "count": "count of"}
 
 
-def _format(value: Decimal) -> str:
+def format_number(value: Decimal) -> str:
     """Thousands separators, at the precision the table uses.
 
     The same figure has to read identically in the sentence and in the
@@ -98,6 +98,12 @@ def _format(value: Decimal) -> str:
     if quantised == quantised.to_integral_value():
         return f"{int(quantised):,}"
     return f"{quantised:,.{DISPLAY_PLACES}f}"
+
+
+#: The presentation layer formats the same figures for the same report, so
+#: it shares this implementation rather than keeping a second one that can
+#: drift. The private alias keeps the existing call sites in this module.
+_format = format_number
 
 
 def _format_metric(value: Decimal, metric_format: str) -> str:
