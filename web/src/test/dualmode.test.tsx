@@ -84,7 +84,7 @@ describe("ModeSelector", () => {
       />,
     );
     expect(screen.getByRole("radio", { name: /^AI Analytics/ })).toBeDisabled();
-    expect(screen.getByRole("radio", { name: /^Compare Both/ })).toBeDisabled();
+    expect(screen.getByRole("radio", { name: /^Compare planning strategies/ })).toBeDisabled();
     // The reason is text, not colour alone -- on both disabled choices.
     expect(screen.getAllByText(/turned off on this deployment/i)).toHaveLength(
       2,
@@ -113,7 +113,7 @@ describe("ModeSelector", () => {
         onChange={onChange}
       />,
     );
-    await userEvent.click(screen.getByRole("radio", { name: /^Compare Both/ }));
+    await userEvent.click(screen.getByRole("radio", { name: /^Compare planning strategies/ }));
     expect(onChange).toHaveBeenCalledWith("compare");
   });
 

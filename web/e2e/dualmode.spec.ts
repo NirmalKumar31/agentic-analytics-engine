@@ -52,7 +52,7 @@ test.describe("choosing a mode", () => {
     const ai = page.getByRole("radio", { name: /^AI Analytics/ });
     await expect(ai).toBeDisabled();
     await expect(
-      page.getByRole("radio", { name: /^Compare Both/ }),
+      page.getByRole("radio", { name: /^Compare planning strategies/ }),
     ).toBeDisabled();
     // A reason a visitor can read, not just a greyed control.
     await expect(
@@ -167,9 +167,9 @@ test.describe("AI and Compare, with the API intercepted", () => {
     });
 
     await openDemo(page);
-    await page.getByRole("radio", { name: /^Compare Both/ }).click();
+    await page.getByRole("radio", { name: /^Compare planning strategies/ }).click();
     await page.getByLabel("Business question").fill("What is total revenue?");
-    await page.getByRole("button", { name: /Run both/ }).click();
+    await page.getByRole("button", { name: /Compare strategies/ }).click();
 
     // Two labelled panes.
     await expect(
@@ -279,9 +279,9 @@ test.describe("AI and Compare, with the API intercepted", () => {
     });
 
     await openDemo(page);
-    await page.getByRole("radio", { name: /^Compare Both/ }).click();
+    await page.getByRole("radio", { name: /^Compare planning strategies/ }).click();
     await page.getByLabel("Business question").fill("What is total revenue?");
-    await page.getByRole("button", { name: /Run both/ }).click();
+    await page.getByRole("button", { name: /Compare strategies/ }).click();
 
     const ai = page.getByRole("region", { name: "AI Analytics", exact: true });
     await expect(ai).toBeVisible({ timeout: 60_000 });
@@ -468,9 +468,9 @@ test.describe("AI and Compare, with the API intercepted", () => {
     });
 
     await openDemo(page);
-    await page.getByRole("radio", { name: /^Compare Both/ }).click();
+    await page.getByRole("radio", { name: /^Compare planning strategies/ }).click();
     await page.getByLabel("Business question").fill("What is total revenue?");
-    await page.getByRole("button", { name: /Run both/ }).click();
+    await page.getByRole("button", { name: /Compare strategies/ }).click();
 
     const aiPane = page.getByRole("region", {
       name: "AI Analytics",
