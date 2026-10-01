@@ -21,6 +21,7 @@ var/
 # Playwright
 web/test-results/
 web/playwright-report/
+web/playwright-results.json
 web/blob-report/
 web/.playwright/
 
