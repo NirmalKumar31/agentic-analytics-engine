@@ -1,0 +1,271 @@
+/**
+ * Every colour that carries words, measured against every surface it can
+ * land on, in both themes.
+ *
+ * The palette's contrast was documented and not enforced. `tokens.css`
+ * records the measurements in a comment, and axe checks whatever the browser
+ * suite happens to render -- which is six states out of a much larger set.
+ * A token that fails on a surface no scanned state uses passes both.
+ *
+ * That gap has cost real time. `--ink-muted` took three attempts: `#79828a`
+ * failed all three surfaces at 3.79, `#6b747b` cleared paper at 4.62 and
+ * failed the canvas at 4.16, and only a script that checked every colour
+ * against every surface settled it. Three of PR F's five accessibility
+ * defects were the same mistake -- a colour that cleared the surface it was
+ * checked against and failed a darker one.
+ *
+ * So this computes the ratios rather than trusting the comment. It is the
+ * cheap half of the discipline: a token failing here is caught before it is
+ * ever rendered, while axe stays the check on what a real page composites.
+ * Neither replaces the other -- axe sees `opacity` and overlap, this sees
+ * combinations no test renders.
+ *
+ * The thresholds are WCAG 2.2: 4.5:1 for body text (1.4.3) and 3:1 for user
+ * interface components and graphical objects (1.4.11). Asserting them is not
+ * a conformance claim; it is one requirement, checked.
+ */
+
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+import { describe, expect, it } from "vitest";
+
+const TOKENS = readFileSync(
+  join(__dirname, "..", "styles", "tokens.css"),
+  "utf8",
+);
+
+// ----------------------------------------------------------------- parsing
+
+/** Strip comments, so a hex quoted in prose is not read as a declaration. */
+function withoutComments(css: string): string {
+  return css.replace(/\/\*[\s\S]*?\*\//g, "");
+}
+
+/**
+ * The declarations inside one brace-matched block, starting at `from`.
+ *
+ * Brace matching rather than a line range: the dark theme lives inside a
+ * media query, and a regex over the whole file would mix the two palettes
+ * into one and measure colours against surfaces they never share.
+ */
+function blockAt(css: string, from: number): string {
+  const open = css.indexOf("{", from);
+  let depth = 0;
+  for (let i = open; i < css.length; i += 1) {
+    if (css[i] === "{") depth += 1;
+    else if (css[i] === "}") {
+      depth -= 1;
+      if (depth === 0) return css.slice(open + 1, i);
+    }
+  }
+  throw new Error("unterminated block in tokens.css");
+}
+
+function hexTokens(block: string): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const match of block.matchAll(/--([\w-]+):\s*(#[0-9a-fA-F]{3,8})\s*;/g)) {
+    out[match[1]!] = match[2]!;
+  }
+  return out;
+}
+
+/** `--a: var(--b);` aliases, which a palette uses to say "the same colour". */
+function aliasTokens(block: string): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const match of block.matchAll(/--([\w-]+):\s*var\(--([\w-]+)\)\s*;/g)) {
+    out[match[1]!] = match[2]!;
+  }
+  return out;
+}
+
+/**
+ * Follow aliases to the colour they end at.
+ *
+ * A palette is allowed to say "this token is that token" -- the dark theme
+ * does exactly that, because the text-safe variants and the vivid colours
+ * are the same colour there. Measuring the alias rather than its target
+ * would report the token as missing and skip it, which is the failure mode
+ * this whole file exists to prevent.
+ */
+function resolve(
+  hexes: Record<string, string>,
+  aliases: Record<string, string>,
+): Record<string, string> {
+  const out = { ...hexes };
+  for (const [name, target] of Object.entries(aliases)) {
+    let at: string | undefined = target;
+    for (let hops = 0; at && hops < 8; hops += 1) {
+      if (out[at]) {
+        out[name] = out[at]!;
+        break;
+      }
+      at = aliases[at];
+    }
+  }
+  return out;
+}
+
+const clean = withoutComments(TOKENS);
+
+/** Light: the first `:root` block. */
+const LIGHT_BLOCK = blockAt(clean, clean.indexOf(":root"));
+const LIGHT = resolve(hexTokens(LIGHT_BLOCK), aliasTokens(LIGHT_BLOCK));
+
+/**
+ * Dark: the overrides, composed onto the light palette.
+ *
+ * The dark block redefines a subset. Everything it does not mention keeps
+ * its `:root` value, because that is how the cascade works -- so the palette
+ * a reader in dark mode actually gets is light overlaid with the overrides.
+ * Reading the block alone reports the rest as absent, which hides exactly
+ * the failure this is looking for: a colour tuned for a light surface that
+ * nobody remembered to redefine, still sitting there on a dark one.
+ */
+const DARK_BLOCK = blockAt(clean, clean.indexOf(':root[data-theme="dark"]'));
+const DARK_OVERRIDES = resolve(
+  { ...LIGHT, ...hexTokens(DARK_BLOCK) },
+  aliasTokens(DARK_BLOCK),
+);
+const DARK = { ...LIGHT, ...DARK_OVERRIDES };
+
+// ------------------------------------------------------------ contrast maths
+
+function channel(value: number): number {
+  const c = value / 255;
+  return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+}
+
+function luminance(hex: string): number {
+  let value = hex.replace("#", "");
+  if (value.length === 3) {
+    value = value
+      .split("")
+      .map((c) => c + c)
+      .join("");
+  }
+  const r = parseInt(value.slice(0, 2), 16);
+  const g = parseInt(value.slice(2, 4), 16);
+  const b = parseInt(value.slice(4, 6), 16);
+  return 0.2126 * channel(r) + 0.7152 * channel(g) + 0.0722 * channel(b);
+}
+
+export function contrast(a: string, b: string): number {
+  const [hi, lo] = [luminance(a), luminance(b)].sort((x, y) => y - x);
+  return (hi! + 0.05) / (lo! + 0.05);
+}
+
+// --------------------------------------------------------------- the claims
+
+/** Every surface a token can land on. A colour has to clear the worst one. */
+const SURFACES = [
+  "surface-canvas",
+  "surface-paper",
+  "surface-raised",
+  "surface-inset",
+] as const;
+
+/** Tokens used for words. WCAG 1.4.3 asks 4.5:1. */
+const TEXT_TOKENS = [
+  "ink-primary",
+  "ink-secondary",
+  "ink-muted",
+  "action-text",
+  "warning-text",
+  "supported",
+  "failure",
+  "signal",
+];
+
+/**
+ * Tokens used for rings, borders and chart marks -- things a reader has to
+ * perceive to use the interface. WCAG 1.4.11 asks 3:1. These deliberately do
+ * *not* have to clear the text threshold: the vivid `--action` is right for
+ * a focus ring and wrong for a sentence, which is why the text-safe variants
+ * exist beside it.
+ *
+ * `--rule-hairline` and `--rule-strong` are deliberately absent. They divide
+ * rows and regions and carry no state: the grouping they express is also
+ * expressed by position and spacing, so they are decorative under 1.4.11 and
+ * exempt. Measured, they sit at 1.26-2.85:1. Holding a divider to the
+ * component threshold would mean darkening every hairline in the interface
+ * to satisfy a rule that does not apply to it -- and the honest reason they
+ * are listed here at all is so that nobody re-adds them believing they were
+ * overlooked.
+ */
+const UI_TOKENS = ["action", "warning"];
+
+const THEMES: Array<[string, Record<string, string>]> = [
+  ["light", LIGHT],
+  ["dark", DARK],
+];
+
+describe("the palette parses", () => {
+  it.each(THEMES)("%s defines every surface", (_name, palette) => {
+    for (const surface of SURFACES) {
+      expect(palette[surface], `${surface} is missing`).toMatch(/^#[0-9a-fA-F]{3,8}$/);
+    }
+  });
+
+  it.each(THEMES)("%s defines every colour that carries words", (_name, palette) => {
+    for (const token of TEXT_TOKENS) {
+      expect(palette[token], `${token} is missing`).toMatch(/^#[0-9a-fA-F]{3,8}$/);
+    }
+  });
+
+  it("reads the two themes as different palettes", () => {
+    // A parser that mixed them would measure dark ink against a light
+    // surface and pass everything.
+    expect(LIGHT["surface-canvas"]).not.toBe(DARK["surface-canvas"]);
+    expect(LIGHT["ink-primary"]).not.toBe(DARK["ink-primary"]);
+    expect(Object.keys(DARK_OVERRIDES).length).toBeGreaterThan(10);
+  });
+});
+
+describe("text clears 4.5:1 on every surface it can land on", () => {
+  for (const [theme, palette] of THEMES) {
+    for (const token of TEXT_TOKENS) {
+      for (const surface of SURFACES) {
+        it(`${theme}: --${token} on --${surface}`, () => {
+          const ratio = contrast(palette[token]!, palette[surface]!);
+          expect(
+            Number(ratio.toFixed(2)),
+            `--${token} (${palette[token]}) on --${surface} (${palette[surface]})`,
+          ).toBeGreaterThanOrEqual(4.5);
+        });
+      }
+    }
+  }
+});
+
+describe("interface colours clear 3:1 on every surface", () => {
+  for (const [theme, palette] of THEMES) {
+    for (const token of UI_TOKENS) {
+      for (const surface of SURFACES) {
+        it(`${theme}: --${token} on --${surface}`, () => {
+          const ratio = contrast(palette[token]!, palette[surface]!);
+          expect(
+            Number(ratio.toFixed(2)),
+            `--${token} (${palette[token]}) on --${surface} (${palette[surface]})`,
+          ).toBeGreaterThanOrEqual(3);
+        });
+      }
+    }
+  }
+});
+
+describe("the measurement itself", () => {
+  it("computes the ratios WCAG defines", () => {
+    // Anchors, so a broken luminance function cannot quietly pass the suite
+    // above by returning something plausible for everything.
+    expect(Number(contrast("#000000", "#ffffff").toFixed(2))).toBe(21);
+    expect(Number(contrast("#ffffff", "#ffffff").toFixed(2))).toBe(1);
+    expect(Number(contrast("#767676", "#ffffff").toFixed(2))).toBe(4.54);
+  });
+
+  it("is symmetric", () => {
+    expect(contrast("#12161a", "#eef0ed")).toBeCloseTo(
+      contrast("#eef0ed", "#12161a"),
+      10,
+    );
+  });
+});

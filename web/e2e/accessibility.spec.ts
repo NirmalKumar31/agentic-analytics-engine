@@ -241,6 +241,49 @@ test.describe("accessibility", () => {
     await scan(page, "compare with route disclosure");
   });
 
+  test("dark mode, on the states that carry a verdict colour", async ({
+    page,
+  }) => {
+    // Every scan above runs in the default colour scheme, which on CI is
+    // light. So the dark palette was never scanned, and a token left
+    // undefined in the dark block -- which inherits the light value rather
+    // than being absent -- went unnoticed: #855c17 ochre on a near-black
+    // surface at 2.92:1, carried by a warning notice, an ambiguous-field
+    // tag and a stopped workflow step.
+    //
+    // `src/test/contrast.test.ts` now measures every token against every
+    // surface in both themes, which is the cheap half. This is the half
+    // that sees what the browser actually composites.
+    // Reached by pressing the control, not by emulating the media query.
+    //
+    // `useTheme` writes `data-theme` on every render and defaults to light,
+    // so `:root:not([data-theme="light"])` never matches and
+    // `emulateMedia({ colorScheme: "dark" })` changes nothing. The first
+    // version of this test did exactly that, scanned the light palette, and
+    // passed while the dark-mode defect it was written for was still
+    // present -- confirmed by removing the fix and watching this test stay
+    // green.
+    await page.goto("/");
+    await page.getByRole("button", { name: /Switch to dark theme/i }).click();
+    await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
+    await uploadFile(page, "a11y-dark.csv", sampleCsv());
+
+    // A warning-coloured surface has to be on screen for this to mean
+    // anything, so drive a refusal and assert its card is there.
+    await ask(page, "What is the average gross_margin by region?");
+    await expect(page.locator("body")).toHaveAttribute("data-phase", "refused", {
+      timeout: 60_000,
+    });
+    await expect(page.getByTestId("run-state-card")).toBeVisible();
+    await scan(page, "dark mode, refused report");
+
+    // And the ordinary report, where the muted ink does most of the work.
+    await page.getByRole("button", { name: "Start over" }).click();
+    await ask(page, "What is the total revenue by region?");
+    await waitForReport(page);
+    await scan(page, "dark mode, completed report");
+  });
+
   test("a narrow-phone report", async ({ page }) => {
     await page.setViewportSize({ width: 360, height: 740 });
     await page.goto("/");
