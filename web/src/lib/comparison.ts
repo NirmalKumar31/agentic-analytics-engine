@@ -148,6 +148,22 @@ export function compareRuns(
     };
   }
 
+  // Matching answers are not matching runs. Verification is per run, so one
+  // mode can publish the same figure while having withheld something the
+  // other published -- and `shareOneResult` would then hide the withheld
+  // finding along with the pane that held it. When the two differ in what
+  // they withheld, there is something to compare, so both panes stay.
+  if ((deterministic.rejected ?? []).length !== (ai.rejected ?? []).length) {
+    return {
+      ...base,
+      verdict: "agree_but_incomplete",
+      headline: "Both modes agreed, but withheld different findings",
+      detail:
+        "The two panes published the same values from the same contract, and they did not withhold the same things. Each pane lists what it withheld and why.",
+      tone: "warn",
+    };
+  }
+
   if (ai.planner_fallback) {
     return {
       ...base,

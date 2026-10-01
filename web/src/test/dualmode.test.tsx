@@ -300,6 +300,96 @@ describe("ComparisonView", () => {
     );
   });
 
+  it("shows one shared result instead of rendering it twice", () => {
+    // Two identical tables and two identical charts read as two independent
+    // confirmations, and they pushed the planning lanes -- the part that
+    // actually differed -- off the top of the screen.
+    render(
+      <ComparisonView
+        question="Q"
+        deterministic={side({
+          title: "Deterministic Analytics",
+          run: runWith(contract),
+          children: <p>the result</p>,
+        })}
+        ai={side({
+          run: runWith({ ...contract, interpretation: "ai-grounded" }),
+          children: <p>the result</p>,
+        })}
+      />,
+    );
+    expect(screen.getByTestId("shared-result")).toBeInTheDocument();
+    expect(screen.queryAllByTestId("pane-status")).toHaveLength(0);
+    expect(screen.getAllByText("the result")).toHaveLength(1);
+    // The two planning lanes stay, because that is what differed.
+    expect(
+      // testing-library matches a string `name` against the whole
+      // accessible name, so this cannot collide with the pane labels.
+      screen.getByRole("region", {
+        name: "Deterministic Analytics execution",
+      }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("region", { name: "AI Analytics execution" }),
+    ).toBeInTheDocument();
+  });
+
+  it("never collapses a disagreement into one result", () => {
+    render(
+      <ComparisonView
+        question="Q"
+        deterministic={side({
+          title: "Deterministic Analytics",
+          run: runWith(contract),
+          children: <p>left result</p>,
+        })}
+        ai={side({
+          run: runWith({
+            ...contract,
+            dimensions: ["business_type"],
+            canonical_contract: { ...contract, dimensions: ["business_type"] },
+          }),
+          children: <p>right result</p>,
+        })}
+      />,
+    );
+    expect(screen.queryByTestId("shared-result")).not.toBeInTheDocument();
+    expect(screen.getByText("left result")).toBeInTheDocument();
+    expect(screen.getByText("right result")).toBeInTheDocument();
+  });
+
+  it("keeps each mode's cost visible when the result is shared", () => {
+    const usage = {
+      provider_attempts: 0,
+      input_tokens: 0,
+      output_tokens: 0,
+    } as never;
+    render(
+      <ComparisonView
+        question="Q"
+        deterministic={side({
+          title: "Deterministic Analytics",
+          run: runWith(contract),
+          usage,
+          children: <p>the result</p>,
+        })}
+        ai={side({
+          run: runWith({ ...contract, interpretation: "ai-grounded" }),
+          usage: {
+            provider_attempts: 1,
+            input_tokens: 1200,
+            output_tokens: 90,
+          } as never,
+          children: <p>the result</p>,
+        })}
+      />,
+    );
+    const shared = screen.getByTestId("shared-result");
+    expect(shared).toHaveTextContent("Deterministic Analytics");
+    expect(shared).toHaveTextContent("AI Analytics");
+    expect(shared).toHaveTextContent("1,200");
+  });
+
   it("warns instead of presenting unlike contracts as equivalent", () => {
     render(
       <ComparisonView

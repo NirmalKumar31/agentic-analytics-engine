@@ -142,7 +142,16 @@ def test_an_explicitly_named_near_unique_measure_is_summed(
     assert published, result.stopped_reason
     # The released build published the sum of ages. It must not appear.
     assert f"{age_sum:,}" not in published
-    assert "age is" not in published.lower()
+    # `age` must never be described as the quantity that was aggregated.
+    # This replaces a bare "age is" substring check, which also matched the
+    # correct sentence "total website visits by age is highest for age 26";
+    # these name the defect itself instead of a phrase that can contain it.
+    lowered = published.lower()
+    assert "total age" not in lowered
+    assert "sum of age" not in lowered
+    assert "average age" not in lowered
+    # And `website_visits` must be the measure, with `age` as the grouping.
+    assert "website visits by age" in lowered
 
 
 def test_question_coverage_reports_the_grouping_as_covered(dataset: Path) -> None:

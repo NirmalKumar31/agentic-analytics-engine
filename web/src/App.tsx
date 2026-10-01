@@ -4,6 +4,7 @@ import { ActivityLog } from './components/ActivityLog'
 import { ComparisonView } from './components/ComparisonView'
 import { DatasetSummary } from './components/DatasetSummary'
 import { ExecutionFlow } from './components/ExecutionFlow'
+import { ExecutionLane } from './components/ExecutionLanes'
 import { badgeMode, ModeBadge } from './components/ModeBadge'
 import { ThemeToggle, useTheme } from './components/ThemeToggle'
 import { ModeSelector } from './components/ModeSelector'
@@ -343,6 +344,26 @@ export function App() {
                 {replay && <span className="small dim">recorded run · {replay.recording_id}</span>}
               </div>
               <ExecutionFlow events={recordedEvents} />
+              {/*
+                The branch diagram is drawn from the plan's task list, so a
+                path that answers the question with one governed query draws
+                one branch and looks like it did almost nothing. It did more,
+                not less: it resolved a typed contract, validated it and
+                checked its coverage before any SQL ran, and the diagram has
+                no nodes for any of that. The lane names those stages with
+                what they actually produced, so the stronger path stops
+                looking like the weaker one.
+              */}
+              {run && (
+                <div className="lane-grid single">
+                  <ExecutionLane
+                    run={run}
+                    mode={uiMode === 'ai' ? 'ai' : 'deterministic'}
+                    title="Stages"
+                    compared={false}
+                  />
+                </div>
+              )}
             </section>
           )}
 

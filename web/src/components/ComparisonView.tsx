@@ -74,6 +74,43 @@ const RUN_STATE_FALLBACK: Record<string, string> = {
   unavailable: "This mode is not available on this deployment.",
 };
 
+/**
+ * What one mode spent. Kept visible even when the result is shared,
+ * because the cost difference is the substantive difference between two
+ * modes that produced the same numbers.
+ */
+function UsageSummary({
+  usage,
+  label,
+}: {
+  usage: RunUsage | undefined;
+  label?: string;
+}) {
+  if (!usage) return null;
+  return (
+    <dl className="usage-summary small dim">
+      {label ? (
+        <div>
+          <dt>Mode</dt>
+          <dd>{label}</dd>
+        </div>
+      ) : null}
+      <div>
+        <dt>Model calls</dt>
+        <dd>{usage.provider_attempts}</dd>
+      </div>
+      <div>
+        <dt>Input tokens</dt>
+        <dd>{usage.input_tokens.toLocaleString()}</dd>
+      </div>
+      <div>
+        <dt>Output tokens</dt>
+        <dd>{usage.output_tokens.toLocaleString()}</dd>
+      </div>
+    </dl>
+  );
+}
+
 function Pane({ side }: { side: Side }) {
   const state = stateOf(side);
   return (
@@ -94,22 +131,7 @@ function Pane({ side }: { side: Side }) {
 
       <RunStateCard state={state} />
 
-      {side.usage ? (
-        <dl className="usage-summary small dim">
-          <div>
-            <dt>Model calls</dt>
-            <dd>{side.usage.provider_attempts}</dd>
-          </div>
-          <div>
-            <dt>Input tokens</dt>
-            <dd>{side.usage.input_tokens.toLocaleString()}</dd>
-          </div>
-          <div>
-            <dt>Output tokens</dt>
-            <dd>{side.usage.output_tokens.toLocaleString()}</dd>
-          </div>
-        </dl>
-      ) : null}
+      <UsageSummary usage={side.usage} />
 
       <div className="compare-body">{side.children}</div>
       {!state.showsReport && !side.children ? (
@@ -217,10 +239,49 @@ export function ComparisonView({ question, deterministic, ai }: Props) {
         </div>
       </section>
 
-      <div className="compare-grid">
-        <Pane side={deterministic} />
-        <Pane side={ai} />
-      </div>
+      {comparison.shareOneResult ? (
+        /*
+         * One result, not two copies of it.
+         *
+         * When the contracts match, the coverage matches and the executed
+         * values match, the two panes were rendering the same table and the
+         * same chart twice. That is not a comparison -- it reads as two
+         * independent confirmations, and it pushed the planning lanes, which
+         * are the part that actually differed, off the top of the screen.
+         * The lanes stay above; the result below is shown once.
+         *
+         * This branch is only ever reached for a verdict that already
+         * established the outputs are identical. A disagreement of any kind
+         * keeps two panes.
+         */
+        <section className="panel" data-testid="shared-result">
+          <div className="panel-head">
+            <h2>Result</h2>
+            <span className="spacer" style={{ flex: 1 }} />
+            <span className="tag supported">Identical in both modes</span>
+          </div>
+          <div className="panel-body stack">
+            <p className="small dim" style={{ margin: 0 }}>
+              Both modes executed the same contract and returned the same
+              values, so one result is shown. What differed is above: how the
+              question was planned, and what that cost.
+            </p>
+            <div className="shared-usage">
+              <UsageSummary
+                usage={deterministic.usage}
+                label={deterministic.title}
+              />
+              <UsageSummary usage={ai.usage} label={ai.title} />
+            </div>
+            <div className="compare-body">{deterministic.children}</div>
+          </div>
+        </section>
+      ) : (
+        <div className="compare-grid">
+          <Pane side={deterministic} />
+          <Pane side={ai} />
+        </div>
+      )}
     </div>
   );
 }

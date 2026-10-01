@@ -162,6 +162,18 @@ describe("compareRuns", () => {
     expect(state.shareOneResult).toBe(false);
   });
 
+  it("keeps two panes when the modes withheld different findings", () => {
+    // Verification runs per run: the same published figure does not mean
+    // the same findings survived. Sharing one result would hide the
+    // withheld finding along with the pane that held it.
+    const state = compareRuns(
+      run(),
+      run({ rejected: [{ finding_id: "r", text: "withheld" }] } as never),
+    );
+    expect(state.shareOneResult).toBe(false);
+    expect(state.headline).toMatch(/withheld different findings/i);
+  });
+
   it("says nothing before both sides finish", () => {
     expect(compareRuns(run(), null).verdict).toBe("not_comparable");
     expect(compareRuns(null, null).shareOneResult).toBe(false);
@@ -199,6 +211,92 @@ describe("execution lanes", () => {
       deterministicStages.slice(1).map((stage) => stage.label),
     );
     expect(ai[2]!.label).toBe("DuckDB via MCP");
+  });
+
+  it("always returns five stages, which the lane alignment depends on", () => {
+    // `.lane-grid` declares `grid-template-rows: auto repeat(5, auto) auto`
+    // and the lanes take those rows through `subgrid` so the two columns
+    // line up stage for stage. A sixth stage would fall outside the
+    // declared rows.
+    const cases: RunPayload[] = [
+      run(),
+      run({ query_contract: null, question_coverage: null, events: [] } as never),
+      run({
+        query_contract: null,
+        question_coverage: null,
+        events: [
+          { type: "question_analyzed", data: {} },
+          { type: "plan_generated", data: { task_count: 4 } },
+        ],
+      } as never),
+      run({ status: "refused", findings: [], events: [] } as never),
+    ];
+    for (const payload of cases) {
+      for (const mode of ["ai", "deterministic"] as const) {
+        expect(laneStages(payload, mode)).toHaveLength(5);
+      }
+    }
+    expect(laneStages(null, "ai")).toHaveLength(5);
+  });
+
+  it("describes the registry path by what it did, not by a contract it never built", () => {
+    // The bundled demo dataset is answered from the metric registry by
+    // planning agents. It emits no contract_resolved and carries no upload
+    // contract, and the lane used to report "Rule resolver: not reached"
+    // and "Contract validation: not accepted" for a run that succeeded.
+    const demo = run({
+      query_contract: null,
+      question_coverage: null,
+      events: [
+        {
+          type: "question_analyzed",
+          data: {
+            analysis_type: "correlation",
+            target_metrics: ["repeat_purchase_rate"],
+            dimensions: ["shipping_delay_days"],
+          },
+        },
+        { type: "plan_generated", data: { task_count: 3 } },
+        { type: "followup_round_started", data: {} },
+        { type: "mcp_tool_called", data: {} },
+      ],
+      timings: { planning_ms: 410, execution_ms: 52, verification_ms: 3 },
+    } as never);
+
+    for (const mode of ["ai", "deterministic"] as const) {
+      const stages = laneStages(demo, mode);
+      expect(stages).toHaveLength(5);
+      for (const stage of stages.slice(0, 2)) {
+        expect(stage.detail).not.toMatch(/not reached|not accepted/i);
+        expect(stage.state).not.toBe("idle");
+      }
+      expect(stages[0]!.label).not.toMatch(/resolver|semantic planner/i);
+      expect(stages[1]!.label).toBe("Analysis plan");
+      expect(stages[1]!.detail).toMatch(/3 tasks/);
+      expect(stages[1]!.detail).toMatch(/1 follow-up round/);
+      expect(stages[2]!.label).toBe("DuckDB via MCP");
+    }
+
+    // The planner is still named per mode, as it is on the contract path.
+    expect(laneStages(demo, "ai")[0]!.label).toBe("Question analyst");
+    expect(laneStages(demo, "deterministic")[0]!.label).toBe(
+      "Scripted analyst",
+    );
+    expect(laneStages(demo, "ai")[0]!.detail).toMatch(/correlation/);
+  });
+
+  it("still keeps contract stages for a run that was on the contract path", () => {
+    // Detection must key on evidence a contract existed, not on the mere
+    // presence of planning events, or an upload run that failed early would
+    // be described as if it had been a registry run.
+    const stages = laneStages(
+      run({
+        events: [{ type: "question_analyzed", data: {} }],
+      } as never),
+      "deterministic",
+    );
+    expect(stages[0]!.label).toBe("Rule resolver");
+    expect(stages[1]!.label).toBe("Contract validation");
   });
 
   it("says the planner fell back rather than implying it agreed", () => {
