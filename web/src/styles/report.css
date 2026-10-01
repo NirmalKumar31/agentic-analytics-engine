@@ -200,6 +200,23 @@
   opacity: 0.7;
 }
 
+/* A column whose role the data cannot settle.
+ *
+ * Marked in the ochre that means "true, and you should know something about
+ * it" everywhere else in this interface -- not the failure red, because an
+ * inferred role being a close call is not an error. The row carries a tint
+ * as well as the tag, since a tag alone is easy to miss in a table of
+ * twenty columns, and the word "close call" carries the meaning for a
+ * reader who cannot separate the hues. */
+.tag.ambiguous {
+  color: var(--warning-text);
+  border-color: rgb(var(--warning-rgb) / 45%);
+  margin-inline-start: 5px;
+}
+table.data tr[data-ambiguous="true"] {
+  background: rgb(var(--warning-rgb) / 7%);
+}
+
 /* Role tags sit inside a monospace table, so they need to stay compact. */
 table.data .tag {
   font-size: 10px;

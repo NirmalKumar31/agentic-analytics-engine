@@ -10,6 +10,7 @@
 import type { ReactNode } from "react";
 import { compareRuns } from "../lib/comparison";
 import { ExecutionLane } from "./ExecutionLanes";
+import { PlanningRouteNote } from "./PlanningRouteNote";
 import { RunStateCard } from "./RunStateCard";
 import { runState } from "../lib/runState";
 import type { RunPayload, RunUsage } from "../lib/types";
@@ -140,6 +141,10 @@ export function ComparisonView({ question, deterministic, ai }: Props) {
             checks. The model never calculates a result. The two are shown
             independently and are not ranked.
           </p>
+          <PlanningRouteNote
+            deterministic={deterministic.run}
+            ai={ai.run}
+          />
           {comparable ? (
             <div
               className={`notice ${

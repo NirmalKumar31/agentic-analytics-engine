@@ -26,9 +26,12 @@ const ROLE_LABEL: Record<string, string> = {
 export function DatasetSummary({
   summary,
   onAsk,
+  showHead = true,
 }: {
   summary: Summary;
   onAsk?: (question: string) => void;
+  /** False when a disclosure already names this panel. */
+  showHead?: boolean;
 }) {
   const shown = [...summary.fields].sort(
     (a, b) => ROLE_ORDER.indexOf(a.role) - ROLE_ORDER.indexOf(b.role),
@@ -36,11 +39,13 @@ export function DatasetSummary({
 
   return (
     <section className="panel">
-      <div className="panel-head">
-        <h2>Dataset understanding</h2>
-        <span className="spacer" />
-        <span className="tag">inferred</span>
-      </div>
+      {showHead && (
+        <div className="panel-head">
+          <h2>Dataset understanding</h2>
+          <span className="spacer" />
+          <span className="tag">inferred</span>
+        </div>
+      )}
       <div className="panel-body stack">
         <p className="muted" style={{ margin: 0 }}>
           {summary.headline}
@@ -60,13 +65,24 @@ export function DatasetSummary({
             </thead>
             <tbody>
               {shown.map((field) => (
-                <tr key={field.name}>
+                <tr
+                  key={field.name}
+                  // Marked on the row, not only on the role, because the
+                  // whole inference is the close call -- the type and
+                  // cardinality beside it are the evidence for it.
+                  data-ambiguous={field.ambiguous ? "true" : undefined}
+                >
                   <td>{field.name}</td>
                   <td className="dim">{field.data_type}</td>
                   <td>
                     <span className={`tag role-${field.role}`}>
                       {ROLE_LABEL[field.role]}
                     </span>
+                    {field.ambiguous && (
+                      <span className="tag ambiguous" data-testid="ambiguous-field">
+                        close call
+                      </span>
+                    )}
                   </td>
                   <td>{field.distinct_count.toLocaleString()}</td>
                   <td>{field.null_pct.toFixed(1)}</td>
@@ -82,6 +98,21 @@ export function DatasetSummary({
           governed metric definitions — the engine does not know what your
           columns mean.
         </p>
+
+        {shown.some((field) => field.ambiguous) && (
+          <p className="small dim" style={{ margin: 0 }} data-testid="ambiguity-note">
+            A <strong>close call</strong> means the data cannot settle the
+            role. A column of small whole numbers can be a quantity worth
+            averaging or a code that identifies something, and nothing in
+            the values separates the two. The engine has picked the more
+            likely reading and marked it rather than hiding the choice.{" "}
+            <strong>You cannot confirm it here yet</strong> — a role you set
+            has to be validated by the engine and recorded in the audit
+            trail to mean anything, so a control that only changed the label
+            would be worse than none. If a close call matters for your
+            question, say which column you mean in the question itself.
+          </p>
+        )}
 
         {summary.ambiguities.length > 0 && (
           <div className="notice warn">

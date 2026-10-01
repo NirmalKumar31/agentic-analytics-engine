@@ -1,6 +1,11 @@
 import { ModeSelector } from "./ModeSelector";
 import { PlanningMethodDisclosure } from "./PlanningMethodDisclosure";
-import type { ServerConfig, UiMode } from "../lib/types";
+import { suggestions } from "./DatasetSummary";
+import type {
+  DatasetSummary as DatasetSummaryPayload,
+  ServerConfig,
+  UiMode,
+} from "../lib/types";
 
 export function QuestionComposer({
   config,
@@ -10,6 +15,7 @@ export function QuestionComposer({
   busy,
   uiMode,
   onModeChange,
+  summary,
 }: {
   config: ServerConfig | null;
   question: string;
@@ -18,7 +24,34 @@ export function QuestionComposer({
   busy: boolean;
   uiMode: UiMode;
   onModeChange: (mode: UiMode) => void;
+  /** Present for an uploaded file; absent for the demo warehouse. */
+  summary?: DatasetSummaryPayload | null;
 }) {
+  /*
+   * Examples have to come from the dataset in front of the reader.
+   *
+   * This offered `config.demo_questions` unconditionally, so someone who
+   * had just uploaded their own file was given three questions about the
+   * demo warehouse's gross margin -- naming columns their file does not
+   * contain. Clicking one produced a refusal, which read as the engine
+   * failing rather than the suggestion being wrong.
+   *
+   * `suggestions()` derives them from the inferred schema instead, and
+   * respects additive confidence: it will not propose summing a column
+   * that only looks like a quantity.
+   */
+  const derived = summary ? suggestions(summary) : [];
+  const examples = derived.length
+    ? derived.map((question, index) => ({
+        id: `derived-${index}`,
+        question,
+        label: question,
+      }))
+    : (config?.demo_questions ?? []).map((item) => ({
+        id: item.id,
+        question: item.question,
+        label: item.question,
+      }));
   return (
     <section className="panel">
       <div className="panel-head"><h2>Ask</h2></div>
@@ -60,16 +93,22 @@ export function QuestionComposer({
           </button>
           <span className="small dim">{question.length}/500 · ⌘↵ to run</span>
         </div>
-        {config && config.demo_questions.length > 0 && (
-          <div className="example-list">
-            {config.demo_questions.map((item) => (
+        {examples.length > 0 && (
+          <div
+            className="example-list"
+            data-testid="question-examples"
+            data-source={derived.length ? "schema" : "demo"}
+          >
+            {examples.map((item) => (
               <button
                 className="example"
                 key={item.id}
                 onClick={() => onQuestionChange(item.question)}
               >
-                {item.question}
-                <small>{item.why}</small>
+                {item.label}
+                {"why" in item && typeof item.why === "string" ? (
+                  <small>{item.why}</small>
+                ) : null}
               </button>
             ))}
           </div>
