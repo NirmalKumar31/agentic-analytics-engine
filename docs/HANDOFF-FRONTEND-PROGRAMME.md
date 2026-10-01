@@ -140,7 +140,24 @@ Keep that distinction; do not upgrade it to "AA compliant".
 Named components that exist | **0 of 13** |
 `web/src/styles.css` | **2,234 lines**, one file |
 `web/src/styles/tokens.css` | 352 lines |
-CSS refs via the compatibility bridge | **196 of 320** |
+CSS refs via the compatibility bridge | **194 of 321**, over 25 names |
+
+Re-measured on `e7f008f`; the earlier note said 196 of 320, which was
+close but not reproducible. The method, from `web/src`:
+
+```bash
+# one old name's remaining call sites (subtract its uses inside tokens.css)
+grep -rho 'var(--text-muted)' --include='*.css' --include='*.tsx' . | wc -l
+```
+
+Two bridged names — **`--line` and `--glow`** — now have zero call sites
+outside `tokens.css` and can be deleted from the bridge in PR H at no
+risk. The largest remaining clusters are `--text-muted` (22), `--text-dim`
+(18), `--bg-inset` (17), `--border` (17), `--ease` (14), `--text` (14),
+`--accent` (14), `--accent-rgb` (13), `--border-strong` (12).
+
+In zsh, `for t in $list` does **not** split — see §5. A migration count
+computed that way silently reports zero.
 
 The information architecture — dataset identity strip, schema inspector,
 workflow index, restructured onboarding — is unbuilt. The palette reaches
@@ -513,12 +530,18 @@ production ceilings and will make tests skip.
 
 ## 7. Suggested order
 
-1. Report #27's CI verdict on `e406542`; get the owner's merge.
-2. Same for #26 and #25.
-3. **PR G** from the new `main` — structural only, no visual change.
+Steps 1 and 2 are **done** — #25, #26 and #27 are merged and `e7f008f` is
+green across all 10 jobs. Start at step 3.
+
+1. ~~Report #27's CI verdict; get the owner's merge.~~ Done.
+2. ~~Same for #26 and #25.~~ Done.
+3. **PR G** from `e7f008f` — structural only, no visual change.
 4. **PR H** — CSS modules and token migration.
 5. **PR I** — the redesign. The owner cares most about this one.
 6. **PR J** — release audit, then the owner deploys.
+
+The owner's deployment of `e7f008f` is independent of PR G and is not a
+prerequisite for it. Do not wait on it, and do not deploy it yourself.
 
 Stop at every PR boundary. Give the owner one concise action — "Merge
 PR G", "Deploy SHA …" — not a buried checkpoint.
