@@ -347,7 +347,13 @@ export function App() {
         )}
       </header>
 
-      <nav className="steps" aria-label="Progress">
+      {/*
+        Focusable because it scrolls horizontally on a narrow viewport. A
+        scroll container that cannot be focused cannot be scrolled from the
+        keyboard, which axe reports as `scrollable-region-focusable` -- and
+        it became one when the overflow fix landed.
+      */}
+      <nav className="steps" aria-label="Progress" tabIndex={0}>
         <Step
           index={1}
           label="Dataset"
@@ -406,6 +412,10 @@ export function App() {
             type="file"
             accept=".csv,.parquet"
             className="sr-only"
+            /* Visually hidden but present in the accessibility tree, so it
+               needs a name of its own: a screen reader otherwise announces
+               an unlabelled file field. */
+            aria-label="Upload a CSV or Parquet file"
             onChange={(e) => {
               const file = e.target.files?.[0];
               if (file) void upload(file);

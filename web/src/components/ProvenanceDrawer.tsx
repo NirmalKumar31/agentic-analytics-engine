@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef } from "react";
 
 import {
   agentLabel,
@@ -7,16 +7,21 @@ import {
   formatPValue,
   kindLabel,
   toolLabel,
-} from '../lib/format'
-import type { Finding, ResultSnapshot, TaskOutcome, TraceCall } from '../lib/types'
-import { ResultTable } from './ResultTable'
+} from "../lib/format";
+import type {
+  Finding,
+  ResultSnapshot,
+  TaskOutcome,
+  TraceCall,
+} from "../lib/types";
+import { ResultTable } from "./ResultTable";
 
 interface Props {
-  finding: Finding
-  results: Record<string, ResultSnapshot>
-  tasks: TaskOutcome[]
-  trace: TraceCall[]
-  onClose: () => void
+  finding: Finding;
+  results: Record<string, ResultSnapshot>;
+  tasks: TaskOutcome[];
+  trace: TraceCall[];
+  onClose: () => void;
 }
 
 /**
@@ -34,26 +39,64 @@ export function ProvenanceDrawer({
   trace,
   onClose,
 }: Props) {
-  const closeRef = useRef<HTMLButtonElement>(null)
+  const closeRef = useRef<HTMLButtonElement>(null);
+  //: Whatever had focus when the drawer opened, so it can be given back.
+  const returnTo = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
-    closeRef.current?.focus()
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') onClose()
-    }
-    document.addEventListener('keydown', onKey)
-    return () => document.removeEventListener('keydown', onKey)
-  }, [onClose])
+    // Remember where focus came from before moving it into the drawer.
+    //
+    // Closing used to leave focus on `<body>`: a keyboard user who opened
+    // the drawer from a "Show work" button and pressed Escape was dropped
+    // at the top of the document and had to tab back through the whole
+    // report to reach the statement they were reading about. Moving focus
+    // in without a way back is worse than not moving it at all.
+    returnTo.current = document.activeElement as HTMLElement | null;
+    closeRef.current?.focus();
 
-  const cited = finding.result_ids.map((id) => results[id]).filter(Boolean) as ResultSnapshot[]
-  const task = tasks.find((t) => t.task_id === finding.task_id)
-  const calls = trace.filter((c) => c.result_id && finding.result_ids.includes(c.result_id))
-  const change = finding.claimed_change
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") onClose();
+    };
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      const target = returnTo.current;
+      // Deferred by a frame rather than restored synchronously.
+      //
+      // Cleanup runs before React removes the drawer from the DOM, and
+      // WebKit then moves focus to `<body>` as the focused element inside
+      // it disappears -- undoing a synchronous restore. Chromium happened
+      // not to, which is why the first version of this passed there and
+      // failed on WebKit.
+      //
+      // `isConnected` because the opener can itself be unmounted while
+      // the drawer is open: a new run replaces the report. Focusing a
+      // detached node silently does nothing, which would look exactly
+      // like the bug this is fixing.
+      requestAnimationFrame(() => {
+        if (target && target.isConnected) target.focus();
+      });
+    };
+  }, [onClose]);
+
+  const cited = finding.result_ids
+    .map((id) => results[id])
+    .filter(Boolean) as ResultSnapshot[];
+  const task = tasks.find((t) => t.task_id === finding.task_id);
+  const calls = trace.filter(
+    (c) => c.result_id && finding.result_ids.includes(c.result_id),
+  );
+  const change = finding.claimed_change;
 
   return (
     <>
       <div className="drawer-backdrop" onClick={onClose} aria-hidden="true" />
-      <aside className="drawer" role="dialog" aria-modal="true" aria-label="How this was derived">
+      <aside
+        className="drawer"
+        role="dialog"
+        aria-modal="true"
+        aria-label="How this was derived"
+      >
         <header className="drawer-head">
           <div style={{ flex: 1, minWidth: 0 }}>
             <h2>How this was derived</h2>
@@ -61,7 +104,12 @@ export function ProvenanceDrawer({
               {finding.text}
             </p>
           </div>
-          <button ref={closeRef} className="btn ghost" onClick={onClose} aria-label="Close">
+          <button
+            ref={closeRef}
+            className="btn ghost"
+            onClick={onClose}
+            aria-label="Close"
+          >
             ✕
           </button>
         </header>
@@ -70,9 +118,11 @@ export function ProvenanceDrawer({
           <section className="prov-section">
             <h3>Finding</h3>
             <div className="row">
-              <span className={`tag ${finding.kind}`}>{kindLabel(finding.kind)}</span>
+              <span className={`tag ${finding.kind}`}>
+                {kindLabel(finding.kind)}
+              </span>
               <span className={`tag ${finding.verification_status}`}>
-                {finding.verification_status.replace('_', ' ')}
+                {finding.verification_status.replace("_", " ")}
               </span>
             </div>
             <p className="small muted" style={{ margin: 0 }}>
@@ -110,9 +160,7 @@ export function ProvenanceDrawer({
 
           {cited.map((snapshot) => (
             <section className="prov-section" key={snapshot.result_id}>
-              <h3>
-                Query · {toolLabel(snapshot.tool_name)}
-              </h3>
+              <h3>Query · {toolLabel(snapshot.tool_name)}</h3>
               {snapshot.sql ? (
                 <pre className="sql">{snapshot.sql}</pre>
               ) : (
@@ -144,8 +192,12 @@ export function ProvenanceDrawer({
               <h3>Referenced cells</h3>
               <div className="cell-ref">
                 {finding.evidence_cells.map((cell, index) => (
-                  <span className="cell-chip" key={`${cell.result_id}-${index}`}>
-                    {cell.label ?? `${cell.column}[${cell.row}]`} = {formatNumber(cell.value)}
+                  <span
+                    className="cell-chip"
+                    key={`${cell.result_id}-${index}`}
+                  >
+                    {cell.label ?? `${cell.column}[${cell.row}]`} ={" "}
+                    {formatNumber(cell.value)}
                   </span>
                 ))}
               </div>
@@ -165,14 +217,15 @@ export function ProvenanceDrawer({
                   <span>{formatNumber(change.to)}</span>
                 </div>
                 <div className="row">
-                  <span>{change.type.replace('_', ' ')}</span>
+                  <span>{change.type.replace("_", " ")}</span>
                   <span>{formatNumber(change.stated)}</span>
                 </div>
                 {finding.numeric_check?.ok && (
                   <div className="row">
                     <span>recomputed</span>
                     <span className="ok">
-                      matches — the engine recalculated this from the cells above
+                      matches — the engine recalculated this from the cells
+                      above
                     </span>
                   </div>
                 )}
@@ -187,10 +240,10 @@ export function ProvenanceDrawer({
                 {finding.numeric_check.checks.map((check, index) => (
                   <div className="row" key={index}>
                     <span>{formatNumber(check.stated)}</span>
-                    <span className={check.matched ? 'ok' : undefined}>
+                    <span className={check.matched ? "ok" : undefined}>
                       {check.matched
                         ? `✓ ${readableCellSource(check.source)}`
-                        : '✗ not found in the cited results'}
+                        : "✗ not found in the cited results"}
                     </span>
                   </div>
                 ))}
@@ -206,33 +259,34 @@ export function ProvenanceDrawer({
                   <div className="activity-row tool" key={index}>
                     <span className="activity-icon" />
                     <span className="activity-label">
-                      <b>{agentLabel(call.agent)}</b> → MCP:{' '}
+                      <b>{agentLabel(call.agent)}</b> → MCP:{" "}
                       <span>{toolLabel(call.tool_name)}</span>
                     </span>
-                    <span className="activity-meta">{formatDuration(call.duration_ms)}</span>
+                    <span className="activity-meta">
+                      {formatDuration(call.duration_ms)}
+                    </span>
                   </div>
                 ))}
               </div>
             </section>
           )}
-
         </div>
       </aside>
     </>
-  )
+  );
 }
 
 /** Numeric verification stores an internal result id, but people need the cell. */
 function readableCellSource(source: string): string {
-  const match = source.match(/^[^\[]+\[(\d+)]\.(.+)$/)
-  if (!match) return source.replace(/_/g, ' ')
-  return `${match[2]!.replace(/_/g, ' ')} (row ${Number(match[1]) + 1})`
+  const match = source.match(/^[^\[]+\[(\d+)]\.(.+)$/);
+  if (!match) return source.replace(/_/g, " ");
+  return `${match[2]!.replace(/_/g, " ")} (row ${Number(match[1]) + 1})`;
 }
 
 function StatisticalPanel({
   result,
 }: {
-  result: NonNullable<ResultSnapshot['statistical_result']>
+  result: NonNullable<ResultSnapshot["statistical_result"]>;
 }) {
   return (
     <div className="stack">
@@ -245,7 +299,7 @@ function StatisticalPanel({
         <dd className="mono">{formatPValue(result.p_value)}</dd>
         {result.effect_size != null && (
           <>
-            <dt>{result.effect_size_name ?? 'Effect size'}</dt>
+            <dt>{result.effect_size_name ?? "Effect size"}</dt>
             <dd className="mono">{formatNumber(result.effect_size)}</dd>
           </>
         )}
@@ -253,7 +307,7 @@ function StatisticalPanel({
           <>
             <dt>{Math.round(result.confidence_level * 100)}% interval</dt>
             <dd className="mono">
-              [{formatNumber(result.confidence_interval[0])},{' '}
+              [{formatNumber(result.confidence_interval[0])},{" "}
               {formatNumber(result.confidence_interval[1])}]
             </dd>
           </>
@@ -262,12 +316,12 @@ function StatisticalPanel({
         <dd className="mono">
           {Object.entries(result.sample_sizes)
             .map(([name, size]) => `${name}=${size.toLocaleString()}`)
-            .join(', ')}
+            .join(", ")}
         </dd>
       </dl>
       {result.assumptions.length > 0 && (
         <div>
-          <p className="small dim" style={{ margin: '0 0 4px' }}>
+          <p className="small dim" style={{ margin: "0 0 4px" }}>
             Assumptions
           </p>
           <ul className="list small">
@@ -280,12 +334,12 @@ function StatisticalPanel({
       {result.warnings.length > 0 && (
         <ul className="list small">
           {result.warnings.map((w) => (
-            <li key={w} style={{ color: 'var(--warning)' }}>
+            <li key={w} style={{ color: "var(--warning)" }}>
               {w}
             </li>
           ))}
         </ul>
       )}
     </div>
-  )
+  );
 }

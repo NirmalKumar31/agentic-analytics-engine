@@ -38,7 +38,21 @@
      labels that must be legible but must not compete with a figure. */
   --ink-primary: #12161a;
   --ink-secondary: #596167;
-  --ink-muted: #79828a;
+  /* Measured, not estimated. Muted text appears on three surfaces and
+     has to clear 4.5:1 against the darkest of them:
+
+       --surface-inset   #e7eae6   4.68:1   (execution lane details)
+       --surface-canvas  #eef0ed   4.96:1   (workflow stepper)
+       --surface-paper   #fbfcf8   5.52:1   (panel body text)
+
+     Two earlier values each cleared the surface they were checked against
+     and failed a darker one: #79828a failed all three at 3.79, and #6b747b
+     cleared paper at 4.62 while failing the canvas at 4.16. Checking only
+     the lightest surface is how a token passes review and fails a reader.
+     This is the lightest value that clears all three, so the hierarchy the
+     muted weight provides survives rather than collapsing into body
+     colour. */
+  --ink-muted: #5f686f;
   --ink-inverse: #fbfcf8;
 
   /* ------------------------------------------------------------- rules
@@ -63,6 +77,22 @@
   --warning-weak: #f6ebd8;
   --failure: #a83b36;
   --failure-weak: #f7e0de;
+
+  /* Text-safe variants of the two signal colours that do not clear 4.5:1
+     as body text. Measured against all four surfaces:
+
+                    canvas  paper  raised  inset
+       --action     3.68    4.09   4.21    3.47   <- fails as text
+       --warning    3.50    3.90   4.01    3.31   <- fails as text
+       --action-text  …                    5.18   OK
+       --warning-text …                    4.89   OK
+
+     The vivid versions stay: they are right for a focus ring, a border or
+     a chart mark, where WCAG 1.4.11 asks 3:1 and both clear it. Use these
+     wherever the colour carries words. Keeping one token for both jobs is
+     what made a warning notice render at 1.06:1 -- see `.notice.warn`. */
+  --action-text: #ae3524;
+  --warning-text: #855c17;
 
   /* RGB triples for the few places that need an alpha blend. Kept beside
      the hex so the two cannot drift apart. */
