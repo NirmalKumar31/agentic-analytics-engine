@@ -136,20 +136,36 @@ test.describe("motion restraint", () => {
   test("nothing wears a coloured halo", async ({ page }) => {
     await page.goto("/");
 
-    // `--glow` still exists as a name: the bridge in tokens.css keeps the
-    // old call sites working and redefines it as a solid ring. What must
-    // be gone is the halo it used to be -- a blurred translucent wash of
-    // the accent hue, invisible on a light surface and meaningless to a
-    // reader who cannot separate the hue from its background. So this
-    // asserts the resolved value, not the absence of the name.
+    // `--glow` is gone. It was the old halo -- a blurred translucent wash
+    // of the accent hue, invisible on a light surface and meaningless to a
+    // reader who cannot separate the hue from its background. The bridge
+    // in tokens.css kept the name alive, redefined as a solid ring, while
+    // call sites were migrated; both the bridge and the last call site are
+    // now removed, and focus is an `outline`, not a shadow at all.
+    //
+    // So this pins the removal rather than the redefinition. An
+    // unresolvable custom property returns "", and a `var(--glow)` that
+    // crept back would resolve to nothing and silently drop its
+    // declaration -- which reads as a missing style, not an error.
     const resolved = await page.evaluate(() =>
       getComputedStyle(document.documentElement)
         .getPropertyValue("--glow")
         .trim(),
     );
-    expect(resolved).not.toBe("");
-    // A ring has zero blur: "0 0 0 <width> <colour>".
-    expect(resolved).toMatch(/^0(px)?\s+0(px)?\s+0(px)?\s/);
+    expect(resolved, "--glow is retired; nothing should define it").toBe("");
+
+    // What replaced it, asserted on the real thing: focus is a solid
+    // outline, and it carries no blur because an outline has none.
+    await page.keyboard.press("Tab");
+    const focusRing = await page.evaluate(() => {
+      const el = document.activeElement;
+      if (!el || el === document.body) return null;
+      const s = getComputedStyle(el);
+      return { style: s.outlineStyle, width: s.outlineWidth, shadow: s.boxShadow };
+    });
+    expect(focusRing, "nothing took focus on the first Tab").not.toBeNull();
+    expect(focusRing!.style).toBe("solid");
+    expect(parseFloat(focusRing!.width)).toBeGreaterThanOrEqual(2);
 
     // And no element on the page renders a blurred coloured shadow.
     const haloed = await page.evaluate(

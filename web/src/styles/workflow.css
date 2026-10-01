@@ -1,0 +1,145 @@
+
+/* ------------------------------------------------------------------ flow */
+
+.flow {
+  padding: 6px 4px 14px;
+  overflow-x: auto;
+}
+.flow svg {
+  display: block;
+  min-width: 620px;
+  width: 100%;
+  height: auto;
+}
+
+.flow-node rect {
+  fill: var(--surface-inset);
+  stroke: var(--rule-strong);
+  stroke-width: 1;
+}
+.flow-node text {
+  fill: var(--ink-secondary);
+  font-size: 11px;
+  font-family: var(--font-sans);
+}
+.flow-node.active rect {
+  stroke: var(--signal);
+  fill: rgb(var(--signal-rgb) / 11%);
+}
+.flow-node.active text {
+  fill: var(--ink-primary);
+}
+.flow-node.done rect {
+  stroke: var(--supported);
+}
+.flow-node.done text {
+  fill: var(--ink-primary);
+}
+.flow-node.failed rect {
+  stroke: var(--failure);
+}
+.flow-edge {
+  stroke: var(--rule-strong);
+  stroke-width: 1.2;
+  fill: none;
+}
+.flow-edge.lit {
+  stroke: var(--signal);
+}
+
+/* The dash travels along a lit edge while its task is running. No timer
+   drives this; the class is present only while a real task is in flight. */
+.flow-edge.running {
+  stroke: var(--signal);
+  stroke-dasharray: 5 7;
+  animation: flow-dash 900ms linear infinite;
+}
+@keyframes flow-dash {
+  to {
+    stroke-dashoffset: -24;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .flow-edge.running {
+    animation: none;
+  }
+  .choice:hover:not(:disabled) {
+    transform: none;
+  }
+  .pulse {
+    animation: none;
+  }
+}
+
+/* --------------------------------------------------------------- activity */
+
+.activity {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: 340px;
+  overflow-y: auto;
+  font-size: 12.5px;
+}
+.activity-row {
+  display: grid;
+  grid-template-columns: 16px minmax(0, 1fr) auto;
+  gap: 9px;
+  align-items: baseline;
+  padding: 4px 2px;
+  border-radius: 4px;
+}
+.activity-row:hover {
+  background: var(--surface-inset);
+}
+.activity-icon {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--ink-muted);
+  justify-self: center;
+  align-self: center;
+}
+.activity-row.tool .activity-icon {
+  background: var(--signal);
+}
+.activity-row.verified .activity-icon {
+  background: var(--supported);
+}
+.activity-row.rejected .activity-icon {
+  background: var(--failure);
+}
+.activity-row.failed .activity-icon {
+  background: var(--failure);
+}
+.activity-label {
+  color: var(--ink-secondary);
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.activity-label b {
+  color: var(--ink-primary);
+  font-weight: 500;
+}
+.activity-label .mono {
+  color: var(--signal);
+}
+.activity-meta {
+  color: var(--ink-muted);
+  font-variant-numeric: tabular-nums;
+  font-size: 11.5px;
+}
+
+.pulse {
+  animation: pulse 1.4s ease-in-out infinite;
+}
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.35;
+  }
+}

@@ -11,24 +11,20 @@
  * apply print media, so nothing else in this suite can see these rules.
  */
 
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
-const css = readFileSync(join(__dirname, "..", "styles.css"), "utf8");
+import { atRuleBlock, stylesheet } from "./stylesheet";
+
+// The twelve modules concatenated in `main.tsx`'s import order, which is
+// what the bundler emits. Reading one module would miss the second
+// `@media print` block, which lives at the end of `states.css` so that no
+// earlier state rule can override print treatment.
+const css = stylesheet();
 
 function printBlock(): string {
-  const start = css.indexOf("@media print {");
-  expect(start).toBeGreaterThan(-1);
-  let depth = 0;
-  for (let i = css.indexOf("{", start); i < css.length; i += 1) {
-    if (css[i] === "{") depth += 1;
-    else if (css[i] === "}") {
-      depth -= 1;
-      if (depth === 0) return css.slice(start, i + 1);
-    }
-  }
-  throw new Error("unterminated @media print block");
+  const block = atRuleBlock(css, "@media print {");
+  expect(block, "no @media print block in the assembled stylesheet").not.toBeNull();
+  return block!;
 }
 
 describe("print stylesheet", () => {
@@ -44,7 +40,18 @@ describe("print stylesheet", () => {
     ['[data-testid="partial-answer"]', "the partial-breakdown warning"],
     ['[data-testid="run-state-card"]', "a refusal or failure reason"],
   ])("restates %s in ink (%s)", (selector) => {
-    expect(block).toContain(selector);
+    // Matched to a selector boundary, not as a substring.
+    //
+    // `toContain(".answer-text")` passed after the rule was renamed to
+    // `.answer-text-DISABLED`, because the old name is a prefix of the new
+    // one. A mutation that deleted the print treatment for the answer
+    // sentence therefore survived. The selector has to be followed by
+    // something that cannot continue an identifier -- `,` `{` whitespace
+    // or a combinator -- for the match to mean the rule is still there.
+    const escaped = selector.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    expect(block, `${selector} is no longer a selector in @media print`).toMatch(
+      new RegExp(`${escaped}(?![-\\w])`),
+    );
   });
 
   it("lets a large answer card and its table split across pages", () => {

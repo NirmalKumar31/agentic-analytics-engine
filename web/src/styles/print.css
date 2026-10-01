@@ -1,0 +1,233 @@
+
+/* --------------------------------------------------------------- print */
+
+@media print {
+  @page {
+    size: landscape;
+    margin: 12mm;
+  }
+
+  :root {
+    color-scheme: light;
+  }
+  html,
+  body,
+  #root {
+    height: auto;
+  }
+  body {
+    background: #fff;
+    color: #111;
+    font-size: 10pt;
+  }
+  body::before,
+  body::after,
+  .topbar,
+  .steps,
+  .rail,
+  .no-print,
+  .activity,
+  .flow,
+  .drawer,
+  .drawer-backdrop {
+    display: none !important;
+  }
+  .main,
+  .main[data-rail="false"] {
+    display: block;
+    max-width: none;
+    padding: 0;
+  }
+  .column {
+    gap: 8mm;
+  }
+  .panel,
+  .compare-pane,
+  .finding,
+  .chart-card {
+    break-inside: avoid;
+    box-shadow: none;
+    animation: none;
+    background: #fff;
+    border-color: #bbb;
+  }
+  .panel:hover {
+    transform: none;
+    box-shadow: none;
+  }
+  .compare-grid {
+    grid-template-columns: 1fr 1fr;
+    gap: 7mm;
+  }
+  .chart-host {
+    min-height: 180px;
+    max-height: 240px;
+    overflow: hidden;
+  }
+  .chart-host svg,
+  .chart-host canvas {
+    max-width: 100% !important;
+    max-height: 230px !important;
+  }
+  /* The chart's screen colours are chosen for a dark background. Axis
+     labels at #9aa5b8 on white paper are close to invisible, so the text
+     and the gridlines are restated in ink. These override Vega's inline
+     fills, which is why each one is !important. */
+  .chart-host svg text {
+    fill: #222 !important;
+  }
+  .chart-host svg .mark-group .background,
+  .chart-host svg path.background {
+    fill: #fff !important;
+  }
+  .chart-host svg line,
+  .chart-host svg .mark-rule line {
+    stroke: #999 !important;
+  }
+  .table-wrap,
+  pre.sql {
+    max-height: none;
+    overflow: visible;
+  }
+
+  /* Blocks added for the answer-first report. Their screen colours are
+     tuned for a dark background: `--supported` and the `.notice` variants
+     are pale, which is invisible on paper. Each is restated in ink, and
+     each is kept off a page boundary -- an answer split across two pages
+     is the one thing in this report that must not happen. */
+  .direct-answer {
+    break-inside: avoid;
+    background: #fff;
+    border: 1.5pt solid #222;
+    padding: 4mm;
+  }
+  .direct-answer h3 {
+    color: #444;
+  }
+  .answer-text {
+    font-size: 13pt;
+    color: #111;
+  }
+  .answer-scope dt {
+    color: #555;
+  }
+  .answer-scope dd,
+  .answer-result {
+    color: #111;
+  }
+
+  .notice,
+  .notice.warn,
+  .notice.success,
+  .notice.error,
+  .notice.info {
+    color: #111;
+    background: #fff;
+    border-color: #888;
+  }
+
+  .contract-diff {
+    break-inside: avoid;
+    color: #111;
+  }
+  .contract-diff caption {
+    color: #444;
+  }
+  .contract-diff thead th,
+  .contract-diff tbody th {
+    color: #333;
+  }
+  .contract-diff th,
+  .contract-diff td {
+    border-top: 0.5pt solid #bbb;
+  }
+
+  /* A button in a PDF is a dead control. The provenance it opens is not
+     reachable on paper, so the prompt to open it is noise. */
+  .finding-foot .btn,
+  .direct-answer .btn {
+    display: none !important;
+  }
+
+  /* Coverage and terminal state must survive onto paper: a saved PDF that
+     drops "25 of 45 groups" or a refusal reason is the same falsehood the
+     screen used to tell. */
+  .answer-scope dd,
+  .contract-summary dd {
+    color: #111;
+  }
+  [data-testid="partial-answer"],
+  [data-testid="run-state-card"] {
+    break-inside: avoid;
+    color: #111;
+    background: #fff;
+    border: 1pt solid #555;
+  }
+  [data-testid="pane-status"] {
+    color: #111;
+    border: 0.5pt solid #777;
+  }
+
+  /* Tables paginate rather than being held together. A card kept
+     indivisible and taller than a page is pushed whole to the next one,
+     which is what produced the nearly blank pages in the saved PDFs. */
+  .direct-answer {
+    break-inside: auto;
+  }
+  .answer-result,
+  .result-panel,
+  .table-wrap {
+    break-inside: auto;
+    overflow: visible;
+  }
+  table.data {
+    break-inside: auto;
+    width: 100%;
+  }
+  table.data thead {
+    display: table-header-group;
+  }
+  table.data tr {
+    break-inside: avoid;
+  }
+  table.data th,
+  table.data td {
+    color: #111;
+  }
+  /* A heading must not be the last thing on a page. */
+  .panel-head,
+  .lane-title,
+  .direct-answer h3 {
+    break-after: avoid;
+  }
+  .result-foot {
+    color: #333;
+  }
+  .result-foot .btn {
+    display: none !important;
+  }
+  .lane-stage {
+    break-inside: avoid;
+    background: #fff;
+    border-left: 2pt solid #555;
+    color: #111;
+  }
+  .lane-stage-detail,
+  .lane-note,
+  .lane-title {
+    color: #333;
+  }
+  .lane-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .applied-analysis {
+    break-inside: avoid;
+    background: #fff;
+    border-color: #bbb;
+  }
+  .applied-analysis h3,
+  .contract-summary dt {
+    color: #555;
+  }
+}

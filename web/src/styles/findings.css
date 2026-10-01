@@ -1,0 +1,145 @@
+
+/* --------------------------------------------------------------- findings */
+
+.finding {
+  border: 1px solid var(--rule-hairline);
+  border-left: 2px solid var(--supported);
+  border-radius: var(--radius-sm);
+  background: var(--surface-inset);
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+.finding.statistical_result {
+  border-left-color: var(--signal);
+}
+.finding.interpretation {
+  border-left-color: var(--signal);
+}
+.finding-text {
+  margin: 0;
+}
+.finding-foot {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  flex-wrap: wrap;
+}
+
+.tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  border: 1px solid var(--rule-strong);
+  color: var(--ink-secondary);
+}
+.tag.supported {
+  color: var(--supported);
+  border-color: rgb(var(--supported-rgb) / 42%);
+}
+.tag.rejected,
+.tag.unsupported {
+  color: var(--failure);
+  border-color: rgb(var(--failure-rgb) / 42%);
+}
+.tag.partially_supported {
+  color: var(--warning);
+  border-color: rgb(var(--warning-rgb) / 42%);
+}
+.tag.calculated_fact {
+  color: var(--supported);
+}
+.tag.statistical_result {
+  color: var(--signal);
+  border-color: rgb(var(--signal-rgb) / 42%);
+}
+.tag.interpretation {
+  color: var(--signal);
+  border-color: rgb(var(--signal-rgb) / 42%);
+}
+
+.list {
+  margin: 0;
+  padding-left: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.list li {
+  color: var(--ink-secondary);
+}
+.small {
+  font-size: 13.5px;
+}
+.dim {
+  color: var(--ink-secondary);
+}
+
+/* ------------------------------------------------------------------ table */
+
+.table-wrap {
+  overflow: auto;
+  max-height: 340px;
+  border: 1px solid var(--rule-hairline);
+  border-radius: var(--radius-sm);
+}
+table.data {
+  border-collapse: collapse;
+  width: 100%;
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
+table.data th,
+table.data td {
+  padding: 5px 10px;
+  text-align: left;
+  border-bottom: 1px solid var(--rule-hairline);
+  white-space: nowrap;
+}
+table.data th {
+  position: sticky;
+  top: 0;
+  background: var(--surface-raised);
+  color: var(--ink-secondary);
+  font-weight: 500;
+  z-index: 1;
+}
+table.data td {
+  color: var(--ink-secondary);
+  font-variant-numeric: tabular-nums;
+}
+table.data tr:last-child td {
+  border-bottom: none;
+}
+table.data td.cited {
+  background: rgb(var(--signal-rgb) / 15%);
+  color: var(--ink-primary);
+  outline: 1px solid var(--signal-weak);
+}
+table.data tr.cited-row td {
+  background: rgb(var(--signal-rgb) / 7%);
+}
+
+pre.sql {
+  margin: 0;
+  padding: 12px 14px;
+  background: var(--surface-inset);
+  border: 1px solid var(--rule-hairline);
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  word-break: break-word;
+  color: var(--ink-secondary);
+  /* A metric query expands its whole model definition, which runs to dozens
+     of lines. Capping it keeps the cited cells and the recomputed
+     calculation reachable without a long scroll. */
+  max-height: 260px;
+  overflow: auto;
+}

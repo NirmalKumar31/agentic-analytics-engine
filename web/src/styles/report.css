@@ -1,0 +1,343 @@
+
+/* The answer a reader came for, before the metadata that describes it. */
+.direct-answer {
+  border: 1px solid rgb(var(--supported-rgb) / 40%);
+  border-radius: var(--radius-sm);
+  background: var(--surface-inset);
+  padding: 13px 15px;
+}
+.direct-answer h3 {
+  margin: 0 0 7px;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--supported);
+}
+.answer-text {
+  margin: 0 0 11px;
+  font-size: 17px;
+  line-height: 1.45;
+}
+.answer-scope {
+  display: grid;
+  gap: 5px;
+  margin: 0 0 11px;
+}
+.answer-scope div {
+  display: grid;
+  grid-template-columns: 100px minmax(0, 1fr);
+  gap: 10px;
+}
+.answer-scope dt {
+  color: var(--ink-muted);
+}
+.answer-scope dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.answer-result {
+  margin: 0 0 9px;
+}
+.result-panel {
+  gap: 7px;
+}
+.result-foot {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  flex-wrap: wrap;
+  color: var(--ink-muted);
+}
+.th-sort {
+  appearance: none;
+  background: none;
+  border: 0;
+  padding: 0;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  text-align: left;
+}
+.th-sort:hover {
+  color: var(--ink-primary);
+  text-decoration: underline;
+}
+
+.applied-analysis {
+  border: 1px solid var(--rule-hairline);
+  border-radius: var(--radius-sm);
+  background: var(--surface-inset);
+  padding: 11px 13px;
+}
+.applied-analysis h3 {
+  margin: 0 0 8px;
+  font-size: 12px;
+  color: var(--ink-secondary);
+}
+.contract-summary {
+  display: grid;
+  gap: 5px;
+  margin: 0;
+}
+.contract-summary div {
+  display: grid;
+  grid-template-columns: 100px minmax(0, 1fr);
+  gap: 10px;
+}
+.contract-summary dt {
+  color: var(--ink-muted);
+}
+.contract-summary dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.chart-card {
+  border: 1px solid var(--rule-hairline);
+  border-radius: var(--radius-sm);
+  background: var(--surface-inset);
+  padding: 12px;
+}
+.chart-card h4 {
+  margin: 0 0 9px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--ink-secondary);
+}
+.chart-host {
+  min-height: 240px;
+}
+
+.muted {
+  color: var(--ink-secondary);
+}
+.dim {
+  color: var(--ink-muted);
+}
+.small {
+  font-size: 12.5px;
+}
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.metric-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(96px, 1fr));
+  gap: 9px;
+}
+.metric-tile {
+  background: var(--surface-inset);
+  border: 1px solid var(--rule-hairline);
+  border-radius: var(--radius-sm);
+  padding: 9px 11px;
+}
+.metric-tile .value {
+  font-size: 18px;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+}
+.metric-tile .label {
+  font-size: 11px;
+  color: var(--ink-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+/* ------------------------------------------------- execution mode + roles */
+
+.mode-pill.deterministic .dot {
+  background: var(--signal);
+}
+.mode-pill.replay .dot {
+  background: var(--signal);
+}
+.mode-pill.live .dot {
+  background: var(--supported);
+}
+
+.choice.dropping {
+  border-color: var(--signal);
+  background: rgb(var(--signal-rgb) / 13%);
+}
+
+.tag.role-time {
+  color: var(--signal);
+  border-color: var(--signal-weak);
+}
+.tag.role-measure {
+  color: var(--supported);
+  border-color: rgb(var(--supported-rgb) / 42%);
+}
+.tag.role-dimension {
+  color: var(--signal);
+  border-color: rgb(var(--signal-rgb) / 42%);
+}
+.tag.role-identifier {
+  color: var(--ink-muted);
+}
+.tag.role-ignored {
+  color: var(--ink-muted);
+  opacity: 0.7;
+}
+
+/* Role tags sit inside a monospace table, so they need to stay compact. */
+table.data .tag {
+  font-size: 10px;
+  padding: 1px 6px;
+}
+
+/* ---------------------------------------------------- mode selection */
+
+.mode-selector {
+  border: 1px solid var(--rule-hairline);
+  border-radius: 10px;
+  padding: 12px 14px;
+  margin: 0;
+}
+
+.mode-selector legend {
+  padding: 0 6px;
+}
+
+.mode-options {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 10px;
+}
+
+.mode-option {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  border: 1px solid var(--rule-hairline);
+  border-radius: 8px;
+  padding: 10px 12px;
+}
+
+.mode-option.selected {
+  border-color: var(--signal);
+}
+
+/* Availability is carried by the disabled control and its text, not by
+   colour alone. */
+.mode-option.unavailable {
+  opacity: 0.65;
+}
+
+.mode-option label {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  cursor: pointer;
+}
+
+.mode-option input[disabled] + label {
+  cursor: not-allowed;
+}
+
+.mode-option-label {
+  font-weight: 600;
+}
+
+.mode-option input:focus-visible,
+.mode-selector input:focus-visible {
+  outline: 2px solid var(--signal);
+  outline-offset: 2px;
+}
+
+.mode-note {
+  margin: 10px 0 0;
+}
+
+/* ------------------------------------------------------- comparison */
+
+.compare-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  align-items: start;
+}
+
+/* Narrow screens stack in a defined order rather than shrinking two
+   columns into unreadable ones. */
+@media (max-width: 900px) {
+  .compare-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.compare-pane {
+  border: 1px solid var(--rule-hairline);
+  border-radius: 10px;
+  padding: 12px 14px;
+  min-width: 0;
+}
+
+.compare-subtitle {
+  margin: 4px 0 10px;
+}
+
+.compare-body {
+  min-width: 0;
+}
+
+.usage-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  margin: 0 0 10px;
+}
+
+/* Both modes' cost, side by side, above the one result they agreed on. */
+.shared-usage {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px 16px;
+  align-items: start;
+}
+
+.shared-usage .usage-summary {
+  margin: 0;
+  padding: 8px 10px;
+  background: var(--surface-inset);
+  border-radius: var(--radius-sm);
+}
+
+@media (max-width: 900px) {
+  .shared-usage {
+    grid-template-columns: 1fr;
+  }
+}
+
+.usage-summary div {
+  display: flex;
+  gap: 6px;
+}
+
+.usage-summary dt::after {
+  content: ":";
+}
+
+.usage-summary dd {
+  margin: 0;
+}

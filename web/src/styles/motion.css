@@ -1,0 +1,292 @@
+
+/* ------------------------------------------------------------ instrument
+
+   Texture and motion. Everything below is decoration in the sense that no
+   information depends on it, and none of it is decoration in the sense
+   that it fires at random: each animation is bound to a state the engine
+   is actually in. The whole section is switched off at the bottom for
+   anyone who has asked for less motion. */
+
+/* The field the instrument sits on.
+ *
+ * A plotting grid, and nothing else. What was here also drifted the grid
+ * continuously and breathed two coloured ellipses over it, for as long as
+ * the page was open -- underneath a report someone was trying to read.
+ *
+ * Three changes. The grid is static by default and drifts only while the
+ * page is in the idle state, which is when there is nothing to read and
+ * the texture is doing its job of giving the panels somewhere to be. The
+ * colour fields are gone: a wash of the accent hue behind a verdict
+ * colour is a wash that changes what the verdict looks like. And the
+ * whole thing fades to a quarter once a report exists, because at that
+ * point the most useful background is one that is not competing.
+ */
+body::before {
+  content: "";
+  position: fixed;
+  inset: -40px;
+  z-index: var(--z-base);
+  pointer-events: none;
+  background-image:
+    linear-gradient(to right, currentColor 1px, transparent 1px),
+    linear-gradient(to bottom, currentColor 1px, transparent 1px);
+  background-size: 46px 46px;
+  color: var(--rule-hairline);
+  opacity: 0.4;
+  /* Fades out over a panel transition, so arriving at a report does not
+     look like the background being switched off. */
+  transition: opacity var(--motion-panel) var(--ease-out);
+  mask-image: radial-gradient(
+    ellipse 120% 85% at 50% 0%,
+    #000 35%,
+    transparent 78%
+  );
+}
+
+/* Idle: nothing to read, so the texture may move. One animation, slow
+   enough that it reads as texture rather than as progress. */
+body[data-phase="choose_dataset"]::before,
+body[data-phase="ready_to_ask"]::before {
+  animation: grid-drift var(--motion-ambient) linear infinite;
+}
+
+/* A report is on screen. The grid holds still and recedes. */
+body[data-phase="presenting"]::before,
+body[data-phase="completed"]::before,
+body[data-phase="refused"]::before,
+body[data-phase="failed"]::before {
+  animation: none;
+  opacity: 0.12;
+}
+
+@keyframes grid-drift {
+  from {
+    transform: translate3d(0, 0, 0);
+  }
+  to {
+    transform: translate3d(46px, 46px, 0);
+  }
+}
+
+/* A hidden tab animates nothing: it costs a reader's battery to render a
+   drifting grid nobody is looking at. `data-hidden` is set from the
+   visibility change, because CSS cannot see document visibility. */
+body[data-hidden="true"]::before {
+  animation: none;
+}
+
+/* A phone gets the texture without the motion. The grid is 46px, so on a
+   360px screen it is most of what is on the page. */
+@media (max-width: 600px) {
+  body::before {
+    animation: none !important;
+    opacity: 0.2;
+  }
+}
+
+.shell {
+  position: relative;
+  z-index: 1;
+}
+
+/* Panels arrive rather than appear. Staggered by position so a column
+   reads top-down, which is the order the engine produced it in. */
+.panel {
+  /* No entrance animation. A staggered rise delayed the answer behind
+     four panels of easing, which is motion charging the reader for the
+     privilege of waiting. */
+  transition: border-color var(--motion-control) var(--ease-out);
+}
+.column > .panel:nth-child(n + 5) {
+  animation-delay: 160ms;
+}
+/* Interactive surfaces warm slightly. Amber on hover is the whole
+   language of the theme: the thing under the cursor is powered. */
+.panel:hover {
+  border-color: var(--rule-strong);
+}
+.btn,
+.choice,
+.example {
+  transition:
+    border-color var(--motion-feedback) var(--ease-out),
+    background-color var(--motion-feedback) var(--ease-out),
+    transform var(--motion-feedback) var(--ease-out),
+    box-shadow var(--motion-feedback) var(--ease-out);
+}
+.btn:hover:not(:disabled),
+.example:hover {
+  border-color: var(--rule-strong);
+}
+.btn:active:not(:disabled) {
+  transform: translateY(1px);
+}
+.choice:hover:not(:disabled) {
+  border-color: var(--rule-strong);
+}
+.choice[aria-pressed="true"] {
+  box-shadow: inset 0 0 0 1px rgb(var(--signal-rgb) / 35%);
+}
+
+/* The flow diagram. An active node is emitting; a run in progress sends a
+   signal along the edges rather than spinning a generic spinner, because
+   the edge that is lit is the dependency that is actually being waited on. */
+.flow-node rect {
+  transition:
+    stroke var(--motion-panel) var(--ease-out),
+    fill var(--motion-panel) var(--ease-out);
+}
+.flow-node.active rect {
+  /* No pulse. An active node is marked by its rule and its fill;
+     breathing it added a second, slower signal saying the same
+     thing, and it kept breathing after the stage had finished. */
+}
+.flow-node.done rect {
+  fill: rgb(var(--supported-rgb) / 7%);
+}
+.flow-node.failed rect {
+  fill: rgb(var(--failure-rgb) / 8%);
+}
+.flow-edge {
+  transition: stroke var(--motion-panel) var(--ease-out);
+}
+.flow-edge.running {
+  filter: drop-shadow(0 0 4px rgb(var(--signal-rgb) / 40%));
+}
+
+/* The live badge breathes only while a run is live. */
+.mode-pill.live .dot {
+  /* The panel's own reading rule already says a run is live; a
+     second beacon competed with it from the header. */
+  background: var(--signal);
+}
+/* Findings land one after another, so a report reads as being assembled
+   rather than pasted. Capped so a long report does not crawl. */
+.finding {
+  animation: land var(--motion-panel) var(--ease-out) both;
+}
+.finding:nth-child(2) {
+  animation-delay: 45ms;
+}
+.finding:nth-child(3) {
+  animation-delay: 90ms;
+}
+.finding:nth-child(4) {
+  animation-delay: 135ms;
+}
+.finding:nth-child(n + 5) {
+  animation-delay: 170ms;
+}
+@keyframes land {
+  from {
+    opacity: 0;
+    transform: translateY(6px) scale(0.995);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.finding {
+  transition:
+    border-color var(--motion-feedback) var(--ease-out),
+    background-color var(--motion-feedback) var(--ease-out);
+}
+.finding:hover {
+  background: rgb(var(--signal-rgb) / 4%);
+}
+
+/* A verified tag gets one confirming flash the moment it mounts. */
+.tag.supported {
+  border-color: var(--rule-strong);
+}
+/* Numbers are measurements: tabular, so they do not jitter as they update. */
+.metric-value,
+.activity-meta,
+.rail-row .mono,
+table.data td {
+  font-variant-numeric: tabular-nums;
+}
+
+/* A cited cell is the point of the whole provenance feature, so it says so
+   once when the drawer links to it. */
+table.data td.cited {
+  animation: cite 900ms var(--ease-out) both;
+}
+@keyframes cite {
+  0% {
+    background: rgb(var(--signal-rgb) / 42%);
+  }
+  100% {
+    background: rgb(var(--signal-rgb) / 15%);
+  }
+}
+
+/* Activity rows stream in as the engine emits them. */
+.activity-row {
+  animation: stream 200ms var(--ease-out) both;
+}
+@keyframes stream {
+  from {
+    opacity: 0;
+    transform: translateX(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* Focus is defined once, further down, in the action colour. This block
+   previously repeated it in the old accent and was already dead: the
+   later rule wins. */
+
+/* Everything above, withdrawn. Transitions are kept at a length short
+   enough to be imperceptible rather than removed, so state changes still
+   settle rather than snapping. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 1ms !important;
+    scroll-behavior: auto !important;
+  }
+  body::before {
+    display: none;
+  }
+}
+
+/* A disclosure that is available without being a wall.
+
+   This paragraph used to be five dense lines every visitor scrolled past,
+   which is a worse outcome than a summary they can open: text nobody reads
+   is not disclosure. The headline obligation stays visible; the detail is
+   one click away. */
+.disclosure {
+  display: inline;
+}
+.disclosure > summary {
+  display: inline;
+  cursor: pointer;
+  color: var(--signal);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.disclosure > summary::-webkit-details-marker {
+  display: none;
+}
+.disclosure[open] {
+  display: block;
+  margin-top: 8px;
+}
+.disclosure[open] > summary {
+  display: block;
+  margin-bottom: 6px;
+}
+
+.theme-toggle {
+  font-variant-numeric: tabular-nums;
+  min-width: 74px;
+}

@@ -210,7 +210,7 @@ function FlowNode({
         x={x + w / 2}
         y={centreY}
         textAnchor="middle"
-        style={mono ? { fontFamily: "var(--mono)", fontSize: 10 } : undefined}
+        style={mono ? { fontFamily: "var(--font-mono)", fontSize: 10 } : undefined}
       >
         {label}
       </text>

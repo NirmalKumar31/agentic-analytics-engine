@@ -65,11 +65,11 @@ function BrandMark() {
         width="22"
         height="22"
         rx="5"
-        stroke="var(--border-strong)"
+        stroke="var(--rule-strong)"
       />
       <path
         d="M5 16.5 L9.5 10 L13.5 13.5 L19 6.5"
-        stroke="var(--accent)"
+        stroke="var(--signal)"
         strokeWidth="1.8"
         strokeLinecap="round"
         strokeLinejoin="round"
