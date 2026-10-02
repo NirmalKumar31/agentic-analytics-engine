@@ -15,7 +15,7 @@ import {
   PreflightRefusal,
   resolveBaseUrl,
   type HealthProbe,
-} from "../../e2e/preflight";
+} from "./preflight";
 
 const ok = (body: unknown): HealthProbe => ({ status: 200, body: JSON.stringify(body) });
 

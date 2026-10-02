@@ -1,6 +1,6 @@
 import { defineConfig, devices } from '@playwright/test'
 
-import { resolveBaseUrl } from './e2e/preflight'
+import { resolveBaseUrl } from './src/test/preflight'
 
 /**
  * Browser-level acceptance against a running server.

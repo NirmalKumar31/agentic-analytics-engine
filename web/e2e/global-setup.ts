@@ -1,4 +1,4 @@
-import { assertFakeProvider, resolveBaseUrl, type HealthProbe } from "./preflight";
+import { assertFakeProvider, resolveBaseUrl, type HealthProbe } from "../src/test/preflight";
 
 /**
  * Playwright's `globalSetup`. Throwing here aborts the run before any

@@ -16,6 +16,14 @@
  * thing that gets set once while debugging and left set. Paid acceptance
  * belongs to its own purpose-built scripts; the ordinary Playwright suite
  * is credential-free by construction.
+ *
+ * It lives under `src/test/` rather than beside the specs in `e2e/`, next
+ * to the other non-suite helpers there, because the Dockerfile copies
+ * `web/src` and not `web/e2e` -- and `npm run build` runs `tsc -b`, which
+ * type-checks `src/test`. With the module in `e2e/` the image build failed
+ * on an unresolvable import while the identical command passed locally,
+ * where `e2e/` happens to exist. The build context is part of the
+ * contract.
  */
 
 /** Just enough of a response for the check to be driven by a test. */
