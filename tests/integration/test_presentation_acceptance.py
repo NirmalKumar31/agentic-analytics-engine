@@ -331,3 +331,82 @@ def test_the_published_chart_specification_still_carries_no_rows(
     assert chart is not None
     if chart.spec is not None:
         assert "data" not in chart.spec
+
+
+# ───────────────────────── a completed run this contract cannot describe
+#
+# The presentation is built around an `aggregate_for_question` snapshot. The
+# demo warehouse resolves through the metric registry and never produces one,
+# while still setting `query_mapping` -- so the guard in `_presentation_for`
+# let it through and the builder's own "no snapshot" branch returned a
+# FAILURE presentation.
+#
+# Every demo run that published a verified finding was rendered as "The
+# analysis could not be completed.", with the finding it had just verified
+# replaced by that sentence. That is the first path a visitor takes.
+
+
+def test_a_completed_run_without_a_snapshot_has_no_presentation() -> None:
+    """Falling back to the findings report is right; claiming failure is not."""
+    from agentic_analytics.graph.runner import RunResult, _presentation_for
+
+    result = RunResult(
+        run_id="run_1",
+        question="What is total revenue by region?",
+        session_id="ses_1",
+        dataset={},
+        report=None,
+        outcome="completed",
+    )
+    # A mapping, no snapshot: the registry path.
+    assert _presentation_for(result, {"query_mapping": object()}) is None
+
+
+def test_a_refusal_without_a_snapshot_still_gets_its_presentation() -> None:
+    """The scoping that matters. A refusal has no snapshot either, and its
+    presentation is the useful one: it carries the reason."""
+    from agentic_analytics.graph.runner import RunResult, _presentation_for
+
+    result = RunResult(
+        run_id="run_2",
+        question="What is the total gross margin by region?",
+        session_id="ses_1",
+        dataset={},
+        report=None,
+        outcome="refused",
+        stopped_reason="the question could not be mapped safely",
+    )
+
+    # A refusal carries a mapping: the resolver produced one and marked it
+    # unconfident. With neither a mapping nor a snapshot the older guard
+    # already returns None, which is a different path.
+    class _Unconfident:
+        confident = False
+        explanation = "the question could not be mapped safely"
+
+    presentation = _presentation_for(result, {"query_mapping": _Unconfident()})
+    assert presentation is not None
+    assert presentation.shape.value == "refusal"
+    assert "could not be mapped safely" in presentation.headline
+
+
+def test_a_failure_without_a_snapshot_still_gets_its_presentation() -> None:
+    from agentic_analytics.graph.runner import RunResult, _presentation_for
+
+    result = RunResult(
+        run_id="run_3",
+        question="q",
+        session_id="ses_1",
+        dataset={},
+        report=None,
+        outcome="failed",
+        stopped_reason="the accepted contract could not be executed",
+    )
+
+    class _Mapping:
+        confident = True
+
+    presentation = _presentation_for(result, {"query_mapping": _Mapping()})
+    assert presentation is not None
+    assert presentation.shape.value == "failure"
+    assert "could not be executed" in presentation.headline

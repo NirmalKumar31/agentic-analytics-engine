@@ -36,6 +36,18 @@ function scopeText(presentation: AnalysisPresentation): string | null {
  * Renders the deterministic presentation contract. No values, labels, shape
  * or chart semantics are inferred here; the API has already established them.
  */
+/**
+ * What the card above the headline is, by shape.
+ *
+ * Only an answer can be a verified answer. A refusal is the engine
+ * declining to map the question, and a failure is a run that stopped, and
+ * calling either one "verified" asserts something that did not happen.
+ */
+const EYEBROW: Record<string, string> = {
+  refusal: "Not answered",
+  failure: "Not completed",
+};
+
 export function PresentationReportView({ question, presentation, results, onShowWork }: Props) {
   const table = presentation.table;
   const snapshot = table ? results[table.result_id] : undefined;
@@ -54,6 +66,13 @@ export function PresentationReportView({ question, presentation, results, onShow
       }
     : null;
   const scope = scopeText(presentation);
+
+  // A caveat that repeats the headline is not a note, it is an echo. The
+  // builder sets both from the same sentence for a refusal and a failure.
+  const headline = presentation.headline.trim();
+  const notes = presentation.caveats.filter(
+    (caveat) => caveat.message.trim() !== headline,
+  );
   const primaryFinding = presentation.provenance_refs?.[0]?.finding_id;
 
   return (
@@ -70,7 +89,14 @@ export function PresentationReportView({ question, presentation, results, onShow
         <p className="question-text">{question}</p>
 
         <article className={`finding answer-card shape-${presentation.shape}`} data-testid="direct-answer">
-          <p className="eyebrow">Verified answer</p>
+          {/*
+            Labelled by shape. This said "Verified answer" for every shape,
+            including a refusal -- so a question the engine declined to map
+            was presented as a verified answer to it, with the refusal
+            reason as the answer. Nothing was verified; that is the point of
+            a refusal.
+          */}
+          <p className="eyebrow">{EYEBROW[presentation.shape] ?? "Verified answer"}</p>
           <h3>{presentation.headline}</h3>
           {presentation.secondary_summary ? <p>{presentation.secondary_summary}</p> : null}
           {presentation.highlights.length > 0 ? (
@@ -110,10 +136,17 @@ export function PresentationReportView({ question, presentation, results, onShow
           </section>
         ) : null}
 
-        {presentation.caveats.length ? (
+        {/*
+          A refusal's blocking caveat carries the same sentence as its
+          headline, because the builder sets both from the stop reason. So
+          "Notes" restated the headline word for word, directly beneath it.
+          Saying it twice does not make it twice as true; it reads as two
+          separate problems.
+        */}
+        {notes.length ? (
           <section className="caveat-list" aria-label="Analysis notes">
             <h3>Notes</h3>
-            {presentation.caveats.map((caveat) => <p className={`notice ${caveat.severity}`} key={caveat.code}>{caveat.message}</p>)}
+            {notes.map((caveat) => <p className={`notice ${caveat.severity}`} key={caveat.code}>{caveat.message}</p>)}
           </section>
         ) : null}
 

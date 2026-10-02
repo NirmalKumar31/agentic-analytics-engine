@@ -177,7 +177,7 @@ export function App() {
     >
       <div className="column">
         <DatasetIdentity catalog={catalog} />
-        <TerminalState configError={configError} error={error} stoppedReason={run?.stopped_reason} />
+        <TerminalState configError={configError} error={error} />
         {!run && !runId && config && (
           <DatasetOnboarding config={config} session={session} replay={replay} busy={busy} onDemo={() => void openDemo()} onUploadClick={() => fileInput.current?.click()} onFile={(file) => void upload(file)} onRecording={(recording) => void openRecording(recording)} />
         )}

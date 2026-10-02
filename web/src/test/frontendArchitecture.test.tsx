@@ -5,7 +5,10 @@ import { describe, expect, it, vi } from "vitest";
 
 import { PlanningMethodDisclosure } from "../components/PlanningMethodDisclosure";
 import { SessionControls } from "../components/SessionControls";
+import { RunStateCard } from "../components/RunStateCard";
 import { TerminalState } from "../components/TerminalState";
+import { runState } from "../lib/runState";
+import type { RunPayload } from "../lib/types";
 import { WorkflowIndex } from "../components/WorkflowIndex";
 
 const sourceRoot = join(__dirname, "..");
@@ -101,19 +104,50 @@ describe("frontend component architecture", () => {
   });
 
   it("keeps terminal reasons visible and planning policy explicit", () => {
+    // The stop reason moved out of TerminalState and into RunStateCard,
+    // which names the state as well as the reason -- "Quota limit reached."
+    // rather than "The run stopped early: ...". TerminalState kept the two
+    // problems that have no run behind them. The claim is unchanged: a
+    // reader still sees why, so both halves are asserted here rather than
+    // one of them being dropped with the prop.
     render(
       <>
-        <TerminalState
-          configError={null}
-          error="The analysis failed safely."
-          stoppedReason="quota reached"
+        <TerminalState configError={null} error="The analysis failed safely." />
+        <RunStateCard
+          state={runState({
+            status: "budget_exhausted",
+            stopped_reason: "quota reached",
+            findings: [],
+            rejected: [],
+          } as unknown as RunPayload)}
         />
         <PlanningMethodDisclosure mode="auto" />
       </>,
     );
     expect(screen.getByText("The analysis failed safely.")).toBeVisible();
     expect(screen.getByText(/quota reached/)).toBeVisible();
+    expect(screen.getByTestId("run-state-card")).toHaveTextContent(/quota/i);
     expect(screen.getByText(/resolved by rules/)).toBeVisible();
+  });
+
+  it("does not say the stop reason twice", () => {
+    // A refused run had its reason in the presentation headline, again in
+    // the Notes section beneath it, and a third time as "The run stopped
+    // early: ...". Three phrasings of one sentence read as three problems.
+    render(
+      <RunStateCard
+        state={runState({
+          status: "refused",
+          stopped_reason: "the question could not be mapped safely",
+          findings: [],
+          rejected: [],
+        } as unknown as RunPayload)}
+      />,
+    );
+    expect(
+      screen.getAllByText(/could not be mapped safely/),
+    ).toHaveLength(1);
+    expect(screen.queryByText(/stopped early/i)).toBeNull();
   });
 
   it("keeps both session exits wired to explicit intent callbacks", async () => {

@@ -278,6 +278,20 @@ test.describe("terminal states, produced by the engine", () => {
     await ask(page, "What is total revenue by region?");
     await waitForReport(page);
     await expect(page.getByTestId("run-state-card")).toHaveCount(0);
+
+    // And the report has to contain the answer.
+    //
+    // Asserting only that no state card is present passed while the demo
+    // report read "VERIFIED ANSWER: The analysis could not be completed." --
+    // the presentation builder returned a FAILURE shape because the metric
+    // registry path produces no `aggregate_for_question` snapshot, and the
+    // verified finding was replaced by that sentence. The run was
+    // `completed`, so no card appeared, and the test passed over it.
+    const report = page.getByTestId("report-panel");
+    await expect(report).not.toContainText(/could not be completed/i);
+    await expect(report).not.toContainText(/not answered/i);
+    // A real figure from the demo warehouse, not a sentence about failing.
+    await expect(report).toContainText(/\$[\d,]+\.\d{2}/);
     // And the workflow index reaches Report.
     await expect(page.locator(".step", { hasText: "Report" })).toHaveAttribute(
       "data-state",
