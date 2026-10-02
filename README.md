@@ -101,7 +101,22 @@ make data         # generate the demo warehouse (deterministic, ~2 seconds)
 make dev          # build the frontend and serve on http://127.0.0.1:8000
 ```
 
-No `.env` required. `make verify` runs everything CI runs.
+No `.env` required, and none is read for the figures below: every `make`
+target that runs application code pins `AAE_PROVIDER_MODE=fake` explicitly, so
+the posture is a property of the command rather than of what the checkout
+happens to contain. `make verify` runs everything CI runs.
+
+A direct CLI invocation does load `.env`, which is deliberate — that is how an
+expert selects a provider. To develop against the cloud provider, ask for it by
+name:
+
+```bash
+AAE_CONFIRM_PAID_LOCAL_RUN=1 make dev-cloud   # sends real, billed requests
+```
+
+`make dev-cloud` refuses to start without that confirmation. It makes no
+attempt to discover whether a credential exists; the gate is on intent, not on
+configuration.
 
 ```bash
 make test         # 1,851 Python tests
@@ -562,9 +577,15 @@ so the rejection path is exercised by a genuine error.
 
 The CLI and evaluation harness use `AAE_PROVIDER_MODE`; the web application
 does not. A web request reaches a paid endpoint only when it explicitly asks
-for AI Analytics or Compare Both *and* the deployment has enabled AI, supplied
-an exactly priced model and credential, and connected the shared quota
-ledger. No default path spends money.
+for AI Analytics or a planning-strategy comparison *and* the deployment has
+enabled AI, supplied an exactly priced model and credential, and connected the
+shared quota ledger. No default path spends money.
+
+Locally, `make` targets pin the scripted provider rather than relying on that
+default: settings load `.env`, so a checkout that has one could otherwise
+select a paid provider for an ordinary development command. `make dev-cloud`
+is the one target that asks for the cloud provider, and it refuses without
+`AAE_CONFIRM_PAID_LOCAL_RUN=1`.
 
 ---
 
