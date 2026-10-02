@@ -28,16 +28,16 @@
      Four levels, used in order: the page, the sheet a report sits on, the
      raised surface of a panel, and an inset well for code or a table
      header. A fifth level would be a card inside a card inside a card. */
-  --surface-canvas: #eef0ed;
-  --surface-paper: #fbfcf8;
-  --surface-raised: #ffffff;
-  --surface-inset: #e7eae6;
+  --surface-canvas: #ece7df;
+  --surface-paper: #faf7f1;
+  --surface-raised: #fffdf9;
+  --surface-inset: #e3ddd2;
 
   /* --------------------------------------------------------------- ink
      Three weights. Body text, secondary text, and a muted weight for
      labels that must be legible but must not compete with a figure. */
-  --ink-primary: #12161a;
-  --ink-secondary: #596167;
+  --ink-primary: #1b1714;
+  --ink-secondary: #5d544b;
   /* Measured, not estimated. Muted text appears on three surfaces and
      has to clear 4.5:1 against the darkest of them:
 
@@ -52,54 +52,59 @@
      This is the lightest value that clears all three, so the hierarchy the
      muted weight provides survives rather than collapsing into body
      colour. */
-  --ink-muted: #5f686f;
-  --ink-inverse: #fbfcf8;
+  --ink-muted: #675e56;
+  --ink-inverse: #faf7f1;
 
   /* ------------------------------------------------------------- rules
      A hairline for separating rows, and a stronger one for separating
      regions. Both are rules rather than borders: they divide, they do not
      enclose. */
-  --rule-hairline: #cdd2cf;
-  --rule-strong: #939b97;
+  --rule-hairline: #d9d2c7;
+  --rule-strong: #a89d8d;
 
   /* ------------------------------------------------------------ signal
      Named for meaning. `signal` is the engine speaking -- a contract, a
      route, a citation. `action` is the one thing on screen the visitor
      should press. `supported`, `warning` and `failure` are verdicts, and
      a verdict colour never decorates anything that is not one. */
-  --signal: #274690;
-  --signal-weak: #dde3f2;
-  --action: #d94a36;
-  --action-weak: #f7e1dd;
-  --supported: #39715c;
-  --supported-weak: #dcebe4;
-  --warning: #a87522;
-  --warning-weak: #f6ebd8;
-  --failure: #a83b36;
-  --failure-weak: #f7e0de;
+  --signal: #1f5f68;
+  --signal-weak: #dbe9ea;
+  --action: #bd4f5e;
+  --action-weak: #f6e2e4;
+  --supported: #2a6349;
+  --supported-weak: #dceae1;
+  --warning: #9d6d1b;
+  --warning-weak: #f6ead4;
+  --failure: #9a3b2b;
+  --failure-weak: #f7e1dc;
 
-  /* Text-safe variants of the two signal colours that do not clear 4.5:1
-     as body text. Measured against all four surfaces:
+  /* Text-safe variants of the two colours that do not clear 4.5:1 as body
+     text. Measured against all four surfaces:
 
-                    canvas  paper  raised  inset
-       --action     3.68    4.09   4.21    3.47   <- fails as text
-       --warning    3.50    3.90   4.01    3.31   <- fails as text
-       --action-text  …                    5.18   OK
-       --warning-text …                    4.89   OK
+                      canvas  paper  raised  inset
+       --action        3.84    4.42   4.65    3.50   <- fails as text
+       --warning       3.68    4.24   4.46    3.35   <- fails as text
+       --action-text   5.84    6.72   7.07    5.31   OK
+       --warning-text  5.44    6.26   6.59    4.95   OK
 
      The vivid versions stay: they are right for a focus ring, a border or
      a chart mark, where WCAG 1.4.11 asks 3:1 and both clear it. Use these
      wherever the colour carries words. Keeping one token for both jobs is
-     what made a warning notice render at 1.06:1 -- see `.notice.warn`. */
-  --action-text: #ae3524;
-  --warning-text: #855c17;
+     what made a warning notice render at 1.06:1 -- see `.notice.warn`.
+
+     In dark mode these two collapse into the vivid colours, because there
+     the same hues sit at the light end of the contrast. Leaving them
+     undefined there is what rendered light-surface ochre on a near-black
+     panel at 2.92:1. */
+  --action-text: #9a3341;
+  --warning-text: #7a5516;
 
   /* RGB triples for the few places that need an alpha blend. Kept beside
      the hex so the two cannot drift apart. */
-  --signal-rgb: 39 70 144;
-  --supported-rgb: 57 113 92;
-  --warning-rgb: 168 117 34;
-  --failure-rgb: 168 59 54;
+  --signal-rgb: 31 95 104;
+  --supported-rgb: 42 99 73;
+  --warning-rgb: 157 109 27;
+  --failure-rgb: 154 59 43;
 
   /* --------------------------------------------------------------- type
      One grotesk for the interface and one mono for data. Both resolved
@@ -197,29 +202,29 @@
    as far as contrast requires. */
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --surface-canvas: #0e1216;
-    --surface-paper: #151b21;
-    --surface-raised: #1b232b;
-    --surface-inset: #121820;
+    --surface-canvas: #14110f;
+    --surface-paper: #1b1714;
+    --surface-raised: #231e1a;
+    --surface-inset: #17130f;
 
-    --ink-primary: #edf0ea;
-    --ink-secondary: #aab2b3;
-    --ink-muted: #828b8f;
-    --ink-inverse: #0e1216;
+    --ink-primary: #f4efe8;
+    --ink-secondary: #a79a8c;
+    --ink-muted: #968b80;
+    --ink-inverse: #14110f;
 
-    --rule-hairline: #303a41;
-    --rule-strong: #4a565e;
+    --rule-hairline: #332c26;
+    --rule-strong: #4d443b;
 
-    --signal: #7188d4;
-    --signal-weak: #1d2740;
-    --action: #ff725e;
-    --action-weak: #3a1f1c;
-    --supported: #62a789;
-    --supported-weak: #16291f;
-    --warning: #d2a34b;
-    --warning-weak: #2e2415;
-    --failure: #e8695f;
-    --failure-weak: #331a1a;
+    --signal: #44a3b0;
+    --signal-weak: #123034;
+    --action: #d97a86;
+    --action-weak: #3a1c20;
+    --supported: #4fa87d;
+    --supported-weak: #13291f;
+    --warning: #c28a2a;
+    --warning-weak: #2d2211;
+    --failure: #dd7a66;
+    --failure-weak: #331a15;
     /* The text-safe variants collapse into the vivid colours here.
        They exist in the light palette because #d94a36 and #a87522 are too
        dark to carry words on a pale surface -- 3.31:1 at worst. On these
@@ -236,10 +241,10 @@
     --action-text: var(--action);
     --warning-text: var(--warning);
 
-    --signal-rgb: 113 136 212;
-    --supported-rgb: 98 167 137;
-    --warning-rgb: 210 163 75;
-    --failure-rgb: 232 105 95;
+    --signal-rgb: 68 163 176;
+    --supported-rgb: 79 168 125;
+    --warning-rgb: 194 138 42;
+    --failure-rgb: 221 122 102;
 
     --shadow-raised: 0 1px 2px rgb(0 0 0 / 40%);
     --shadow-overlay: 0 8px 24px rgb(0 0 0 / 55%);
@@ -247,29 +252,29 @@
 }
 
 :root[data-theme="dark"] {
-  --surface-canvas: #0e1216;
-  --surface-paper: #151b21;
-  --surface-raised: #1b232b;
-  --surface-inset: #121820;
+  --surface-canvas: #14110f;
+  --surface-paper: #1b1714;
+  --surface-raised: #231e1a;
+  --surface-inset: #17130f;
 
-  --ink-primary: #edf0ea;
-  --ink-secondary: #aab2b3;
-  --ink-muted: #828b8f;
-  --ink-inverse: #0e1216;
+  --ink-primary: #f4efe8;
+  --ink-secondary: #a79a8c;
+  --ink-muted: #968b80;
+  --ink-inverse: #14110f;
 
-  --rule-hairline: #303a41;
-  --rule-strong: #4a565e;
+  --rule-hairline: #332c26;
+  --rule-strong: #4d443b;
 
-  --signal: #7188d4;
-  --signal-weak: #1d2740;
-  --action: #ff725e;
-  --action-weak: #3a1f1c;
-  --supported: #62a789;
-  --supported-weak: #16291f;
-  --warning: #d2a34b;
-  --warning-weak: #2e2415;
-  --failure: #e8695f;
-  --failure-weak: #331a1a;
+  --signal: #44a3b0;
+  --signal-weak: #123034;
+  --action: #d97a86;
+  --action-weak: #3a1c20;
+  --supported: #4fa87d;
+  --supported-weak: #13291f;
+  --warning: #c28a2a;
+  --warning-weak: #2d2211;
+  --failure: #dd7a66;
+  --failure-weak: #331a15;
   /* The text-safe variants collapse into the vivid colours here.
      They exist in the light palette because #d94a36 and #a87522 are too
      dark to carry words on a pale surface -- 3.31:1 at worst. On these
@@ -286,10 +291,10 @@
   --action-text: var(--action);
   --warning-text: var(--warning);
 
-  --signal-rgb: 113 136 212;
-  --supported-rgb: 98 167 137;
-  --warning-rgb: 210 163 75;
-  --failure-rgb: 232 105 95;
+  --signal-rgb: 68 163 176;
+  --supported-rgb: 79 168 125;
+  --warning-rgb: 194 138 42;
+  --failure-rgb: 221 122 102;
 
   --shadow-raised: 0 1px 2px rgb(0 0 0 / 40%);
   --shadow-overlay: 0 8px 24px rgb(0 0 0 / 55%);
