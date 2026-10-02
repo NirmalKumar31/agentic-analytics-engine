@@ -20,12 +20,16 @@
  * conditional: a missing target fails rather than skipping.
  */
 
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
 import { ComparisonView } from "../components/ComparisonView";
 import { QuestionComposer } from "../components/QuestionComposer";
 import { DatasetIdentity } from "../components/DatasetIdentity";
+import { ModeBadge, badgeMode } from "../components/ModeBadge";
 import { PresentationReportView } from "../components/PresentationReportView";
 import { ReportWorkspace } from "../components/ReportWorkspace";
 import { SchemaInspector } from "../components/SchemaInspector";
@@ -622,5 +626,43 @@ describe("the report card says what it actually is", () => {
     ]);
     expect(screen.getByRole("heading", { name: "Notes" })).toBeVisible();
     expect(screen.getByText("Two groups were omitted.")).toBeVisible();
+  });
+});
+
+// ------------------------------------------------- 9. one vocabulary, everywhere
+
+describe("the comparison is named the same thing everywhere", () => {
+  it("does not call it \"Compare both\" in the header badge", () => {
+    // The rename covered the selector, the run button and the report
+    // heading, and missed this one -- so the header said "Compare both" on
+    // every comparison run, which is the string that prompted the rename.
+    // It was missed because the label lives in a lookup table rather than
+    // in markup, so reading the JSX did not show it.
+    render(<ModeBadge mode={badgeMode(false, "ai_live", "compare")} />);
+    const badge = screen.getByTitle(/Two runs of the same question/);
+    expect(badge).not.toHaveTextContent(/compare both/i);
+    expect(badge).toHaveTextContent(/comparing strategies/i);
+  });
+
+  it("names the comparison consistently across the three surfaces", () => {
+    // Selector, button and heading already agreed; the badge now joins them.
+    // Asserted together so a future rename cannot update three and leave a
+    // fourth behind.
+    const sources = [
+      "components/ModeBadge.tsx",
+      "components/ModeSelector.tsx",
+      "components/ComparisonView.tsx",
+    ].map((f) => readFileSync(join(__dirname, "..", f), "utf8"));
+
+    for (const [index, source] of sources.entries()) {
+      // Comments may discuss the old name; rendered strings may not.
+      const withoutComments = source
+        .replace(/\/\*[\s\S]*?\*\//g, "")
+        .replace(/^\s*\/\/.*$/gm, "");
+      expect(
+        /compare both/i.test(withoutComments),
+        `surface ${index} still renders the old name`,
+      ).toBe(false);
+    }
   });
 });

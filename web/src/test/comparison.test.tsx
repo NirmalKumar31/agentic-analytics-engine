@@ -321,3 +321,74 @@ describe("execution lanes", () => {
     expect(compute.detail).toMatch(/refused first/i);
   });
 });
+
+describe("a run that has not finished has not disagreed", () => {
+  // Seen against a real governed Compare run: the deterministic pane
+  // finished, the AI pane still said "running", and the header announced
+  // "Different governed interpretations -- these panes answered different
+  // questions". They had not. The AI run had no contract yet, and a missing
+  // contract was read as a different one. Both planners went on to produce
+  // the identical figure.
+  const contract = {
+    operation: "aggregate",
+    measure: "revenue",
+    dimensions: ["region"],
+  } as unknown as RunPayload["query_contract"];
+
+  function payload(overrides: Partial<RunPayload>): RunPayload {
+    return {
+      run_id: "r",
+      session_id: "s",
+      question: "What is total revenue by region?",
+      status: "completed",
+      report: null,
+      findings: [],
+      rejected: [],
+      charts: [],
+      tasks: [],
+      results: {},
+      mcp_trace: [],
+      events: [],
+      metrics: {} as RunPayload["metrics"],
+      stopped_reason: "",
+      ...overrides,
+    } as RunPayload;
+  }
+
+  it("says not comparable yet while one side is still running", () => {
+    const state = compareRuns(
+      payload({ status: "completed", query_contract: contract }),
+      payload({ status: "running" }),
+    );
+    expect(state.verdict).toBe("not_comparable");
+    expect(state.headline).toMatch(/not comparable yet/i);
+    expect(state.detail).toMatch(/need to finish/i);
+  });
+
+  it("does not claim they answered different questions", () => {
+    const state = compareRuns(
+      payload({ status: "completed", query_contract: contract }),
+      payload({ status: "running" }),
+    );
+    expect(state.verdict).not.toBe("contracts_differ");
+    expect(state.detail).not.toMatch(/different questions/i);
+    expect(state.differences).toEqual([]);
+  });
+
+  it("still reports a failure that is already known", () => {
+    // A pane that failed has finished, so that verdict is not premature.
+    const state = compareRuns(
+      payload({ status: "failed" }),
+      payload({ status: "running" }),
+    );
+    expect(state.verdict).toBe("one_failed");
+  });
+
+  it("compares them once both have finished", () => {
+    const state = compareRuns(
+      payload({ status: "completed", query_contract: contract }),
+      payload({ status: "completed", query_contract: contract }),
+    );
+    expect(state.verdict).not.toBe("not_comparable");
+  });
+});
