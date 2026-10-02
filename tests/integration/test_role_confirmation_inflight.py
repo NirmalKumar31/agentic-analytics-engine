@@ -50,9 +50,7 @@ ROWS = 400
 def csv_text() -> str:
     places = ["north", "south", "east", "west"]
     lines = ["place,amount,reading"]
-    lines += [
-        f"{places[i % 4]},{round(100.0 + i * 7.5, 2)},{18 + (i % 48)}" for i in range(ROWS)
-    ]
+    lines += [f"{places[i % 4]},{round(100.0 + i * 7.5, 2)},{18 + (i % 48)}" for i in range(ROWS)]
     return "\n".join(lines) + "\n"
 
 

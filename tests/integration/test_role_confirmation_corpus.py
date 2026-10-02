@@ -48,7 +48,11 @@ class Corpus:
 
     def _row(self, i: int) -> tuple[Any, ...]:
         if self.domain == "clinical":
-            return (["alpha", "beta", "gamma", "delta"][i % 4], round(2.5 + i * 0.1, 2), 18 + (i % 48))
+            return (
+                ["alpha", "beta", "gamma", "delta"][i % 4],
+                round(2.5 + i * 0.1, 2),
+                18 + (i % 48),
+            )
         if self.domain == "rail":
             return (["central", "coast", "valley"][i % 3], round(3.2 + i * 0.5, 2), 1 + (i % 36))
         return (["early", "late", "night"][i % 3], 10 + (i % 90), 500 + (i % 52))
