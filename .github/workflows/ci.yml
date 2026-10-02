@@ -303,15 +303,22 @@ jobs:
       # golden tests, so the failure read as a WebKit problem rather than as
       # a shared ceiling being exhausted.
       #
-      # 150 leaves room for three engines plus the one retry CI allows. The
+      # 150 left room for three engines plus the one retry CI allows. The
       # real fix is not uploading needlessly: specs share a profiled dataset
       # across tests that only differ in what they ask of it.
+      #
+      # The role-confirmation spec added 7 more per engine, so the arithmetic
+      # is now 63 + (7 x 3) = 84 before retries, and 84 x 2 = 168 with the
+      # retry -- past 150. Raised to 200, which is 168 plus headroom for the
+      # next spec rather than a number chosen to just fit. That spec holds
+      # itself to 7 by resizing one dataset across three viewports instead of
+      # uploading one per width.
       - name: Boot the container
         run: |
           docker run -d --name aae-e2e -p 8000:8000 \
             -e AAE_LIVE_ANALYTICS_ENABLED=true \
             -e AAE_UPLOADS_ENABLED=true \
-            -e AAE_UPLOADS_PER_IP_PER_HOUR=150 \
+            -e AAE_UPLOADS_PER_IP_PER_HOUR=200 \
             -e AAE_ANALYSES_PER_IP_PER_HOUR=200 \
             -e AAE_ANALYSES_PER_SESSION=40 \
             agentic-analytics-engine:e2e

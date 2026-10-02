@@ -13,6 +13,7 @@
 
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { useState } from "react";
 import { describe, expect, it, vi } from "vitest";
 
 import { suggestions } from "../components/DatasetSummary";
@@ -138,6 +139,53 @@ describe("the confirmation control", () => {
 
     await userEvent.click(screen.getByRole("button", { name: /Reset to inferred/ }));
     expect(onApply).toHaveBeenCalledWith([{ column: "reading", action: "reset" }]);
+  });
+
+  it("announces the outcome and moves focus to what replaced the button", async () => {
+    // Confirming removes the button that was pressed. Left alone that drops
+    // focus to <body> and announces nothing, because a removed element
+    // reports no result.
+    function Harness() {
+      const [field, setField] = useState(closeCall());
+      return (
+        <RoleConfirmation
+          field={field}
+          onApply={async () => {
+            setField(closeCall({ role: "dimension", role_source: "user_confirmed" }));
+          }}
+        />
+      );
+    }
+    render(<Harness />);
+    await userEvent.click(screen.getByRole("button", { name: /Confirm for this session/ }));
+
+    const reset = await screen.findByRole("button", { name: /Reset to inferred/ });
+    await waitFor(() => expect(reset).toHaveFocus());
+    expect(screen.getByRole("status")).toHaveTextContent(
+      /reading is confirmed for this session/,
+    );
+  });
+
+  it("does not seize focus from a reader who did nothing", () => {
+    // Every already-confirmed column on the page would otherwise grab
+    // focus on first paint.
+    render(
+      <RoleConfirmation
+        field={closeCall({ role: "dimension", role_source: "user_confirmed" })}
+        onApply={vi.fn()}
+      />,
+    );
+    expect(screen.getByRole("button", { name: /Reset to inferred/ })).not.toHaveFocus();
+    expect(screen.getByRole("status")).toHaveTextContent("");
+  });
+
+  it("says nothing when the server refuses, because the alert already did", async () => {
+    const onApply = vi.fn().mockRejectedValue(new Error("an analysis is running"));
+    render(<RoleConfirmation field={closeCall()} onApply={onApply} />);
+    await userEvent.click(screen.getByRole("button", { name: /Confirm for this session/ }));
+    await waitFor(() => expect(screen.getByRole("alert")).toBeVisible());
+    // A status that claimed a confirmation here would contradict the alert.
+    expect(screen.getByRole("status")).toHaveTextContent("");
   });
 
   it("keeps the prior state and shows the reason when the server refuses", async () => {
