@@ -116,6 +116,20 @@ export function compareRuns(
     };
   }
 
+  // A run still in flight has no contract yet, and a missing contract is not
+  // a different one.
+  //
+  // Falling through to the comparison below read the absence as a
+  // disagreement and announced "Different governed interpretations -- these
+  // panes answered different questions" while the AI pane still read
+  // "running". Observed against a real governed run where the two planners
+  // went on to produce the identical figure. `base` already says the true
+  // thing: both modes need to finish first.
+  //
+  // Placed after the refusal and failure checks, because those are worth
+  // reporting as soon as they are known: a pane that failed has finished.
+  if (left === "running" || right === "running") return base;
+
   const differences = contractDifferences(
     deterministic.query_contract,
     ai.query_contract,

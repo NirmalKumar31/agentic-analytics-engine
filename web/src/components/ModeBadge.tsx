@@ -47,7 +47,13 @@ const LABELS: Record<BadgeMode, { label: string; tone: string; title: string }> 
     title: 'A language model is making the agent decisions.',
   },
   compare_live: {
-    label: 'Compare both',
+    // Renamed with the rest of the vocabulary. The selector offers
+    // "Compare planning strategies" and the report heading reads
+    // "Planning strategies compared", but this badge kept saying
+    // "Compare both" -- in the header, on every comparison run. The
+    // rename missed it because the label lives in a lookup table
+    // rather than in the markup, so a grep over JSX did not see it.
+    label: 'Comparing strategies',
     tone: 'live',
     title:
       'Two runs of the same question against the same rows: one with a language ' +
