@@ -131,21 +131,29 @@ export function Chart({ chart, snapshot, onOpenProvenance }: Props) {
             config: {
               background: "transparent",
               axis: {
-                labelColor: token("--ink-secondary", "#46515c"),
-                titleColor: token("--ink-secondary", "#46515c"),
-                gridColor: token("--rule-hairline", "#d7dce0"),
+                labelColor: token("--ink-secondary", "#5d544b"),
+                titleColor: token("--ink-secondary", "#5d544b"),
+                gridColor: token("--rule-hairline", "#d9d2c7"),
               },
               legend: {
-                labelColor: token("--ink-secondary", "#46515c"),
-                titleColor: token("--ink-secondary", "#46515c"),
+                labelColor: token("--ink-secondary", "#5d544b"),
+                titleColor: token("--ink-secondary", "#5d544b"),
               },
+              // The series ramp, from tokens, so it follows the theme.
+              //
+              // Three of these five used to be hardcoded hexes chosen for a
+              // palette that no longer exists, and they stayed the same in
+              // dark mode. Neither their contrast against the plot surface nor
+              // their separation for a colour-blind reader had been measured.
+              // tokens.css explains how the five were chosen; the test
+              // chartSeries.test.ts re-measures both properties.
               range: {
                 category: [
-                  token("--signal", "#126c72"),
-                  token("--action", "#c64b25"),
-                  "#5a6f95",
-                  "#8c6b38",
-                  "#5d7883",
+                  token("--series-1", "#cc7682"),
+                  token("--series-2", "#7d69b5"),
+                  token("--series-3", "#7a5b1d"),
+                  token("--series-4", "#1d5860"),
+                  token("--series-5", "#244824"),
                 ],
               },
             },
