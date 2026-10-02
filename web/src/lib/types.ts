@@ -311,6 +311,10 @@ export interface RunPayload {
    */
   outcome?: string;
   question_coverage?: QuestionCoverage | null;
+  /** The generation of the session schema this run executed against. */
+  schema_revision?: number;
+  /** Where the roles the accepted contract relied on came from. */
+  role_evidence?: RoleEvidence[];
   chart_decision?: ChartDecision | null;
   timings?: RunTimings | null;
   /**
@@ -567,6 +571,11 @@ export interface DatasetSummary {
   measures: string[];
   identifiers: string[];
   ambiguities: { concept: string; candidates: string[]; question: string }[];
+  /** Which generation of this session's confirmations produced the summary. */
+  schema_revision?: number;
+  confirmed_role_count?: number;
+  /** Close calls nobody has settled yet, which is what the inspector counts. */
+  unresolved_ambiguity_count?: number;
 }
 
 export interface InferredField {
@@ -583,11 +592,33 @@ export interface InferredField {
    * sum means nothing.
    */
   additive?: "strong" | "weak" | "unknown";
-  /** Whether the role was a close call. Ambiguous columns are marked. */
+  /**
+   * Whether the role was a close call.
+   *
+   * Stays true after a confirmation. The values are still
+   * indistinguishable; someone supplied the missing fact rather than the
+   * data having settled it.
+   */
   ambiguous?: boolean;
   min_value: string | null;
   max_value: string | null;
+  /** What inference decided, kept even when a confirmation replaced it. */
+  inferred_role?: FieldRole;
+  /** Whether `role` is the engine's reading or this session owner's. */
+  role_source?: RoleSource;
+  /** The readings this column may be confirmed as. Empty unless ambiguous. */
+  allowed_confirmed_roles?: ConfirmableRole[];
 }
+
+export type FieldRole = "time" | "dimension" | "measure" | "identifier" | "ignored";
+export type RoleSource = "inferred" | "user_confirmed";
+/** Narrower than FieldRole: the two readings of the one close call reported. */
+export type ConfirmableRole = "measure" | "dimension";
+
+/** One change in a confirmation batch. A reset carries no role. */
+export type RoleChange =
+  | { column: string; action: "confirm"; role: ConfirmableRole }
+  | { column: string; action: "reset" };
 
 export interface MetricInfo {
   name: string;
@@ -596,4 +627,15 @@ export interface MetricInfo {
   valid_dimensions: string[];
   time_field: string;
   format: string;
+}
+
+/** Why a column was read the way it was, for the columns a run actually used. */
+export interface RoleEvidence {
+  column: string;
+  effective_role: FieldRole;
+  inferred_role: FieldRole;
+  role_source: RoleSource;
+  ambiguous: boolean;
+  /** measure | grouping | time | period | filter */
+  used_as: string[];
 }

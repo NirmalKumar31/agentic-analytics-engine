@@ -17,6 +17,7 @@ import { ApiError, api } from "./lib/api";
 import { phaseOf } from "./lib/phase";
 import type {
   ComparisonStarted,
+  RoleChange,
   RecordingSummary,
   RunEvent,
   RunPayload,
@@ -113,6 +114,37 @@ export function App() {
     } finally { setBusy(false); }
   }, []);
 
+  const confirmRoles = useCallback(
+    async (changes: RoleChange[]) => {
+      if (!session) return;
+      const revision = session.summary?.schema_revision ?? 0;
+      try {
+        // The server's response becomes the session. Mutating local state
+        // instead would let the panel report a role the engine had not
+        // accepted, which is the defect this whole feature exists to avoid.
+        setSession(await api.confirmSchemaRoles(session.session_id, revision, changes));
+      } catch (reason) {
+        if (reason instanceof ApiError && reason.status === 409) {
+          // The schema moved under this view -- another tab, or this one
+          // racing itself. Reload rather than retry: the column list being
+          // shown is no longer the one the server has.
+          try {
+            setSession(await api.dataset(session.session_id));
+          } catch {
+            /* the reload failed; the error below still reaches the control */
+          }
+          throw new Error(
+            "The dataset schema changed since this panel was loaded. It has been refreshed — please check it and try again.",
+          );
+        }
+        throw new Error(
+          reason instanceof ApiError ? reason.message : "the change was not saved",
+        );
+      }
+    },
+    [session],
+  );
+
   const ask = useCallback(async () => {
     if (!session || !question.trim()) return;
     setBusy(true); setError(null); setRun(null); setAiRun(null);
@@ -182,7 +214,7 @@ export function App() {
           <DatasetOnboarding config={config} session={session} replay={replay} busy={busy} onDemo={() => void openDemo()} onUploadClick={() => fileInput.current?.click()} onFile={(file) => void upload(file)} onRecording={(recording) => void openRecording(recording)} />
         )}
         <input ref={fileInput} type="file" accept=".csv,.parquet" className="sr-only" aria-label="Upload a CSV or Parquet file" onChange={(event) => { const file = event.target.files?.[0]; if (file) void upload(file); event.target.value = ""; }} />
-        {session?.summary && session.catalog.dataset_kind === "upload" && !hasRun && <SchemaInspector summary={session.summary} />}
+        {session?.summary && session.catalog.dataset_kind === "upload" && !hasRun && <SchemaInspector summary={session.summary} onConfirmRoles={confirmRoles} />}
         {session && !hasRun && <QuestionComposer config={config} summary={
                   // Only an uploaded file gets schema-derived examples. The
                   // demo session also carries a summary, so gating on its

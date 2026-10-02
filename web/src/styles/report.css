@@ -217,6 +217,46 @@ table.data tr[data-ambiguous="true"] {
   background: rgb(var(--warning-rgb) / 7%);
 }
 
+/* Settling a role the data cannot decide.
+ *
+ * Inside the schema table, so it has to stay quiet: this is an offer, not a
+ * demand, and most readers will never need it. The choices are stacked
+ * rather than inline because the explanation beside each one is the part
+ * that does the work.
+ */
+.role-confirmation {
+  display: block;
+  margin-top: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border-left: 2px solid rgb(var(--warning-rgb) / 45%);
+  background: var(--surface-inset);
+  border-radius: var(--radius-sm);
+}
+.role-confirmation fieldset {
+  border: 0;
+  margin: 0;
+  padding: 0;
+}
+.role-confirmation legend {
+  padding: 0;
+  margin-bottom: var(--space-1);
+}
+.role-choice {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  padding: 2px 0;
+  cursor: pointer;
+}
+.role-choice input {
+  /* A thumb needs a real target even though the glyph is small. */
+  min-width: 16px;
+  min-height: 16px;
+}
+.role-confirmation .btn {
+  margin-top: var(--space-2);
+}
+
 /* Role tags sit inside a monospace table, so they need to stay compact. */
 table.data .tag {
   font-size: 10px;

@@ -1,4 +1,5 @@
-import type { DatasetSummary as Summary } from "../lib/types";
+import { RoleConfirmation } from "./RoleConfirmation";
+import type { DatasetSummary as Summary, RoleChange } from "../lib/types";
 
 const ROLE_ORDER = [
   "time",
@@ -27,11 +28,14 @@ export function DatasetSummary({
   summary,
   onAsk,
   showHead = true,
+  onConfirmRoles,
 }: {
   summary: Summary;
   onAsk?: (question: string) => void;
   /** False when a disclosure already names this panel. */
   showHead?: boolean;
+  /** Present only where roles may be confirmed. */
+  onConfirmRoles?: (changes: RoleChange[]) => Promise<void>;
 }) {
   const shown = [...summary.fields].sort(
     (a, b) => ROLE_ORDER.indexOf(a.role) - ROLE_ORDER.indexOf(b.role),
@@ -80,9 +84,16 @@ export function DatasetSummary({
                     </span>
                     {field.ambiguous && (
                       <span className="tag ambiguous" data-testid="ambiguous-field">
-                        close call
+                        {field.role_source === "user_confirmed"
+                          ? "confirmed"
+                          : "close call"}
                       </span>
                     )}
+                    {onConfirmRoles &&
+                    field.ambiguous &&
+                    (field.allowed_confirmed_roles?.length ?? 0) > 0 ? (
+                      <RoleConfirmation field={field} onApply={onConfirmRoles} />
+                    ) : null}
                   </td>
                   <td>{field.distinct_count.toLocaleString()}</td>
                   <td>{field.null_pct.toFixed(1)}</td>
@@ -157,18 +168,27 @@ export function DatasetSummary({
  * an average is offered for one that reads as an attribute, and a
  * contribution question -- which only makes sense over an additive total
  * -- is offered for neither unless the engine is confident.
+ *
+ * A column the reader confirmed as a quantity counts as an attribute here.
+ * Confirming clears the additivity guess, because asserting "this is a
+ * quantity" says nothing about whether totalling it means anything -- so
+ * without this the confirmed column matched no branch and nothing on the
+ * page mentioned it again. An average is what the control offered in so
+ * many words ("can be averaged or totalled"); a sum is a further claim
+ * nobody made.
  */
 export function suggestions(summary: Summary): string[] {
   const fields = summary.fields ?? [];
-  const confidence = (name: string) =>
-    fields.find((field) => field.name === name)?.additive ?? "unknown";
+  const field = (name: string) => fields.find((f) => f.name === name);
+  const confidence = (name: string) => field(name)?.additive ?? "unknown";
+  const confirmed = (name: string) => field(name)?.role_source === "user_confirmed";
   const usable = (name: string) => !/^(noise|random|dummy|unused)_/i.test(name);
 
   const additive = summary.measures.find(
     (name) => usable(name) && confidence(name) === "strong",
   );
   const attribute = summary.measures.find(
-    (name) => usable(name) && confidence(name) === "weak",
+    (name) => usable(name) && (confidence(name) === "weak" || confirmed(name)),
   );
   const dimension = summary.dimensions.find(usable);
   const time = summary.time_fields.find(usable);
