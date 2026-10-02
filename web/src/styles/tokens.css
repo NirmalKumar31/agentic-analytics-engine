@@ -78,6 +78,31 @@
   --failure: #9a3b2b;
   --failure-weak: #f7e1dc;
 
+  /* ------------------------------------------------------- data series
+  Five marks that have to stay apart for every reader.
+
+  Two requirements, both measured rather than assumed. Each clears 3:1
+  against the surface a plot sits on, which is what WCAG 1.4.11 asks of a
+  graphical object. And the five stay distinguishable under red-green and
+  blue-yellow deficiency, which hue alone cannot deliver: the ramp climbs
+  a deliberate contrast ladder -- 3.0, 4.3, 5.8, 7.5, 9.5 -- so a reader
+  who cannot separate the hues still has lightness.
+
+  The ladder is not enough on its own either. Which hue sits on which rung
+  decides it: an earlier arrangement put teal and red one step apart,
+  where deuteranopia merges them, and the worst pair fell to dE 10.6. The
+  order below was chosen by searching every assignment for the best worst
+  case, which is dE 15.2 across both themes and all three deficiencies --
+  up from 6.9 when every colour was solved to the same contrast and hue
+  was doing all the work.
+
+  `src/test/chartSeries.test.ts` re-measures both properties. */
+  --series-1: #cc7682;
+  --series-2: #7d69b5;
+  --series-3: #7a5b1d;
+  --series-4: #1d5860;
+  --series-5: #244824;
+
   /* Text-safe variants of the two colours that do not clear 4.5:1 as body
      text. Measured against all four surfaces:
 
@@ -225,6 +250,31 @@
     --warning-weak: #2d2211;
     --failure: #dd7a66;
     --failure-weak: #331a15;
+
+    /* ------------------------------------------------------- data series
+    Five marks that have to stay apart for every reader.
+
+    Two requirements, both measured rather than assumed. Each clears 3:1
+    against the surface a plot sits on, which is what WCAG 1.4.11 asks of a
+    graphical object. And the five stay distinguishable under red-green and
+    blue-yellow deficiency, which hue alone cannot deliver: the ramp climbs
+    a deliberate contrast ladder -- 3.0, 4.3, 5.8, 7.5, 9.5 -- so a reader
+    who cannot separate the hues still has lightness.
+
+    The ladder is not enough on its own either. Which hue sits on which rung
+    decides it: an earlier arrangement put teal and red one step apart,
+    where deuteranopia merges them, and the worst pair fell to dE 10.6. The
+    order below was chosen by searching every assignment for the best worst
+    case, which is dE 15.2 across both themes and all three deficiencies --
+    up from 6.9 when every colour was solved to the same contrast and hue
+    was doing all the work.
+
+    `src/test/chartSeries.test.ts` re-measures both properties. */
+    --series-1: #b44352;
+    --series-2: #8a78bc;
+    --series-3: #c3912e;
+    --series-4: #54becc;
+    --series-5: #a1d1a1;
     /* The text-safe variants collapse into the vivid colours here.
        They exist in the light palette because #d94a36 and #a87522 are too
        dark to carry words on a pale surface -- 3.31:1 at worst. On these
@@ -275,6 +325,31 @@
   --warning-weak: #2d2211;
   --failure: #dd7a66;
   --failure-weak: #331a15;
+
+  /* ------------------------------------------------------- data series
+  Five marks that have to stay apart for every reader.
+
+  Two requirements, both measured rather than assumed. Each clears 3:1
+  against the surface a plot sits on, which is what WCAG 1.4.11 asks of a
+  graphical object. And the five stay distinguishable under red-green and
+  blue-yellow deficiency, which hue alone cannot deliver: the ramp climbs
+  a deliberate contrast ladder -- 3.0, 4.3, 5.8, 7.5, 9.5 -- so a reader
+  who cannot separate the hues still has lightness.
+
+  The ladder is not enough on its own either. Which hue sits on which rung
+  decides it: an earlier arrangement put teal and red one step apart,
+  where deuteranopia merges them, and the worst pair fell to dE 10.6. The
+  order below was chosen by searching every assignment for the best worst
+  case, which is dE 15.2 across both themes and all three deficiencies --
+  up from 6.9 when every colour was solved to the same contrast and hue
+  was doing all the work.
+
+  `src/test/chartSeries.test.ts` re-measures both properties. */
+  --series-1: #b44352;
+  --series-2: #8a78bc;
+  --series-3: #c3912e;
+  --series-4: #54becc;
+  --series-5: #a1d1a1;
   /* The text-safe variants collapse into the vivid colours here.
      They exist in the light palette because #d94a36 and #a87522 are too
      dark to carry words on a pale surface -- 3.31:1 at worst. On these
