@@ -40,8 +40,10 @@ import secrets
 import shutil
 import threading
 import time
+from collections.abc import Mapping
 from dataclasses import dataclass, field
 from pathlib import Path
+from types import MappingProxyType
 from typing import Any, Literal
 
 import duckdb
@@ -175,6 +177,34 @@ def _lock_down(con: duckdb.DuckDBPyConnection) -> None:
     con.execute("SET lock_configuration = true")
 
 
+@dataclass(frozen=True)
+class RoleConfirmationSnapshot:
+    """One generation of a session's role confirmations, frozen.
+
+    Handed to a run at admission and used for the whole of its execution, so
+    every layer that interprets the schema during that run interprets the
+    same one.
+    """
+
+    revision: int
+    confirmations: Mapping[str, str]
+
+    def is_empty(self) -> bool:
+        return not self.confirmations
+
+
+class StaleSchemaRevision(RuntimeError):
+    """A confirmation arrived against a schema that has since moved on."""
+
+    def __init__(self, current: int, expected: int) -> None:
+        super().__init__(
+            f"the dataset schema has changed since this view was loaded "
+            f"(now revision {current}, request assumed {expected})"
+        )
+        self.current = current
+        self.expected = expected
+
+
 class AnalysisSession:
     """One isolated dataset plus the results computed against it."""
 
@@ -224,6 +254,22 @@ class AnalysisSession:
         # DuckDB connections are not safe to use from several threads at
         # once, and analysis workers run concurrently.
         self.lock = threading.Lock()
+        #: Which of two readings the session owner chose for a column whose
+        #: role inference could not settle. Column name -> effective role.
+        #:
+        #: Session-scoped on purpose: it is one person's statement about one
+        #: uploaded file, not a definition. It never reaches Redis or disk,
+        #: it goes when the session goes, and no other session can see it.
+        self._role_confirmations: dict[str, str] = {}
+        #: Bumped once per batch that changes the confirmations. A run
+        #: records the revision it used, so its evidence stays readable
+        #: after the session's schema has moved on.
+        self._schema_revision = 0
+        #: Separate from `lock`, which serialises DuckDB access. Overloading
+        #: that one would mean a schema read waiting behind a long query for
+        #: no reason, and a confirmation could deadlock against a run
+        #: holding it.
+        self._schema_lock = threading.Lock()
 
     @property
     def table_names(self) -> set[str]:
@@ -232,6 +278,57 @@ class AnalysisSession:
     @property
     def has_metrics(self) -> bool:
         return self.registry is not None
+
+    def role_confirmation_snapshot(self) -> RoleConfirmationSnapshot:
+        """The confirmations as they stand, frozen.
+
+        A snapshot rather than the live dictionary: a run that read the
+        mutable state would see a confirmation applied halfway through its
+        own execution, and its evidence would describe a schema that never
+        existed as a whole.
+        """
+        with self._schema_lock:
+            return RoleConfirmationSnapshot(
+                revision=self._schema_revision,
+                confirmations=MappingProxyType(dict(self._role_confirmations)),
+            )
+
+    def apply_role_confirmation_changes(
+        self,
+        changes: Mapping[str, str | None],
+        *,
+        expected_revision: int | None = None,
+    ) -> RoleConfirmationSnapshot:
+        """Apply a whole batch, or none of it.
+
+        `None` as a value clears a column back to inference. The revision
+        increments once for a batch that changes anything and not at all for
+        one that does not, so repeating a request is harmless and a no-op
+        does not invalidate work that was already done under this schema.
+
+        Raises `StaleSchemaRevision` when `expected_revision` does not match,
+        which is how a browser holding an older schema is stopped from
+        confirming against a column list it is no longer looking at.
+        """
+        with self._schema_lock:
+            if expected_revision is not None and expected_revision != self._schema_revision:
+                raise StaleSchemaRevision(self._schema_revision, expected_revision)
+
+            updated = dict(self._role_confirmations)
+            for column, role in changes.items():
+                if role is None:
+                    updated.pop(column, None)
+                else:
+                    updated[column] = role
+
+            if updated != self._role_confirmations:
+                self._role_confirmations = updated
+                self._schema_revision += 1
+
+            return RoleConfirmationSnapshot(
+                revision=self._schema_revision,
+                confirmations=MappingProxyType(dict(self._role_confirmations)),
+            )
 
     def touch(self) -> None:
         self.last_used_at = time.time()
