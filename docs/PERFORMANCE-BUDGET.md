@@ -11,6 +11,9 @@ dependency landing on the critical path, the chart bundle becoming eager —
 rather than to police a few kilobytes.
 
 Measured: 2026-10-01, production build, local server, Chromium.
+Re-measured on `8e385fc`, after the frontend programme (component
+extraction, CSS modules, the information architecture, a replaced palette
+and the chart series ramp).
 
 ---
 
@@ -18,11 +21,16 @@ Measured: 2026-10-01, production build, local server, Chromium.
 
 | asset | raw | gzip | when |
 |---|---|---|---|
-`index.css` | 32.03 kB | 7.58 kB | initial |
-`index.js` | 304.51 kB | 93.42 kB | initial |
+`index.css` | 32.93 kB | 7.59 kB | initial |
+`index.js` | 310.16 kB | 95.26 kB | initial |
 `vega.js` | 860.99 kB | 295.66 kB | **only when a chart renders** |
 
-**Initial transfer: 336 kB raw / ~101 kB gzip**, across two files.
+**Initial transfer: 343 kB raw / ~103 kB gzip**, across two files.
+
+Up 7 kB raw on the figure this file first recorded. The stylesheet grew by
+0.9 kB -- a palette with a data-series ramp in two themes -- and the entry
+chunk by 5.7 kB across thirteen new components and the restructured report.
+The architectural claim below is the one that matters, and it is unchanged.
 
 The large chunk is not on the critical path. A network trace of the
 landing page requests exactly `index.css` and `index.js`; `vega.js` is
@@ -50,7 +58,7 @@ Deliberately loose, for the reason given above.
 
 | budget | threshold | observed | headroom |
 |---|---|---|---|
-Initial transfer (raw) | **450 kB** | 336 kB | 34% |
+Initial transfer (raw) | **450 kB** | 343 kB | 31% |
 Initial file count | **4** | 2 | — |
 Vega on the critical path | **must not happen** | it does not | — |
 Report render, same fixture | **1,000 ms** | 153 ms | 6.5× |
