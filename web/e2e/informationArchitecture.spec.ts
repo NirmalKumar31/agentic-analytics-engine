@@ -34,7 +34,7 @@
 
 import { expect, test, type Page } from "@playwright/test";
 
-import { ask, uploadFile, waitForReport } from "./helpers";
+import { ask, openApp, uploadFile, waitForReport } from "./helpers";
 
 /**
  * Open the demo warehouse.
@@ -89,7 +89,7 @@ test.describe("the schema inspector tells the truth about ambiguity", () => {
 
   test.beforeAll(async ({ browser }) => {
     page = await browser.newPage();
-    await page.goto("/");
+    await openApp(page);
     await uploadFile(page, "ia-ambiguous.csv", ambiguousCsv());
   });
 
@@ -151,7 +151,7 @@ test.describe("a dataset with nothing ambiguous in it", () => {
 
   test.beforeAll(async ({ browser }) => {
     page = await browser.newPage();
-    await page.goto("/");
+    await openApp(page);
     await uploadFile(page, "ia-plain.csv", plainCsv());
   });
 
@@ -199,7 +199,7 @@ test.describe("a dataset with nothing ambiguous in it", () => {
 
 test.describe("the demo dataset keeps its curated questions", () => {
   test("the demo dataset still gets the curated questions", async ({ page }) => {
-    await page.goto("/");
+    await openApp(page);
     await page.getByRole("button", { name: /Commerce demo warehouse/ }).click();
     const examples = page.getByTestId("question-examples");
     await expect(examples).toBeVisible();
@@ -222,7 +222,7 @@ test.describe("terminal states, produced by the engine", () => {
 
   test.beforeAll(async ({ browser }) => {
     page = await browser.newPage();
-    await page.goto("/");
+    await openApp(page);
     await uploadFile(page, "ia-terminal.csv", plainCsv());
   });
 
@@ -277,7 +277,7 @@ test.describe("terminal states, produced by the engine", () => {
   });
 
   test("an answered question shows no state card at all", async ({ page }) => {
-    await page.goto("/");
+    await openApp(page);
     await openDemo(page);
     await ask(page, "What is total revenue by region?");
     await waitForReport(page);
@@ -370,7 +370,7 @@ test.describe("terminal states that need a payload fixture", () => {
 
   for (const [state, overrides, expected] of cases) {
     test(`${state} is shown as itself in single mode`, async ({ page }) => {
-      await page.goto("/");
+      await openApp(page);
       await openDemo(page);
       await serveRun(page, overrides);
       await ask(page, "What is total revenue by region?");
@@ -388,7 +388,7 @@ test.describe("terminal states that need a payload fixture", () => {
   }) => {
     // The two were one state, so the copy for "nothing published" pointed at
     // withheld findings that did not exist.
-    await page.goto("/");
+    await openApp(page);
     await openDemo(page);
     await serveRun(page, cases[1]![1]);
     await ask(page, "What is total revenue by region?");
@@ -411,7 +411,7 @@ test.describe("layout holds at every width", () => {
       page,
     }) => {
       await page.setViewportSize({ width, height });
-      await page.goto("/");
+      await openApp(page);
       await openDemo(page);
       await ask(page, "What is total revenue by region?");
       await waitForReport(page);

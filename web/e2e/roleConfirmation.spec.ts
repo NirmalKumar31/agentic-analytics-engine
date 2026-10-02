@@ -1,7 +1,7 @@
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test, type Page, type Request } from "@playwright/test";
 
-import { ask, suggestedQuestions, uploadFile, waitForReport } from "./helpers";
+import { ask, openApp, suggestedQuestions, uploadFile, waitForReport } from "./helpers";
 
 /**
  * Settling a role in a real browser.
@@ -87,7 +87,7 @@ test.describe("settling a close call", () => {
 
   test.beforeAll(async ({ browser }) => {
     page = await browser.newPage();
-    await page.goto("/");
+    await openApp(page);
     seen = watchRequests(page);
     await uploadFile(page, "clinical.csv", closeCallCsv());
   });
@@ -284,7 +284,7 @@ test.describe("what the engine then does with it", () => {
 
   test.beforeAll(async ({ browser }) => {
     page = await browser.newPage();
-    await page.goto("/");
+    await openApp(page);
     seen = watchRequests(page);
     await uploadFile(page, "clinical.csv", closeCallCsv());
     await openInspector(page);
@@ -357,7 +357,7 @@ test.describe("confirming the reading the engine already had", () => {
 
   test.beforeAll(async ({ browser }) => {
     page = await browser.newPage();
-    await page.goto("/");
+    await openApp(page);
     await uploadFile(page, "clinical.csv", closeCallCsv());
     await openInspector(page);
     // No radio touched: confirm whatever inference chose, which is a
@@ -394,7 +394,7 @@ test.describe("confirming the reading the engine already had", () => {
 
 test.describe("when the server refuses", () => {
   test("a stale revision is recovered from, not papered over", async ({ page }) => {
-    await page.goto("/");
+    await openApp(page);
 
     // The session id comes from the upload's own response. There is no
     // endpoint that reports the current session, and a conditional skip
@@ -426,7 +426,7 @@ test.describe("when the server refuses", () => {
   });
 
   test("a refusal does not optimistically change the label", async ({ page }) => {
-    await page.goto("/");
+    await openApp(page);
     await uploadFile(page, "clinical.csv", closeCallCsv());
     await openInspector(page);
 
@@ -452,7 +452,7 @@ test.describe("when the server refuses", () => {
   });
 
   test("the control is disabled while the request is in flight", async ({ page }) => {
-    await page.goto("/");
+    await openApp(page);
     await uploadFile(page, "clinical.csv", closeCallCsv());
     await openInspector(page);
 
@@ -494,7 +494,7 @@ test.describe("the control at every width", () => {
 
   // One upload, three widths. Resizing does not need a new dataset.
   test("fits and stays operable on a phone, a tablet and a desktop", async ({ page }) => {
-    await page.goto("/");
+    await openApp(page);
     await uploadFile(page, "clinical.csv", closeCallCsv());
     await openInspector(page);
     const control = page.getByTestId("role-confirmation");
@@ -536,7 +536,7 @@ test.describe("the control at every width", () => {
 
 test.describe("accessibility of the control", () => {
   test("no serious or critical violations, offered or settled", async ({ page }) => {
-    await page.goto("/");
+    await openApp(page);
     await uploadFile(page, "clinical.csv", closeCallCsv());
     await openInspector(page);
 

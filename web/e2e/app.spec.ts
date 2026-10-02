@@ -1,15 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-import {
-  ask,
-  capability,
-  clientSideState,
-  recordingButtons,
-  sampleCsv,
-  uploadFile,
-  suggestedQuestions,
-  waitForReport,
-} from "./helpers";
+import { ask, capability, clientSideState, openApp, recordingButtons, sampleCsv, suggestedQuestions, uploadFile, waitForReport } from "./helpers";
 
 /**
  * The flows a visitor actually performs, in a real browser, against a real
@@ -21,7 +12,7 @@ test.describe("the page a visitor lands on", () => {
   test("does not claim an execution mode before anything has run", async ({
     page,
   }) => {
-    await page.goto("/");
+    await openApp(page);
     await expect(
       page.getByRole("button", { name: /Commerce demo warehouse/ }),
     ).toBeVisible();
@@ -33,7 +24,7 @@ test.describe("the page a visitor lands on", () => {
   });
 
   test("offers the three committed recordings", async ({ page }) => {
-    await page.goto("/");
+    await openApp(page);
     const recordings = recordingButtons(page);
     await expect(recordings).toHaveCount(3);
     await expect(page.getByText(/not a language model/i)).toBeVisible();
@@ -42,7 +33,7 @@ test.describe("the page a visitor lands on", () => {
 
 test.describe("a recorded run", () => {
   test("renders a report, provenance and the MCP trace", async ({ page }) => {
-    await page.goto("/");
+    await openApp(page);
     await recordingButtons(page).first().click();
 
     await waitForReport(page);
@@ -82,7 +73,7 @@ test.describe("a recorded run", () => {
       browserName !== "chromium",
       "Playwright PDF generation is Chromium-only.",
     );
-    await page.goto("/");
+    await openApp(page);
     await recordingButtons(page).first().click();
     await waitForReport(page);
 
@@ -109,7 +100,7 @@ test.describe("the demo warehouse", () => {
   test("answers a built-in question with supported findings", async ({
     page,
   }) => {
-    await page.goto("/");
+    await openApp(page);
     await page.getByRole("button", { name: /Commerce demo warehouse/ }).click();
     await expect(page.getByRole("heading", { name: "Ask" })).toBeVisible();
 
@@ -157,7 +148,7 @@ test.describe("uploading a file", () => {
   test("profiles it, answers a mappable question, and refuses an unmappable one", async ({
     page,
   }) => {
-    await page.goto("/");
+    await openApp(page);
     await uploadFile(page, "e2e-sales.csv", sampleCsv());
 
     // The dataset understanding step, marked inferred rather than governed.
@@ -222,7 +213,7 @@ test.describe("uploading a file", () => {
   });
 
   test("refuses an invalid file with a readable message", async ({ page }) => {
-    await page.goto("/");
+    await openApp(page);
     await page.locator('input[type="file"]').setInputFiles({
       name: "not-data.csv",
       mimeType: "text/csv",
@@ -245,7 +236,7 @@ test.describe("the session boundary", () => {
   test("ending a session makes its dataset and run unreachable", async ({
     page,
   }) => {
-    await page.goto("/");
+    await openApp(page);
     await uploadFile(page, "ending.csv", sampleCsv(80));
 
     // The public handle, which the shell exposes for exactly this check.
@@ -280,7 +271,7 @@ test.describe("the session boundary", () => {
     const bob = await browser.newContext();
     try {
       const alicePage = await alice.newPage();
-      await alicePage.goto("/");
+      await openApp(alicePage);
       await uploadFile(
         alicePage,
         "alice.csv",
@@ -295,7 +286,7 @@ test.describe("the session boundary", () => {
       // Bob has his own capability and must not be able to use Alice's handle
       // even if he learns it.
       const bobPage = await bob.newPage();
-      await bobPage.goto("/");
+      await openApp(bobPage);
       const aliceHandle = await alicePage
         .locator(".shell")
         .getAttribute("data-session-id");
@@ -317,7 +308,7 @@ test.describe("what the browser can see", () => {
   test("the session capability is not readable from the page", async ({
     page,
   }) => {
-    await page.goto("/");
+    await openApp(page);
     await page.getByRole("button", { name: /Commerce demo warehouse/ }).click();
     await expect(page.getByRole("heading", { name: "Ask" })).toBeVisible();
 
@@ -333,7 +324,7 @@ test.describe("what the browser can see", () => {
   test("the session cookie is HttpOnly, and Secure when served over TLS", async ({
     page,
   }) => {
-    await page.goto("/");
+    await openApp(page);
     await page.getByRole("button", { name: /Commerce demo warehouse/ }).click();
     await expect(page.getByRole("heading", { name: "Ask" })).toBeVisible();
 
@@ -349,7 +340,7 @@ test.describe("what the browser can see", () => {
   });
 
   test("private API responses are not cacheable", async ({ page, request }) => {
-    await page.goto("/");
+    await openApp(page);
     const response = await request.get("/api/config");
     expect(response.headers()["cache-control"]).toContain("no-store");
     expect(response.headers()["x-content-type-options"]).toBe("nosniff");
@@ -379,7 +370,7 @@ test.describe("the public MCP endpoint", () => {
 
     // Either way the site itself analyses, because its agents reach the
     // same MCP server over the in-process transport.
-    await page.goto("/");
+    await openApp(page);
     await page.getByRole("button", { name: /Commerce demo warehouse/ }).click();
     await suggestedQuestions(page).first().click();
     await page.getByRole("button", { name: "Run analysis" }).click();

@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-import { ask, waitForReport } from "./helpers";
+import { ask, openApp, waitForReport } from "./helpers";
 
 /**
  * The visual foundation, asserted from the rendered page.
@@ -19,7 +19,7 @@ test.describe("the application phase", () => {
   test("reaches the body, so the stylesheet can key on it", async ({
     page,
   }) => {
-    await page.goto("/");
+    await openApp(page);
     // The stylesheet's ambient rules select on this. Without it the grid
     // animates in every state, which is what it used to do.
     await expect(page.locator("body")).toHaveAttribute(
@@ -31,7 +31,7 @@ test.describe("the application phase", () => {
   test("advances as a dataset is opened and a question answered", async ({
     page,
   }) => {
-    await page.goto("/");
+    await openApp(page);
     await page.getByRole("button", { name: /Commerce demo warehouse/ }).click();
     await expect(page.locator("body")).toHaveAttribute(
       "data-phase",
@@ -49,7 +49,7 @@ test.describe("the application phase", () => {
   test("mirrors document visibility, so a hidden tab animates nothing", async ({
     page,
   }) => {
-    await page.goto("/");
+    await openApp(page);
     await expect(page.locator("body")).toHaveAttribute("data-hidden", "false");
   });
 });
@@ -58,7 +58,7 @@ test.describe("motion restraint", () => {
   test("the ambient grid holds still once a report is on screen", async ({
     page,
   }) => {
-    await page.goto("/");
+    await openApp(page);
     // The phase is published by an effect once the config fetch resolves,
     // so the ambient rule does not apply on the first frame. Waiting for
     // the attribute is waiting for the state the rule selects on.
@@ -103,7 +103,7 @@ test.describe("motion restraint", () => {
   });
 
   test("no panel moves under the pointer", async ({ page }) => {
-    await page.goto("/");
+    await openApp(page);
     const panel = page.locator("section.panel").first();
     await expect(panel).toBeVisible();
 
@@ -134,7 +134,7 @@ test.describe("motion restraint", () => {
   });
 
   test("nothing wears a coloured halo", async ({ page }) => {
-    await page.goto("/");
+    await openApp(page);
 
     // `--glow` is gone. It was the old halo -- a blurred translucent wash
     // of the accent hue, invisible on a light surface and meaningless to a
@@ -187,16 +187,7 @@ test.describe("motion restraint", () => {
     // interaction, so calling `element.focus()` from script does not match
     // it -- an earlier version of this test did exactly that, matched
     // nothing, and asserted over an empty list.
-    //
-    // `domcontentloaded`, not the default `load`. This test hung for the
-    // full 120s test budget once on Firefox in CI, inside `page.goto`
-    // "waiting until load" -- before a single tab stop existed. `load`
-    // waits for every subresource, which is nothing this test asserts
-    // about, so one slow or stalled request could consume the whole test.
-    // The deterministic ready state is the app's own: the demo button
-    // being actionable, which the next line already waits for. Gating on
-    // that rather than on the resource graph is both narrower and stronger.
-    await page.goto("/", { waitUntil: "domcontentloaded", timeout: 30_000 });
+    await openApp(page);
     const openDemo = page.getByRole("button", { name: /Commerce demo warehouse/ });
     await expect(openDemo).toBeEnabled();
     await openDemo.click();
@@ -240,7 +231,7 @@ test.describe("motion restraint", () => {
     // Asserted against the served stylesheet because `:focus-visible`
     // cannot be triggered reliably from script, and the rule is the thing
     // that was wrong.
-    await page.goto("/");
+    await openApp(page);
     const css = await page.evaluate(async () => {
       const hrefs = [
         ...document.querySelectorAll('link[rel="stylesheet"]'),
@@ -276,7 +267,7 @@ test.describe("no runtime third-party requests", () => {
         external.push(url);
       }
     });
-    await page.goto("/");
+    await openApp(page);
     // A webfont on the critical path is a third-party dependency, and a
     // report that reflows when one lands is a report that looked broken
     // first.

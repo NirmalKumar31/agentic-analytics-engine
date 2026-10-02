@@ -118,3 +118,46 @@ export async function openDemoViaApi(request: APIRequestContext): Promise<string
   expect(response.status()).toBe(200)
   return (await response.json()).session_id as string
 }
+
+/**
+ * Open the application.
+ *
+ * Every test navigated with `page.goto("/")`, whose default `waitUntil` is
+ * `load` -- and on Firefox that intermittently never resolves. Twice in
+ * consecutive CI runs a test burned its entire 120s budget inside
+ * `page.goto`, "waiting until load", on two *different* tests: once in
+ * `foundation.spec.ts`, once in `informationArchitecture.spec.ts`. The
+ * trace from the second one is unambiguous about what had happened by
+ * then: the document, its script, its stylesheet and the app's own
+ * `/api/config` had all returned 200, and the page snapshot shows the
+ * banner, the theme toggle and all four progress steps rendered. The
+ * application was up and interactive; only `load` was outstanding. Which
+ * request held it cannot be named, because a trace has no entry for a
+ * request that never received a response.
+ *
+ * So no test waits on `load` any more. `load` means "every subresource
+ * settled", which is not what any of these tests assert about, and it put
+ * 63 call sites one stalled request away from a two-minute hang. The
+ * deterministic ready state is the application's own: the shell mounted.
+ * That is both narrower and a stronger signal -- `load` can fire before
+ * React has rendered anything.
+ */
+export async function openApp(page: Page): Promise<void> {
+  await page.goto("/", { waitUntil: "domcontentloaded", timeout: 30_000 });
+  // `app-shell` is on the shell root, which React renders unconditionally,
+  // so its presence means the bundle parsed, executed and mounted -- not
+  // merely that bytes arrived. `index.html` contains only `<div id="root">`
+  // and the module script, so the marker cannot exist before mount.
+  //
+  // Not `getByRole("banner")`: the provenance drawer also renders a
+  // `<header>`, so that locator can match twice and fail strict mode for a
+  // reason unrelated to readiness. Not `<body>` or a piece of copy either
+  // -- one exists before React runs and the other moves when wording does.
+  //
+  // Bounded, so a server that never answers fails the test instead of
+  // hanging it: 30s on the navigation, and this wait inherits the suite's
+  // 20s expect timeout. The shell renders even when `/api/config` fails,
+  // because the error state is drawn inside it, so an API failure reaches
+  // the test's own assertions rather than stalling here.
+  await expect(page.getByTestId("app-shell")).toBeVisible();
+}

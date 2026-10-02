@@ -1,6 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 
-import { ask, sampleCsv, uploadFile, waitForReport } from "./helpers";
+import { ask, openApp, sampleCsv, uploadFile, waitForReport } from "./helpers";
 
 /**
  * Golden layout tests: the report at every width it has to survive.
@@ -90,7 +90,7 @@ test.describe("the report at every supported width", () => {
     // and the ranking question renders a chart and no `direct-answer`.
     // Testing layout needs a report with both in it.
     await page.setViewportSize({ width: 1440, height: 900 });
-    await page.goto("/");
+    await openApp(page);
     await uploadFile(page, "layout.csv", sampleCsv());
     await ask(page, "What is the total revenue by region?");
     await waitForReport(page);
@@ -164,7 +164,7 @@ test.describe("chart width is independent of cardinality", () => {
       // must both use the width they are given. A fixed step per band
       // meant the first drew a strip and the second did not.
       await page.setViewportSize({ width: 1440, height: 900 });
-      await page.goto("/");
+      await openApp(page);
       await page
         .getByRole("button", { name: /Commerce demo warehouse/ })
         .click();
@@ -190,7 +190,7 @@ test.describe("chart width is independent of cardinality", () => {
     // 48 distinct groups: the case that rendered widest before, and so
     // the one that hid the defect.
     await page.setViewportSize({ width: 1440, height: 900 });
-    await page.goto("/");
+    await openApp(page);
     await uploadFile(page, "cardinality.csv", sampleCsv());
     await ask(page, "What is the total revenue by region?");
     await waitForReport(page);
@@ -214,7 +214,7 @@ test.describe("touch targets on a phone", () => {
     // removing it failed nothing, because the only summary on the
     // landing page is the exempt one.
     await page.setViewportSize({ width: 390, height: 844 });
-    await page.goto("/");
+    await openApp(page);
     await page.getByRole("button", { name: /Commerce demo warehouse/ }).click();
     await expect(page.getByRole("heading", { name: "Ask" })).toBeVisible();
     await ask(page, "What is the total revenue by region?");
@@ -249,7 +249,7 @@ test.describe("touch targets on a phone", () => {
     page,
   }) => {
     await page.setViewportSize({ width: 390, height: 844 });
-    await page.goto("/");
+    await openApp(page);
 
     const small = await page.evaluate(() => {
       const offenders: { tag: string; label: string; w: number; h: number }[] =

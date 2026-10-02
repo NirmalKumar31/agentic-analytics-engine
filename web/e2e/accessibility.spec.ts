@@ -1,7 +1,7 @@
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test, type Page } from "@playwright/test";
 
-import { ask, sampleCsv, uploadFile, waitForReport } from "./helpers";
+import { ask, openApp, sampleCsv, uploadFile, waitForReport } from "./helpers";
 
 /**
  * Automated accessibility checks, on the states a visitor actually reaches.
@@ -93,7 +93,7 @@ async function scan(page: Page, label: string): Promise<void> {
 
 test.describe("accessibility", () => {
   test("the landing state", async ({ page }) => {
-    await page.goto("/");
+    await openApp(page);
     await expect(
       page.getByRole("button", { name: /Commerce demo warehouse/ }),
     ).toBeVisible();
@@ -101,7 +101,7 @@ test.describe("accessibility", () => {
   });
 
   test("an uploaded dataset after profiling", async ({ page }) => {
-    await page.goto("/");
+    await openApp(page);
     await uploadFile(page, "a11y-profile.csv", sampleCsv());
     // The inspector is a closed disclosure now, so assert on the disclosure
     // rather than a heading that no longer exists -- and scan it both
@@ -117,7 +117,7 @@ test.describe("accessibility", () => {
   });
 
   test("a completed deterministic report", async ({ page }) => {
-    await page.goto("/");
+    await openApp(page);
     await uploadFile(page, "a11y-report.csv", sampleCsv());
     await ask(page, "What is the total revenue by region?");
     await waitForReport(page);
@@ -128,7 +128,7 @@ test.describe("accessibility", () => {
     // A refusal is a state a visitor reaches, so it is a state that has to
     // be navigable. An unreadable explanation of why nothing was answered
     // is worse than an unreadable answer.
-    await page.goto("/");
+    await openApp(page);
     await uploadFile(page, "a11y-refusal.csv", sampleCsv());
     await ask(page, "What is the average gross_margin by region?");
     await expect(page.locator("body")).toHaveAttribute(
@@ -140,7 +140,7 @@ test.describe("accessibility", () => {
   });
 
   test("the planning audit, expanded", async ({ page }) => {
-    await page.goto("/");
+    await openApp(page);
     await uploadFile(page, "a11y-audit.csv", sampleCsv());
     await ask(page, "What is the total revenue by region?");
     await waitForReport(page);
@@ -221,7 +221,7 @@ test.describe("accessibility", () => {
       });
     });
 
-    await page.goto("/");
+    await openApp(page);
     await page.getByRole("button", { name: /Commerce demo warehouse/ }).click();
     await page
       .getByRole("radio", { name: /^Compare planning strategies/ })
@@ -263,7 +263,7 @@ test.describe("accessibility", () => {
     // passed while the dark-mode defect it was written for was still
     // present -- confirmed by removing the fix and watching this test stay
     // green.
-    await page.goto("/");
+    await openApp(page);
     await page.getByRole("button", { name: /Switch to dark theme/i }).click();
     await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
     await uploadFile(page, "a11y-dark.csv", sampleCsv());
@@ -286,7 +286,7 @@ test.describe("accessibility", () => {
 
   test("a narrow-phone report", async ({ page }) => {
     await page.setViewportSize({ width: 360, height: 740 });
-    await page.goto("/");
+    await openApp(page);
     await uploadFile(page, "a11y-phone.csv", sampleCsv());
     await ask(page, "What is the total revenue by region?");
     await waitForReport(page);
@@ -296,7 +296,7 @@ test.describe("accessibility", () => {
 
 test.describe("keyboard operation", () => {
   test("focus is always visible as it moves", async ({ page }) => {
-    await page.goto("/");
+    await openApp(page);
     await page.getByRole("button", { name: /Commerce demo warehouse/ }).click();
     await expect(page.getByRole("heading", { name: "Ask" })).toBeVisible();
 
@@ -331,7 +331,7 @@ test.describe("keyboard operation", () => {
     // A trap is the failure a keyboard user cannot recover from without
     // reloading, so it is worth its own check rather than being implied by
     // the focus test above.
-    await page.goto("/");
+    await openApp(page);
     await page.getByRole("button", { name: /Commerce demo warehouse/ }).click();
     await expect(page.getByRole("heading", { name: "Ask" })).toBeVisible();
 
@@ -356,7 +356,7 @@ test.describe("keyboard operation", () => {
   });
 
   test("every control has an accessible name", async ({ page }) => {
-    await page.goto("/");
+    await openApp(page);
     await page.getByRole("button", { name: /Commerce demo warehouse/ }).click();
     await expect(page.getByRole("heading", { name: "Ask" })).toBeVisible();
 
@@ -386,7 +386,7 @@ test.describe("keyboard operation", () => {
   });
 
   test("a disclosure is operable from the keyboard", async ({ page }) => {
-    await page.goto("/");
+    await openApp(page);
     await uploadFile(page, "a11y-kbd.csv", sampleCsv());
     await ask(page, "What is the total revenue by region?");
     await waitForReport(page);
@@ -405,7 +405,7 @@ test.describe("keyboard operation", () => {
   test("the provenance drawer restores focus and closes on Escape", async ({
     page,
   }) => {
-    await page.goto("/");
+    await openApp(page);
     await uploadFile(page, "a11y-drawer.csv", sampleCsv());
     await ask(page, "What is the total revenue by region?");
     await waitForReport(page);
