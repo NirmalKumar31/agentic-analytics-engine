@@ -8,7 +8,7 @@
  * returned 200 and the application rendered. 63 call sites were each one
  * stalled request away from that.
  *
- * They all go through `openApp`, which waits for `domcontentloaded` and
+ * They all go through `openApp`, which waits for the response commit and
  * then for the app shell. This keeps it that way: a new spec written with
  * the obvious `page.goto("/")` fails here rather than in CI a week later.
  */
@@ -68,14 +68,16 @@ describe("end-to-end navigation", () => {
     expect(users.length).toBeGreaterThan(5);
   });
 
-  it("navigates on domcontentloaded, never load or networkidle", () => {
-    const helpers = helperSource();
-    expect(helpers).toMatch(/export async function openApp/);
-    expect(helpers).toMatch(/waitUntil:\s*"domcontentloaded"/);
-    // `load` is the hang. `networkidle` is discouraged by Playwright and
-    // would reintroduce a wait on traffic this suite does not care about.
-    expect(helpers).not.toMatch(/waitUntil:\s*"load"/);
-    expect(helpers).not.toMatch(/networkidle/);
+  it("navigates on commit, never on a completion lifecycle event", () => {
+    const openApp = helperSource().split("export async function openApp")[1] ?? "";
+    expect(openApp).toMatch(/waitUntil:\s*['"]commit['"]/);
+    // Both lifecycle events were tried and both hung on Firefox while the
+    // document, the assets and the app's own API call had all returned 200
+    // and the shell had rendered. `networkidle` is worse again: it waits on
+    // traffic this suite does not care about.
+    expect(openApp).not.toMatch(/waitUntil:\s*['"]load['"]/);
+    expect(openApp).not.toMatch(/waitUntil:\s*['"]domcontentloaded['"]/);
+    expect(openApp).not.toMatch(/networkidle/);
   });
 
   it("bounds the navigation so a dead server fails rather than hangs", () => {
@@ -89,7 +91,8 @@ describe("end-to-end navigation", () => {
 
   it("waits for the application-owned readiness marker", () => {
     const openApp = helperSource().split("export async function openApp")[1] ?? "";
-    expect(openApp).toMatch(/getByTestId\("app-shell"\)/);
+    expect(openApp).toMatch(/getByTestId\(['"]app-shell['"]\)/);
+    expect(openApp).toMatch(/toBeVisible\(\{\s*timeout:\s*20_000\s*\}\)/);
 
     // The marker must come from React, not from the served HTML -- a
     // marker present before mount would make the wait meaningless.

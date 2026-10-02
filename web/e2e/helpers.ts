@@ -143,7 +143,23 @@ export async function openDemoViaApi(request: APIRequestContext): Promise<string
  * React has rendered anything.
  */
 export async function openApp(page: Page): Promise<void> {
-  await page.goto("/", { waitUntil: "domcontentloaded", timeout: 30_000 });
+  // `commit`, which resolves as soon as the response for the navigation is
+  // received. Not `load`, and not `domcontentloaded` either: both were
+  // tried and both hung on Firefox.
+  //
+  // The second trace is what settles it. With `domcontentloaded` the
+  // navigation still timed out -- and the report shows the document, the
+  // stylesheet, the bundle and the app's own `/api/config` all returned
+  // **200**, with the page snapshot and a 128KB screenshot showing the
+  // banner, the theme toggle and all four progress steps rendered. The
+  // server served everything and the application was running. What never
+  // arrived was Playwright's lifecycle event for the navigation.
+  //
+  // So a browser lifecycle *completion* event is not a reliable gate here,
+  // and none is what a test actually needs. `commit` asks only for the
+  // response the trace shows always arrives; readiness is then asserted on
+  // the application's own marker below.
+  await page.goto('/', { waitUntil: 'commit', timeout: 30_000 });
   // `app-shell` is on the shell root, which React renders unconditionally,
   // so its presence means the bundle parsed, executed and mounted -- not
   // merely that bytes arrived. `index.html` contains only `<div id="root">`
@@ -155,9 +171,9 @@ export async function openApp(page: Page): Promise<void> {
   // -- one exists before React runs and the other moves when wording does.
   //
   // Bounded, so a server that never answers fails the test instead of
-  // hanging it: 30s on the navigation, and this wait inherits the suite's
-  // 20s expect timeout. The shell renders even when `/api/config` fails,
+  // hanging it: 30s on the navigation and 20s on the app-shell wait. The
+  // shell renders even when `/api/config` fails,
   // because the error state is drawn inside it, so an API failure reaches
   // the test's own assertions rather than stalling here.
-  await expect(page.getByTestId("app-shell")).toBeVisible();
+  await expect(page.getByTestId('app-shell')).toBeVisible({ timeout: 20_000 });
 }

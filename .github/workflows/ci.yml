@@ -350,8 +350,15 @@ jobs:
           AAE_E2E_BROWSERS: chromium
         run: npm run test:e2e
 
+      # `if: always()` on the two later engines. A failing Firefox step
+      # skipped WebKit entirely, so a run that refused a Firefox flake
+      # produced no WebKit evidence at all -- and the question "did this
+      # change break WebKit" went unanswered for the whole cycle. The job
+      # still fails, because a failed step fails it.
+      #
       # Firefox skips the same browser-PDF test as WebKit.
       - name: Firefox end to end
+        if: always()
         working-directory: web
         env:
           AAE_E2E_BASE_URL: http://127.0.0.1:8000
@@ -363,6 +370,7 @@ jobs:
       # Chromium-only Playwright API, gated in the spec rather than
       # failing. The guard is told to expect exactly that one.
       - name: WebKit end to end
+        if: always()
         working-directory: web
         env:
           AAE_E2E_BASE_URL: http://127.0.0.1:8000
