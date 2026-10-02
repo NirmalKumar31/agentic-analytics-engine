@@ -1,5 +1,6 @@
 import { defineConfig, devices } from '@playwright/test'
 
+import { parseBrowsers } from './scripts/e2eGate.mjs'
 import { resolveBaseUrl } from './src/test/preflight'
 
 /**
@@ -16,11 +17,27 @@ import { resolveBaseUrl } from './src/test/preflight'
  */
 const baseURL = resolveBaseUrl(process.env)
 
-const projects = [
-  { name: 'chromium', use: { ...devices['Desktop Chrome'] } },
-  { name: 'firefox', use: { ...devices['Desktop Firefox'] } },
-  { name: 'webkit', use: { ...devices['Desktop Safari'] } },
-]
+const available = {
+  chromium: { name: 'chromium', use: { ...devices['Desktop Chrome'] } },
+  firefox: { name: 'firefox', use: { ...devices['Desktop Firefox'] } },
+  webkit: { name: 'webkit', use: { ...devices['Desktop Safari'] } },
+}
+
+/**
+ * Validated here, before Playwright starts, so an unusable selection is an
+ * error rather than zero projects.
+ *
+ * The filter this replaced turned any unrecognised value into an empty
+ * project list, and an empty project list runs no tests and reports
+ * success. A shell quoting bug produced exactly that: `AAE_E2E_BROWSERS`
+ * held "chromium 0", nothing ran, and the skip guard approved it.
+ */
+const selected = parseBrowsers(process.env.AAE_E2E_BROWSERS)
+const projects = selected.map((name) => available[name as keyof typeof available])
+
+// Printed before execution so the log says which engines a run covered,
+// rather than leaving it to be inferred from the request.
+console.log(`E2E engines selected: ${selected.join(', ')}`)
 
 export default defineConfig({
   testDir: './e2e',
@@ -48,7 +65,5 @@ export default defineConfig({
     // errors would let a misconfigured certificate pass unnoticed.
     ignoreHTTPSErrors: false,
   },
-  projects: projects.filter(
-    (p) => !process.env.AAE_E2E_BROWSERS || process.env.AAE_E2E_BROWSERS.split(',').includes(p.name),
-  ),
+  projects,
 })
