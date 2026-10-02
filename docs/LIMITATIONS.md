@@ -746,6 +746,38 @@ and that no trend was tested.
 A rule separating the two would be a guess about column naming presented as
 inference. See [ADR 0004](adr/0004-deterministic-presentation-contract.md).
 
+**The limitation is permanent; there is now somewhere for the missing fact
+to come from.** The values alone will never separate these two readings. For
+a supported ambiguous numeric field on an *uploaded* dataset, the person who
+uploaded it can now say which it is: the schema inspector offers "quantity"
+or "category", the engine plans the query with the confirmed reading, and
+the planning audit names the column, both readings and that the choice was
+confirmed for that dataset session. See
+[ADR 0007](adr/0007-session-scoped-role-confirmation.md).
+
+What this does and does not change:
+
+- The inference is **unchanged**. The engine is no better at guessing, and
+  the column stays marked a close call after confirmation, because
+  confirming does not make it decidable -- it records that someone decided.
+- The confirmation is **user-supplied meaning, not inferred truth**. The
+  engine validates that the choice is one it can act on, acts on it, and
+  records whose it was. It cannot validate that the reader is right about
+  their own column.
+- It is **session-scoped**: held in memory on the dataset session, never
+  written to disk, never shared between sessions, never inherited by a
+  later upload of the same file, and gone when the session ends. It is not
+  a governed metric definition.
+- Only **measure and dimension** can be confirmed. `time`, `identifier`
+  and `ignored` remain unsupported, because the planner would not honour
+  them, and a role the engine ignores is worse than no role.
+- Confirming a column as a quantity does **not** make it additive. The
+  additivity guess is cleared rather than assumed, so the interface offers
+  an average of it and never a total.
+- The **demo warehouse and recorded runs offer no control**, because the
+  choice belongs to whoever knows what the column means and that is not a
+  visitor to someone else's dataset.
+
 ---
 
 ## 11b. A category filter value stops at the first space
@@ -783,6 +815,8 @@ coverage, chart semantics or numerical summaries. It does not establish a
 unit that the uploaded data did not declare, or distinguish an ordered
 quantity from a numeric entity key without user-confirmed metadata. Such a
 field remains ambiguous rather than being given a misleading visual meaning.
+Where the uploader supplies that metadata (§11a), the contract uses it and
+the audit attributes it; the field is still reported as a close call.
 
 The planning audit is an intentionally bounded operational record. It exposes
 the accepted governed contract, route, coverage and timings, but never model

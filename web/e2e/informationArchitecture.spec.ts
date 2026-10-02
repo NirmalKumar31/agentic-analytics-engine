@@ -120,13 +120,17 @@ test.describe("the schema inspector tells the truth about ambiguity", () => {
     const row = inspector.locator('tr[data-ambiguous="true"]');
     await expect(row.first()).toContainText("age");
 
-    // This fixture is the demo warehouse, not an upload, so the choice is
-    // not this reader's to make and no control is offered. ADR 0006 refused
-    // a control everywhere; ADR 0007 offers one only where the person who
-    // knows what the column means is the person looking at it.
-    await expect(inspector).toContainText(/cannot confirm it on this dataset/i);
+    // ADR 0006 refused any control, because a label the engine would not
+    // honour is worse than no label. ADR 0007 supplies the honouring, so
+    // this fixture -- an uploaded file, where the reader is the one who
+    // knows what the column means -- now gets the offer.
+    await expect(inspector).toContainText(/settle it for this session/i);
+    await expect(inspector.getByTestId("role-confirmation").first()).toBeVisible();
+    // Still no free-text or dropdown role editing: the choice is between
+    // the two readings the engine can actually act on.
     expect(await inspector.locator("select").count()).toBe(0);
-    await expect(inspector.getByTestId("role-confirmation")).toHaveCount(0);
+    // And it still refuses to overstate what a confirmation is.
+    await expect(inspector).toContainText(/not a governed definition/i);
   });
 
   test("is operable from the keyboard", async () => {
