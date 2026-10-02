@@ -106,13 +106,74 @@ export function parseBrowsers(raw) {
   return parts;
 }
 
+/**
+ * The terminal buckets a test can land in.
+ *
+ * Playwright records one `test` per project-and-title and one entry in its
+ * `results` array per attempt. Retries therefore multiply attempts, never
+ * discovered tests, and this counts tests: an accounting that summed
+ * `results` would inflate the total every time CI retried something.
+ *
+ * The invariant, asserted rather than assumed:
+ *
+ *   discovered = passed_first_attempt + skipped + expected_failure
+ *              + failed + timed_out + interrupted + flaky + unknown
+ *
+ * and `unknown` must be zero. A test that cannot be placed in exactly one
+ * bucket is a hole in the accounting, so the gate fails and names it --
+ * the previous version printed a passing summary whose categories did not
+ * reconcile, which is how a flaky Firefox test hid inside "94 passed" of
+ * "96 discovered, 1 skipped".
+ */
+export const BUCKETS = [
+  "passed_first_attempt",
+  "skipped",
+  "expected_failure",
+  "failed",
+  "timed_out",
+  "interrupted",
+  "flaky",
+  "unknown",
+];
+
+function emptyRow() {
+  const row = { discovered: 0, attempts: 0, names: { flaky: [], failed: [], timed_out: [], interrupted: [], unknown: [] } };
+  for (const bucket of BUCKETS) row[bucket] = 0;
+  return row;
+}
+
+/** Which single bucket this test belongs in. */
+function classify(test) {
+  const attempts = Array.isArray(test.results) ? test.results : [];
+  const last = attempts.length > 0 ? attempts[attempts.length - 1] : undefined;
+
+  switch (test.status) {
+    case "skipped":
+      return "skipped";
+    case "flaky":
+      // Passed, but only after a retry. Nondeterminism, not proof.
+      return "flaky";
+    case "expected":
+      // `test.fail()` marks a test whose expected outcome is a failure.
+      return test.expectedStatus === "failed" ? "expected_failure" : "passed_first_attempt";
+    case "unexpected":
+      if (last?.status === "timedOut") return "timed_out";
+      if (last?.status === "interrupted") return "interrupted";
+      return "failed";
+    default:
+      return "unknown";
+  }
+}
+
 /** Per-project tallies, walking the report the way Playwright nests it. */
-function tally(suites, into = new Map(), depth = 0) {
+function tally(suites, into = new Map(), trail = [], depth = 0) {
   if (depth > 50) throw new GateError("the report nests implausibly deeply");
   if (!Array.isArray(suites)) return into;
 
   for (const suite of suites) {
     if (!suite || typeof suite !== "object") continue;
+    const here = suite.title ? [...trail, suite.title] : trail;
+
     for (const spec of suite.specs ?? []) {
       for (const test of spec.tests ?? []) {
         const project = typeof test.projectName === "string" ? test.projectName : "";
@@ -122,24 +183,27 @@ function tally(suites, into = new Map(), depth = 0) {
               "cannot be attributed to an engine",
           );
         }
-        const row =
-          into.get(project) ??
-          { discovered: 0, passed: 0, skipped: 0, failed: 0, other: 0 };
+        const row = into.get(project) ?? emptyRow();
         row.discovered += 1;
-        if (test.status === "skipped") row.skipped += 1;
-        else if (test.status === "expected") row.passed += 1;
-        else if (test.status === "unexpected") row.failed += 1;
-        else row.other += 1;
+        row.attempts += Array.isArray(test.results) ? test.results.length : 0;
+
+        const bucket = classify(test);
+        row[bucket] += 1;
+        if (row.names[bucket]) {
+          const where = spec.file ?? suite.file ?? "?";
+          const line = spec.line ? `:${spec.line}` : "";
+          row.names[bucket].push(`${where}${line} \u203a ${[...here, spec.title].join(" \u203a ")}`);
+        }
         into.set(project, row);
       }
     }
-    tally(suite.suites, into, depth + 1);
+    tally(suite.suites, into, here, depth + 1);
   }
   return into;
 }
 
 /**
- * Decide whether a report proves the requested engines ran.
+ * Decide whether a report proves the requested engines ran cleanly.
  *
  * Returns `{ ok, lines, errors }` rather than throwing, so a caller can
  * print every problem at once instead of one per invocation.
@@ -172,8 +236,9 @@ export function summarise(report, { requested, allowedSkips }) {
     return { ok: false, lines, errors: [reason.message] };
   }
 
+  const total = (bucket) => [...rows.values()].reduce((sum, row) => sum + row[bucket], 0);
   const discovered = [...rows.values()].reduce((sum, row) => sum + row.discovered, 0);
-  const skipped = [...rows.values()].reduce((sum, row) => sum + row.skipped, 0);
+  const skipped = total("skipped");
   const executed = discovered - skipped;
 
   if (discovered === 0) {
@@ -203,6 +268,30 @@ export function summarise(report, { requested, allowedSkips }) {
           `${row.skipped} skipped).`,
       );
     }
+
+    // The accounting invariant. Every discovered test must land in exactly
+    // one terminal bucket, or the summary is not a summary of anything.
+    const placed = BUCKETS.reduce((sum, bucket) => sum + row[bucket], 0);
+    if (placed !== row.discovered) {
+      errors.push(
+        `${name}: ${row.discovered} discovered but ${placed} placed into ` +
+          "terminal buckets; the categories do not reconcile.",
+      );
+    }
+    if (row.unknown > 0) {
+      errors.push(
+        `${name}: ${row.unknown} test(s) with an unrecognised status:\n      ` +
+          row.names.unknown.join("\n      "),
+      );
+    }
+    // Retries add attempts, never discovered tests.
+    if (row.attempts < row.discovered - row.skipped) {
+      errors.push(
+        `${name}: ${row.attempts} attempt(s) recorded for ` +
+          `${row.discovered - row.skipped} executed test(s); the report is ` +
+          "internally inconsistent.",
+      );
+    }
   }
 
   for (const name of rows.keys()) {
@@ -223,16 +312,62 @@ export function summarise(report, { requested, allowedSkips }) {
     );
   }
 
+  // Per-engine breakdown, printed whether the run passed or not: the
+  // numbers are the evidence either way.
   for (const name of requested) {
     const row = rows.get(name);
     if (!row) continue;
     const label = DISPLAY[name] ?? name;
-    lines.push(
-      row.skipped === 0
-        ? `${label}: ${row.discovered - row.skipped} executed, ${row.passed} passed, 0 skipped`
-        : `${label}: ${row.discovered} discovered, ${row.passed} passed, ` +
-          `${row.skipped} declared skip${row.skipped === 1 ? "" : "s"}`,
+    lines.push(`${label}: ${row.discovered} discovered`);
+    const shown = [
+      ["passed first attempt", row.passed_first_attempt],
+      ["declared skip", row.skipped],
+      ["expected failure", row.expected_failure],
+      ["failed", row.failed],
+      ["timed out", row.timed_out],
+      ["interrupted", row.interrupted],
+      ["flaky", row.flaky],
+      ["unknown status", row.unknown],
+    ];
+    for (const [what, count] of shown) {
+      if (count > 0 || what === "passed first attempt") {
+        lines.push(`  ${String(count).padStart(2)} ${what}${what === "declared skip" && count !== 1 ? "s" : ""}`);
+      }
+    }
+  }
+
+  // Flaky is refused outright. There is no allowance, because a test that
+  // passes only on retry has not demonstrated the thing it asserts -- and
+  // a retry that rescues CI hides exactly the races a browser suite exists
+  // to find.
+  for (const name of requested) {
+    const row = rows.get(name);
+    if (!row || row.flaky === 0) continue;
+    errors.push(
+      `${name}: flaky tests are not accepted (${row.flaky}):\n      ` +
+        row.names.flaky.join("\n      "),
     );
+  }
+  for (const [bucket, label] of [
+    ["failed", "failed"],
+    ["timed_out", "timed out"],
+    ["interrupted", "interrupted"],
+  ]) {
+    for (const name of requested) {
+      const row = rows.get(name);
+      if (!row || row[bucket] === 0) continue;
+      errors.push(
+        `${name}: ${row[bucket]} test(s) ${label}:\n      ` +
+          row.names[bucket].join("\n      "),
+      );
+    }
+  }
+
+  if (errors.length === 0) {
+    for (const name of requested) {
+      const label = DISPLAY[name] ?? name;
+      lines.push(`${label}: all discovered tests reconciled, 0 flaky`);
+    }
   }
 
   return { ok: errors.length === 0, lines, errors };

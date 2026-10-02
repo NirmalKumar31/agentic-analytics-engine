@@ -187,8 +187,19 @@ test.describe("motion restraint", () => {
     // interaction, so calling `element.focus()` from script does not match
     // it -- an earlier version of this test did exactly that, matched
     // nothing, and asserted over an empty list.
-    await page.goto("/");
-    await page.getByRole("button", { name: /Commerce demo warehouse/ }).click();
+    //
+    // `domcontentloaded`, not the default `load`. This test hung for the
+    // full 120s test budget once on Firefox in CI, inside `page.goto`
+    // "waiting until load" -- before a single tab stop existed. `load`
+    // waits for every subresource, which is nothing this test asserts
+    // about, so one slow or stalled request could consume the whole test.
+    // The deterministic ready state is the app's own: the demo button
+    // being actionable, which the next line already waits for. Gating on
+    // that rather than on the resource graph is both narrower and stronger.
+    await page.goto("/", { waitUntil: "domcontentloaded", timeout: 30_000 });
+    const openDemo = page.getByRole("button", { name: /Commerce demo warehouse/ });
+    await expect(openDemo).toBeEnabled();
+    await openDemo.click();
     await expect(page.getByRole("heading", { name: "Ask" })).toBeVisible();
 
     const seen: { tag: string; style: string; width: number }[] = [];
