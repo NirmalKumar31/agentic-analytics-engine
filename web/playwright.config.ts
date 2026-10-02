@@ -1,5 +1,7 @@
 import { defineConfig, devices } from '@playwright/test'
 
+import { resolveBaseUrl } from './e2e/preflight'
+
 /**
  * Browser-level acceptance against a running server.
  *
@@ -12,7 +14,7 @@ import { defineConfig, devices } from '@playwright/test'
  * push costs more than it finds. Firefox and WebKit run against the
  * deployed URL at release time, where the cross-browser question is real.
  */
-const baseURL = process.env.AAE_E2E_BASE_URL ?? 'http://127.0.0.1:8000'
+const baseURL = resolveBaseUrl(process.env)
 
 const projects = [
   { name: 'chromium', use: { ...devices['Desktop Chrome'] } },
@@ -22,6 +24,10 @@ const projects = [
 
 export default defineConfig({
   testDir: './e2e',
+  // Refuses the whole run unless /api/health reports provider_mode=fake.
+  // A paid provider was once listening on this suite's default port; see
+  // ./e2e/preflight.ts. There is no bypass flag on purpose.
+  globalSetup: './e2e/global-setup.ts',
   // Sessions are server-side and the deployment admits only a couple of
   // concurrent analyses, so these run one at a time rather than racing each
   // other into a 429.
