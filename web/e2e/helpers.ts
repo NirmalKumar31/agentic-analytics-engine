@@ -155,11 +155,15 @@ export async function openApp(page: Page): Promise<void> {
   // server served everything and the application was running. What never
   // arrived was Playwright's lifecycle event for the navigation.
   //
-  // So a browser lifecycle *completion* event is not a reliable gate here,
-  // and none is what a test actually needs. `commit` asks only for the
-  // response the trace shows always arrives; readiness is then asserted on
-  // the application's own marker below.
-  await page.goto('/', { waitUntil: 'commit', timeout: 30_000 });
+  // So neither a browser lifecycle *completion* event nor `commit` is a
+  // reliable gate here. Trigger navigation inside the page instead of with
+  // `page.goto`: Playwright makes locator assertions wait for an in-flight
+  // `page.goto`, which quietly turned the earlier Promise.race back into a
+  // lifecycle wait. A browser that reports navigation late still reaches the
+  // same app shell; a dead server cannot, so it fails through the bounded
+  // shell wait instead of being silently accepted.
+  const baseUrl = process.env.AAE_E2E_BASE_URL ?? 'http://127.0.0.1:8000';
+  await page.evaluate((url) => window.location.assign(url), new URL('/', baseUrl).href);
   // `app-shell` is on the shell root, which React renders unconditionally,
   // so its presence means the bundle parsed, executed and mounted -- not
   // merely that bytes arrived. `index.html` contains only `<div id="root">`
@@ -175,5 +179,6 @@ export async function openApp(page: Page): Promise<void> {
   // shell renders even when `/api/config` fails,
   // because the error state is drawn inside it, so an API failure reaches
   // the test's own assertions rather than stalling here.
-  await expect(page.getByTestId('app-shell')).toBeVisible({ timeout: 20_000 });
+  const shell = page.getByTestId('app-shell');
+  await expect(shell).toBeVisible({ timeout: 20_000 });
 }
