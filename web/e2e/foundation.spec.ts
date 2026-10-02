@@ -251,14 +251,17 @@ test.describe("motion restraint", () => {
 });
 
 test.describe("no runtime third-party requests", () => {
-  test("the page loads no external font or script", async ({ page }) => {
+  test("the page loads no external font or script", async ({ page, baseURL }) => {
+    // Against the configured base URL, not a hardcoded one. This read
+    // `http://127.0.0.1:8000`, so running the suite on any other port made
+    // the app's own bundle look like a third party -- and, the other way
+    // round, would have let a genuine third-party request on port 8000 pass
+    // unnoticed.
+    const origin = new URL(baseURL ?? "http://127.0.0.1:8000").origin;
     const external: string[] = [];
     page.on("request", (request) => {
       const url = request.url();
-      if (
-        !url.startsWith("http://127.0.0.1:8000") &&
-        !url.startsWith("data:")
-      ) {
+      if (!url.startsWith(origin) && !url.startsWith("data:")) {
         external.push(url);
       }
     });

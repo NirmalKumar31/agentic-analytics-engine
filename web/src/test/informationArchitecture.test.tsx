@@ -24,7 +24,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
 import { render, screen } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import { ComparisonView } from "../components/ComparisonView";
 import { QuestionComposer } from "../components/QuestionComposer";
@@ -127,16 +127,36 @@ describe("an inferred role the data cannot settle", () => {
     );
   });
 
-  it("says plainly that it cannot be confirmed here yet", () => {
+  it("says it cannot be confirmed where no control is offered", () => {
+    // A demo warehouse or a replay: the choice belongs to whoever uploaded
+    // the file, and there is no file here.
     render(<SchemaInspector summary={ambiguous} />);
     const note = screen.getByTestId("ambiguity-note");
-    expect(note).toHaveTextContent(/cannot confirm it here yet/i);
-    // ADR 0006: a control that only changed the label would be worse than
-    // none, so there must not be one.
-    expect(
-      screen.queryByRole("button", { name: /set role|change role|confirm role/i }),
-    ).toBeNull();
+    expect(note).toHaveTextContent(/cannot confirm it on this dataset/i);
+    expect(screen.queryByTestId("role-confirmation")).toBeNull();
     expect(screen.queryByRole("combobox")).toBeNull();
+  });
+
+  it("says it can be settled, and how far that goes, where it can", () => {
+    // The note used to say a role could not be set here because one would
+    // have to be validated and audited to mean anything. That is now what
+    // happens, so the note would be describing a limitation that no longer
+    // exists -- and promising less than the product does is still wrong.
+    const confirmable = summary([
+      field("Store", "measure", {
+        ambiguous: true,
+        allowed_confirmed_roles: ["measure", "dimension"],
+      }),
+      field("revenue", "measure", { ambiguous: false, additive: "strong" }),
+    ]);
+    render(<SchemaInspector summary={confirmable} onConfirmRoles={vi.fn()} />);
+    const note = screen.getByTestId("ambiguity-note");
+    expect(note).toHaveTextContent(/settle it for this session/i);
+    expect(note).toHaveTextContent(/names it in the planning audit/i);
+    // And it must not overstate: this is not a definition and does not last.
+    expect(note).toHaveTextContent(/not a governed definition/i);
+    expect(note).toHaveTextContent(/gone when the session ends/i);
+    expect(screen.getByTestId("role-confirmation")).toBeTruthy();
   });
 
   it("marks the ambiguous column and not the confident one", () => {

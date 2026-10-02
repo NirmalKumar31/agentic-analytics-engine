@@ -105,7 +105,7 @@ test.describe("the schema inspector tells the truth about ambiguity", () => {
     }
   });
 
-  test("marks a role the data cannot settle, and offers no override", async () => {
+  test("marks a role the data cannot settle", async () => {
     const inspector = page.getByTestId("schema-inspector");
     // Collapsed, with the count of unsettled roles legible without opening.
     await expect(inspector).not.toHaveAttribute("open", "");
@@ -120,13 +120,13 @@ test.describe("the schema inspector tells the truth about ambiguity", () => {
     const row = inspector.locator('tr[data-ambiguous="true"]');
     await expect(row.first()).toContainText("age");
 
-    // ADR 0006: no control, because a label the engine does not honour is
-    // worse than no label.
-    await expect(inspector).toContainText(/cannot confirm it here yet/i);
+    // This fixture is the demo warehouse, not an upload, so the choice is
+    // not this reader's to make and no control is offered. ADR 0006 refused
+    // a control everywhere; ADR 0007 offers one only where the person who
+    // knows what the column means is the person looking at it.
+    await expect(inspector).toContainText(/cannot confirm it on this dataset/i);
     expect(await inspector.locator("select").count()).toBe(0);
-    await expect(
-      inspector.getByRole("button", { name: /set role|change role|confirm/i }),
-    ).toHaveCount(0);
+    await expect(inspector.getByTestId("role-confirmation")).toHaveCount(0);
   });
 
   test("is operable from the keyboard", async () => {

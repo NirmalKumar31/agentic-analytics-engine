@@ -117,11 +117,23 @@ export function DatasetSummary({
             averaging or a code that identifies something, and nothing in
             the values separates the two. The engine has picked the more
             likely reading and marked it rather than hiding the choice.{" "}
-            <strong>You cannot confirm it here yet</strong> — a role you set
-            has to be validated by the engine and recorded in the audit
-            trail to mean anything, so a control that only changed the label
-            would be worse than none. If a close call matters for your
-            question, say which column you mean in the question itself.
+            {onConfirmRoles ? (
+              <>
+                <strong>You can settle it for this session.</strong> The
+                engine validates what you choose, uses it when it plans the
+                query, and names it in the planning audit. It is your
+                statement about this upload — not a governed definition, not
+                saved anywhere, and gone when the session ends.
+              </>
+            ) : (
+              <>
+                <strong>You cannot confirm it on this dataset</strong> —
+                settling a role needs an uploaded file of your own, because
+                the choice belongs to whoever knows what the column means. If
+                a close call matters for your question, say which column you
+                mean in the question itself.
+              </>
+            )}
           </p>
         )}
 
