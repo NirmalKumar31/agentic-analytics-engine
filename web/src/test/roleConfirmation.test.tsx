@@ -406,3 +406,217 @@ describe("what the page offers to ask next", () => {
     ]);
   });
 });
+
+describe("what a confirmed field does to the offered questions", () => {
+  // The defect these pin: `dimensions.find(usable)` took whatever the schema
+  // listed first, so confirming a column as a category changed nothing on
+  // screen whenever an ordinary dimension preceded it. The reader answered
+  // the one question the engine could not and got no acknowledgement.
+
+  function col(
+    name: string,
+    role: string,
+    extra: Partial<InferredField> = {},
+  ): InferredField {
+    return {
+      name,
+      data_type: role === "dimension" ? "VARCHAR" : "BIGINT",
+      role,
+      null_pct: 0,
+      distinct_count: 12,
+      reason: "r",
+      additive: "unknown",
+      ambiguous: false,
+      min_value: "1",
+      max_value: "9",
+      inferred_role: role,
+      role_source: "inferred",
+      allowed_confirmed_roles: [],
+      ...extra,
+    } as InferredField;
+  }
+
+  const confirmedCategory = (name: string) =>
+    col(name, "dimension", {
+      ambiguous: true,
+      role_source: "user_confirmed",
+      inferred_role: "measure",
+      allowed_confirmed_roles: ["measure", "dimension"],
+    });
+
+  it("puts a confirmed category ahead of a dimension that precedes it", () => {
+    // `site` is first in the schema and is an ordinary dimension. Before
+    // this ordering existed, it won and `reading` was never named.
+    const offered = suggestions(
+      summary([
+        col("site", "dimension"),
+        col("amount", "measure", { additive: "strong" }),
+        confirmedCategory("reading"),
+      ]),
+    ).join(" ");
+    expect(offered).toMatch(/by reading/);
+    expect(offered).not.toMatch(/by site/);
+  });
+
+  it("keeps the confirmed category inside the three-question cap", () => {
+    const offered = suggestions(
+      summary([
+        col("site", "dimension"),
+        col("depot", "dimension"),
+        col("amount", "measure", { additive: "strong" }),
+        col("stamp", "time"),
+        confirmedCategory("reading"),
+      ]),
+    );
+    expect(offered.length).toBeLessThanOrEqual(3);
+    expect(offered.some((q) => /by reading/.test(q))).toBe(true);
+  });
+
+  it("totals a strongly additive measure by the confirmed category", () => {
+    const offered = suggestions(
+      summary([
+        col("site", "dimension"),
+        col("amount", "measure", { additive: "strong" }),
+        confirmedCategory("reading"),
+      ]),
+    ).join(" ");
+    expect(offered).toMatch(/total amount by reading/);
+  });
+
+  it("falls back to a row count when no measure is safe to use", () => {
+    // `dose` is a measure the engine will not vouch for either way, so
+    // neither a total nor an average is honest. Counting rows always is.
+    const offered = suggestions(
+      summary([
+        col("site", "dimension"),
+        col("dose", "measure", { additive: "unknown" }),
+        confirmedCategory("reading"),
+      ]),
+    );
+    expect(offered).toEqual(["How many rows by reading?"]);
+  });
+
+  it("prefers a confirmed quantity for the average", () => {
+    const offered = suggestions(
+      summary([
+        col("rating", "measure", { additive: "weak" }),
+        col("site", "dimension"),
+        col("reading", "measure", {
+          ambiguous: true,
+          role_source: "user_confirmed",
+          inferred_role: "dimension",
+          allowed_confirmed_roles: ["measure", "dimension"],
+        }),
+      ]),
+    ).join(" ");
+    expect(offered).toMatch(/average reading by site/);
+    expect(offered).not.toMatch(/average rating/);
+  });
+
+  it("never totals a confirmed quantity on its own say-so", () => {
+    // "Can be averaged or totalled" is what the control said; additivity is
+    // a separate property the confirmation does not establish.
+    const offered = suggestions(
+      summary([
+        col("site", "dimension"),
+        col("reading", "measure", {
+          ambiguous: true,
+          role_source: "user_confirmed",
+          inferred_role: "dimension",
+          allowed_confirmed_roles: ["measure", "dimension"],
+        }),
+      ]),
+    ).join(" ");
+    expect(offered).toMatch(/average reading/);
+    expect(offered).not.toMatch(/total reading/);
+    expect(offered).not.toMatch(/highest total reading/);
+  });
+
+  it("keeps schema order among several confirmed categories", () => {
+    // Deterministic: the result must not depend on which was settled first.
+    const offered = suggestions(
+      summary([
+        col("site", "dimension"),
+        col("batch", "dimension", {
+          ambiguous: true,
+          role_source: "user_confirmed",
+          inferred_role: "measure",
+        }),
+        col("amount", "measure", { additive: "strong" }),
+        confirmedCategory("reading"),
+      ]),
+    ).join(" ");
+    // `batch` precedes `reading` in the schema, so it wins.
+    expect(offered).toMatch(/by batch/);
+    expect(offered).not.toMatch(/by reading/);
+  });
+
+  it("orders by the schema, not by however the API listed the roles", () => {
+    // The two coincide in every other fixture here, because the helper
+    // derives the role lists from `fields`. They need not coincide in a
+    // real payload, and "schema order" is the claim -- so this builds a
+    // summary whose `dimensions` array is in the opposite order and
+    // asserts the schema still decides.
+    const confirmedFirst = confirmedCategory("batch");
+    const confirmedSecond = confirmedCategory("reading");
+    const payload = {
+      table: "uploaded_data",
+      row_count: 400,
+      status: "inferred",
+      headline: "h",
+      fields: [confirmedFirst, col("amount", "measure", { additive: "strong" }), confirmedSecond],
+      measures: ["amount"],
+      // Reversed relative to `fields`.
+      dimensions: ["reading", "batch"],
+      time_fields: [],
+      identifiers: [],
+      ambiguities: [],
+      schema_revision: 1,
+      confirmed_role_count: 2,
+      unresolved_ambiguity_count: 0,
+    } as unknown as SummaryPayload;
+
+    const offered = suggestions(payload).join(" ");
+    expect(offered).toMatch(/by batch/);
+    expect(offered).not.toMatch(/by reading/);
+  });
+
+  it("offers no question twice", () => {
+    const offered = suggestions(
+      summary([
+        col("site", "dimension"),
+        col("amount", "measure", { additive: "strong" }),
+        col("stamp", "time"),
+        confirmedCategory("reading"),
+      ]),
+    );
+    expect(new Set(offered).size).toBe(offered.length);
+  });
+
+  it("restores the inferred ordering when the role is reset", () => {
+    const fields = [
+      col("site", "dimension"),
+      col("amount", "measure", { additive: "strong" }),
+      confirmedCategory("reading"),
+    ];
+    const whileConfirmed = suggestions(summary(fields)).join(" ");
+    expect(whileConfirmed).toMatch(/by reading/);
+
+    // Reset: `reading` goes back to the role the engine inferred, so it
+    // leaves the dimension list entirely and `site` is first again.
+    const afterReset = suggestions(
+      summary([
+        col("site", "dimension"),
+        col("amount", "measure", { additive: "strong" }),
+        col("reading", "measure", {
+          ambiguous: true,
+          role_source: "inferred",
+          inferred_role: "measure",
+          allowed_confirmed_roles: ["measure", "dimension"],
+        }),
+      ]),
+    ).join(" ");
+    expect(afterReset).toMatch(/by site/);
+    expect(afterReset).not.toMatch(/by reading/);
+  });
+});

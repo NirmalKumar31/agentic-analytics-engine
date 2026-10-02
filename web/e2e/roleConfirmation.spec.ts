@@ -183,17 +183,34 @@ test.describe("settling a close call", () => {
   });
 
   test("the row now reads as a category, settled rather than open", async () => {
-    // Not asserted through the suggested questions. `site` is still the
-    // first dimension and `dose` has no additivity the engine will vouch
-    // for, so the offer stays "How many rows by site?" -- which makes a
-    // suggestion assertion here a statement about ordering, not about the
-    // confirmation. The row is where the effective role is published.
+    // The row is where the effective role is published. What the page
+    // offers to ask is asserted separately, below.
     const row = page.locator("tr", { has: page.getByText("reading", { exact: true }) });
     await expect(row.locator(".tag.role-dimension")).toBeVisible();
     await expect(row.locator(".tag.role-measure")).toHaveCount(0);
     // And it is no longer presented as an open question.
     await expect(row.getByTestId("ambiguous-field")).toContainText("confirmed");
     await expect(row.getByTestId("ambiguous-field")).not.toContainText("close call");
+  });
+
+  test("a suggested question now names the confirmed category", async () => {
+    // The defect this covers: `dimensions.find(usable)` took the first
+    // dimension the schema listed, so `site` won and the column the reader
+    // had just settled went unmentioned everywhere they were looking.
+    const offered = await suggestedQuestions(page).allInnerTexts();
+    expect(offered.join(" "), "no offered question names the confirmed column").toMatch(
+      /reading/,
+    );
+    // `dose` is a measure the engine will not vouch for either way, so the
+    // honest offer over this dataset is a row count rather than a total.
+    expect(offered.join(" ")).toMatch(/How many rows by reading\?/);
+  });
+
+  test("clicking it puts the question in the composer", async () => {
+    const button = suggestedQuestions(page).filter({ hasText: /reading/ }).first();
+    const text = (await button.innerText()).trim();
+    await button.click();
+    await expect(page.getByLabel("Business question")).toHaveValue(text);
   });
 
   test("a reset restores the engine's own reading", async () => {
@@ -212,6 +229,44 @@ test.describe("settling a close call", () => {
     await expect(page.getByTestId("schema-inspector")).toContainText(
       /role the data cannot settle/,
     );
+
+    // And the offered questions stop prioritising it: `reading` is a
+    // measure again, so it leaves the dimension list and `site` is first.
+    const offered = (await suggestedQuestions(page).allInnerTexts()).join(" ");
+    expect(offered).not.toMatch(/by reading/);
+    expect(offered).toMatch(/by site/);
+  });
+
+  test("confirming again brings the question back, and running it groups by the column", async () => {
+    // Ordered last in this group deliberately. Running an analysis replaces
+    // the dataset panel with the report workspace, so the inspector -- and
+    // the control inside it -- is no longer on the page: a reset asserted
+    // after a run has nothing to click. This is also the only place the
+    // reset-then-confirm-again path is exercised, which is why the run is
+    // reached through it rather than from a second upload.
+    const control = page.getByTestId("role-confirmation");
+    await control.getByRole("radio", { name: /Category/ }).check();
+    await control.getByRole("button", { name: /Confirm for this session/ }).click();
+    await expect(page.getByTestId("role-confirmed")).toBeVisible();
+
+    const button = suggestedQuestions(page).filter({ hasText: /reading/ }).first();
+    const text = (await button.innerText()).trim();
+    await button.click();
+    await expect(page.getByLabel("Business question")).toHaveValue(text);
+
+    const started = page.waitForResponse(
+      (r) => r.url().includes("/api/analyses") && r.request().method() === "POST",
+    );
+    await page.getByRole("button", { name: "Run analysis" }).click();
+    const runId = (await (await started).json()).run_id as string;
+    expect(runId).toBeTruthy();
+    await waitForReport(page);
+
+    // The whole point of the feature: the accepted contract, not the label.
+    const payload = await (await page.request.get(`/api/analyses/${runId}`)).json();
+    expect(payload.query_contract?.dimensions).toEqual(["reading"]);
+    // Three generations: confirm, reset, confirm again.
+    expect(payload.schema_revision).toBe(3);
   });
 
   test("nothing in any of that reached a provider", async () => {
