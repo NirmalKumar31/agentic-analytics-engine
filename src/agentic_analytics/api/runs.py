@@ -197,6 +197,23 @@ class RunRegistry:
         """How many analyses this session has started, for its per-session cap."""
         return sum(1 for r in self._runs.values() if r.session_id == session_id)
 
+    def has_active_run_for_session(self, session_id: str) -> bool:
+        """Whether this dataset session has work in flight.
+
+        Scoped to the session on purpose. A global active-run count would
+        let one visitor's analysis block another visitor's schema
+        confirmation, which is both wrong and invisible to whoever is being
+        blocked.
+
+        Used to refuse a role change while a run is executing: the run holds
+        a schema snapshot, and changing the roles underneath it would mean
+        evidence describing a schema the run never used.
+        """
+        return any(
+            record.session_id == session_id and not record.is_terminal
+            for record in self._runs.values()
+        )
+
     def _evict(self) -> None:
         """Drop expired runs, then trim to the ceiling. Never a running run.
 
