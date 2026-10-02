@@ -39,7 +39,7 @@ from agentic_analytics.analytics import upload_plan
 from agentic_analytics.analytics.execute import QueryError, run_query
 from agentic_analytics.analytics.filters import FilterError, coerce_filters
 from agentic_analytics.analytics.results import GroupCoverage, ResultSnapshot
-from agentic_analytics.analytics.semantic import infer_schema
+from agentic_analytics.analytics.semantic import effective_schema
 from agentic_analytics.config import Budgets, Settings, get_settings
 from agentic_analytics.logging import get_logger
 from agentic_analytics.warehouse.metrics import load_registry
@@ -719,7 +719,14 @@ def build_server(manager: SessionManager, settings: Settings | None = None) -> M
         session = _session(session_id, session_key)
         policy = _policy(session, remote_inference)
         name = _guarded(catalog_tools.resolve_table, session, table)
-        schema = _guarded(infer_schema, session, name)
+        # The effective schema. A tool reporting raw inference while the
+        # website reports the confirmed roles would be two answers to one
+        # question, and the caller cannot tell which it got.
+        #
+        # Read from the session, never from a parameter: a caller that could
+        # supply roles could aim the engine at an interpretation nobody
+        # confirmed.
+        schema = _guarded(effective_schema, session, name)
         payload = schema.as_dict()
         if policy.withhold_raw_cells:
             # A column's range is two cells of the visitor's file, not a
@@ -745,10 +752,23 @@ def build_server(manager: SessionManager, settings: Settings | None = None) -> M
         table: str,
         question: str,
         contract: dict[str, Any] | None = None,
+        expected_schema_revision: int | None = None,
     ) -> ToolResult:
         session = _session(session_id, session_key)
         name = _guarded(catalog_tools.resolve_table, session, table)
-        schema = _guarded(infer_schema, session, name)
+        schema = _guarded(effective_schema, session, name)
+        if expected_schema_revision is not None and (
+            schema.schema_revision != expected_schema_revision
+        ):
+            # The caller compiled its request against a schema this session
+            # has since moved past. Failing closed here is the same posture
+            # as contract revalidation: a stale interpretation should stop
+            # before arithmetic is published under the wrong role.
+            raise ToolError(
+                "the dataset schema changed after this request was planned "
+                f"(now revision {schema.schema_revision}, request assumed "
+                f"{expected_schema_revision})"
+            )
         if contract is None:
             mapping = upload_plan.resolve_question(question, schema.as_dict())
         else:

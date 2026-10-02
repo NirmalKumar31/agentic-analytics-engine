@@ -67,6 +67,7 @@ class RunContext:
         budgets: Budgets,
         telemetry: dict[str, Any] | None = None,
         open_planner: Any | None = None,
+        role_confirmations: Any | None = None,
     ) -> None:
         self.session = session
         self.toolset = toolset
@@ -87,7 +88,36 @@ class RunContext:
         #: the engine intervened. `None` in production, and every write is
         #: guarded, so a normal run does none of this work.
         self.telemetry = telemetry
+        #: The generation of the session's role confirmations this run was
+        #: admitted with, frozen.
+        #:
+        #: Pinned rather than read live. A run that consulted the session
+        #: each time would see a confirmation applied halfway through its own
+        #: execution, and its evidence would describe a schema that never
+        #: existed as a whole. `None` means "read the session once", which is
+        #: right for callers that are not a run.
+        self.role_confirmations = (
+            role_confirmations
+            if role_confirmations is not None
+            else session.role_confirmation_snapshot()
+        )
         self.started_at = time.monotonic()
+
+    def schema_for(self, table: str) -> Any:
+        """The schema every node in this run should interpret.
+
+        One place, so the resolver, the planner input, the coverage check
+        and the presentation all read the same roles. Three layers used to
+        derive this independently, which is how a reader could be shown one
+        role while the arithmetic used another.
+        """
+        from agentic_analytics.analytics.semantic import effective_schema
+
+        return effective_schema(self.session, table, confirmation_snapshot=self.role_confirmations)
+
+    @property
+    def schema_revision(self) -> int:
+        return int(getattr(self.role_confirmations, "revision", 0))
 
     @property
     def elapsed(self) -> float:
@@ -279,14 +309,13 @@ def _resolve_intent(ctx: Any, question: str) -> Any:
         return None
     try:
         from agentic_analytics.analytics import upload_plan
-        from agentic_analytics.analytics.semantic import infer_schema
 
         if ctx.session.registry is not None:
             return None
         tables = list(ctx.session.table_names)
         if len(tables) != 1:
             return None
-        schema = infer_schema(ctx.session, tables[0])
+        schema = ctx.schema_for(tables[0])
         return upload_plan.resolve_question(question, schema.as_dict())
     except Exception:  # pragma: no cover - never break verification
         return None
@@ -323,10 +352,8 @@ def build_graph(ctx: RunContext) -> Any:
         planning_started = time.perf_counter()
         calls_before = getattr(getattr(ctx.provider, "usage", None), "attempts", 0)
         if ctx.session.registry is None and len(ctx.session.table_names) == 1:
-            from agentic_analytics.analytics.semantic import infer_schema
-
             table = next(iter(ctx.session.table_names))
-            schema = infer_schema(ctx.session, table).as_dict()
+            schema = ctx.schema_for(table).as_dict()
             upload_schema = schema
             try:
                 if ctx.open_planner is not None:
@@ -471,6 +498,12 @@ def build_graph(ctx: RunContext) -> Any:
                     "table": mapping.table,
                     "question": state["question"],
                     "contract": mapping.as_dict(),
+                    # The generation this run was admitted with. The tool
+                    # re-derives the schema from the session, so without
+                    # this a confirmation landing mid-run would be applied
+                    # to the arithmetic of a run that planned against the
+                    # older roles.
+                    "expected_schema_revision": ctx.schema_revision,
                 },
                 task_id="task_01",
                 agent="fast_path",

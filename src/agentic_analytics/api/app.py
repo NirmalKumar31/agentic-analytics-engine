@@ -1092,6 +1092,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         mode: RunMode,
         comparison_id: str | None = None,
         client_id: str = "",
+        role_confirmations: Any | None = None,
     ) -> RunRecord:
         """Start one run. Capacity for it has already been acquired.
 
@@ -1099,7 +1100,15 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         child is an ordinary run -- same registry, same event bus, same
         cancellation and teardown -- rather than a second orchestration path
         that would have to reimplement all of it.
+
+        `role_confirmations` pins the generation of the session's schema this
+        run executes against. A comparison captures it once and passes the
+        same snapshot to both children: capturing per child would let a
+        confirmation land between them and produce two runs of one question
+        under different schemas, presented side by side as comparable.
         """
+        if role_confirmations is None:
+            role_confirmations = session.role_confirmation_snapshot()
         record = runs.create(
             session.session_id,
             question,
@@ -1203,6 +1212,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                         events=record.bus,
                         run_id=record.run_id,
                         open_planner=planner_factory,
+                        role_confirmations=role_confirmations,
                     ),
                 )
             except TimeoutError:
@@ -1313,6 +1323,15 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         # second hand-rolled acquire/release here is how the slot leak this
         # guards against got written the first time, and `_launch` raising
         # after a bare `acquire()` would leak one every attempt.
+        # One snapshot for both children.
+        #
+        # The two runs answer the same question against the same rows, and a
+        # confirmation landing between their starts would give them different
+        # schemas -- then present them side by side as a like-for-like
+        # comparison. Capturing once is what makes the comparison mean what
+        # the page says it means.
+        shared_roles = session.role_confirmation_snapshot()
+
         with _admission(RunMode.DETERMINISTIC) as permits:
             if not permits.ok:
                 raise HTTPException(
@@ -1325,6 +1344,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 RunMode.DETERMINISTIC,
                 comparison_id,
                 client_id=client,
+                role_confirmations=shared_roles,
             )
             permits.keep()
 
@@ -1343,6 +1363,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                     RunMode.AI,
                     comparison_id,
                     client_id=client,
+                    role_confirmations=shared_roles,
                 )
                 ai_permits.keep()
 
