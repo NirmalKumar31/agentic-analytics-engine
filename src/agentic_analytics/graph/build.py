@@ -315,8 +315,16 @@ def _resolve_intent(ctx: Any, question: str) -> Any:
         tables = list(ctx.session.table_names)
         if len(tables) != 1:
             return None
+        from agentic_analytics.analytics.semantic import category_value_lookup
+
         schema = ctx.schema_for(tables[0])
-        return upload_plan.resolve_question(question, schema.as_dict())
+        # The session is here, so a named category can be settled against
+        # the column's own values rather than reaching SQL unchecked.
+        return upload_plan.resolve_question(
+            question,
+            schema.as_dict(),
+            value_lookup=category_value_lookup(ctx.session, tables[0]),
+        )
     except Exception:  # pragma: no cover - never break verification
         return None
 

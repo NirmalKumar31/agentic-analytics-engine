@@ -770,19 +770,53 @@ What this does and does not change:
 
 ---
 
-## 11b. A category filter value stops at the first space
+## 11b. A category filter binds only to a value the column has
 
-`where chronotype is Night Owl` binds as `chronotype = 'Night'`. The
-equality grammar captures a single token, so a multi-word value is
-truncated, the filter matches no rows, and the run is declined by the
-empty-population guard rather than answered.
+`where chronotype is Night Owl` once bound as `chronotype = 'Night'`,
+because the equality grammar captured a single token. It now reads the
+whole value: quoted (`"Night Owl"`, `'Home Office'`) or unquoted up to the
+first word that begins another clause -- `by`, `grouped by`, `for`, `with`,
+`and`, `or`, and the ranking and ordering words -- or to sentence
+punctuation. So `where chronotype is Night Owl by mood` filters on
+`Night Owl` and groups by `mood`, rather than swallowing the grouping.
 
-The failure is safe -- no wrong number is published -- but the question is
-one a reader would reasonably expect to work, and the message does not say
-that the value was cut. Widening the capture is not a one-line change: the
-clause runs to the end of the sentence, so `where chronotype is
-Intermediate by region` would swallow the grouping, which is the same
-over-capture that once turned a filtered breakdown into a two-cut one.
+The value is then settled against the column's own values, read on the
+server. Matching is case-insensitive and execution uses the **stored**
+spelling, so `heavy rain` queries `Heavy Rain`.
+
+**What still refuses, and why:**
+
+- a value the column does not have, named in the refusal rather than
+  silently selecting nothing;
+- a candidate that begins two real values (`Night` where both `Night Owl`
+  and `Night Hawk` exist) -- completing it would pick one of two
+  populations on the reader's behalf;
+- a unique prefix, which is refused with a suggestion rather than
+  completed, because the whole value is one word away;
+- a clause the grammar cannot read at all. This previously **vanished**,
+  and the question was answered over every row: `_restricts` only noticed a
+  leftover number beside a restrictive word, so a textual clause left no
+  trace. That is now a refusal.
+
+**Still out of scope:** disjunction (`or`) is unsupported and refuses
+rather than being read as conjunction. A column with more than 200 distinct
+values is not treated as a category, so a value named against one is not
+bound and reaches the query unchecked -- safe, because an unmatched value
+selects nothing and the empty-population guard declines the run, but
+without the refusal that names the value.
+
+Column values are never added to the schema payload to make this work:
+`infer_schema` emits NULL bounds for non-numeric columns on purpose, and
+the binder reads values server-side instead.
+
+---
+
+## 11c. A multi-word value needs the clause structure the grammar knows
+
+The boundary list is a closed set of English clause-opening words. A
+phrasing that separates a value from the next clause some other way ends
+the value early, which produces a refusal naming a value the column does
+not have -- visible and correctable, rather than a filter nobody asked for.
 
 Quote the value or use a single-word category until this has its own
 change with its own corpus evidence.
