@@ -644,12 +644,30 @@ def _roles(schema: dict[str, Any]) -> tuple[list[str], list[str], list[str]]:
     )
 
 
+def _unusable_columns(schema: dict[str, Any]) -> list[str]:
+    """Columns of the table that no analytical role can use.
+
+    An all-null column, or one classified as an identifier: real columns a
+    reader may well name, which cannot serve as a measure, a grouping or a
+    time axis. Naming one is a statement of intent, and the engine must say
+    it cannot be honoured rather than quietly using a different column.
+    """
+    measures, dimensions, time_fields = _roles(schema)
+    usable = {*measures, *dimensions, *time_fields}
+    return [
+        str(field.get("name", ""))
+        for field in schema.get("fields") or []
+        if str(field.get("name", "")) and str(field.get("name", "")) not in usable
+    ]
+
+
 def _pick(
     named: list[str],
     candidates: list[str],
     what: str,
     also_if_named: list[str] | None = None,
     *,
+    unusable: list[str] | None = None,
     unresolved: ResolutionIssue = ResolutionIssue.UNRESOLVED_MEASURE,
     competing: ResolutionIssue = ResolutionIssue.COMPETING_MEASURE_CANDIDATES,
 ) -> tuple[str | None, str | None, ResolutionIssue | None]:
@@ -672,6 +690,28 @@ def _pick(
     explicit = [c for c in named if c in (also_if_named or [])]
     if explicit:
         return explicit[0], None, None
+
+    # The question named a real column that can serve no analytical role --
+    # an all-null column, an identifier. "There is nothing to choose" is
+    # only true when the reader did not choose; here they did, and their
+    # choice cannot do the job. Falling through to the sole candidate
+    # substitutes a different column's number for the one they asked about
+    # and publishes it confidently, which is the failure this engine exists
+    # to refuse. Found on the deployed service: "total returns_value" on a
+    # table whose only measure was `revenue` answered with total revenue.
+    named_unusable = [c for c in named if c in (unusable or [])]
+    if named_unusable:
+        column = named_unusable[0]
+        return (
+            None,
+            (
+                f"the question asks about {column!r}, which this table cannot use as a "
+                f"{what} -- it holds no values the engine can aggregate; name a column "
+                "that can, or ask about it another way"
+            ),
+            unresolved,
+        )
+
     if len(candidates) == 1:
         return candidates[0], None, None
     if not candidates:
@@ -1418,6 +1458,7 @@ def resolve_question(
         measures,
         "numeric column",
         widening,
+        unusable=_unusable_columns(schema),
         unresolved=ResolutionIssue.UNRESOLVED_MEASURE,
         competing=ResolutionIssue.COMPETING_MEASURE_CANDIDATES,
     )
