@@ -16,12 +16,18 @@ const run = (over: Partial<RunPayload> = {}): RunPayload => ({
 
 describe("PlanningAudit", () => {
   it("discloses the accepted contract and coverage without chain-of-thought", () => {
-    render(<PlanningAudit run={run()} />);
+    render(
+      <PlanningAudit
+        run={run({ engine_version: "0.1.0", build_sha: "0123456789abcdef" })}
+      />,
+    );
     expect(screen.getByText("Planning audit")).toBeVisible();
     screen.getByText("Planning audit").click();
     expect(screen.getByText(/rules exact/i)).toBeVisible();
     expect(screen.getByText(/sum revenue by region/i)).toBeVisible();
     expect(screen.getByText(/every required component was applied/i)).toBeVisible();
+    expect(screen.getByText("0.1.0")).toBeVisible();
+    expect(screen.getByText("0123456789ab")).toBeVisible();
     expect(screen.queryByText(/system prompt|raw provider response/i)).toBeNull();
   });
 });

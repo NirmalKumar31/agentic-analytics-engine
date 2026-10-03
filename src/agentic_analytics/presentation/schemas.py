@@ -190,6 +190,8 @@ class PresentationScope(Strict):
     rows_total: int | None = None
     rows_matching: int | None = None
     rows_represented: int | None = None
+    observations_matching: int | None = None
+    observations_represented: int | None = None
     groups_returned: int | None = None
     groups_total: int | None = None
     #: Whether every group the question asked for is present. `None` means

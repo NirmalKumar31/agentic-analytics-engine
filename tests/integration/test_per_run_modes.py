@@ -141,6 +141,7 @@ def test_a_finished_run_records_how_it_was_executed(client: TestClient) -> None:
     run = client.get(f"/api/analyses/{run_id}").json()
     assert run["mode"] == "deterministic"
     assert run["engine_version"]
+    assert run["build_sha"]
     assert run["dataset_fingerprint"]
     assert "requested_model" not in run
     assert "resolved_model" not in run

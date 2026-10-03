@@ -95,6 +95,7 @@ class TestStateClassification:
             (ResolutionIssue.UNRESOLVED_MEASURE, ResolutionState.UNRESOLVED),
             (ResolutionIssue.UNRESOLVED_DIMENSION, ResolutionState.UNRESOLVED),
             (ResolutionIssue.MISSING_PERIOD_FIELD, ResolutionState.UNRESOLVED),
+            (ResolutionIssue.AMBIGUOUS_PERIOD_SEMANTICS, ResolutionState.AMBIGUOUS),
             (ResolutionIssue.UNSUPPORTED_OPERATION, ResolutionState.UNSUPPORTED),
             (ResolutionIssue.ROLE_COLLISION, ResolutionState.UNSAFE),
             (ResolutionIssue.PRIVACY_RESTRICTED_GROUPING, ResolutionState.UNSAFE),
@@ -173,6 +174,25 @@ class TestAssessmentOnARealUpload:
         assessment = assess("What is the average total_sleep_hours in 2024?", schema)
         assert assessment.state is ResolutionState.UNRESOLVED
         assert ResolutionIssue.MISSING_PERIOD_FIELD in assessment.issues
+        assert not assessment.ai_eligible
+
+    def test_a_lifecycle_date_ambiguity_does_not_spend_a_planner_call(self) -> None:
+        schema = {
+            "table": "accounts",
+            "fields": [
+                {"name": "annual_revenue", "data_type": "DOUBLE"},
+                {"name": "signup_date", "data_type": "DATE"},
+            ],
+            "measures": ["annual_revenue"],
+            "dimensions": [],
+            "time_fields": ["signup_date"],
+            "identifiers": [],
+        }
+
+        assessment = assess("What was total annual revenue in 2024?", schema)
+
+        assert assessment.state is ResolutionState.AMBIGUOUS
+        assert ResolutionIssue.AMBIGUOUS_PERIOD_SEMANTICS in assessment.issues
         assert not assessment.ai_eligible
 
     def test_an_unbindable_restriction_is_ambiguous_not_silently_dropped(

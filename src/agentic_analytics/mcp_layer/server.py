@@ -198,6 +198,7 @@ def _attach_group_coverage(
 
     groups_total: int | None = None
     rows_matching: int | None = None
+    observations_matching: int | None = None
     rows_total: int | None = None
     try:
         coverage_sql = upload_plan.build_coverage_sql(mapping)
@@ -214,6 +215,8 @@ def _attach_group_coverage(
                 record = counted.to_records()[0]
                 groups_total = int(record.get("groups_total") or 0)
                 rows_matching = int(record.get("rows_matching") or 0)
+                if "observations_matching" in record:
+                    observations_matching = int(record.get("observations_matching") or 0)
         totals = run_query(
             session,
             upload_plan.build_row_total_sql(mapping),
@@ -238,6 +241,17 @@ def _attach_group_coverage(
         if len(counts) == len(snapshot.rows):
             rows_represented = int(sum(counts))
 
+    observations_represented: int | None = None
+    if "value_count" in snapshot.columns:
+        index = snapshot.columns.index("value_count")
+        counts = [
+            float(value)
+            for row in snapshot.rows
+            if isinstance((value := row[index]), int | float) and not isinstance(value, bool)
+        ]
+        if len(counts) == len(snapshot.rows):
+            observations_represented = int(sum(counts))
+
     returned = len(snapshot.rows)
     complete = not overflowed and (groups_total is None or returned >= groups_total)
     snapshot.group_coverage = GroupCoverage(
@@ -247,6 +261,8 @@ def _attach_group_coverage(
         rows_total=rows_total,
         rows_matching=rows_matching,
         rows_represented=rows_represented,
+        observations_matching=observations_matching,
+        observations_represented=observations_represented,
         query_limit=ceiling if overflowed else None,
         ordering="period" if mapping.operation == "trend" else "dimension",
         ranked_by_request=False,

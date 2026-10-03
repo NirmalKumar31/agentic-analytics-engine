@@ -39,6 +39,7 @@ def execution_mode(live_enabled: bool, ai_available: bool) -> ExecutionMode:
 class HealthResponse(BaseModel):
     status: str = "ok"
     version: str
+    build_sha: str
     #: Random, generated once when this application object is built. Two
     #: reads returning different values mean the process was replaced --
     #: which is the only way to see an OOM kill and restart from outside.
@@ -71,6 +72,7 @@ class ServerConfig(BaseModel):
     """What the frontend needs to decide which affordances to show."""
 
     version: str
+    build_sha: str
     provider_mode: str
     #: recorded | deterministic_live | ai_live. Drives the badge in the UI.
     execution_mode: ExecutionMode

@@ -518,13 +518,21 @@ group more than the engine accepts so a shortfall is *detected*. Either limit
 firing makes the answer partial, and a partial answer says which groups and
 how many rows it covers.
 
+Population and effective aggregate sample size are counted separately.
+`row_count`/`rows_matching` record rows admitted by the contract;
+`value_count`/`observations_matching` record non-null measure values that
+actually reached `SUM` or `AVG`. SQL lineage, presentation scope and the UI
+carry both, so SQL's null semantics cannot silently shrink the denominator.
+
 A result carrying no coverage block means "not a grouped answer". It never
 means "complete".
 
 ### The canonical upload fast path
 
-A governed aggregate over an uploaded table needs a model once, to read the
-question. It used to need seven calls: a planner, two worker tool choices,
+A governed aggregate over an uploaded table uses at most one model call, to
+propose an interpretation when the selected route permits it. An exact
+rule-resolved question needs none. The path used to need seven calls: a
+planner, two worker tool choices,
 a worker findings pass, a critic, a visualizer and a reporter. Only the
 first carried authority — the contract fixes the tool, DuckDB computes the
 number, and the result determines the chart — so the other six added

@@ -190,6 +190,29 @@ def test_output_columns_use_the_dataset_vocabulary() -> None:
     assert "AS total_revenue" in sql
 
 
+@pytest.mark.parametrize(
+    "question",
+    [
+        "total revenue",
+        "average revenue by region",
+        "top regions by revenue",
+        "revenue over time",
+    ],
+)
+def test_measure_aggregates_count_population_and_non_null_values(question: str) -> None:
+    sql = str(build_sql(resolve_question(question, SCHEMA)))
+
+    assert "COUNT(*) AS row_count" in sql
+    assert 'COUNT("revenue") AS value_count' in sql
+
+
+def test_a_row_count_does_not_invent_a_measure_observation_count() -> None:
+    sql = str(build_sql(resolve_question("how many per region", SCHEMA)))
+
+    assert "COUNT(*) AS row_count" in sql
+    assert "value_count" not in sql
+
+
 def test_awkward_column_names_still_produce_a_valid_alias() -> None:
     schema = {
         "table": "uploaded_data",

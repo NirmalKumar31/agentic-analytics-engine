@@ -56,6 +56,11 @@ class ResolutionIssue(StrEnum):
     MISSING_FILTER_BINDING = "missing_filter_binding"
     #: A period was named and the table has no date column to apply it to.
     MISSING_PERIOD_FIELD = "missing_period_field"
+    #: A period was named, but the table does not establish that its date
+    #: column is the business clock for the requested measure.  A signup
+    #: date beside annual revenue is the motivating case: filtering accounts
+    #: by signup year is not the same claim as revenue earned in that year.
+    AMBIGUOUS_PERIOD_SEMANTICS = "ambiguous_period_semantics"
     #: The question does not ask for an operation this engine implements.
     UNSUPPORTED_OPERATION = "unsupported_operation"
     #: The same column was read as both the value and the grouping.
@@ -104,6 +109,7 @@ _STATE_OF: dict[ResolutionIssue, ResolutionState] = {
     ResolutionIssue.UNRESOLVED_MEASURE: ResolutionState.UNRESOLVED,
     ResolutionIssue.UNRESOLVED_DIMENSION: ResolutionState.UNRESOLVED,
     ResolutionIssue.MISSING_PERIOD_FIELD: ResolutionState.UNRESOLVED,
+    ResolutionIssue.AMBIGUOUS_PERIOD_SEMANTICS: ResolutionState.AMBIGUOUS,
     ResolutionIssue.AMBIGUOUS_COLUMN_ROLE: ResolutionState.AMBIGUOUS,
     ResolutionIssue.COMPETING_MEASURE_CANDIDATES: ResolutionState.AMBIGUOUS,
     ResolutionIssue.COMPETING_DIMENSION_CANDIDATES: ResolutionState.AMBIGUOUS,

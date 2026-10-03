@@ -124,6 +124,11 @@ class GroupCoverage(BaseModel):
     rows_matching: int | None = None
     #: Rows behind the groups actually returned.
     rows_represented: int | None = None
+    #: Non-null measure values in the full filtered population. Aggregate
+    #: functions ignore null measures, so this is the effective sample size.
+    observations_matching: int | None = None
+    #: Non-null measure values behind the groups actually returned.
+    observations_represented: int | None = None
     #: The LIMIT the SQL applied, if any.
     query_limit: int | None = None
     #: What the result is ordered by. A breakdown orders by its dimension;

@@ -140,6 +140,12 @@ availability target — and it is safe here because nothing needs to survive
 it. The demo warehouse is baked into the image at build time, uploads live
 under `/tmp` for the life of a session, and the AI ledger is in Key Value.
 
+`/api/health`, `/api/config` and every run payload expose the immutable build
+revision from `RENDER_GIT_COMMIT` (or `AAE_BUILD_SHA` outside Render). The
+package version identifies the release line; `build_sha` identifies the exact
+source revision serving a request. Deployment verification should compare the
+latter rather than infer a revision from visible UI changes.
+
 512 MB is the constraint that shapes the rest of the configuration. Each
 live session holds a DuckDB connection over the warehouse, costing roughly
 55 MB. Measured on the demo warehouse, with two analyses running against a

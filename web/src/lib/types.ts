@@ -80,6 +80,8 @@ export interface GroupCoverage {
   rows_total?: number | null;
   rows_matching?: number | null;
   rows_represented?: number | null;
+  observations_matching?: number | null;
+  observations_represented?: number | null;
   query_limit?: number | null;
   ordering: "dimension" | "measure" | "period";
   ranked_by_request: boolean;
@@ -178,6 +180,8 @@ export interface PresentationScope {
   rows_total: number | null;
   rows_matching: number | null;
   rows_represented: number | null;
+  observations_matching?: number | null;
+  observations_represented?: number | null;
   groups_returned: number | null;
   groups_total: number | null;
   complete: boolean | null;
@@ -285,6 +289,7 @@ export interface RunPayload {
   requested_model?: string;
   resolved_model?: string;
   engine_version?: string;
+  build_sha?: string;
   dataset_fingerprint?: string;
   usage?: RunUsage;
   query_contract?: QueryContract | null;
@@ -517,6 +522,7 @@ export interface ComparisonStarted {
 
 export interface ServerConfig {
   version: string;
+  build_sha: string;
   provider_mode: string;
   execution_mode: ExecutionMode;
   model_inference_remote: boolean;

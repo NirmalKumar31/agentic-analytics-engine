@@ -91,7 +91,7 @@ def test_ai_plan_cannot_add_a_time_period_the_question_did_not_state() -> None:
 
 
 def test_ai_plan_cannot_shift_the_period_the_question_did_state() -> None:
-    question = "What was the average annual revenue in 2024?"
+    question = "What was the average annual revenue in 2024 using signup_date?"
     assert resolve_question(question, SCHEMA).period == ("2024-01-01", "2024-12-31")
 
     mapping = mapping_from_plan(
@@ -132,7 +132,7 @@ def test_the_guards_do_not_refuse_a_plan_that_matches_the_question() -> None:
     Without this, all four guards above could be satisfied by a validator
     that refuses unconditionally.
     """
-    question = "Which region had the highest annual revenue in 2024?"
+    question = "Which region had the highest annual revenue in 2024 using signup_date?"
     rules = resolve_question(question, SCHEMA)
     assert rules.confident
 
@@ -171,10 +171,10 @@ def test_a_numeric_grouping_is_still_allowed_when_the_question_names_it() -> Non
 @pytest.mark.parametrize(
     "question",
     [
-        "What was the total annual revenue in 2024?",
-        "Which region had the highest annual revenue in 2024?",
-        "What was the average annual revenue by region in 2024?",
-        "Show the monthly trend of annual revenue in 2024",
+        "What was the total annual revenue in 2024 using signup_date?",
+        "Which region had the highest annual revenue in 2024 using signup_date?",
+        "What was the average annual revenue by region in 2024 using signup_date?",
+        "Show the monthly trend of annual revenue in 2024 using signup_date",
         "What is the average annual revenue by region?",
     ],
 )
@@ -199,13 +199,62 @@ def test_an_accepted_contract_survives_its_own_revalidation(question: str) -> No
 
 
 def test_a_trend_keeps_its_axis_and_a_rank_does_not_acquire_one() -> None:
-    trend = resolve_question("Show the monthly trend of annual revenue in 2024", SCHEMA)
+    trend = resolve_question(
+        "Show the monthly trend of annual revenue in 2024 using signup_date", SCHEMA
+    )
     assert trend.time_field == "signup_date"
     assert trend.period_field == "signup_date"
 
-    rank = resolve_question("Which region had the highest annual revenue in 2024?", SCHEMA)
+    rank = resolve_question(
+        "Which region had the highest annual revenue in 2024 using signup_date?", SCHEMA
+    )
     assert rank.time_field is None
     assert rank.period_field == "signup_date"
+
+
+def test_a_lifecycle_date_is_not_silently_treated_as_the_measure_period() -> None:
+    mapping = resolve_question("What was the total annual revenue in 2024?", SCHEMA)
+
+    assert not mapping.confident
+    assert mapping.issues == ("ambiguous_period_semantics",)
+    assert "name the date column explicitly" in mapping.explanation
+
+
+def test_a_lifecycle_date_is_not_silently_treated_as_a_trend_axis() -> None:
+    mapping = resolve_question("Show the monthly trend of annual revenue", SCHEMA)
+
+    assert not mapping.confident
+    assert mapping.issues == ("ambiguous_period_semantics",)
+    assert "name the date column explicitly" in mapping.explanation
+
+    cloud = mapping_from_plan(
+        "Show the monthly trend of annual revenue",
+        SCHEMA,
+        _plan(
+            operation="trend",
+            operation_source="monthly trend",
+            time_field="signup_date",
+            time_grain="month",
+        ),
+    )
+    assert not cloud.confident
+    assert "name the date column explicitly" in cloud.explanation
+
+
+def test_a_generic_event_date_can_define_a_period_without_extra_wording() -> None:
+    schema = {
+        **SCHEMA,
+        "fields": [
+            field if field["name"] != "signup_date" else {**field, "name": "order_date"}
+            for field in SCHEMA["fields"]
+        ],
+        "time_fields": ["order_date"],
+    }
+
+    mapping = resolve_question("What was the total annual revenue in 2024?", schema)
+
+    assert mapping.confident, mapping.explanation
+    assert mapping.period_field == "order_date"
 
 
 def test_an_inert_sort_flag_does_not_split_two_identical_interpretations() -> None:

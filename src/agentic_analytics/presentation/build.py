@@ -31,6 +31,7 @@ from agentic_analytics.presentation.summarize import (
     scope_for,
     summarize,
 )
+from agentic_analytics.verification.typing import as_number
 
 #: Rows the table shows before asking. The complete result stays available
 #: and the scope says how many there are, so this never changes a number.
@@ -178,7 +179,7 @@ def display_fields_for(
         seen.add(name)
         field = profile.get(name)
         if field is None:
-            role = "measure" if name in {measure, "row_count"} else "dimension"
+            role = "measure" if name in {measure, "row_count", "value_count"} else "dimension"
             field = _Column(name, snapshot, role=role)
         out.append(display_field_for(field, observed_values=_observed(snapshot, name)))
     return out
@@ -212,13 +213,16 @@ def _caveats(
         )
 
     if question_coverage is not None and not getattr(question_coverage, "complete", True):
-        missing = ", ".join(str(m) for m in getattr(question_coverage, "missing_components", []))
+        missing_components = ", ".join(
+            str(m) for m in getattr(question_coverage, "missing_components", [])
+        )
         out.append(
             PresentationCaveat(
                 code="incomplete_question_coverage",
                 message=(
-                    f"The executed analysis did not cover every part of the question: {missing}."
-                    if missing
+                    "The executed analysis did not cover every part of the question: "
+                    f"{missing_components}."
+                    if missing_components
                     else "The executed analysis did not cover every part of the question."
                 ),
                 severity=CaveatSeverity.WARNING,
@@ -233,6 +237,39 @@ def _caveats(
                 message="The result was truncated in transport; the table is not the whole answer.",
                 severity=CaveatSeverity.WARNING,
                 related_component="coverage",
+            )
+        )
+
+    def summed_count(column: str) -> int | None:
+        if not snapshot.rows or column not in snapshot.columns:
+            return None
+        values = [as_number(snapshot.cell(row, column)) for row in range(len(snapshot.rows))]
+        if any(value is None for value in values):
+            return None
+        return int(sum(value for value in values if value is not None))
+
+    row_count = summed_count("row_count")
+    value_count = summed_count("value_count")
+    population = coverage.rows_matching if coverage is not None else row_count
+    observations = coverage.observations_matching if coverage is not None else value_count
+    if population is not None and observations is not None and observations < population:
+        measure = str(getattr(mapping, "measure", "") or "the measure")
+        missing_values = population - observations
+        row_word = "row" if missing_values == 1 else "rows"
+        population_label = (
+            f"matching {row_word}"
+            if coverage is not None or len(snapshot.rows) == 1
+            else f"{row_word} represented in this result"
+        )
+        out.append(
+            PresentationCaveat(
+                code="missing_measure_values",
+                message=(
+                    f"{missing_values:,} {population_label} had no "
+                    f"{measure} value and were excluded from the aggregate."
+                ),
+                severity=CaveatSeverity.WARNING,
+                related_component="measure",
             )
         )
 
@@ -356,6 +393,10 @@ def build_presentation(
 
     dimensions = dimension_columns(snapshot, mapping)
     measure = measure_column(snapshot, mapping)
+    # `value_count` is a verification/scope field, not a second business
+    # measure. Showing it beside `row_count` on every complete result adds a
+    # redundant column and can force a phone-wide table. When the two differ,
+    # scope and a coded caveat state the effective observation count.
     visible = [c for c in snapshot.columns if c in {*dimensions, measure} or c == "row_count"]
     table = PresentationTable(
         result_id=snapshot.result_id,
