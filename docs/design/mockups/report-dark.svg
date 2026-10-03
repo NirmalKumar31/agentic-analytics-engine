@@ -1,0 +1,160 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1740" height="1288" viewBox="0 0 1740 1288"><rect width="1740" height="1288" fill="#0E1113"/><g font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif"><text x="40" y="34" font-size="11" font-weight="700" fill="#45C3B2" letter-spacing=".12em">HIGH-FIDELITY MOCKUP · REPORT · DARK</text><g transform="translate(40,56)"><rect width="1180" height="1162" rx="6" fill="#0E1113" stroke="#232A2F"/><rect x="0" y="0" width="1180" height="52" fill="#14181B"/>
+<line x1="0" y1="52" x2="1180" y2="52" stroke="#232A2F"/>
+<g transform="translate(16,18) scale(1.0)" fill="none" stroke="#45C3B2" stroke-width="1.8" stroke-linecap="round"><path d="M0 14 L16 14"/><path d="M3 14 L3 8"/><path d="M8 14 L8 4"/><circle cx="13" cy="6" r="2.2" fill="#45C3B2" stroke="none"/></g>
+<text x="42" y="31" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="14" font-weight="650" fill="#EDF1F3" text-anchor="start">Agentic Analytics</text>
+<text x="590.0" y="31" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="12.5" font-weight="400" fill="#8C98A1" text-anchor="middle">commerce_demo · 7 tables · 502,819 rows</text>
+<text x="1164" y="31" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="12.5" font-weight="400" fill="#8C98A1" text-anchor="end">Governed ▾    ◑    End session</text>
+<text x="72" y="100" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="13.5" font-weight="400" fill="#8C98A1" text-anchor="start">Revenue increased in Q3 2025, but gross margin fell. What caused it?</text>
+<text x="72" y="148" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="34" font-weight="700" fill="#EDF1F3" text-anchor="start">Revenue rose 21%; margin fell 7.6 points</text>
+<text x="72" y="178" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="12.5" font-weight="400" fill="#8C98A1" text-anchor="start">502,819 rows · 498,112 observations with a value · Q3 2025 by order_date · 6 verified, 0 withheld · 4 shown, ranked</text>
+<line x1="72" y1="200" x2="1108" y2="200" stroke="#232A2F"/>
+<line x1="138" y1="480.0" x2="1088" y2="480.0" stroke="#1E2429"/>
+<text x="130" y="484.0" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="10.5" font-weight="400" fill="#8C98A1" text-anchor="end">1,300</text>
+<line x1="138" y1="439.2" x2="1088" y2="439.2" stroke="#1E2429"/>
+<text x="130" y="443.2" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="10.5" font-weight="400" fill="#8C98A1" text-anchor="end">1,400</text>
+<line x1="138" y1="398.4" x2="1088" y2="398.4" stroke="#1E2429"/>
+<text x="130" y="402.4" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="10.5" font-weight="400" fill="#8C98A1" text-anchor="end">1,500</text>
+<line x1="138" y1="357.6" x2="1088" y2="357.6" stroke="#1E2429"/>
+<text x="130" y="361.6" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="10.5" font-weight="400" fill="#8C98A1" text-anchor="end">1,600</text>
+<line x1="138" y1="316.79999999999995" x2="1088" y2="316.79999999999995" stroke="#1E2429"/>
+<text x="130" y="320.79999999999995" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="10.5" font-weight="400" fill="#8C98A1" text-anchor="end">1,700</text>
+<line x1="138" y1="276.0" x2="1088" y2="276.0" stroke="#1E2429"/>
+<text x="130" y="280.0" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="10.5" font-weight="400" fill="#8C98A1" text-anchor="end">1,800</text>
+<path d="M144.0 434.304 L450.0 416.76 L756.0 399.216 L1062.0 312.72" fill="none" stroke="#54becc" stroke-width="2.6" stroke-linejoin="round"/>
+<circle cx="144.0" cy="434.304" r="3.4" fill="#14181B" stroke="#54becc" stroke-width="2"/>
+<text x="144.0" y="504" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="10.5" font-weight="400" fill="#8C98A1" text-anchor="middle">2025-01</text>
+<circle cx="450.0" cy="416.76" r="3.4" fill="#14181B" stroke="#54becc" stroke-width="2"/>
+<text x="450.0" y="504" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="10.5" font-weight="400" fill="#8C98A1" text-anchor="middle">2025-04</text>
+<circle cx="756.0" cy="399.216" r="3.4" fill="#14181B" stroke="#54becc" stroke-width="2"/>
+<text x="756.0" y="504" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="10.5" font-weight="400" fill="#8C98A1" text-anchor="middle">2025-07</text>
+<circle cx="1062.0" cy="312.72" r="3.4" fill="#14181B" stroke="#54becc" stroke-width="2"/>
+<text x="1062.0" y="504" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="10.5" font-weight="400" fill="#8C98A1" text-anchor="middle">2025-10</text>
+<line x1="1062.0" y1="302.72" x2="996.0" y2="278.72" stroke="#A3AEB6" stroke-width="1"/>
+<text x="992.0" y="274.72" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="11.5" font-weight="650" fill="#EDF1F3" text-anchor="end">+21% vs Q2</text>
+<text x="1108" y="238" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="12" font-weight="400" fill="#45C3B2" text-anchor="end">table ·  evidence ·  download</text>
+<text x="72" y="238" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="14" font-weight="650" fill="#EDF1F3" text-anchor="start">Revenue by quarter</text>
+<text x="72" y="254" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="10.5" font-weight="400" fill="#8C98A1" text-anchor="start">revenue · thousands</text>
+<line x1="72" y1="552" x2="1108" y2="552" stroke="#232A2F"/>
+<text x="72" y="586" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="19" font-weight="650" fill="#EDF1F3" text-anchor="start">What the numbers show</text>
+<circle cx="80" cy="616" r="10" fill="#10322E"/>
+<text x="80" y="620" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="11.5" font-weight="700" fill="#45C3B2" text-anchor="middle">1</text>
+<text x="102" y="620" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="14.5" font-weight="500" fill="#EDF1F3" text-anchor="start">Electronics accounts for 80.3% of the revenue increase — the largest single contribution across category.</text>
+<circle cx="80" cy="662" r="10" fill="#10322E"/>
+<text x="80" y="666" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="11.5" font-weight="700" fill="#45C3B2" text-anchor="middle">2</text>
+<text x="102" y="666" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="14.5" font-weight="400" fill="#A3AEB6" text-anchor="start">Of the -7.63 point margin change, -3.96 comes from rate movement within categories and -3.67 from mix shifting between them.</text>
+<circle cx="80" cy="708" r="10" fill="#10322E"/>
+<text x="80" y="712" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="11.5" font-weight="700" fill="#45C3B2" text-anchor="middle">3</text>
+<text x="102" y="712" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="14.5" font-weight="400" fill="#A3AEB6" text-anchor="start">Beauty is the exception: revenue fell 4.1% while its margin rose 2.2 points.</text>
+<circle cx="80" cy="754" r="10" fill="#10322E"/>
+<text x="80" y="758" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="11.5" font-weight="700" fill="#45C3B2" text-anchor="middle">4</text>
+<text x="102" y="758" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="14.5" font-weight="400" fill="#A3AEB6" text-anchor="start">No breakdown was named in the question, so drivers were chosen by the planner. Ambiguity is recorded in the evidence.</text>
+<line x1="72" y1="812" x2="1108" y2="812" stroke="#232A2F"/>
+<text x="72" y="846" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="15" font-weight="650" fill="#EDF1F3" text-anchor="start">Revenue and margin by category</text>
+<text x="1108" y="846" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="12" font-weight="400" fill="#45C3B2" text-anchor="end">6 rows · CSV</text>
+<line x1="72" y1="862" x2="1108" y2="862" stroke="#232A2F"/>
+<text x="72" y="882" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="11.5" font-weight="650" fill="#8C98A1" text-anchor="start">category</text>
+<text x="550" y="882" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="11.5" font-weight="650" fill="#8C98A1" text-anchor="end">revenue</text>
+<text x="700" y="882" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="11.5" font-weight="650" fill="#8C98A1" text-anchor="end">share</text>
+<text x="880" y="882" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="11.5" font-weight="650" fill="#8C98A1" text-anchor="end">gross margin</text>
+<line x1="72" y1="892" x2="1108" y2="892" stroke="#232A2F"/>
+<text x="72" y="919" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="12.5" font-weight="400" fill="#A3AEB6" text-anchor="start">Apparel</text>
+<text x="550" y="919" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="12.5" font-weight="400" fill="#EDF1F3" text-anchor="end">1,522,302</text>
+<text x="700" y="919" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="12.5" font-weight="400" fill="#EDF1F3" text-anchor="end">23.9%</text>
+<text x="880" y="919" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="12.5" font-weight="400" fill="#EDF1F3" text-anchor="end">41.1%</text>
+<rect x="72" y="927" width="1036" height="27" fill="#0A0D0F" opacity=".55"/>
+<text x="72" y="946" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="12.5" font-weight="400" fill="#A3AEB6" text-anchor="start">Electronics</text>
+<text x="550" y="946" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="12.5" font-weight="400" fill="#EDF1F3" text-anchor="end">1,318,044</text>
+<text x="700" y="946" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="12.5" font-weight="400" fill="#EDF1F3" text-anchor="end">20.7%</text>
+<text x="880" y="946" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="12.5" font-weight="400" fill="#EDF1F3" text-anchor="end">29.8%</text>
+<text x="72" y="973" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="12.5" font-weight="400" fill="#A3AEB6" text-anchor="start">Home &amp; Kitchen</text>
+<text x="550" y="973" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="12.5" font-weight="400" fill="#EDF1F3" text-anchor="end">1,104,871</text>
+<text x="700" y="973" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="12.5" font-weight="400" fill="#EDF1F3" text-anchor="end">17.3%</text>
+<text x="880" y="973" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="12.5" font-weight="400" fill="#EDF1F3" text-anchor="end">35.2%</text>
+<rect x="72" y="981" width="1036" height="27" fill="#0A0D0F" opacity=".55"/>
+<text x="72" y="1000" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="12.5" font-weight="400" fill="#A3AEB6" text-anchor="start">Sports &amp; Outdoors</text>
+<text x="550" y="1000" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="12.5" font-weight="400" fill="#EDF1F3" text-anchor="end">861,330</text>
+<text x="700" y="1000" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="12.5" font-weight="400" fill="#EDF1F3" text-anchor="end">13.5%</text>
+<text x="880" y="1000" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="12.5" font-weight="400" fill="#EDF1F3" text-anchor="end">38.7%</text>
+<text x="72" y="1027" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="12.5" font-weight="400" fill="#A3AEB6" text-anchor="start">Toys &amp; Games</text>
+<text x="550" y="1027" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="12.5" font-weight="400" fill="#EDF1F3" text-anchor="end">825,693</text>
+<text x="700" y="1027" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="12.5" font-weight="400" fill="#EDF1F3" text-anchor="end">13.0%</text>
+<text x="880" y="1027" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="12.5" font-weight="400" fill="#EDF1F3" text-anchor="end">33.5%</text>
+<rect x="72" y="1035" width="1036" height="27" fill="#0A0D0F" opacity=".55"/>
+<text x="72" y="1054" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="12.5" font-weight="400" fill="#A3AEB6" text-anchor="start">Beauty</text>
+<text x="550" y="1054" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="12.5" font-weight="400" fill="#EDF1F3" text-anchor="end">742,118</text>
+<text x="700" y="1054" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="12.5" font-weight="400" fill="#EDF1F3" text-anchor="end">11.6%</text>
+<text x="880" y="1054" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="12.5" font-weight="400" fill="#EDF1F3" text-anchor="end">44.0%</text>
+<rect x="72" y="1082" width="196" height="42" rx="4" fill="none" stroke="#45C3B2"/>
+<text x="96" y="1108" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="13.5" font-weight="650" fill="#45C3B2" text-anchor="start">Show work →</text>
+<text x="292" y="1108" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="12" font-weight="400" fill="#8C98A1" text-anchor="start">contract a3f9c1 · sha 5913f6e · 412 ms</text></g><g transform="translate(1270,56)"><rect width="390" height="980" rx="6" fill="#0E1113" stroke="#232A2F"/><rect x="0" y="0" width="390" height="44" fill="#14181B"/>
+<line x1="0" y1="44" x2="390" y2="44" stroke="#232A2F"/>
+<g transform="translate(16,14) scale(0.9)" fill="none" stroke="#45C3B2" stroke-width="1.8" stroke-linecap="round"><path d="M0 14 L16 14"/><path d="M3 14 L3 8"/><path d="M8 14 L8 4"/><circle cx="13" cy="6" r="2.2" fill="#45C3B2" stroke="none"/></g>
+<text x="40" y="27" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="12.5" font-weight="650" fill="#EDF1F3" text-anchor="start">Agentic Analytics</text>
+<text x="374" y="27" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="12.5" font-weight="400" fill="#8C98A1" text-anchor="end">◑  ⋯</text>
+<text x="20" y="76" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="11.5" font-weight="400" fill="#8C98A1" text-anchor="start">Revenue increased in Q3 2025,</text>
+<text x="20" y="92" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="11.5" font-weight="400" fill="#8C98A1" text-anchor="start">but gross margin fell. What caused it?</text>
+<text x="20" y="128" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="22" font-weight="700" fill="#EDF1F3" text-anchor="start">Revenue rose 21%;</text>
+<text x="20" y="154" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="22" font-weight="700" fill="#EDF1F3" text-anchor="start">margin fell 7.6 pts</text>
+<text x="20" y="176" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="11" font-weight="400" fill="#8C98A1" text-anchor="start">502,819 rows · 498,112 with a value</text>
+<text x="20" y="191" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="11" font-weight="400" fill="#8C98A1" text-anchor="start">Q3 2025 by order_date</text>
+<line x1="20" y1="208" x2="370" y2="208" stroke="#232A2F"/>
+<line x1="86" y1="390.0" x2="350" y2="390.0" stroke="#1E2429"/>
+<text x="78" y="394.0" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="10.5" font-weight="400" fill="#8C98A1" text-anchor="end">1,300</text>
+<line x1="86" y1="367.2" x2="350" y2="367.2" stroke="#1E2429"/>
+<text x="78" y="371.2" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="10.5" font-weight="400" fill="#8C98A1" text-anchor="end">1,400</text>
+<line x1="86" y1="344.4" x2="350" y2="344.4" stroke="#1E2429"/>
+<text x="78" y="348.4" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="10.5" font-weight="400" fill="#8C98A1" text-anchor="end">1,500</text>
+<line x1="86" y1="321.6" x2="350" y2="321.6" stroke="#1E2429"/>
+<text x="78" y="325.6" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="10.5" font-weight="400" fill="#8C98A1" text-anchor="end">1,600</text>
+<line x1="86" y1="298.8" x2="350" y2="298.8" stroke="#1E2429"/>
+<text x="78" y="302.8" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="10.5" font-weight="400" fill="#8C98A1" text-anchor="end">1,700</text>
+<line x1="86" y1="276.0" x2="350" y2="276.0" stroke="#1E2429"/>
+<text x="78" y="280.0" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="10.5" font-weight="400" fill="#8C98A1" text-anchor="end">1,800</text>
+<path d="M92.0 364.464 L169.33333333333331 354.66 L246.66666666666666 344.856 L324.0 296.52" fill="none" stroke="#54becc" stroke-width="2.6" stroke-linejoin="round"/>
+<circle cx="92.0" cy="364.464" r="3.4" fill="#14181B" stroke="#54becc" stroke-width="2"/>
+<text x="92.0" y="414" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="10.5" font-weight="400" fill="#8C98A1" text-anchor="middle">2025-01</text>
+<circle cx="169.33333333333331" cy="354.66" r="3.4" fill="#14181B" stroke="#54becc" stroke-width="2"/>
+<text x="169.33333333333331" y="414" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="10.5" font-weight="400" fill="#8C98A1" text-anchor="middle">2025-04</text>
+<circle cx="246.66666666666666" cy="344.856" r="3.4" fill="#14181B" stroke="#54becc" stroke-width="2"/>
+<text x="246.66666666666666" y="414" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="10.5" font-weight="400" fill="#8C98A1" text-anchor="middle">2025-07</text>
+<circle cx="324.0" cy="296.52" r="3.4" fill="#14181B" stroke="#54becc" stroke-width="2"/>
+<text x="324.0" y="414" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="10.5" font-weight="400" fill="#8C98A1" text-anchor="middle">2025-10</text>
+<text x="20" y="238" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="14" font-weight="650" fill="#EDF1F3" text-anchor="start">Revenue by quarter</text>
+<text x="20" y="254" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="10.5" font-weight="400" fill="#8C98A1" text-anchor="start">revenue · thousands</text>
+<line x1="20" y1="448" x2="370" y2="448" stroke="#232A2F"/>
+<text x="20" y="480" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="15" font-weight="650" fill="#EDF1F3" text-anchor="start">What the numbers show</text>
+<circle cx="28" cy="508" r="9" fill="#10322E"/>
+<text x="28" y="512" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="11" font-weight="700" fill="#45C3B2" text-anchor="middle">1</text>
+<text x="48" y="506" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="13" font-weight="500" fill="#EDF1F3" text-anchor="start">Electronics accounts for 80.3% of</text>
+<text x="48" y="524" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="13" font-weight="500" fill="#EDF1F3" text-anchor="start">the revenue increase.</text>
+<rect x="20" y="540" width="350" height="26" rx="3" fill="#14181B" stroke="#232A2F"/>
+<text x="32" y="558" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="12" font-weight="400" fill="#A3AEB6" text-anchor="start">2   Margin: rate -3.96, mix -3.67</text>
+<text x="356" y="558" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="12" font-weight="400" fill="#8C98A1" text-anchor="start">▾</text>
+<rect x="20" y="570" width="350" height="26" rx="3" fill="#14181B" stroke="#232A2F"/>
+<text x="32" y="588" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="12" font-weight="400" fill="#A3AEB6" text-anchor="start">3   Beauty is the exception</text>
+<text x="356" y="588" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="12" font-weight="400" fill="#8C98A1" text-anchor="start">▾</text>
+<rect x="20" y="600" width="350" height="26" rx="3" fill="#14181B" stroke="#232A2F"/>
+<text x="32" y="618" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="12" font-weight="400" fill="#A3AEB6" text-anchor="start">4   Planner chose the breakdown</text>
+<text x="356" y="618" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="12" font-weight="400" fill="#8C98A1" text-anchor="start">▾</text>
+<line x1="20" y1="660" x2="370" y2="660" stroke="#232A2F"/>
+<text x="20" y="690" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="14" font-weight="650" fill="#EDF1F3" text-anchor="start">Revenue by category</text>
+<text x="370" y="690" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="11.5" font-weight="400" fill="#45C3B2" text-anchor="end">6 rows ›</text>
+<rect x="20" y="704" width="350" height="150" rx="4" fill="#14181B" stroke="#232A2F"/>
+<line x1="32" y1="714" x2="358" y2="714" stroke="#232A2F"/>
+<text x="32" y="734" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="11.5" font-weight="650" fill="#8C98A1" text-anchor="start">category</text>
+<text x="350" y="734" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="11.5" font-weight="650" fill="#8C98A1" text-anchor="end">revenue</text>
+<line x1="32" y1="744" x2="358" y2="744" stroke="#232A2F"/>
+<text x="32" y="771" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="12.5" font-weight="400" fill="#A3AEB6" text-anchor="start">Apparel</text>
+<text x="350" y="771" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="12.5" font-weight="400" fill="#EDF1F3" text-anchor="end">1,522,302</text>
+<rect x="32" y="779" width="326" height="27" fill="#0A0D0F" opacity=".55"/>
+<text x="32" y="798" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="12.5" font-weight="400" fill="#A3AEB6" text-anchor="start">Electronics</text>
+<text x="350" y="798" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="12.5" font-weight="400" fill="#EDF1F3" text-anchor="end">1,318,044</text>
+<text x="32" y="825" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="12.5" font-weight="400" fill="#A3AEB6" text-anchor="start">Home &amp; Kitchen</text>
+<text x="350" y="825" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="12.5" font-weight="400" fill="#EDF1F3" text-anchor="end">1,104,871</text>
+<rect x="32" y="833" width="326" height="27" fill="#0A0D0F" opacity=".55"/>
+<text x="32" y="852" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="12.5" font-weight="400" fill="#A3AEB6" text-anchor="start">Sports &amp; Outdoors</text>
+<text x="350" y="852" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="12.5" font-weight="400" fill="#EDF1F3" text-anchor="end">861,330</text>
+<text x="360" y="868" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="10.5" font-weight="400" fill="#8C98A1" text-anchor="end">scrolls inside its frame →</text>
+<rect x="20" y="900" width="350" height="46" rx="4" fill="#14181B" stroke="#45C3B2"/>
+<text x="36" y="929" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="13.5" font-weight="650" fill="#45C3B2" text-anchor="start">Show work</text>
+<text x="354" y="929" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="13.5" font-weight="650" fill="#45C3B2" text-anchor="end">▲</text></g><text x="40" y="1244" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="11" font-weight="700" fill="#8C98A1" text-anchor="start">DESKTOP 1440 — content column 1180</text><text x="1270" y="1062" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="11" font-weight="700" fill="#8C98A1" text-anchor="start">MOBILE 390</text></g></svg>

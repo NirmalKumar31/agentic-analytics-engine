@@ -1,0 +1,109 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1100" viewBox="0 0 1600 1100">
+<rect width="1600" height="1100" fill="#F2F4F1"/>
+<g font-family="Inter, -apple-system, Segoe UI, sans-serif">
+<text x="70" y="64" font-size="12" font-weight="700" fill="#0E6E66" letter-spacing=".12em">AGENTIC ANALYTICS ENGINE / REDESIGN / VISUAL SYSTEM</text>
+<text x="70" y="118" font-size="42" font-weight="700" fill="#121619">Mineral &amp; Ink</text>
+<text x="70" y="152" font-size="19" fill="#49535B">A calm analytical instrument: editorial type leads, containers recede, one signal colour carries meaning.</text>
+<line x1="70" y1="182" x2="1530" y2="182" stroke="#DDE2DC"/>
+
+<!-- type scale -->
+<text x="70" y="222" font-size="13" font-weight="700" fill="#121619" letter-spacing=".08em">TYPE SCALE</text>
+<text x="70" y="274" font-size="40" font-weight="700" fill="#121619">Revenue fell 7.6 points</text>
+<text x="70" y="300" font-size="11" font-family="ui-monospace,monospace" fill="#5C666F">display / 40 / 700 — the answer, once per page</text>
+<text x="70" y="342" font-size="25" font-weight="650" fill="#121619">What the numbers show</text>
+<text x="70" y="364" font-size="11" font-family="ui-monospace,monospace" fill="#5C666F">section / 25 / 650 — sentence case, never all-caps</text>
+<text x="70" y="402" font-size="17" fill="#49535B">Across category, Apparel has the highest revenue at 1,522,302.</text>
+<text x="70" y="424" font-size="11" font-family="ui-monospace,monospace" fill="#5C666F">body / 17 / 400</text>
+<text x="70" y="460" font-size="13" fill="#5C666F">population 240 rows · 224 observations · 2024 by order_date</text>
+<text x="70" y="482" font-size="11" font-family="ui-monospace,monospace" fill="#5C666F">caption / 13 — context line under the answer</text>
+<text x="70" y="518" font-size="13" font-family="ui-monospace,monospace" fill="#0E6E66">sha 5913f6e · contract a3f9c1 · 412ms</text>
+<text x="70" y="540" font-size="11" font-family="ui-monospace,monospace" fill="#5C666F">mono / 13 — identifiers, contracts, timings only</text>
+
+<!-- palettes -->
+<text x="70" y="608" font-size="13" font-weight="700" fill="#121619" letter-spacing=".08em">LIGHT — MINERAL</text>
+<rect x="70" y="622" width="104" height="52" rx="4" fill="#F2F4F1" stroke="#121619" stroke-opacity=".18"/>
+<text x="70" y="690" font-size="11" font-weight="600" fill="#121619">canvas</text>
+<text x="70" y="704" font-size="10" font-family="ui-monospace,monospace" fill="#121619" fill-opacity=".62">#F2F4F1</text>
+<rect x="188" y="622" width="104" height="52" rx="4" fill="#FBFCFA" stroke="#121619" stroke-opacity=".18"/>
+<text x="188" y="690" font-size="11" font-weight="600" fill="#121619">paper</text>
+<text x="188" y="704" font-size="10" font-family="ui-monospace,monospace" fill="#121619" fill-opacity=".62">#FBFCFA</text>
+<rect x="306" y="622" width="104" height="52" rx="4" fill="#FFFFFF" stroke="#121619" stroke-opacity=".18"/>
+<text x="306" y="690" font-size="11" font-weight="600" fill="#121619">raised</text>
+<text x="306" y="704" font-size="10" font-family="ui-monospace,monospace" fill="#121619" fill-opacity=".62">#FFFFFF</text>
+<rect x="424" y="622" width="104" height="52" rx="4" fill="#E7EAE5" stroke="#121619" stroke-opacity=".18"/>
+<text x="424" y="690" font-size="11" font-weight="600" fill="#121619">inset</text>
+<text x="424" y="704" font-size="10" font-family="ui-monospace,monospace" fill="#121619" fill-opacity=".62">#E7EAE5</text>
+<rect x="542" y="622" width="104" height="52" rx="4" fill="#121619" stroke="#121619" stroke-opacity=".18"/>
+<text x="542" y="690" font-size="11" font-weight="600" fill="#121619">ink</text>
+<text x="542" y="704" font-size="10" font-family="ui-monospace,monospace" fill="#121619" fill-opacity=".62">#121619</text>
+<rect x="660" y="622" width="104" height="52" rx="4" fill="#49535B" stroke="#121619" stroke-opacity=".18"/>
+<text x="660" y="690" font-size="11" font-weight="600" fill="#121619">ink2</text>
+<text x="660" y="704" font-size="10" font-family="ui-monospace,monospace" fill="#121619" fill-opacity=".62">#49535B</text>
+<rect x="70" y="714" width="104" height="52" rx="4" fill="#5C666F" stroke="#121619" stroke-opacity=".18"/>
+<text x="70" y="782" font-size="11" font-weight="600" fill="#121619">muted</text>
+<text x="70" y="796" font-size="10" font-family="ui-monospace,monospace" fill="#121619" fill-opacity=".62">#5C666F</text>
+<rect x="188" y="714" width="104" height="52" rx="4" fill="#DDE2DC" stroke="#121619" stroke-opacity=".18"/>
+<text x="188" y="782" font-size="11" font-weight="600" fill="#121619">rule</text>
+<text x="188" y="796" font-size="10" font-family="ui-monospace,monospace" fill="#121619" fill-opacity=".62">#DDE2DC</text>
+<rect x="306" y="714" width="104" height="52" rx="4" fill="#0E6E66" stroke="#121619" stroke-opacity=".18"/>
+<text x="306" y="782" font-size="11" font-weight="600" fill="#121619">signal</text>
+<text x="306" y="796" font-size="10" font-family="ui-monospace,monospace" fill="#121619" fill-opacity=".62">#0E6E66</text>
+<rect x="424" y="714" width="104" height="52" rx="4" fill="#DCEDEA" stroke="#121619" stroke-opacity=".18"/>
+<text x="424" y="782" font-size="11" font-weight="600" fill="#121619">signal_weak</text>
+<text x="424" y="796" font-size="10" font-family="ui-monospace,monospace" fill="#121619" fill-opacity=".62">#DCEDEA</text>
+<rect x="542" y="714" width="104" height="52" rx="4" fill="#A63B24" stroke="#121619" stroke-opacity=".18"/>
+<text x="542" y="782" font-size="11" font-weight="600" fill="#121619">warn</text>
+<text x="542" y="796" font-size="10" font-family="ui-monospace,monospace" fill="#121619" fill-opacity=".62">#A63B24</text>
+<rect x="660" y="714" width="104" height="52" rx="4" fill="#F7E4DF" stroke="#121619" stroke-opacity=".18"/>
+<text x="660" y="782" font-size="11" font-weight="600" fill="#121619">warn_weak</text>
+<text x="660" y="796" font-size="10" font-family="ui-monospace,monospace" fill="#121619" fill-opacity=".62">#F7E4DF</text>
+<rect x="810" y="560" width="720" height="300" rx="6" fill="#0E1113"/>
+<text x="840" y="608" font-size="13" font-weight="700" fill="#EDF1F3" letter-spacing=".08em">DARK — INK</text>
+<rect x="840" y="622" width="104" height="52" rx="4" fill="#0E1113" stroke="#EDF1F3" stroke-opacity=".18"/>
+<text x="840" y="690" font-size="11" font-weight="600" fill="#EDF1F3">canvas</text>
+<text x="840" y="704" font-size="10" font-family="ui-monospace,monospace" fill="#EDF1F3" fill-opacity=".62">#0E1113</text>
+<rect x="958" y="622" width="104" height="52" rx="4" fill="#14181B" stroke="#EDF1F3" stroke-opacity=".18"/>
+<text x="958" y="690" font-size="11" font-weight="600" fill="#EDF1F3">paper</text>
+<text x="958" y="704" font-size="10" font-family="ui-monospace,monospace" fill="#EDF1F3" fill-opacity=".62">#14181B</text>
+<rect x="1076" y="622" width="104" height="52" rx="4" fill="#1A1F23" stroke="#EDF1F3" stroke-opacity=".18"/>
+<text x="1076" y="690" font-size="11" font-weight="600" fill="#EDF1F3">raised</text>
+<text x="1076" y="704" font-size="10" font-family="ui-monospace,monospace" fill="#EDF1F3" fill-opacity=".62">#1A1F23</text>
+<rect x="1194" y="622" width="104" height="52" rx="4" fill="#0A0D0F" stroke="#EDF1F3" stroke-opacity=".18"/>
+<text x="1194" y="690" font-size="11" font-weight="600" fill="#EDF1F3">inset</text>
+<text x="1194" y="704" font-size="10" font-family="ui-monospace,monospace" fill="#EDF1F3" fill-opacity=".62">#0A0D0F</text>
+<rect x="1312" y="622" width="104" height="52" rx="4" fill="#EDF1F3" stroke="#EDF1F3" stroke-opacity=".18"/>
+<text x="1312" y="690" font-size="11" font-weight="600" fill="#EDF1F3">ink</text>
+<text x="1312" y="704" font-size="10" font-family="ui-monospace,monospace" fill="#EDF1F3" fill-opacity=".62">#EDF1F3</text>
+<rect x="1430" y="622" width="104" height="52" rx="4" fill="#A3AEB6" stroke="#EDF1F3" stroke-opacity=".18"/>
+<text x="1430" y="690" font-size="11" font-weight="600" fill="#EDF1F3">ink2</text>
+<text x="1430" y="704" font-size="10" font-family="ui-monospace,monospace" fill="#EDF1F3" fill-opacity=".62">#A3AEB6</text>
+<rect x="840" y="714" width="104" height="52" rx="4" fill="#8C98A1" stroke="#EDF1F3" stroke-opacity=".18"/>
+<text x="840" y="782" font-size="11" font-weight="600" fill="#EDF1F3">muted</text>
+<text x="840" y="796" font-size="10" font-family="ui-monospace,monospace" fill="#EDF1F3" fill-opacity=".62">#8C98A1</text>
+<rect x="958" y="714" width="104" height="52" rx="4" fill="#232A2F" stroke="#EDF1F3" stroke-opacity=".18"/>
+<text x="958" y="782" font-size="11" font-weight="600" fill="#EDF1F3">rule</text>
+<text x="958" y="796" font-size="10" font-family="ui-monospace,monospace" fill="#EDF1F3" fill-opacity=".62">#232A2F</text>
+<rect x="1076" y="714" width="104" height="52" rx="4" fill="#45C3B2" stroke="#EDF1F3" stroke-opacity=".18"/>
+<text x="1076" y="782" font-size="11" font-weight="600" fill="#EDF1F3">signal</text>
+<text x="1076" y="796" font-size="10" font-family="ui-monospace,monospace" fill="#EDF1F3" fill-opacity=".62">#45C3B2</text>
+<rect x="1194" y="714" width="104" height="52" rx="4" fill="#10322E" stroke="#EDF1F3" stroke-opacity=".18"/>
+<text x="1194" y="782" font-size="11" font-weight="600" fill="#EDF1F3">signal_weak</text>
+<text x="1194" y="796" font-size="10" font-family="ui-monospace,monospace" fill="#EDF1F3" fill-opacity=".62">#10322E</text>
+<rect x="1312" y="714" width="104" height="52" rx="4" fill="#E8755A" stroke="#EDF1F3" stroke-opacity=".18"/>
+<text x="1312" y="782" font-size="11" font-weight="600" fill="#EDF1F3">warn</text>
+<text x="1312" y="796" font-size="10" font-family="ui-monospace,monospace" fill="#EDF1F3" fill-opacity=".62">#E8755A</text>
+<rect x="1430" y="714" width="104" height="52" rx="4" fill="#391A12" stroke="#EDF1F3" stroke-opacity=".18"/>
+<text x="1430" y="782" font-size="11" font-weight="600" fill="#EDF1F3">warn_weak</text>
+<text x="1430" y="796" font-size="10" font-family="ui-monospace,monospace" fill="#EDF1F3" fill-opacity=".62">#391A12</text>
+
+<!-- chart ramp -->
+<text x="70" y="900" font-size="13" font-weight="700" fill="#121619" letter-spacing=".08em">CHART RAMP — REUSED, NOT REPLACED</text>
+<text x="70" y="924" font-size="14" fill="#49535B">Already verified against Viénot/Brettel dichromacy simulation with CIE76 ΔE separation. Replacing it would discard proven work.</text>
+<rect x="70" y="944" width="104" height="40" rx="3" fill="#cc7682"/><text x="70" y="1000" font-size="10" font-family="ui-monospace,monospace" fill="#5C666F">#cc7682</text>
+<rect x="188" y="944" width="104" height="40" rx="3" fill="#7d69b5"/><text x="188" y="1000" font-size="10" font-family="ui-monospace,monospace" fill="#5C666F">#7d69b5</text>
+<rect x="306" y="944" width="104" height="40" rx="3" fill="#7a5b1d"/><text x="306" y="1000" font-size="10" font-family="ui-monospace,monospace" fill="#5C666F">#7a5b1d</text>
+<rect x="424" y="944" width="104" height="40" rx="3" fill="#1d5860"/><text x="424" y="1000" font-size="10" font-family="ui-monospace,monospace" fill="#5C666F">#1d5860</text>
+<rect x="542" y="944" width="104" height="40" rx="3" fill="#244824"/><text x="542" y="1000" font-size="10" font-family="ui-monospace,monospace" fill="#5C666F">#244824</text>
+<text x="70" y="1046" font-size="13" font-weight="700" fill="#121619" letter-spacing=".08em">GEOMETRY &amp; MOTION</text>
+<text x="70" y="1070" font-size="14" fill="#49535B">Radius 4px on actionable units only · hairline 1px rules instead of panel borders · 8px spacing base, 72px page gutter · motion 200–350ms, state only, every effect has a reduced-motion equivalent.</text>
+</g></svg>

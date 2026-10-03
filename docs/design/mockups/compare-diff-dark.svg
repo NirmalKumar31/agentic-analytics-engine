@@ -1,0 +1,136 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1740" height="1096" viewBox="0 0 1740 1096"><rect width="1740" height="1096" fill="#0E1113"/><g font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif"><text x="40" y="34" font-size="11" font-weight="700" fill="#45C3B2" letter-spacing=".12em">HIGH-FIDELITY MOCKUP · COMPARE · DIVERGENCE · DARK</text><g transform="translate(40,56)"><rect width="1180" height="970" rx="6" fill="#0E1113" stroke="#232A2F"/><rect x="0" y="0" width="1180" height="52" fill="#14181B"/>
+<line x1="0" y1="52" x2="1180" y2="52" stroke="#232A2F"/>
+<g transform="translate(16,18) scale(1.0)" fill="none" stroke="#45C3B2" stroke-width="1.8" stroke-linecap="round"><path d="M0 14 L16 14"/><path d="M3 14 L3 8"/><path d="M8 14 L8 4"/><circle cx="13" cy="6" r="2.2" fill="#45C3B2" stroke="none"/></g>
+<text x="42" y="31" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="14" font-weight="650" fill="#EDF1F3" text-anchor="start">Agentic Analytics</text>
+<text x="590.0" y="31" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="12.5" font-weight="400" fill="#8C98A1" text-anchor="middle">commerce_demo · 7 tables · 502,819 rows</text>
+<text x="1164" y="31" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="12.5" font-weight="400" fill="#8C98A1" text-anchor="end">Governed ▾    ◑    End session</text>
+<text x="72" y="100" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="24" font-weight="700" fill="#EDF1F3" text-anchor="start">What drove the Q3 2025 margin change?</text>
+<text x="72" y="126" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="12.5" font-weight="400" fill="#8C98A1" text-anchor="start">Compared across two planning strategies · 128,440 rows matched Q3 2025 by order_date</text>
+<rect x="72" y="150" width="1036" height="64" rx="5" fill="#391A12"/>
+<text x="96" y="176" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="11.5" font-weight="400" fill="#8C98A1" text-anchor="start">contracts</text>
+<text x="96" y="196" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="14" font-weight="650" fill="#E8755A" text-anchor="start">differ</text>
+<text x="356" y="176" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="11.5" font-weight="400" fill="#8C98A1" text-anchor="start">coverage</text>
+<text x="356" y="196" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="14" font-weight="650" fill="#A3AEB6" text-anchor="start">identical</text>
+<text x="616" y="176" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="11.5" font-weight="400" fill="#8C98A1" text-anchor="start">output</text>
+<text x="616" y="196" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="14" font-weight="650" fill="#E8755A" text-anchor="start">differs</text>
+<text x="876" y="176" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="11.5" font-weight="400" fill="#8C98A1" text-anchor="start">recorded route</text>
+<text x="876" y="196" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="14" font-weight="650" fill="#A3AEB6" text-anchor="start">both completed</text>
+<text x="72" y="254" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="16" font-weight="650" fill="#EDF1F3" text-anchor="start">How each strategy got there</text>
+<line x1="72" y1="272" x2="1108" y2="272" stroke="#232A2F"/>
+<text x="72" y="292" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="11.5" font-weight="650" fill="#8C98A1" text-anchor="start">strategy</text>
+<text x="272" y="292" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="11.5" font-weight="650" fill="#8C98A1" text-anchor="start">route</text>
+<text x="550" y="292" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="11.5" font-weight="650" fill="#8C98A1" text-anchor="end">calls</text>
+<text x="690" y="292" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="11.5" font-weight="650" fill="#8C98A1" text-anchor="end">cost</text>
+<text x="800" y="292" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="11.5" font-weight="650" fill="#8C98A1" text-anchor="end">runtime</text>
+<text x="930" y="292" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="11.5" font-weight="650" fill="#8C98A1" text-anchor="end">contract</text>
+<text x="1052" y="292" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="11.5" font-weight="650" fill="#8C98A1" text-anchor="end">status</text>
+<line x1="72" y1="302" x2="1108" y2="302" stroke="#232A2F"/>
+<text x="72" y="329" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="12.5" font-weight="400" fill="#A3AEB6" text-anchor="start">Deterministic</text>
+<text x="272" y="329" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="12.5" font-weight="400" fill="#A3AEB6" text-anchor="start">rules only</text>
+<text x="550" y="329" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="12.5" font-weight="400" fill="#EDF1F3" text-anchor="end">0</text>
+<text x="690" y="329" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="12.5" font-weight="400" fill="#EDF1F3" text-anchor="end">$0.000000</text>
+<text x="800" y="329" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="12.5" font-weight="400" fill="#EDF1F3" text-anchor="end">2.4 s</text>
+<text x="930" y="329" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="12.5" font-weight="400" fill="#EDF1F3" text-anchor="end">a3f9c1</text>
+<text x="1052" y="329" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="12.5" font-weight="400" fill="#EDF1F3" text-anchor="end">completed</text>
+<rect x="72" y="337" width="1036" height="27" fill="#0A0D0F" opacity=".55"/>
+<text x="72" y="356" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="12.5" font-weight="400" fill="#A3AEB6" text-anchor="start">AI (typed plan)</text>
+<text x="272" y="356" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="12.5" font-weight="400" fill="#A3AEB6" text-anchor="start">governed planner</text>
+<text x="550" y="356" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="12.5" font-weight="400" fill="#EDF1F3" text-anchor="end">2</text>
+<text x="690" y="356" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="12.5" font-weight="400" fill="#EDF1F3" text-anchor="end">$0.000310</text>
+<text x="800" y="356" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="12.5" font-weight="400" fill="#EDF1F3" text-anchor="end">6.1 s</text>
+<text x="930" y="356" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="12.5" font-weight="400" fill="#EDF1F3" text-anchor="end">b71e04</text>
+<text x="1052" y="356" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="12.5" font-weight="400" fill="#EDF1F3" text-anchor="end">completed</text>
+<line x1="72" y1="400" x2="1108" y2="400" stroke="#232A2F"/>
+<text x="72" y="436" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="19" font-weight="650" fill="#EDF1F3" text-anchor="start">The strategies did not agree</text>
+<text x="72" y="462" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="13.5" font-weight="400" fill="#A3AEB6" text-anchor="start">Neither result is presented as the answer. The question did not name a breakdown, so each strategy</text>
+<text x="72" y="482" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="13.5" font-weight="400" fill="#A3AEB6" text-anchor="start">chose one, and they chose differently. The difference is shown field by field rather than summarised.</text>
+<line x1="72" y1="516" x2="1108" y2="516" stroke="#232A2F"/>
+<text x="72" y="536" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="11.5" font-weight="650" fill="#8C98A1" text-anchor="start">field</text>
+<text x="282" y="536" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="11.5" font-weight="650" fill="#8C98A1" text-anchor="start">deterministic</text>
+<text x="582" y="536" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="11.5" font-weight="650" fill="#8C98A1" text-anchor="start">AI (typed plan)</text>
+<text x="912" y="536" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="11.5" font-weight="650" fill="#8C98A1" text-anchor="start"></text>
+<line x1="72" y1="546" x2="1108" y2="546" stroke="#232A2F"/>
+<text x="72" y="576" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="12.5" font-weight="500" fill="#EDF1F3" text-anchor="start">measure</text>
+<text x="282" y="576" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="12.5" font-weight="400" fill="#A3AEB6" text-anchor="start">gross_margin_pct</text>
+<text x="582" y="576" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="12.5" font-weight="400" fill="#A3AEB6" text-anchor="start">gross_margin_pct</text>
+<text x="912" y="576" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="11.5" font-weight="400" fill="#8C98A1" text-anchor="start">same</text>
+<text x="72" y="606" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="12.5" font-weight="500" fill="#EDF1F3" text-anchor="start">period field</text>
+<text x="282" y="606" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="12.5" font-weight="400" fill="#A3AEB6" text-anchor="start">order_date</text>
+<text x="582" y="606" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="12.5" font-weight="400" fill="#A3AEB6" text-anchor="start">order_date</text>
+<text x="912" y="606" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="11.5" font-weight="400" fill="#8C98A1" text-anchor="start">same</text>
+<text x="72" y="636" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="12.5" font-weight="500" fill="#EDF1F3" text-anchor="start">period</text>
+<text x="282" y="636" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="12.5" font-weight="400" fill="#A3AEB6" text-anchor="start">Q3 2025</text>
+<text x="582" y="636" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="12.5" font-weight="400" fill="#A3AEB6" text-anchor="start">Q3 2025</text>
+<text x="912" y="636" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="11.5" font-weight="400" fill="#8C98A1" text-anchor="start">same</text>
+<rect x="72" y="645" width="1036" height="30" fill="#391A12" opacity=".55"/>
+<text x="72" y="666" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="12.5" font-weight="500" fill="#EDF1F3" text-anchor="start">grouping</text>
+<text x="282" y="666" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="12.5" font-weight="400" fill="#A3AEB6" text-anchor="start">category</text>
+<text x="582" y="666" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="12.5" font-weight="400" fill="#A3AEB6" text-anchor="start">category, region</text>
+<text x="912" y="666" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="11.5" font-weight="650" fill="#E8755A" text-anchor="start">differs</text>
+<text x="72" y="696" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="12.5" font-weight="500" fill="#EDF1F3" text-anchor="start">rows matched</text>
+<text x="282" y="696" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="12.5" font-weight="400" fill="#A3AEB6" text-anchor="start">128,440</text>
+<text x="582" y="696" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="12.5" font-weight="400" fill="#A3AEB6" text-anchor="start">128,440</text>
+<text x="912" y="696" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="11.5" font-weight="400" fill="#8C98A1" text-anchor="start">same</text>
+<rect x="72" y="705" width="1036" height="30" fill="#391A12" opacity=".55"/>
+<text x="72" y="726" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="12.5" font-weight="500" fill="#EDF1F3" text-anchor="start">result rows</text>
+<text x="282" y="726" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="12.5" font-weight="400" fill="#A3AEB6" text-anchor="start">6</text>
+<text x="582" y="726" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="12.5" font-weight="400" fill="#A3AEB6" text-anchor="start">24</text>
+<text x="912" y="726" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="11.5" font-weight="650" fill="#E8755A" text-anchor="start">differs</text>
+<rect x="72" y="735" width="1036" height="30" fill="#391A12" opacity=".55"/>
+<text x="72" y="756" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="12.5" font-weight="500" fill="#EDF1F3" text-anchor="start">canonical hash</text>
+<text x="282" y="756" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="12.5" font-weight="400" fill="#A3AEB6" text-anchor="start">a3f9c1</text>
+<text x="582" y="756" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="12.5" font-weight="400" fill="#A3AEB6" text-anchor="start">b71e04</text>
+<text x="912" y="756" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="11.5" font-weight="650" fill="#E8755A" text-anchor="start">differs</text>
+<rect x="72" y="765" width="1036" height="30" fill="#391A12" opacity=".55"/>
+<text x="72" y="786" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="12.5" font-weight="500" fill="#EDF1F3" text-anchor="start">leading driver</text>
+<text x="282" y="786" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="12.5" font-weight="400" fill="#A3AEB6" text-anchor="start">Electronics  −3.1 pts</text>
+<text x="582" y="786" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="12.5" font-weight="400" fill="#A3AEB6" text-anchor="start">Electronics · West  −1.4 pts</text>
+<text x="912" y="786" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="11.5" font-weight="650" fill="#E8755A" text-anchor="start">differs</text>
+<text x="72" y="844" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="12.5" font-weight="400" fill="#8C98A1" text-anchor="start">4 fields agree · 4 differ. Differences are computed over the canonical contract, which excludes</text>
+<text x="72" y="864" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="12.5" font-weight="400" fill="#8C98A1" text-anchor="start">explanation, interpretation and wording: those are provenance, not the contract.</text>
+<rect x="72" y="896" width="300" height="42" rx="4" fill="none" stroke="#45C3B2"/>
+<text x="96" y="923" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="13.5" font-weight="650" fill="#45C3B2" text-anchor="start">Inspect both traces</text>
+<text x="348" y="923" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="13.5" font-weight="400" fill="#45C3B2" text-anchor="end">→</text>
+<text x="392" y="923" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="12" font-weight="400" fill="#8C98A1" text-anchor="start">opens one drawer with a tab per strategy</text></g><g transform="translate(1270,56)"><rect width="390" height="748" rx="6" fill="#0E1113" stroke="#232A2F"/><rect x="0" y="0" width="390" height="44" fill="#14181B"/>
+<line x1="0" y1="44" x2="390" y2="44" stroke="#232A2F"/>
+<g transform="translate(16,14) scale(0.9)" fill="none" stroke="#45C3B2" stroke-width="1.8" stroke-linecap="round"><path d="M0 14 L16 14"/><path d="M3 14 L3 8"/><path d="M8 14 L8 4"/><circle cx="13" cy="6" r="2.2" fill="#45C3B2" stroke="none"/></g>
+<text x="40" y="27" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="12.5" font-weight="650" fill="#EDF1F3" text-anchor="start">Agentic Analytics</text>
+<text x="20" y="82" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="15" font-weight="700" fill="#EDF1F3" text-anchor="start">What drove the Q3 2025</text>
+<text x="20" y="102" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="15" font-weight="700" fill="#EDF1F3" text-anchor="start">margin change?</text>
+<rect x="20" y="120" width="350" height="68" rx="5" fill="#391A12"/>
+<text x="36" y="146" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="11.5" font-weight="400" fill="#8C98A1" text-anchor="start">contracts</text>
+<text x="354" y="146" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="12" font-weight="650" fill="#E8755A" text-anchor="end">differ</text>
+<text x="36" y="170" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="11.5" font-weight="400" fill="#8C98A1" text-anchor="start">output</text>
+<text x="354" y="170" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="12" font-weight="650" fill="#E8755A" text-anchor="end">differs</text>
+<text x="20" y="224" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="15" font-weight="650" fill="#EDF1F3" text-anchor="start">The strategies did not agree</text>
+<text x="20" y="248" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="12.5" font-weight="400" fill="#A3AEB6" text-anchor="start">Neither is presented as the answer.</text>
+<text x="20" y="266" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="12.5" font-weight="400" fill="#A3AEB6" text-anchor="start">The question named no breakdown.</text>
+<text x="20" y="306" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="13.5" font-weight="650" fill="#EDF1F3" text-anchor="start">What differs</text>
+<rect x="20" y="320" width="350" height="72" rx="4" fill="#14181B" stroke="#232A2F"/>
+<text x="36" y="342" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="11.5" font-weight="650" fill="#E8755A" text-anchor="start">grouping</text>
+<text x="36" y="364" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="10.5" font-weight="400" fill="#8C98A1" text-anchor="start">deterministic</text>
+<text x="354" y="364" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="11.5" font-weight="400" fill="#EDF1F3" text-anchor="end">category</text>
+<text x="36" y="382" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="10.5" font-weight="400" fill="#8C98A1" text-anchor="start">AI (typed plan)</text>
+<text x="354" y="382" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="11.5" font-weight="400" fill="#EDF1F3" text-anchor="end">category, region</text>
+<rect x="20" y="402" width="350" height="72" rx="4" fill="#14181B" stroke="#232A2F"/>
+<text x="36" y="424" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="11.5" font-weight="650" fill="#E8755A" text-anchor="start">result rows</text>
+<text x="36" y="446" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="10.5" font-weight="400" fill="#8C98A1" text-anchor="start">deterministic</text>
+<text x="354" y="446" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="11.5" font-weight="400" fill="#EDF1F3" text-anchor="end">6</text>
+<text x="36" y="464" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="10.5" font-weight="400" fill="#8C98A1" text-anchor="start">AI (typed plan)</text>
+<text x="354" y="464" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="11.5" font-weight="400" fill="#EDF1F3" text-anchor="end">24</text>
+<rect x="20" y="484" width="350" height="72" rx="4" fill="#14181B" stroke="#232A2F"/>
+<text x="36" y="506" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="11.5" font-weight="650" fill="#E8755A" text-anchor="start">canonical hash</text>
+<text x="36" y="528" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="10.5" font-weight="400" fill="#8C98A1" text-anchor="start">deterministic</text>
+<text x="354" y="528" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="11.5" font-weight="400" fill="#EDF1F3" text-anchor="end">a3f9c1</text>
+<text x="36" y="546" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="10.5" font-weight="400" fill="#8C98A1" text-anchor="start">AI (typed plan)</text>
+<text x="354" y="546" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="11.5" font-weight="400" fill="#EDF1F3" text-anchor="end">b71e04</text>
+<rect x="20" y="566" width="350" height="72" rx="4" fill="#14181B" stroke="#232A2F"/>
+<text x="36" y="588" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="11.5" font-weight="650" fill="#E8755A" text-anchor="start">leading driver</text>
+<text x="36" y="610" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="10.5" font-weight="400" fill="#8C98A1" text-anchor="start">deterministic</text>
+<text x="354" y="610" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="11.5" font-weight="400" fill="#EDF1F3" text-anchor="end">Electronics  −3.1 pts</text>
+<text x="36" y="628" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="10.5" font-weight="400" fill="#8C98A1" text-anchor="start">AI (typed plan)</text>
+<text x="354" y="628" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="11.5" font-weight="400" fill="#EDF1F3" text-anchor="end">Electronics · West  −1.4 pts</text>
+<text x="20" y="664" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="12" font-weight="400" fill="#8C98A1" text-anchor="start">4 further fields agree</text>
+<rect x="20" y="682" width="350" height="40" rx="4" fill="#14181B" stroke="#45C3B2"/>
+<text x="36" y="707" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="12.5" font-weight="650" fill="#45C3B2" text-anchor="start">Inspect both traces</text>
+<text x="354" y="707" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="12.5" font-weight="650" fill="#45C3B2" text-anchor="end">▲</text></g><text x="40" y="1052" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="11" font-weight="700" fill="#8C98A1" text-anchor="start">DESKTOP 1440 — the reclaimed space carries the structured difference</text><text x="1270" y="830" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="11" font-weight="700" fill="#8C98A1" text-anchor="start">MOBILE 390 — differing fields first, agreeing fields counted</text></g></svg>

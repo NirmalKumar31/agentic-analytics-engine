@@ -1,0 +1,47 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1740" height="825" viewBox="0 0 1740 825"><rect width="1740" height="825" fill="#0E1113"/><g font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif"><text x="40" y="34" font-size="11" font-weight="700" fill="#45C3B2" letter-spacing=".12em">TERMINAL STATE · VERIFICATION WITHHELD · DARK</text><g transform="translate(40,56)"><rect width="1180" height="699" rx="6" fill="#0E1113" stroke="#232A2F"/><rect x="0" y="0" width="1180" height="52" fill="#14181B"/>
+<line x1="0" y1="52" x2="1180" y2="52" stroke="#232A2F"/>
+<g transform="translate(16,18) scale(1.0)" fill="none" stroke="#45C3B2" stroke-width="1.8" stroke-linecap="round"><path d="M0 14 L16 14"/><path d="M3 14 L3 8"/><path d="M8 14 L8 4"/><circle cx="13" cy="6" r="2.2" fill="#45C3B2" stroke="none"/></g>
+<text x="42" y="31" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="14" font-weight="650" fill="#EDF1F3" text-anchor="start">Agentic Analytics</text>
+<text x="590.0" y="31" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="12.5" font-weight="400" fill="#8C98A1" text-anchor="middle">orders_2024.csv · 200 rows · 3 fields</text>
+<text x="1164" y="31" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="12.5" font-weight="400" fill="#8C98A1" text-anchor="end">Governed ▾    ◑    End session</text>
+<text x="72" y="112" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="13.5" font-weight="400" fill="#8C98A1" text-anchor="start">Did the discount campaign cause the Q3 revenue increase?</text>
+<rect x="72" y="132" width="6" height="171" fill="#A3AEB6"/>
+<text x="100" y="176" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="30" font-weight="700" fill="#EDF1F3" text-anchor="start">The result stands; the explanation does not</text>
+<text x="100" y="214" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="14" font-weight="400" fill="#A3AEB6" text-anchor="start">Revenue was computed and is shown below. Two candidate explanations were produced and both</text>
+<text x="100" y="235" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="14" font-weight="400" fill="#A3AEB6" text-anchor="start">were withheld at verification, so neither is presented as a finding. A claim that cannot be</text>
+<text x="100" y="256" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="14" font-weight="400" fill="#A3AEB6" text-anchor="start">checked is withheld, never shown with a caveat attached.</text>
+<rect x="100" y="293" width="227.0" height="34" rx="4" fill="none" stroke="#232A2F"/>
+<text x="213.5" y="315" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="13" font-weight="500" fill="#A3AEB6" text-anchor="middle">See why each was withheld</text>
+<line x1="72" y1="347" x2="1108" y2="347" stroke="#232A2F"/>
+<text x="100" y="399" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="34" font-weight="700" fill="#EDF1F3" text-anchor="start">29,225.00</text>
+<text x="100" y="423" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="12.5" font-weight="400" fill="#8C98A1" text-anchor="start">total revenue · 2024 by order_date · 140 of 200 rows matched</text>
+<rect x="308" y="375" width="128" height="22" rx="3" fill="#0A0D0F"/>
+<text x="322" y="390" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="11" font-weight="650" fill="#8C98A1" text-anchor="start">not interpreted</text>
+<line x1="72" y1="451" x2="1108" y2="451" stroke="#232A2F"/>
+<text x="100" y="485" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="15" font-weight="650" fill="#EDF1F3" text-anchor="start">What was withheld, and under which rule</text>
+<text x="100" y="519" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="12" font-weight="650" fill="#E8755A" text-anchor="start">causal_from_observational</text>
+<text x="100" y="541" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="13.5" font-weight="400" fill="#A3AEB6" text-anchor="start">“The discount campaign drove the increase” asserts cause from an observational table with no design that could establish it.</text>
+<text x="100" y="577" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="12" font-weight="650" fill="#E8755A" text-anchor="start">no_evidence</text>
+<text x="100" y="599" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="13.5" font-weight="400" fill="#A3AEB6" text-anchor="start">“Margin pressure was concentrated in Apparel” cited no cell in the result it was checked against.</text>
+<line x1="72" y1="639" x2="1108" y2="639" stroke="#232A2F"/>
+<text x="72" y="669" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="11.5" font-weight="400" fill="#8C98A1" text-anchor="start">outcome completed · 1 result · 0 published · 2 withheld · causal_from_observational, no_evidence</text></g><g transform="translate(1270,56)"><rect width="390" height="489" rx="6" fill="#0E1113" stroke="#232A2F"/><rect x="0" y="0" width="390" height="44" fill="#14181B"/>
+<line x1="0" y1="44" x2="390" y2="44" stroke="#232A2F"/>
+<g transform="translate(16,14) scale(0.9)" fill="none" stroke="#45C3B2" stroke-width="1.8" stroke-linecap="round"><path d="M0 14 L16 14"/><path d="M3 14 L3 8"/><path d="M8 14 L8 4"/><circle cx="13" cy="6" r="2.2" fill="#45C3B2" stroke="none"/></g>
+<text x="40" y="27" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="12.5" font-weight="650" fill="#EDF1F3" text-anchor="start">Agentic Analytics</text>
+<text x="374" y="27" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="12.5" font-weight="400" fill="#8C98A1" text-anchor="end">◑</text>
+<text x="20" y="78" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="11.5" font-weight="400" fill="#8C98A1" text-anchor="start">Did the discount campaign cause the Q3 rev…</text>
+<rect x="20" y="96" width="5" height="205" fill="#A3AEB6"/>
+<text x="40" y="130" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="21" font-weight="700" fill="#EDF1F3" text-anchor="start">The result stands;</text>
+<text x="40" y="157" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="21" font-weight="700" fill="#EDF1F3" text-anchor="start">the explanation</text>
+<text x="40" y="184" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="21" font-weight="700" fill="#EDF1F3" text-anchor="start">does not</text>
+<text x="40" y="213" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="12.5" font-weight="400" fill="#A3AEB6" text-anchor="start">The number below was computed.</text>
+<text x="40" y="231" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="12.5" font-weight="400" fill="#A3AEB6" text-anchor="start">Two explanations were</text>
+<text x="40" y="249" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="12.5" font-weight="400" fill="#A3AEB6" text-anchor="start">produced, and both were</text>
+<text x="40" y="267" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="12.5" font-weight="400" fill="#A3AEB6" text-anchor="start">withheld at verification.</text>
+<rect x="40" y="299" width="330" height="32" rx="4" fill="none" stroke="#232A2F"/>
+<text x="205.0" y="320" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="12" font-weight="650" fill="#A3AEB6" text-anchor="middle">See why each was withheld</text>
+<line x1="20" y1="347" x2="370" y2="347" stroke="#232A2F"/>
+<text x="40" y="387" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="26" font-weight="700" fill="#EDF1F3" text-anchor="start">29,225.00</text>
+<text x="40" y="407" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="11" font-weight="400" fill="#8C98A1" text-anchor="start">total revenue · not interpreted</text>
+<line x1="20" y1="441" x2="370" y2="441" stroke="#232A2F"/>
+<text x="20" y="465" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="11" font-weight="650" fill="#8C98A1" text-anchor="start">completed</text></g><text x="40" y="781" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="11" font-weight="700" fill="#8C98A1" text-anchor="start">DESKTOP 1440 — computed result kept, unverified claims withheld</text><text x="1270" y="571" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="11" font-weight="700" fill="#8C98A1" text-anchor="start">MOBILE 390 — status completed</text></g></svg>

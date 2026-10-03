@@ -1,0 +1,82 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1100" viewBox="0 0 1600 1100">
+<rect width="1600" height="1100" fill="#F2F4F1"/>
+<g font-family="Inter, -apple-system, Segoe UI, sans-serif">
+<text x="70" y="52" font-size="11.5" font-weight="700" fill="#0E6E66" letter-spacing=".12em">REDESIGN WIREFRAME · 04-REPORT</text>
+<text x="70" y="96" font-size="34" font-weight="700" fill="#121619">Successful report</text>
+<text x="70" y="126" font-size="16" fill="#49535B">The dominant redesign: question → answer → context → chart → ranked findings → table → evidence.</text>
+<line x1="70" y1="152" x2="1530" y2="152" stroke="#DDE2DC"/>
+<text x="70" y="186" font-size="12" font-weight="700" fill="#5C666F" letter-spacing=".1em">DESKTOP 1440</text>
+<text x="1030" y="186" font-size="12" font-weight="700" fill="#5C666F" letter-spacing=".1em">MOBILE 390</text>
+<rect x="70" y="200" width="880" height="44" rx="4" fill="#fff" stroke="#DDE2DC"/>
+<text x="82" y="222" font-size="13" font-weight="650" fill="#121619"></text>
+<text x="84" y="228" font-size="12.5" font-weight="650" fill="#121619">◆ Agentic Analytics</text>
+<text x="400" y="228" font-size="11.5" fill="#5C666F">commerce_demo · 502,819 rows</text>
+<text x="84" y="296" font-size="27" font-weight="700" fill="#121619">Revenue rose 21%, margin fell 7.6 pts</text>
+<text x="84" y="324" font-size="12.5" fill="#5C666F">502,819 rows · 498,112 observations · Q3 2025 by order_date · 6 findings verified</text>
+<rect x="70" y="350" width="880" height="250" rx="4" fill="#fff" stroke="#DDE2DC"/>
+<text x="82" y="372" font-size="13" font-weight="650" fill="#121619">Chart — full content width</text>
+<text x="82" y="392" font-size="11.5" fill="#5C666F">one chart, primary, honest axes</text>
+<text x="82" y="408" font-size="11.5" fill="#5C666F">table / evidence / download controls inline and quiet</text>
+<path d="M110 560 L310 500 L510 515 L710 420" fill="none" stroke="#0E6E66" stroke-width="2.5"/>
+<rect x="70" y="614" width="880" height="118" rx="4" fill="#F2F4F1" stroke="#DDE2DC" stroke-dasharray="4 4"/>
+<text x="82" y="636" font-size="13" font-weight="650" fill="#121619">Findings — ranked, not six equal cards</text>
+<text x="82" y="656" font-size="11.5" fill="#5C666F">1 headline · 2 key driver · 3 exception · 4 caveat</text>
+<text x="82" y="672" font-size="11.5" fill="#5C666F">short written interpretation, no semicolon dumps</text>
+<rect x="70" y="746" width="880" height="150" rx="4" fill="#fff" stroke="#DDE2DC"/>
+<text x="82" y="768" font-size="13" font-weight="650" fill="#121619">Result table</text>
+<text x="82" y="788" font-size="11.5" fill="#5C666F">sticky header · aligned numerals · CSV export</text>
+<text x="82" y="804" font-size="11.5" fill="#5C666F">value_count stays evidence, never a business column</text>
+<rect x="70" y="910" width="250" height="44" rx="4" fill="#fff" stroke="#0E6E66"/>
+<text x="82" y="932" font-size="13" font-weight="650" fill="#121619">Show work →</text>
+<text x="82" y="952" font-size="11.5" fill="#5C666F">opens the evidence drawer</text>
+<rect x="1030" y="200" width="190" height="34" rx="4" fill="#fff" stroke="#DDE2DC"/>
+<text x="1042" y="222" font-size="13" font-weight="650" fill="#121619"></text>
+<text x="1030" y="266" font-size="15" font-weight="700" fill="#121619">Revenue rose 21%,</text>
+<text x="1030" y="286" font-size="15" font-weight="700" fill="#121619">margin fell 7.6 pts</text>
+<text x="1030" y="306" font-size="10.5" fill="#5C666F">502,819 rows · Q3 2025</text>
+<rect x="1030" y="320" width="190" height="150" rx="4" fill="#fff" stroke="#DDE2DC"/>
+<text x="1042" y="342" font-size="13" font-weight="650" fill="#121619">Chart</text>
+<text x="1042" y="362" font-size="11.5" fill="#5C666F">full width, first</text>
+<text x="1042" y="378" font-size="11.5" fill="#5C666F">after the answer</text>
+<rect x="1030" y="480" width="190" height="96" rx="4" fill="#F2F4F1" stroke="#DDE2DC" stroke-dasharray="4 4"/>
+<text x="1042" y="502" font-size="13" font-weight="650" fill="#121619">Findings</text>
+<text x="1042" y="522" font-size="11.5" fill="#5C666F">ranked 1–4</text>
+<text x="1042" y="538" font-size="11.5" fill="#5C666F">collapsed after the first</text>
+<rect x="1030" y="586" width="190" height="72" rx="4" fill="#fff" stroke="#DDE2DC"/>
+<text x="1042" y="608" font-size="13" font-weight="650" fill="#121619">Table</text>
+<text x="1042" y="628" font-size="11.5" fill="#5C666F">contained, scrolls</text>
+<text x="1042" y="644" font-size="11.5" fill="#5C666F">inside its own frame</text>
+<rect x="1030" y="668" width="190" height="44" rx="4" fill="#fff" stroke="#0E6E66"/>
+<text x="1042" y="690" font-size="13" font-weight="650" fill="#121619">Show work ▲</text>
+<text x="1042" y="710" font-size="11.5" fill="#5C666F">bottom sheet</text>
+<text x="1030" y="736" font-size="11" fill="#A63B24" font-weight="650">target ≤ 2,200px — today 5,539px</text>
+<text x="1230" y="186" font-size="12" font-weight="700" fill="#5C666F" letter-spacing=".1em">NOTES</text>
+<circle cx="1230" cy="212" r="9" fill="#0E6E66"/><text x="1230" y="216" font-size="11" font-weight="700" fill="#fff" text-anchor="middle">1</text>
+<text x="1248" y="216" font-size="12.5" fill="#49535B">Answer and context lead. Nothing above.</text>
+<circle cx="1230" cy="238" r="9" fill="#0E6E66"/><text x="1230" y="242" font-size="11" font-weight="700" fill="#fff" text-anchor="middle">2</text>
+<text x="1248" y="242" font-size="12.5" fill="#49535B">Chart spans the content width, not a</text>
+<text x="1248" y="260" font-size="12.5" fill="#49535B">bordered card inside a panel.</text>
+<circle cx="1230" cy="282" r="9" fill="#0E6E66"/><text x="1230" y="286" font-size="11" font-weight="700" fill="#fff" text-anchor="middle">3</text>
+<text x="1248" y="286" font-size="12.5" fill="#49535B">Findings ranked 1–4, replacing six</text>
+<text x="1248" y="304" font-size="12.5" fill="#49535B">identical cards of equal weight.</text>
+<circle cx="1230" cy="326" r="9" fill="#0E6E66"/><text x="1230" y="330" font-size="11" font-weight="700" fill="#fff" text-anchor="middle">4</text>
+<text x="1248" y="330" font-size="12.5" fill="#49535B">Removed from the default canvas:</text>
+<text x="1248" y="348" font-size="12.5" fill="#A63B24">· ACTIVITY log</text>
+<text x="1248" y="366" font-size="12.5" fill="#A63B24">· STAGES panel</text>
+<text x="1248" y="384" font-size="12.5" fill="#A63B24">· agent DAG diagram</text>
+<text x="1248" y="402" font-size="12.5" fill="#A63B24">· duplicate ANALYSIS panel</text>
+<text x="1248" y="420" font-size="12.5" fill="#A63B24">· permanent right rail</text>
+<circle cx="1230" cy="442" r="9" fill="#0E6E66"/><text x="1230" y="446" font-size="11" font-weight="700" fill="#fff" text-anchor="middle">5</text>
+<text x="1248" y="446" font-size="12.5" fill="#49535B">All of it moves into the evidence drawer</text>
+<text x="1248" y="464" font-size="12.5" fill="#49535B">behind “Show work”.</text>
+<circle cx="1230" cy="486" r="9" fill="#0E6E66"/><text x="1230" y="490" font-size="11" font-weight="700" fill="#fff" text-anchor="middle">6</text>
+<text x="1248" y="490" font-size="12.5" fill="#49535B">Focus: drawer traps; Escape closes and</text>
+<text x="1248" y="508" font-size="12.5" fill="#49535B">restores focus to the trigger.</text>
+<circle cx="1230" cy="530" r="9" fill="#0E6E66"/><text x="1230" y="534" font-size="11" font-weight="700" fill="#fff" text-anchor="middle">7</text>
+<text x="1248" y="534" font-size="12.5" fill="#49535B">Motion: KPI settles, series draws once</text>
+<text x="1248" y="552" font-size="12.5" fill="#49535B">(300–500ms), drawer slides from edge.</text>
+<text x="1248" y="570" font-size="12.5" fill="#49535B">Reduced motion: all become instant.</text>
+<circle cx="1230" cy="592" r="9" fill="#0E6E66"/><text x="1230" y="596" font-size="11" font-weight="700" fill="#fff" text-anchor="middle">8</text>
+<text x="1248" y="596" font-size="12.5" fill="#49535B">Counts: 7 panels → 0 · 20 ALL-CAPS → 0</text>
+<text x="1248" y="614" font-size="12.5" fill="#A63B24">· 99 rounded containers → ≤ 12.</text>
+</g></svg>

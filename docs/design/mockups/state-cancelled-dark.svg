@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1740" height="549" viewBox="0 0 1740 549"><rect width="1740" height="549" fill="#0E1113"/><g font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif"><text x="40" y="34" font-size="11" font-weight="700" fill="#45C3B2" letter-spacing=".12em">TERMINAL STATE · CANCELLED · DARK</text><g transform="translate(40,56)"><rect width="1180" height="423" rx="6" fill="#0E1113" stroke="#232A2F"/><rect x="0" y="0" width="1180" height="52" fill="#14181B"/>
+<line x1="0" y1="52" x2="1180" y2="52" stroke="#232A2F"/>
+<g transform="translate(16,18) scale(1.0)" fill="none" stroke="#45C3B2" stroke-width="1.8" stroke-linecap="round"><path d="M0 14 L16 14"/><path d="M3 14 L3 8"/><path d="M8 14 L8 4"/><circle cx="13" cy="6" r="2.2" fill="#45C3B2" stroke="none"/></g>
+<text x="42" y="31" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="14" font-weight="650" fill="#EDF1F3" text-anchor="start">Agentic Analytics</text>
+<text x="590.0" y="31" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="12.5" font-weight="400" fill="#8C98A1" text-anchor="middle">orders_2024.csv · session ended</text>
+<text x="1164" y="31" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="12.5" font-weight="400" fill="#8C98A1" text-anchor="end">Governed ▾    ◑    End session</text>
+<text x="72" y="112" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="13.5" font-weight="400" fill="#8C98A1" text-anchor="start">What was total revenue in 2024 using order_date?</text>
+<rect x="72" y="132" width="6" height="171" fill="#8C98A1"/>
+<text x="100" y="176" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="30" font-weight="700" fill="#EDF1F3" text-anchor="start">This run stopped because its dataset was closed</text>
+<text x="100" y="214" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="14" font-weight="400" fill="#A3AEB6" text-anchor="start">The file was deleted, replaced, or its 15-minute session expired while the analysis was</text>
+<text x="100" y="235" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="14" font-weight="400" fill="#A3AEB6" text-anchor="start">running. Nothing went wrong with the analysis — the thing it was analysing was withdrawn,</text>
+<text x="100" y="256" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="14" font-weight="400" fill="#A3AEB6" text-anchor="start">so the run was cancelled rather than finished.</text>
+<rect x="100" y="293" width="197.4" height="34" rx="4" fill="#45C3B2"/>
+<text x="198.7" y="315" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="13" font-weight="650" fill="#0E1113" text-anchor="middle">Upload the file again</text>
+<line x1="72" y1="363" x2="1108" y2="363" stroke="#232A2F"/>
+<text x="72" y="393" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="11.5" font-weight="400" fill="#8C98A1" text-anchor="start">outcome cancelled · dataset withdrawn · nothing published · no model call</text></g><g transform="translate(1270,56)"><rect width="390" height="407" rx="6" fill="#0E1113" stroke="#232A2F"/><rect x="0" y="0" width="390" height="44" fill="#14181B"/>
+<line x1="0" y1="44" x2="390" y2="44" stroke="#232A2F"/>
+<g transform="translate(16,14) scale(0.9)" fill="none" stroke="#45C3B2" stroke-width="1.8" stroke-linecap="round"><path d="M0 14 L16 14"/><path d="M3 14 L3 8"/><path d="M8 14 L8 4"/><circle cx="13" cy="6" r="2.2" fill="#45C3B2" stroke="none"/></g>
+<text x="40" y="27" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="12.5" font-weight="650" fill="#EDF1F3" text-anchor="start">Agentic Analytics</text>
+<text x="374" y="27" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="12.5" font-weight="400" fill="#8C98A1" text-anchor="end">◑</text>
+<text x="20" y="78" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="11.5" font-weight="400" fill="#8C98A1" text-anchor="start">What was total revenue in 2024 using order…</text>
+<rect x="20" y="96" width="5" height="205" fill="#8C98A1"/>
+<text x="40" y="130" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="21" font-weight="700" fill="#EDF1F3" text-anchor="start">This run stopped</text>
+<text x="40" y="157" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="21" font-weight="700" fill="#EDF1F3" text-anchor="start">because its dataset</text>
+<text x="40" y="184" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="21" font-weight="700" fill="#EDF1F3" text-anchor="start">was closed</text>
+<text x="40" y="213" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="12.5" font-weight="400" fill="#A3AEB6" text-anchor="start">The file was deleted,</text>
+<text x="40" y="231" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="12.5" font-weight="400" fill="#A3AEB6" text-anchor="start">replaced, or expired while</text>
+<text x="40" y="249" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="12.5" font-weight="400" fill="#A3AEB6" text-anchor="start">this ran. Nothing went</text>
+<text x="40" y="267" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="12.5" font-weight="400" fill="#A3AEB6" text-anchor="start">wrong with the analysis.</text>
+<rect x="40" y="299" width="330" height="32" rx="4" fill="#45C3B2"/>
+<text x="205.0" y="320" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="12" font-weight="650" fill="#0E1113" text-anchor="middle">Upload the file again</text>
+<line x1="20" y1="359" x2="370" y2="359" stroke="#232A2F"/>
+<text x="20" y="383" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="11" font-weight="650" fill="#8C98A1" text-anchor="start">cancelled</text></g><text x="40" y="505" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="11" font-weight="700" fill="#8C98A1" text-anchor="start">DESKTOP 1440 — withdrawn input, not engine failure; the wording keeps them apart</text><text x="1270" y="489" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="11" font-weight="700" fill="#8C98A1" text-anchor="start">MOBILE 390 — status cancelled</text></g></svg>

@@ -1,0 +1,68 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1100" viewBox="0 0 1600 1100">
+<rect width="1600" height="1100" fill="#F2F4F1"/>
+<g font-family="Inter, -apple-system, Segoe UI, sans-serif">
+<text x="70" y="52" font-size="11.5" font-weight="700" fill="#0E6E66" letter-spacing=".12em">REDESIGN WIREFRAME · 05-COMPARE</text>
+<text x="70" y="96" font-size="34" font-weight="700" fill="#121619">Compare strategies</text>
+<text x="70" y="126" font-size="16" fill="#49535B">A verdict first, then a matrix — not two duplicated reports side by side.</text>
+<line x1="70" y1="152" x2="1530" y2="152" stroke="#DDE2DC"/>
+<text x="70" y="186" font-size="12" font-weight="700" fill="#5C666F" letter-spacing=".1em">DESKTOP 1440</text>
+<text x="1030" y="186" font-size="12" font-weight="700" fill="#5C666F" letter-spacing=".1em">MOBILE 390</text>
+<rect x="70" y="200" width="880" height="44" rx="4" fill="#fff" stroke="#DDE2DC"/>
+<text x="82" y="222" font-size="13" font-weight="650" fill="#121619"></text>
+<text x="84" y="228" font-size="12.5" font-weight="650" fill="#121619">◆ Agentic Analytics</text>
+<text x="400" y="228" font-size="11.5" fill="#5C666F">commerce_demo · 502,819 rows</text>
+<text x="84" y="292" font-size="20" font-weight="700" fill="#121619">“What was total revenue in 2024 using order_date?”</text>
+<rect x="70" y="312" width="880" height="70" rx="4" fill="#F2F4F1" stroke="#0E6E66"/>
+<text x="82" y="334" font-size="13" font-weight="650" fill="#121619">Verdict</text>
+<text x="82" y="354" font-size="11.5" fill="#5C666F">contracts  EQUAL   ·   coverage  EQUAL   ·   output  EQUAL   ·   route recorded: deterministic sufficient</text>
+<rect x="70" y="400" width="880" height="110" rx="4" fill="#fff" stroke="#DDE2DC"/>
+<text x="82" y="422" font-size="13" font-weight="650" fill="#121619">Comparison matrix</text>
+<text x="82" y="442" font-size="11.5" fill="#5C666F">strategy · route · calls · cost · runtime · contract hash · result status</text>
+<text x="82" y="458" font-size="11.5" fill="#5C666F">two rows, one per strategy — not two full reports</text>
+<rect x="70" y="530" width="880" height="200" rx="4" fill="#fff" stroke="#DDE2DC"/>
+<text x="82" y="552" font-size="13" font-weight="650" fill="#121619">Shared answer, chart and table</text>
+<text x="82" y="572" font-size="11.5" fill="#5C666F">shown once, because the two strategies agreed</text>
+<text x="82" y="588" font-size="11.5" fill="#5C666F">when they differ this becomes a structured diff first</text>
+<rect x="70" y="746" width="420" height="40" rx="4" fill="#fff" stroke="#DDE2DC"/>
+<text x="82" y="768" font-size="12" font-weight="650" fill="#121619">Evidence · deterministic</text>
+<rect x="530" y="746" width="420" height="40" rx="4" fill="#fff" stroke="#DDE2DC"/>
+<text x="542" y="768" font-size="12" font-weight="650" fill="#121619">Evidence · AI</text>
+<rect x="1030" y="200" width="190" height="34" rx="4" fill="#fff" stroke="#DDE2DC"/>
+<text x="1042" y="222" font-size="13" font-weight="650" fill="#121619"></text>
+<rect x="1030" y="244" width="190" height="58" rx="4" fill="#F2F4F1" stroke="#0E6E66"/>
+<text x="1042" y="266" font-size="13" font-weight="650" fill="#121619">Verdict</text>
+<text x="1042" y="286" font-size="11.5" fill="#5C666F">contracts equal</text>
+<text x="1042" y="302" font-size="11.5" fill="#5C666F">coverage equal</text>
+<rect x="1030" y="314" width="190" height="92" rx="4" fill="#fff" stroke="#DDE2DC"/>
+<text x="1042" y="336" font-size="13" font-weight="650" fill="#121619">Matrix</text>
+<text x="1042" y="356" font-size="11.5" fill="#5C666F">scrolls horizontally</text>
+<text x="1042" y="372" font-size="11.5" fill="#5C666F">inside its frame</text>
+<rect x="1030" y="418" width="190" height="140" rx="4" fill="#fff" stroke="#DDE2DC"/>
+<text x="1042" y="440" font-size="13" font-weight="650" fill="#121619">Shared answer</text>
+<text x="1042" y="460" font-size="11.5" fill="#5C666F">one chart, one table</text>
+<rect x="1030" y="570" width="190" height="56" rx="4" fill="#fff" stroke="#0E6E66"/>
+<text x="1042" y="592" font-size="13" font-weight="650" fill="#121619">Evidence ▲</text>
+<text x="1042" y="612" font-size="11.5" fill="#5C666F">two tabs in one sheet</text>
+<text x="1230" y="186" font-size="12" font-weight="700" fill="#5C666F" letter-spacing=".1em">NOTES</text>
+<circle cx="1230" cy="212" r="9" fill="#0E6E66"/><text x="1230" y="216" font-size="11" font-weight="700" fill="#fff" text-anchor="middle">1</text>
+<text x="1248" y="216" font-size="12.5" fill="#49535B">One shared question and dataset context.</text>
+<circle cx="1230" cy="238" r="9" fill="#0E6E66"/><text x="1230" y="242" font-size="11" font-weight="700" fill="#fff" text-anchor="middle">2</text>
+<text x="1248" y="242" font-size="12.5" fill="#49535B">Verdict strip answers the actual question:</text>
+<text x="1248" y="260" font-size="12.5" fill="#49535B">did the contracts, coverage and output agree?</text>
+<circle cx="1230" cy="282" r="9" fill="#0E6E66"/><text x="1230" y="286" font-size="11" font-weight="700" fill="#fff" text-anchor="middle">3</text>
+<text x="1248" y="286" font-size="12.5" fill="#49535B">Matrix carries route, calls, cost, runtime,</text>
+<text x="1248" y="304" font-size="12.5" fill="#49535B">contract hash and status per strategy.</text>
+<circle cx="1230" cy="326" r="9" fill="#0E6E66"/><text x="1230" y="330" font-size="11" font-weight="700" fill="#fff" text-anchor="middle">4</text>
+<text x="1248" y="330" font-size="12.5" fill="#49535B">Agreement → one shared answer, chart and</text>
+<text x="1248" y="348" font-size="12.5" fill="#49535B">table, with two compact evidence columns.</text>
+<circle cx="1230" cy="370" r="9" fill="#0E6E66"/><text x="1230" y="374" font-size="11" font-weight="700" fill="#fff" text-anchor="middle">5</text>
+<text x="1248" y="374" font-size="12.5" fill="#49535B">Disagreement → a structured diff is shown</text>
+<text x="1248" y="392" font-size="12.5" fill="#49535B">before either full report.</text>
+<circle cx="1230" cy="414" r="9" fill="#0E6E66"/><text x="1230" y="418" font-size="11" font-weight="700" fill="#fff" text-anchor="middle">6</text>
+<text x="1248" y="418" font-size="12.5" fill="#49535B">No third “auto” lane is drawn. Auto is a</text>
+<text x="1248" y="436" font-size="12.5" fill="#49535B">policy over the two strategies, and showing</text>
+<text x="1248" y="454" font-size="12.5" fill="#49535B">it as a third execution would be a lie.</text>
+<circle cx="1230" cy="476" r="9" fill="#0E6E66"/><text x="1230" y="480" font-size="11" font-weight="700" fill="#fff" text-anchor="middle">7</text>
+<text x="1248" y="480" font-size="12.5" fill="#49535B">Motion: the two lanes align into the verdict</text>
+<text x="1248" y="498" font-size="12.5" fill="#49535B">once; connecting lines fade in ≤300ms.</text>
+</g></svg>

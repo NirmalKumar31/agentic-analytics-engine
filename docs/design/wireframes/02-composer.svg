@@ -1,0 +1,70 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1100" viewBox="0 0 1600 1100">
+<rect width="1600" height="1100" fill="#F2F4F1"/>
+<g font-family="Inter, -apple-system, Segoe UI, sans-serif">
+<text x="70" y="52" font-size="11.5" font-weight="700" fill="#0E6E66" letter-spacing=".12em">REDESIGN WIREFRAME · 02-COMPOSER</text>
+<text x="70" y="96" font-size="34" font-weight="700" fill="#121619">Dataset ready / question composition</text>
+<text x="70" y="126" font-size="16" fill="#49535B">The composer is the focal interaction; schema is a drawer, not a rail.</text>
+<line x1="70" y1="152" x2="1530" y2="152" stroke="#DDE2DC"/>
+<text x="70" y="186" font-size="12" font-weight="700" fill="#5C666F" letter-spacing=".1em">DESKTOP 1440</text>
+<text x="1030" y="186" font-size="12" font-weight="700" fill="#5C666F" letter-spacing=".1em">MOBILE 390</text>
+<rect x="70" y="200" width="880" height="44" rx="4" fill="#fff" stroke="#DDE2DC"/>
+<text x="82" y="222" font-size="13" font-weight="650" fill="#121619"></text>
+<text x="84" y="228" font-size="12.5" font-weight="650" fill="#121619">◆ Agentic Analytics</text>
+<text x="400" y="228" font-size="11.5" fill="#5C666F">commerce_demo · 502,819 rows</text>
+<text x="800" y="228" font-size="11.5" fill="#5C666F">Governed ▾   ◑   End</text>
+<rect x="70" y="256" width="880" height="40" rx="4" fill="#F2F4F1" stroke="#DDE2DC"/>
+<text x="82" y="278" font-size="13" font-weight="650" fill="#121619"></text>
+<text x="82" y="281" font-size="12" fill="#49535B">sales.csv · 240 rows · 5 fields · order_date, signup_date · 1 ambiguous field ⚠  ·  <tspan fill="#0E6E66">inspect schema →</tspan></text>
+<rect x="70" y="318" width="880" height="72" rx="4" fill="#fff" stroke="#0E6E66"/>
+<text x="82" y="340" font-size="13" font-weight="650" fill="#121619">Ask a question of this dataset</text>
+<text x="82" y="360" font-size="11.5" fill="#5C666F">command-bar scale, the focal interaction</text>
+<text x="82" y="412" font-size="11.5" fill="#5C666F">context chips:  sales.csv   ·   time: order_date   ·   ⚠ two date columns   ·   Governed</text>
+<rect x="70" y="438" width="880" height="180" rx="4" fill="#F2F4F1" stroke="#DDE2DC" stroke-dasharray="4 4"/>
+<text x="82" y="460" font-size="13" font-weight="650" fill="#121619">Suggested questions, grouped by intent</text>
+<rect x="86" y="480" width="200" height="56" rx="4" fill="#fff" stroke="#DDE2DC"/>
+<text x="98" y="502" font-size="11.5" font-weight="650" fill="#121619">Trend</text>
+<text x="98" y="522" font-size="11.5" fill="#5C666F">revenue over time</text>
+<rect x="302" y="480" width="200" height="56" rx="4" fill="#fff" stroke="#DDE2DC"/>
+<text x="314" y="502" font-size="11.5" font-weight="650" fill="#121619">Compare</text>
+<text x="314" y="522" font-size="11.5" fill="#5C666F">revenue by region</text>
+<rect x="518" y="480" width="200" height="56" rx="4" fill="#fff" stroke="#DDE2DC"/>
+<text x="530" y="502" font-size="11.5" font-weight="650" fill="#121619">Rank</text>
+<text x="530" y="522" font-size="11.5" fill="#5C666F">top categories</text>
+<rect x="734" y="480" width="200" height="56" rx="4" fill="#fff" stroke="#DDE2DC"/>
+<text x="746" y="502" font-size="11.5" font-weight="650" fill="#121619">Relationship</text>
+<text x="746" y="522" font-size="11.5" fill="#5C666F">delay vs repeat</text>
+<rect x="1030" y="200" width="190" height="34" rx="4" fill="#fff" stroke="#DDE2DC"/>
+<text x="1042" y="222" font-size="13" font-weight="650" fill="#121619"></text>
+<text x="1040" y="222" font-size="10" font-weight="650" fill="#121619">◆ AAE</text>
+<rect x="1030" y="242" width="190" height="34" rx="4" fill="#F2F4F1" stroke="#DDE2DC"/>
+<text x="1042" y="264" font-size="13" font-weight="650" fill="#121619"></text>
+<text x="1042" y="284" font-size="11.5" fill="#5C666F">sales.csv · 240 rows ⚠</text>
+<rect x="1030" y="288" width="190" height="66" rx="4" fill="#fff" stroke="#0E6E66"/>
+<text x="1042" y="310" font-size="13" font-weight="650" fill="#121619">Ask a question</text>
+<text x="1042" y="330" font-size="11.5" fill="#5C666F">focal, full width</text>
+<rect x="1030" y="366" width="190" height="150" rx="4" fill="#F2F4F1" stroke="#DDE2DC" stroke-dasharray="4 4"/>
+<text x="1042" y="388" font-size="13" font-weight="650" fill="#121619">Suggestions</text>
+<text x="1042" y="408" font-size="11.5" fill="#5C666F">intent groups stack</text>
+<text x="1042" y="424" font-size="11.5" fill="#5C666F">two per row</text>
+<text x="1230" y="186" font-size="12" font-weight="700" fill="#5C666F" letter-spacing=".1em">NOTES</text>
+<circle cx="1230" cy="212" r="9" fill="#0E6E66"/><text x="1230" y="216" font-size="11" font-weight="700" fill="#fff" text-anchor="middle">1</text>
+<text x="1248" y="216" font-size="12.5" fill="#49535B">Dataset context is a compact strip:</text>
+<text x="1248" y="234" font-size="12.5" fill="#49535B">rows, fields, time availability, ambiguity.</text>
+<circle cx="1230" cy="256" r="9" fill="#0E6E66"/><text x="1230" y="260" font-size="11" font-weight="700" fill="#fff" text-anchor="middle">2</text>
+<text x="1248" y="260" font-size="12.5" fill="#49535B">Composer reads as an analytical command</text>
+<text x="1248" y="278" font-size="12.5" fill="#49535B">bar, not a textarea in a card.</text>
+<circle cx="1230" cy="300" r="9" fill="#0E6E66"/><text x="1230" y="304" font-size="11" font-weight="700" fill="#fff" text-anchor="middle">3</text>
+<text x="1248" y="304" font-size="12.5" fill="#49535B">Context chips state the detected clock</text>
+<text x="1248" y="322" font-size="12.5" fill="#49535B">and warn when two dates exist.</text>
+<circle cx="1230" cy="344" r="9" fill="#0E6E66"/><text x="1230" y="348" font-size="11" font-weight="700" fill="#fff" text-anchor="middle">4</text>
+<text x="1248" y="348" font-size="12.5" fill="#49535B">Suggestions grouped by intent, generated</text>
+<text x="1248" y="366" font-size="12.5" fill="#49535B">from the schema. Demo prompts disappear</text>
+<text x="1248" y="384" font-size="12.5" fill="#49535B">once a file is uploaded.</text>
+<circle cx="1230" cy="406" r="9" fill="#0E6E66"/><text x="1230" y="410" font-size="11" font-weight="700" fill="#fff" text-anchor="middle">5</text>
+<text x="1248" y="410" font-size="12.5" fill="#49535B">Removed:</text>
+<text x="1248" y="428" font-size="12.5" fill="#A63B24">· permanent right rail</text>
+<text x="1248" y="446" font-size="12.5" fill="#A63B24">· always-open schema table</text>
+<circle cx="1230" cy="468" r="9" fill="#0E6E66"/><text x="1230" y="472" font-size="11" font-weight="700" fill="#fff" text-anchor="middle">6</text>
+<text x="1248" y="472" font-size="12.5" fill="#49535B">Schema inspector opens as a side sheet;</text>
+<text x="1248" y="490" font-size="12.5" fill="#49535B">Escape restores focus to the strip link.</text>
+</g></svg>

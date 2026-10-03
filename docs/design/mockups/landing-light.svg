@@ -1,0 +1,119 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1740" height="860" viewBox="0 0 1740 860"><rect width="1740" height="860" fill="#F2F4F1"/><g font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif"><text x="40" y="34" font-size="11" font-weight="700" fill="#0E6E66" letter-spacing=".12em">HIGH-FIDELITY MOCKUP · LANDING · LIGHT</text><g transform="translate(40,56)"><rect width="1180" height="620" rx="6" fill="#F2F4F1" stroke="#DDE2DC"/><g opacity="0.225" stroke="#0E6E66" fill="none" stroke-width=".6">
+<path d="M0 30.0 C 354.0 4.0, 708.0 52.0, 1180 18.0"/>
+<path d="M0 170.0 C 354.0 144.0, 708.0 192.0, 1180 158.0"/>
+<path d="M0 310.0 C 354.0 284.0, 708.0 332.0, 1180 298.0"/>
+<path d="M0 450.0 C 354.0 424.0, 708.0 472.0, 1180 438.0"/>
+<path d="M0 590.0 C 354.0 564.0, 708.0 612.0, 1180 578.0"/>
+</g>
+<g opacity="0.4" stroke="#0E6E66" fill="none" stroke-width=".7">
+<path d="M0 136.4 C 295.0 129.4, 649.0 143.4, 1180 132.9"/>
+<path d="M0 171.12 C 295.0 160.12, 649.0 182.12, 1180 165.62"/>
+<path d="M0 205.84000000000003 C 295.0 190.84000000000003, 649.0 220.84000000000003, 1180 198.34000000000003"/>
+<path d="M0 240.56 C 295.0 221.56, 649.0 259.56, 1180 231.06"/>
+<path d="M0 275.28000000000003 C 295.0 268.28000000000003, 649.0 282.28000000000003, 1180 271.78000000000003"/>
+<path d="M0 310.0 C 295.0 299.0, 649.0 321.0, 1180 304.5"/>
+<path d="M0 344.72 C 295.0 329.72, 649.0 359.72, 1180 337.22"/>
+<path d="M0 379.44000000000005 C 295.0 360.44000000000005, 649.0 398.44000000000005, 1180 369.94000000000005"/>
+<path d="M0 414.1600000000001 C 295.0 407.1600000000001, 649.0 421.1600000000001, 1180 410.6600000000001"/>
+<path d="M0 448.88 C 295.0 437.88, 649.0 459.88, 1180 443.38"/>
+<path d="M0 483.6 C 295.0 468.6, 649.0 498.6, 1180 476.1"/>
+</g>
+<g opacity="0.45" font-family="ui-monospace, SFMono-Regular, Menlo, monospace">
+<path d="M161.20000000000002 161.20000000000002 L169.20000000000002 161.20000000000002 M165.20000000000002 157.20000000000002 L165.20000000000002 165.20000000000002" stroke="#0E6E66" stroke-width=".9"/>
+<text x="173.20000000000002" y="164.20000000000002" font-size="8.5" fill="#0E6E66" opacity=".55">0.18</text>
+<path d="M456.2 359.59999999999997 L464.2 359.59999999999997 M460.2 355.59999999999997 L460.2 363.59999999999997" stroke="#0E6E66" stroke-width=".9"/>
+<text x="468.2" y="362.59999999999997" font-size="8.5" fill="#0E6E66" opacity=".55">0.42</text>
+<path d="M798.4000000000001 136.4 L806.4000000000001 136.4 M802.4000000000001 132.4 L802.4000000000001 140.4" stroke="#0E6E66" stroke-width=".9"/>
+<text x="810.4000000000001" y="139.4" font-size="8.5" fill="#0E6E66" opacity=".55">0.71</text>
+<path d="M975.4 409.20000000000005 L983.4 409.20000000000005 M979.4 405.20000000000005 L979.4 413.20000000000005" stroke="#0E6E66" stroke-width=".9"/>
+<text x="987.4" y="412.20000000000005" font-size="8.5" fill="#0E6E66" opacity=".55">0.86</text>
+<path d="M633.2 248.0 L641.2 248.0 M637.2 244.0 L637.2 252.0" stroke="#0E6E66" stroke-width=".9"/>
+<text x="645.2" y="251.0" font-size="8.5" fill="#0E6E66" opacity=".55">0.57</text>
+</g>
+<g opacity="0.275" stroke="#0E6E66" fill="none" stroke-width=".7">
+<path d="M72 494 C 270.4 485, 493.6 503, 692 489"/>
+<path d="M72 505 C 270.4 496, 493.6 514, 692 500"/>
+<path d="M72 516 C 270.4 507, 493.6 525, 692 511"/>
+</g>
+<rect x="0" y="0" width="1180" height="52" fill="#FBFCFA"/>
+<line x1="0" y1="52" x2="1180" y2="52" stroke="#DDE2DC"/>
+<g transform="translate(16,18) scale(1.0)" fill="none" stroke="#0E6E66" stroke-width="1.8" stroke-linecap="round"><path d="M0 14 L16 14"/><path d="M3 14 L3 8"/><path d="M8 14 L8 4"/><circle cx="13" cy="6" r="2.2" fill="#0E6E66" stroke="none"/></g>
+<text x="42" y="31" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="14" font-weight="650" fill="#121619" text-anchor="start">Agentic Analytics</text>
+<text x="1164" y="31" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="12.5" font-weight="400" fill="#5C666F" text-anchor="end">Governed ▾    ◑    End session</text>
+<text x="72" y="196" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="38" font-weight="700" fill="#121619" text-anchor="start">What would you like to understand?</text>
+<text x="72" y="230" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="16" font-weight="400" fill="#49535B" text-anchor="start">Bring a CSV or Parquet file, or start from a dataset we have prepared.</text>
+<rect x="72" y="272" width="620" height="188" rx="6" fill="#FBFCFA" stroke="#0E6E66" stroke-dasharray="7 6"/>
+<text x="104" y="324" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="19" font-weight="650" fill="#121619" text-anchor="start">Drop a file here, or choose one</text>
+<text x="104" y="352" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="13" font-weight="400" fill="#5C666F" text-anchor="start">CSV or Parquet · up to 10 MB · 200 columns · 400,000 rows</text>
+<text x="104" y="376" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="13" font-weight="400" fill="#5C666F" text-anchor="start">Your file stays for this session only and is deleted after 15 minutes.</text>
+<text x="104" y="400" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="13" font-weight="400" fill="#5C666F" text-anchor="start">Nothing is sent to a model unless you choose an AI strategy.</text>
+<rect x="104" y="418" width="150" height="30" rx="4" fill="#0E6E66"/>
+<text x="179" y="438" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="13" font-weight="650" fill="#FBFCFA" text-anchor="middle">Choose a file</text>
+<text x="732" y="292" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="15" font-weight="650" fill="#121619" text-anchor="start">Or start from prepared data</text>
+<line x1="732" y1="312" x2="1108" y2="312" stroke="#DDE2DC"/>
+<text x="732" y="334" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="14" font-weight="500" fill="#121619" text-anchor="start">Revenue up, margin down in Q3</text>
+<text x="732" y="351" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="11.5" font-weight="400" fill="#5C666F" text-anchor="start">parallel time-series · discount and mix</text>
+<text x="1108" y="342" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="15" font-weight="400" fill="#0E6E66" text-anchor="end">→</text>
+<line x1="732" y1="362" x2="1108" y2="362" stroke="#DDE2DC"/>
+<text x="732" y="384" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="14" font-weight="500" fill="#121619" text-anchor="start">Return rate by customer segment</text>
+<text x="732" y="401" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="11.5" font-weight="400" fill="#5C666F" text-anchor="start">segmentation · chi-square independence</text>
+<text x="1108" y="392" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="15" font-weight="400" fill="#0E6E66" text-anchor="end">→</text>
+<line x1="732" y1="412" x2="1108" y2="412" stroke="#DDE2DC"/>
+<text x="732" y="434" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="14" font-weight="500" fill="#121619" text-anchor="start">Shipping delay and repeat purchase</text>
+<text x="732" y="451" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="11.5" font-weight="400" fill="#5C666F" text-anchor="start">joined cohort · two-proportion z-test</text>
+<text x="1108" y="442" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="15" font-weight="400" fill="#0E6E66" text-anchor="end">→</text></g><g transform="translate(1270,56)"><rect width="390" height="700" rx="6" fill="#F2F4F1" stroke="#DDE2DC"/><g opacity="0.099" stroke="#0E6E66" fill="none" stroke-width=".6">
+<path d="M0 30.0 C 117.0 4.0, 234.0 52.0, 390 18.0"/>
+<path d="M0 190.0 C 117.0 164.0, 234.0 212.0, 390 178.0"/>
+<path d="M0 350.0 C 117.0 324.0, 234.0 372.0, 390 338.0"/>
+<path d="M0 510.0 C 117.0 484.0, 234.0 532.0, 390 498.0"/>
+<path d="M0 670.0 C 117.0 644.0, 234.0 692.0, 390 658.0"/>
+</g>
+<g opacity="0.17600000000000002" stroke="#0E6E66" fill="none" stroke-width=".7">
+<path d="M0 154.0 C 97.5 147.0, 214.50000000000003 161.0, 390 150.5"/>
+<path d="M0 193.2 C 97.5 182.2, 214.50000000000003 204.2, 390 187.7"/>
+<path d="M0 232.4 C 97.5 217.4, 214.50000000000003 247.4, 390 224.9"/>
+<path d="M0 271.6 C 97.5 252.60000000000002, 214.50000000000003 290.6, 390 262.1"/>
+<path d="M0 310.8 C 97.5 303.8, 214.50000000000003 317.8, 390 307.3"/>
+<path d="M0 350.0 C 97.5 339.0, 214.50000000000003 361.0, 390 344.5"/>
+<path d="M0 389.20000000000005 C 97.5 374.20000000000005, 214.50000000000003 404.20000000000005, 390 381.70000000000005"/>
+<path d="M0 428.40000000000003 C 97.5 409.40000000000003, 214.50000000000003 447.40000000000003, 390 418.90000000000003"/>
+<path d="M0 467.6 C 97.5 460.6, 214.50000000000003 474.6, 390 464.1"/>
+<path d="M0 506.80000000000007 C 97.5 495.80000000000007, 214.50000000000003 517.8000000000001, 390 501.30000000000007"/>
+<path d="M0 546.0 C 97.5 531.0, 214.50000000000003 561.0, 390 538.5"/>
+</g>
+<g opacity="0.198" font-family="ui-monospace, SFMono-Regular, Menlo, monospace">
+<path d="M50.60000000000001 182.0 L58.60000000000001 182.0 M54.60000000000001 178.0 L54.60000000000001 186.0" stroke="#0E6E66" stroke-width=".9"/>
+<text x="62.60000000000001" y="185.0" font-size="8.5" fill="#0E6E66" opacity=".55">0.18</text>
+<path d="M148.1 406.0 L156.1 406.0 M152.1 402.0 L152.1 410.0" stroke="#0E6E66" stroke-width=".9"/>
+<text x="160.1" y="409.0" font-size="8.5" fill="#0E6E66" opacity=".55">0.42</text>
+<path d="M261.20000000000005 154.0 L269.20000000000005 154.0 M265.20000000000005 150.0 L265.20000000000005 158.0" stroke="#0E6E66" stroke-width=".9"/>
+<text x="273.20000000000005" y="157.0" font-size="8.5" fill="#0E6E66" opacity=".55">0.71</text>
+<path d="M319.7 462.0 L327.7 462.0 M323.7 458.0 L323.7 466.0" stroke="#0E6E66" stroke-width=".9"/>
+<text x="331.7" y="465.0" font-size="8.5" fill="#0E6E66" opacity=".55">0.86</text>
+<path d="M206.60000000000002 280.0 L214.60000000000002 280.0 M210.60000000000002 276.0 L210.60000000000002 284.0" stroke="#0E6E66" stroke-width=".9"/>
+<text x="218.60000000000002" y="283.0" font-size="8.5" fill="#0E6E66" opacity=".55">0.57</text>
+</g>
+<rect x="0" y="0" width="390" height="44" fill="#FBFCFA"/>
+<line x1="0" y1="44" x2="390" y2="44" stroke="#DDE2DC"/>
+<g transform="translate(16,14) scale(0.9)" fill="none" stroke="#0E6E66" stroke-width="1.8" stroke-linecap="round"><path d="M0 14 L16 14"/><path d="M3 14 L3 8"/><path d="M8 14 L8 4"/><circle cx="13" cy="6" r="2.2" fill="#0E6E66" stroke="none"/></g>
+<text x="40" y="27" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="12.5" font-weight="650" fill="#121619" text-anchor="start">Agentic Analytics</text>
+<text x="374" y="27" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="12.5" font-weight="400" fill="#5C666F" text-anchor="end">◑</text>
+<text x="20" y="120" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="24" font-weight="700" fill="#121619" text-anchor="start">What would you</text>
+<text x="20" y="150" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="24" font-weight="700" fill="#121619" text-anchor="start">like to understand?</text>
+<text x="20" y="180" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="13" font-weight="400" fill="#49535B" text-anchor="start">Bring a CSV or Parquet file.</text>
+<rect x="20" y="208" width="350" height="150" rx="6" fill="#FBFCFA" stroke="#0E6E66" stroke-dasharray="7 6"/>
+<text x="40" y="250" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="16" font-weight="650" fill="#121619" text-anchor="start">Drop a file, or tap</text>
+<text x="40" y="276" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="12" font-weight="400" fill="#5C666F" text-anchor="start">CSV / Parquet · up to 10 MB</text>
+<text x="40" y="296" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="12" font-weight="400" fill="#5C666F" text-anchor="start">Session only, deleted after 15 min</text>
+<rect x="40" y="314" width="130" height="28" rx="4" fill="#0E6E66"/>
+<text x="105" y="333" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="12" font-weight="650" fill="#FBFCFA" text-anchor="middle">Choose a file</text>
+<text x="20" y="400" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="13" font-weight="650" fill="#121619" text-anchor="start">Or start from prepared data</text>
+<line x1="20" y1="420" x2="370" y2="420" stroke="#DDE2DC"/>
+<text x="20" y="442" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="12.5" font-weight="500" fill="#121619" text-anchor="start">Revenue up, margin down in Q3</text>
+<text x="370" y="442" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="13" font-weight="400" fill="#0E6E66" text-anchor="end">→</text>
+<line x1="20" y1="464" x2="370" y2="464" stroke="#DDE2DC"/>
+<text x="20" y="486" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="12.5" font-weight="500" fill="#121619" text-anchor="start">Return rate by segment</text>
+<text x="370" y="486" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="13" font-weight="400" fill="#0E6E66" text-anchor="end">→</text>
+<line x1="20" y1="508" x2="370" y2="508" stroke="#DDE2DC"/>
+<text x="20" y="530" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="12.5" font-weight="500" fill="#121619" text-anchor="start">Shipping delay and repeat purchase</text>
+<text x="370" y="530" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="13" font-weight="400" fill="#0E6E66" text-anchor="end">→</text></g><text x="40" y="702" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="11" font-weight="700" fill="#5C666F" text-anchor="start">DESKTOP 1440 — ambient field, full density</text><text x="1270" y="782" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="11" font-weight="700" fill="#5C666F" text-anchor="start">MOBILE 390 — same field at .22, no focus signal</text></g></svg>

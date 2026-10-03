@@ -1,0 +1,63 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1100" viewBox="0 0 1600 1100">
+<rect width="1600" height="1100" fill="#F2F4F1"/>
+<g font-family="Inter, -apple-system, Segoe UI, sans-serif">
+<text x="70" y="52" font-size="11.5" font-weight="700" fill="#0E6E66" letter-spacing=".12em">REDESIGN WIREFRAME · 01-LANDING</text>
+<text x="70" y="96" font-size="34" font-weight="700" fill="#121619">Landing / no dataset</text>
+<text x="70" y="126" font-size="16" fill="#49535B">One dominant action. No workflow stepper, no dashboard cards.</text>
+<line x1="70" y1="152" x2="1530" y2="152" stroke="#DDE2DC"/>
+<text x="70" y="186" font-size="12" font-weight="700" fill="#5C666F" letter-spacing=".1em">DESKTOP 1440</text>
+<text x="1030" y="186" font-size="12" font-weight="700" fill="#5C666F" letter-spacing=".1em">MOBILE 390</text>
+<rect x="70" y="200" width="880" height="44" rx="4" fill="#fff" stroke="#DDE2DC"/>
+<text x="82" y="222" font-size="13" font-weight="650" fill="#121619"></text>
+<text x="84" y="228" font-size="12.5" font-weight="650" fill="#121619">◆ Agentic Analytics</text>
+<text x="400" y="228" font-size="11.5" fill="#5C666F"></text>
+<text x="800" y="228" font-size="11.5" fill="#5C666F">Governed ▾   ◑   End</text>
+<text x="84" y="330" font-size="32" font-weight="700" fill="#121619">What would you like to understand?</text>
+<text x="84" y="360" font-size="15" fill="#49535B">Bring a CSV or Parquet file, or start from a prepared dataset.</text>
+<rect x="70" y="390" width="520" height="150" rx="4" fill="#fff" stroke="#0E6E66" stroke-dasharray="6 5"/>
+<text x="82" y="412" font-size="13" font-weight="650" fill="#121619">Drop a file here</text>
+<text x="82" y="432" font-size="11.5" fill="#5C666F">CSV or Parquet · up to 10 MB · 200 columns</text>
+<text x="82" y="448" font-size="11.5" fill="#5C666F">stays for this session only, deleted after 15 min</text>
+<text x="82" y="464" font-size="11.5" fill="#5C666F">nothing is sent to a model in deterministic mode</text>
+<rect x="618" y="390" width="332" height="150" rx="4" fill="#F2F4F1" stroke="#DDE2DC"/>
+<text x="630" y="412" font-size="13" font-weight="650" fill="#121619">Or start from prepared data</text>
+<text x="630" y="432" font-size="11.5" fill="#5C666F">three research prompts, not dashboard cards</text>
+<rect x="630" y="438" width="308" height="30" rx="4" fill="#fff" stroke="#DDE2DC"/>
+<text x="642" y="460" font-size="11.5" font-weight="650" fill="#121619">Revenue up, margin down in Q3</text>
+<rect x="630" y="476" width="308" height="30" rx="4" fill="#fff" stroke="#DDE2DC"/>
+<text x="642" y="498" font-size="11.5" font-weight="650" fill="#121619">Return rate by customer segment</text>
+<rect x="630" y="514" width="308" height="14" rx="4" fill="#fff" stroke="#DDE2DC"/>
+<text x="642" y="536" font-size="11.5" font-weight="650" fill="#121619">Shipping delay and repeat purchase</text>
+<rect x="1030" y="200" width="190" height="34" rx="4" fill="#fff" stroke="#DDE2DC"/>
+<text x="1042" y="222" font-size="13" font-weight="650" fill="#121619"></text>
+<text x="1040" y="222" font-size="10" font-weight="650" fill="#121619">◆ AAE</text>
+<text x="1030" y="278" font-size="17" font-weight="700" fill="#121619">What would you</text>
+<text x="1030" y="300" font-size="17" font-weight="700" fill="#121619">like to understand?</text>
+<rect x="1030" y="320" width="190" height="110" rx="4" fill="#fff" stroke="#0E6E66" stroke-dasharray="6 5"/>
+<text x="1042" y="342" font-size="13" font-weight="650" fill="#121619">Drop a file</text>
+<text x="1042" y="362" font-size="11.5" fill="#5C666F">or tap to choose</text>
+<text x="1042" y="378" font-size="11.5" fill="#5C666F">CSV / Parquet</text>
+<rect x="1030" y="444" width="190" height="120" rx="4" fill="#F2F4F1" stroke="#DDE2DC"/>
+<text x="1042" y="466" font-size="13" font-weight="650" fill="#121619">Prepared datasets</text>
+<text x="1042" y="486" font-size="11.5" fill="#5C666F">three, stacked</text>
+<text x="1042" y="502" font-size="11.5" fill="#5C666F">compact rows</text>
+<text x="1230" y="186" font-size="12" font-weight="700" fill="#5C666F" letter-spacing=".1em">NOTES</text>
+<circle cx="1230" cy="212" r="9" fill="#0E6E66"/><text x="1230" y="216" font-size="11" font-weight="700" fill="#fff" text-anchor="middle">1</text>
+<text x="1248" y="216" font-size="12.5" fill="#49535B">Editorial hero carries the proposition.</text>
+<circle cx="1230" cy="238" r="9" fill="#0E6E66"/><text x="1230" y="242" font-size="11" font-weight="700" fill="#fff" text-anchor="middle">2</text>
+<text x="1248" y="242" font-size="12.5" fill="#49535B">One dominant upload surface with its</text>
+<text x="1248" y="260" font-size="12.5" fill="#49535B">constraints and privacy stated inline.</text>
+<circle cx="1230" cy="282" r="9" fill="#0E6E66"/><text x="1230" y="286" font-size="11" font-weight="700" fill="#fff" text-anchor="middle">3</text>
+<text x="1248" y="286" font-size="12.5" fill="#49535B">Prepared datasets are compact prompts,</text>
+<text x="1248" y="304" font-size="12.5" fill="#49535B">not three large bordered cards.</text>
+<circle cx="1230" cy="326" r="9" fill="#0E6E66"/><text x="1230" y="330" font-size="11" font-weight="700" fill="#fff" text-anchor="middle">4</text>
+<text x="1248" y="330" font-size="12.5" fill="#49535B">Removed:</text>
+<text x="1248" y="348" font-size="12.5" fill="#A63B24">· the 5-step workflow stepper</text>
+<text x="1248" y="366" font-size="12.5" fill="#A63B24">· the DATASET all-caps panel</text>
+<circle cx="1230" cy="388" r="9" fill="#0E6E66"/><text x="1230" y="392" font-size="11" font-weight="700" fill="#fff" text-anchor="middle">5</text>
+<text x="1248" y="392" font-size="12.5" fill="#49535B">Upload transitions in place into the</text>
+<text x="1248" y="410" font-size="12.5" fill="#49535B">workspace — no page change.</text>
+<circle cx="1230" cy="432" r="9" fill="#0E6E66"/><text x="1230" y="436" font-size="11" font-weight="700" fill="#fff" text-anchor="middle">6</text>
+<text x="1248" y="436" font-size="12.5" fill="#49535B">Motion: hero fades/translates 12px,</text>
+<text x="1248" y="454" font-size="12.5" fill="#49535B">staggered ≤350ms. Reduced: instant.</text>
+</g></svg>

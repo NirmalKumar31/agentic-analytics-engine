@@ -1,0 +1,60 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1100" viewBox="0 0 1600 1100">
+<rect width="1600" height="1100" fill="#F2F4F1"/>
+<g font-family="Inter, -apple-system, Segoe UI, sans-serif">
+<text x="70" y="52" font-size="11.5" font-weight="700" fill="#0E6E66" letter-spacing=".12em">REDESIGN WIREFRAME · 07-MOBILE-REPORT</text>
+<text x="70" y="96" font-size="34" font-weight="700" fill="#121619">Mobile report</text>
+<text x="70" y="126" font-size="16" fill="#49535B">A reorganised composition, not the desktop stack made narrower.</text>
+<line x1="70" y1="152" x2="1530" y2="152" stroke="#DDE2DC"/>
+<text x="70" y="186" font-size="12" font-weight="700" fill="#5C666F" letter-spacing=".1em">DESKTOP 1440</text>
+<text x="1030" y="186" font-size="12" font-weight="700" fill="#5C666F" letter-spacing=".1em">MOBILE 390</text>
+<text x="70" y="206" font-size="14" font-weight="650" fill="#121619">Today — the desktop stack, narrowed</text>
+<rect x="70" y="224" width="190" height="560" rx="4" fill="#fff" stroke="#A63B24"/>
+<text x="82" y="246" font-size="13" font-weight="650" fill="#121619">7 panels, stacked</text>
+<text x="82" y="266" font-size="11.5" fill="#5C666F">ACTIVITY · STAGES · DAG</text>
+<text x="82" y="282" font-size="11.5" fill="#5C666F">all permanently open</text>
+<text x="82" y="298" font-size="11.5" fill="#5C666F">5,539px of scroll</text>
+<text x="300" y="206" font-size="14" font-weight="650" fill="#121619">Proposed — reorganised for the phone</text>
+<rect x="300" y="224" width="190" height="110" rx="4" fill="#fff" stroke="#DDE2DC"/>
+<text x="312" y="246" font-size="13" font-weight="650" fill="#121619">Answer</text>
+<text x="312" y="266" font-size="11.5" fill="#5C666F">two lines + context</text>
+<rect x="300" y="346" width="190" height="150" rx="4" fill="#fff" stroke="#DDE2DC"/>
+<text x="312" y="368" font-size="13" font-weight="650" fill="#121619">Chart</text>
+<text x="312" y="388" font-size="11.5" fill="#5C666F">full width, honest axes</text>
+<rect x="300" y="508" width="190" height="90" rx="4" fill="#F2F4F1" stroke="#DDE2DC" stroke-dasharray="4 4"/>
+<text x="312" y="530" font-size="13" font-weight="650" fill="#121619">Findings 1–4</text>
+<text x="312" y="550" font-size="11.5" fill="#5C666F">first open, rest collapsed</text>
+<rect x="300" y="610" width="190" height="80" rx="4" fill="#fff" stroke="#DDE2DC"/>
+<text x="312" y="632" font-size="13" font-weight="650" fill="#121619">Table</text>
+<text x="312" y="652" font-size="11.5" fill="#5C666F">contained, horizontal scroll</text>
+<rect x="300" y="702" width="190" height="44" rx="4" fill="#fff" stroke="#0E6E66"/>
+<text x="312" y="724" font-size="13" font-weight="650" fill="#121619">Show work ▲</text>
+<text x="312" y="744" font-size="11.5" fill="#5C666F">bottom sheet</text>
+<text x="300" y="778" font-size="12" font-weight="650" fill="#0E6E66">target ≤ 2,200px</text>
+<rect x="540" y="224" width="410" height="300" rx="4" fill="#F2F4F1" stroke="#0E6E66"/>
+<text x="552" y="246" font-size="13" font-weight="650" fill="#121619">Bottom sheet contents</text>
+<text x="552" y="266" font-size="11.5" fill="#5C666F">contract · route · build SHA · coverage</text>
+<text x="552" y="282" font-size="11.5" fill="#5C666F">verification · cited cells · timings</text>
+<text x="552" y="298" font-size="11.5" fill="#5C666F">planner fallback, when one occurred</text>
+<text x="1030" y="220" font-size="12" fill="#5C666F">(this sheet is the mobile study)</text>
+<text x="1230" y="186" font-size="12" font-weight="700" fill="#5C666F" letter-spacing=".1em">NOTES</text>
+<circle cx="1230" cy="212" r="9" fill="#0E6E66"/><text x="1230" y="216" font-size="11" font-weight="700" fill="#fff" text-anchor="middle">1</text>
+<text x="1248" y="216" font-size="12.5" fill="#49535B">Answer and chart stay first. Everything</text>
+<text x="1248" y="234" font-size="12.5" fill="#49535B">else is reachable, not resident.</text>
+<circle cx="1230" cy="256" r="9" fill="#0E6E66"/><text x="1230" y="260" font-size="11" font-weight="700" fill="#fff" text-anchor="middle">2</text>
+<text x="1248" y="260" font-size="12.5" fill="#49535B">Evidence becomes a bottom sheet — the</text>
+<text x="1248" y="278" font-size="12.5" fill="#49535B">drawer pattern a phone actually affords.</text>
+<circle cx="1230" cy="300" r="9" fill="#0E6E66"/><text x="1230" y="304" font-size="11" font-weight="700" fill="#fff" text-anchor="middle">3</text>
+<text x="1248" y="304" font-size="12.5" fill="#49535B">Findings collapse after the first, so the</text>
+<text x="1248" y="322" font-size="12.5" fill="#49535B">page does not repeat four times.</text>
+<circle cx="1230" cy="344" r="9" fill="#0E6E66"/><text x="1230" y="348" font-size="11" font-weight="700" fill="#fff" text-anchor="middle">4</text>
+<text x="1248" y="348" font-size="12.5" fill="#49535B">Table is deliberately contained and</text>
+<text x="1248" y="366" font-size="12.5" fill="#49535B">discoverable: it scrolls inside its frame,</text>
+<text x="1248" y="384" font-size="12.5" fill="#49535B">and the page never scrolls sideways.</text>
+<circle cx="1230" cy="406" r="9" fill="#0E6E66"/><text x="1230" y="410" font-size="11" font-weight="700" fill="#fff" text-anchor="middle">5</text>
+<text x="1248" y="410" font-size="12.5" fill="#49535B">Measured target: ≤ 2,200px against</text>
+<text x="1248" y="428" font-size="12.5" fill="#49535B">today's 5,539px. This is an acceptance</text>
+<text x="1248" y="446" font-size="12.5" fill="#49535B">criterion, not an aspiration.</text>
+<circle cx="1230" cy="468" r="9" fill="#0E6E66"/><text x="1230" y="472" font-size="11" font-weight="700" fill="#fff" text-anchor="middle">6</text>
+<text x="1248" y="472" font-size="12.5" fill="#49535B">Touch targets stay ≥ 44px, as the</text>
+<text x="1248" y="490" font-size="12.5" fill="#49535B">existing suite already asserts.</text>
+</g></svg>
