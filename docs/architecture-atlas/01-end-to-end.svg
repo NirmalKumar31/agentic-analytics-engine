@@ -15,6 +15,7 @@
 <text x="390" y="392" fill="#58696b" font-size="18" font-weight="400">FastAPI + session capability</text>
 <text x="390" y="419" fill="#58696b" font-size="18" font-weight="400">Profile uploads / load registry</text>
 <text x="390" y="446" fill="#58696b" font-size="18" font-weight="400">Stream progress over SSE</text>
+<text x="390" y="473" fill="#58696b" font-size="18" font-weight="400">Build SHA on health, config and runs</text>
 <circle cx="725" cy="295" r="38" fill="#147c72" fill-opacity=".07"/>
 <image href="data:image/svg+xml;base64,PHN2ZyByb2xlPSJpbWciIHZpZXdCb3g9IjAgMCAyNCAyNCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48dGl0bGU+TGFuZ0dyYXBoPC90aXRsZT48cGF0aCBkPSJNNSAxOUgxMEE1IDUgMCAxMTUgMTRaTTE5IDE0QTUgNSAwIDExMTQgMTlIMTlaTTEwIDVBNSA1IDAgMTA1IDEwVjVaTTE5IDVWMTBBNSA1IDAgMTAxNCA1WiIvPjwvc3ZnPg==" x="703" y="273" width="44" height="44"/>
 <text x="700" y="360" fill="#192d35" font-size="23" font-weight="650">Resolve &amp; orchestrate</text>
@@ -27,6 +28,7 @@
 <text x="1030" y="392" fill="#58696b" font-size="18" font-weight="400">In-process MCP tools</text>
 <text x="1030" y="419" fill="#58696b" font-size="18" font-weight="400">Guarded SQL → DuckDB</text>
 <text x="1030" y="446" fill="#58696b" font-size="18" font-weight="400">Bounded result snapshots</text>
+<text x="1030" y="473" fill="#58696b" font-size="18" font-weight="400">Population rows + observations</text>
 <circle cx="1355" cy="295" r="38" fill="#147c72" fill-opacity=".07"/>
 <g transform="translate(1330,270)" fill="none" stroke="#147c72" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M25 2L44 10V26Q42 40 25 49Q8 40 6 26V10Z M15 25L23 33L36 18"/></g>
 <text x="1330" y="360" fill="#192d35" font-size="23" font-weight="650">Verify</text>
@@ -63,6 +65,6 @@
 <text x="650" y="825" fill="#58696b" font-size="18" font-weight="400">Two runs over the same dataset; each owns its evidence IDs.</text>
 <text x="650" y="852" fill="#58696b" font-size="18" font-weight="400">Compare contracts, coverage and values—not prose alone.</text>
 <path d="M70 929H1530" stroke="#d5dbd3"/>
-<text x="70" y="963" fill="#58696b" font-size="14" font-weight="400">SOURCE SNAPSHOT 5180381  •  Code architecture; runtime settings may differ.</text>
+<text x="70" y="963" fill="#58696b" font-size="14" font-weight="400">SOURCE SNAPSHOT 4da28ee  •  Code architecture; runtime settings may differ.</text>
 <text x="1120" y="963" fill="#58696b" font-size="14" font-weight="400">Solid: execution   ·   Dashed: optional path</text>
 </g></svg>

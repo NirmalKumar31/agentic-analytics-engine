@@ -490,7 +490,7 @@ It takes a different route:
    result records that contract, and direct findings are withheld unless their
    cited aggregate preserved it.
 
-For Compare Both the contract has a canonical hash that excludes planner
+For a planning-strategy comparison the contract has a canonical hash that excludes planner
 provenance and filter order. Matching hashes mean both panes executed the same
 semantic request; a mismatch is disclosed rather than hidden, and the differing
 canonical fields are named side by side — a swapped measure and a dropped row
@@ -767,4 +767,4 @@ responses and chain-of-thought.
 rule resolver without opening a cloud provider. Only ambiguity can open the
 governed planner, and the resulting typed proposal must still pass the same
 contract and coverage gates as a deterministic interpretation. Deterministic,
-AI-assisted and Compare Both remain explicit audit modes.
+AI-assisted and planning-strategy comparison remain explicit audit modes.

@@ -1,19 +1,19 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1000" viewBox="0 0 1600 1000"><defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10" fill="#147c72"/></marker><marker id="rust" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10" fill="#b3442d"/></marker></defs><rect width="1600" height="1000" fill="#f5f2e9"/><g font-family="Arial, Helvetica, sans-serif">
 <text x="70" y="62" fill="#147c72" font-size="14" font-weight="700">AGENTIC ANALYTICS ENGINE     /     ENGINEERING ATLAS 02</text>
 <text x="70" y="128" fill="#192d35" font-size="43" font-weight="700">How an uploaded question becomes a contract</text>
-<text x="70" y="170" fill="#58696b" font-size="20" font-weight="400">Automatic mode routes by explicit resolver state—not a model’s guess at question difficulty.</text>
+<text x="70" y="170" fill="#58696b" font-size="20" font-weight="400">Routing is by resolver state, and by whether the missing fact is one a model may supply at all.</text>
 <path d="M70 207H1530" stroke="#d5dbd3"/>
 <circle cx="115" cy="310" r="38" fill="#147c72" fill-opacity=".07"/>
 <g transform="translate(90,285)" fill="none" stroke="#147c72" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3H32L43 14V48H9Z M32 3V15H43 M17 25H35 M17 33H35 M17 41H29"/></g>
-<text x="90" y="375" fill="#192d35" font-size="23" font-weight="650">Question + inferred schema</text>
-<text x="90" y="407" fill="#58696b" font-size="18" font-weight="400">Column roles, types and ambiguity</text>
+<text x="90" y="375" fill="#192d35" font-size="23" font-weight="650">Question + effective schema</text>
+<text x="90" y="407" fill="#58696b" font-size="18" font-weight="400">Inference + confirmed roles, one revision</text>
 <text x="90" y="434" fill="#58696b" font-size="18" font-weight="400">Rules inspect the requested analysis</text>
 <path d="M165 310H455" fill="none" stroke="#147c72" stroke-width="2.5"  marker-end="url(#arrow)"/>
 <circle cx="510" cy="310" r="38" fill="#147c72" fill-opacity=".07"/>
 <g transform="translate(485,285)" fill="none" stroke="#147c72" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="25" r="6"/><circle cx="40" cy="10" r="6"/><circle cx="40" cy="40" r="6"/><path d="M16 23L34 12 M16 28L34 38"/></g>
 <text x="470" y="377" fill="#192d35" font-size="23" font-weight="650">Assess resolution</text>
 <path d="M550 303H750V285H850" fill="none" stroke="#147c72" stroke-width="2.5"  marker-end="url(#arrow)"/>
-<path d="M550 317H700V495H850" fill="none" stroke="#147c72" stroke-width="2.5" stroke-dasharray="7 7" marker-end="url(#arrow)"/>
+<path d="M550 317H640V495H850" fill="none" stroke="#147c72" stroke-width="2.5" stroke-dasharray="7 7" marker-end="url(#arrow)"/>
 <path d="M535 337V725H850" fill="none" stroke="#b3442d" stroke-width="2.5" stroke-dasharray="7 7" marker-end="url(#rust)"/>
 <text x="725" y="263" fill="#147c72" font-size="14" font-weight="700">EXACT</text>
 <circle cx="900" cy="285" r="38" fill="#147c72" fill-opacity=".07"/>
@@ -21,19 +21,21 @@
 <text x="875" y="350" fill="#192d35" font-size="23" font-weight="650">Accept rules contract</text>
 <text x="875" y="382" fill="#58696b" font-size="18" font-weight="400">Zero model calls</text>
 <text x="875" y="409" fill="#58696b" font-size="18" font-weight="400">No AI ledger admission</text>
-<text x="715" y="468" fill="#147c72" font-size="14" font-weight="700">AMBIGUOUS</text>
+<text x="648" y="468" fill="#147c72" font-size="14" font-weight="700">AMBIGUOUS · LANGUAGE</text>
 <circle cx="900" cy="495" r="38" fill="#147c72" fill-opacity=".07"/>
 <g transform="translate(875,470)" fill="none" stroke="#147c72" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="25" cy="25" r="7"/><path d="M25 3V18 M25 32V47 M3 25H18 M32 25H47 M9 9L20 20 M30 30L42 42 M9 41L20 30 M30 20L41 9"/></g>
 <text x="875" y="560" fill="#192d35" font-size="23" font-weight="650">Governed cloud planner</text>
 <text x="875" y="592" fill="#58696b" font-size="18" font-weight="400">Lazy provider + Redis admission</text>
 <text x="875" y="619" fill="#58696b" font-size="18" font-weight="400">OpenAI typed plan → validation</text>
 <text x="875" y="646" fill="#58696b" font-size="18" font-weight="400">Unavailable or unusable → refusal</text>
+<text x="595" y="681" fill="#b3442d" font-size="13" font-weight="700">AMBIGUOUS · SEMANTIC</text>
 <text x="595" y="702" fill="#b3442d" font-size="13" font-weight="700">UNRESOLVED · UNSUPPORTED · UNSAFE</text>
 <circle cx="900" cy="745" r="38" fill="#b3442d" fill-opacity=".07"/>
 <g transform="translate(875,720)" fill="none" stroke="#b3442d" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M25 2L44 10V26Q42 40 25 49Q8 40 6 26V10Z M15 25L23 33L36 18"/></g>
 <text x="875" y="810" fill="#192d35" font-size="23" font-weight="650">Refuse with a reason</text>
 <text x="875" y="842" fill="#58696b" font-size="18" font-weight="400">No planner request</text>
 <text x="875" y="869" fill="#58696b" font-size="18" font-weight="400">Expose the unresolved requirement</text>
+<text x="875" y="896" fill="#58696b" font-size="18" font-weight="400">A missing business clock is asked, not inferred</text>
 <path d="M1120 295H1265V420" fill="none" stroke="#147c72" stroke-width="2.5"  marker-end="url(#arrow)"/>
 <path d="M1120 495H1165V445H1220" fill="none" stroke="#147c72" stroke-width="2.5"  marker-end="url(#arrow)"/>
 <circle cx="1265" cy="445" r="38" fill="#147c72" fill-opacity=".07"/>
@@ -53,6 +55,6 @@
 <text x="90" y="656" fill="#58696b" font-size="20" font-weight="400">Coverage is checked independently</text>
 <text x="90" y="683" fill="#58696b" font-size="20" font-weight="400">of whether two planners agree.</text>
 <path d="M70 929H1530" stroke="#d5dbd3"/>
-<text x="70" y="963" fill="#58696b" font-size="14" font-weight="400">SOURCE SNAPSHOT 5180381  •  Code architecture; runtime settings may differ.</text>
+<text x="70" y="963" fill="#58696b" font-size="14" font-weight="400">SOURCE SNAPSHOT 4da28ee  •  Code architecture; runtime settings may differ.</text>
 <text x="1120" y="963" fill="#58696b" font-size="14" font-weight="400">Solid: execution   ·   Dashed: optional path</text>
 </g></svg>

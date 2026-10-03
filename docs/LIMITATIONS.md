@@ -217,7 +217,7 @@ coroutine.
   row's value, so a sum by a low-cardinality dimension with a thin group can
   reproduce a cell. That is inherent to aggregation, not a hole in the
   redaction, and nothing in the design prevents it.
-- The restriction follows the **run**, not the process. Compare Both puts a
+- The restriction follows the **run**, not the process. A planning-strategy comparison puts a
   local run and a cloud run on one session; the cloud half withholds and the
   local half does not, and `AAE_PROVIDER_MODE` does not decide it.
 
@@ -274,7 +274,7 @@ silent guesses, zero cross-run leaks, zero unexpected failures. A case may
 answer, refuse, or complete with nothing published; the manifest records
 which of those are honest for each question.
 
-**The two modes now agree on every case.** Both passes are compared on
+**The two planners now agree on every case.** Both passes are compared on
 outcome and publication count, and the divergence is zero. It was five, and
 all five had one cause: the AI path recorded a period's column in
 `time_field`, where the rule path records it in `period_field` and reserves
@@ -283,7 +283,7 @@ changing the SQL, so revalidation at the MCP boundary refused the engine's
 own contract and the AI pass published nothing where the deterministic pass
 answered.
 
-This is worth stating as a measured number because Compare Both puts the two
+This is worth stating as a measured number because a comparison puts the two
 side by side and gives a reader no way to tell a planner disagreement from a
 data problem. It is compared on outcome rather than on wording: the reporter
 may phrase a finding differently, and that is not a divergence.
@@ -594,8 +594,9 @@ developer's machine is not the constraint the deployment is.
 
 Live at <https://agentic-analytics-engine.onrender.com>. Both public modes
 work there: credential-free acceptance passes **57 checks** against the
-deployed service, and a single authorised Compare Both run published the
-correct total on both the deterministic and the AI side for **$0.001160**.
+deployed service, and the authorised comparison run taken at the **v0.1.0**
+release published the correct total on both the deterministic and the AI
+side for **$0.001160**.
 `docs/RELEASE-EVIDENCE-v0.1.0.md` carries the figures and the capture
 checksums for the v0.1.0 release, where the same script reported 55.
 
@@ -622,9 +623,18 @@ inference:
   see §5b.
 - **Firefox and WebKit are untested against this deployment.** Chromium
   only. No claim is made about the other two.
-- **One paid run.** Everything known about the hosted AI path comes from a
-  single Compare Both request; it is evidence that the path works, not a
-  sample of how it behaves under variety or load.
+- **One paid run at this release.** The figure above is one comparison
+  request, taken at v0.1.0: evidence that the path works, not a sample of
+  how it behaves under variety or load.
+
+  Three *further* authorised runs were taken on **30 Sep 2026** and are
+  recorded separately in §11. They are not the same evidence and are not
+  added together here: different dates, different release, different
+  question, and §11's three exist to show **variance** — the model agreed
+  with the rules in two of three — which a single run cannot show. Four
+  paid runs have been made in total across both periods; no sentence in
+  this document should be read as claiming a larger sample than the one it
+  names.
 - The resource envelope has not been measured against the running instance
   under load, and cold-start latency is unquantified.
 
@@ -665,13 +675,18 @@ Runs are checkpointed per question and resumable, with a status file so a
 stalled sweep is diagnosable while it runs. There is a whole-question
 timeout as well as a per-call one.
 
-### What three paid Compare Both runs showed about typed AI planning
+### What three paid comparison runs showed about typed AI planning
 
 The bounds on a typed cloud plan (ARCHITECTURE §14, ADR 0002) are enforced
 in code and tested against plans written by hand. Neither the corpus nor the
 unit tests say anything about how a real model behaves, because both drive
 the scripted provider. Three authorised runs against the deployed service on
 30 Sep 2026 are the only evidence there is, and they are three samples.
+
+These three are distinct from the single v0.1.0 acceptance run in §10. That
+one asked a different question at a different release and is not part of
+this sample; the two sets are reported separately on purpose, because
+collapsing them would claim a variety neither establishes.
 
 One question, over a 300-row upload: *"What was the total annual revenue in
 2024?"* The expected total, computed with DuckDB before any run, is
@@ -693,7 +708,7 @@ measure, period, `period_field` and `time_field`, hash
 falling back to the rule contract, which is the behaviour ADR 0002 chose.
 
 **What it does not support.** That the model agrees reliably. Two of three is
-two of three. The variance is real and a reader of a single Compare Both
+two of three. The variance is real and a reader of a single comparison
 cannot see it.
 
 **No bound was breached in any run** — but none was *attacked* either. No run

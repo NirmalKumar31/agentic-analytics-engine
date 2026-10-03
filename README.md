@@ -134,9 +134,9 @@ HTTP transport for external callers and is withdrawn on the public deployment.
 ## Verification evidence
 
 The exact counts vary as the suite grows, so release evidence—not this
-introduction—is the source of record. At the principal-audit closeout:
+introduction—is the source of record. On the current `main`:
 
-- Python: **2,212 passing tests**, 89% branch coverage.
+- Python: **2,226 passing tests**, 89% branch coverage.
 - Frontend: **457 passing tests**.
 - Browser: Chromium **96/96**, Firefox **95/96** and WebKit **95/96**; the
   latter two have one declared Chromium-only PDF skip. The harness reconciles

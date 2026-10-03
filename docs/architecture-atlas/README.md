@@ -26,10 +26,20 @@ claim that every question uses every graph node.
 ![Automatic governed planning](02-governed-planning.png)
 
 This isolates the default routing policy. An exactly resolved upload question
-does not construct a cloud provider or consume AI admission. An eligible
-ambiguity may use a typed AI planning proposal, which is locally validated
-before a contract reaches execution. An unsafe or unmappable request is
-refused with its reason.
+does not construct a cloud provider or consume AI admission.
+
+**Not every ambiguity is delegable**, and the diagram now distinguishes the
+two kinds. An ambiguity of *language* -- wording that did not say which
+column filled a role -- may use a typed AI planning proposal, locally
+validated before a contract reaches execution. An ambiguity of *business
+semantics* may not: when a table carries both `order_date` and
+`signup_date`, which one defines "2024" is a fact about the business, not
+about the sentence, so the engine asks rather than letting a model choose.
+`AMBIGUOUS_PERIOD_SEMANTICS` is deliberately absent from
+`AI_ELIGIBLE_ISSUES`, and `ai_eligible` requires every issue to be in that
+allow-list.
+
+An unsafe or unmappable request is refused with its reason.
 
 Forced AI and the comparison screen are explicit audit paths; they are not
 shown as an automatic fallback.
@@ -99,3 +109,10 @@ For the detailed architecture and its invariants, read
 [ARCHITECTURE.md](../ARCHITECTURE.md). For what has actually been measured,
 read the release evidence rather than treating a diagram as proof.
 
+## What the source snapshot means
+
+Each diagram's footer names the commit its claims were checked against --
+currently `4da28ee`. The text in these diagrams was verified against
+implementation call sites at that revision, not against intent. When the
+architecture moves, the snapshot and the claim move together or the diagram
+is wrong in a way no test will catch.

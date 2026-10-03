@@ -200,7 +200,7 @@ Deterministic first. AI only after the deterministic service is healthy.
     `compare_available` true.
 11. **One bounded AI question** — a single run. Check the response, the
     recorded usage and cost, and the logs for credential leakage.
-12. **One Compare Both** — confirm two independent panes and that only the
+12. **One planning-strategy comparison** — confirm two independent panes and that only the
     AI side consumed quota.
 13. **Quota exhaustion** — lower a ceiling temporarily and confirm the 429
     message, then confirm Deterministic Analytics still works.
@@ -212,7 +212,7 @@ Deterministic first. AI only after the deterministic service is healthy.
 
 `docs/RELEASE-EVIDENCE-v0.1.0.md` records the v0.1.0 measurements: a
 55-check credential-free acceptance run against production, and one
-authorised Compare Both request whose deterministic and AI halves both
+authorised comparison request whose deterministic and AI halves both
 published a total computed independently beforehand, for $0.001160.
 
 It also records what was *not* exercised, which matters more for anyone
