@@ -63,6 +63,6 @@
 <text x="85" y="800" fill="#58696b" font-size="19" font-weight="400">allowed model context.</text>
 <text x="1235" y="855" fill="#b3442d" font-size="15" font-weight="400">Free-store restart can reset counters.</text>
 <path d="M70 929H1530" stroke="#d5dbd3"/>
-<text x="70" y="963" fill="#58696b" font-size="14" font-weight="400">SOURCE SNAPSHOT 5180381  •  Code architecture; runtime settings may differ.</text>
+<text x="70" y="963" fill="#58696b" font-size="14" font-weight="400">SOURCE SNAPSHOT 4da28ee  •  Code architecture; runtime settings may differ.</text>
 <text x="1120" y="963" fill="#58696b" font-size="14" font-weight="400">Solid: execution   ·   Dashed: optional path</text>
 </g></svg>
