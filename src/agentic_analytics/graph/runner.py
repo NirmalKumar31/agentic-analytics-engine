@@ -74,6 +74,15 @@ class RunResult:
     timings: dict[str, float] = field(default_factory=dict)
     #: Why the chart is what it is, including the reason when there is none.
     chart_decision: dict[str, Any] = field(default_factory=dict)
+    #: Which generation of the session's role confirmations this run used.
+    #: Recorded so a completed run stays readable after the session's schema
+    #: moves on: its evidence describes the schema it actually executed
+    #: against, and is never relabelled by a later confirmation.
+    schema_revision: int = 0
+    #: The columns whose role mattered to the accepted contract, and where
+    #: that role came from. Only columns the contract used -- a reader does
+    #: not need the provenance of a column nothing touched.
+    role_evidence: list[dict[str, Any]] = field(default_factory=list)
     #: How this answer should be presented, derived from the contract, the
     #: verified result and the coverage records. Optional and additive: a
     #: consumer that predates it still reads `report`, `findings` and
@@ -126,6 +135,8 @@ class RunResult:
             "planner_fallback": self.planner_fallback,
             "stopped_reason": self.stopped_reason,
             "outcome": self.outcome,
+            "schema_revision": self.schema_revision,
+            "role_evidence": list(self.role_evidence),
         }
 
 
@@ -157,6 +168,56 @@ _STOP_OUTCOMES: tuple[tuple[str, RunOutcome], ...] = (
     ("cancelled", "cancelled"),
     ("dataset was closed", "cancelled"),
 )
+
+
+def _role_evidence(schema: dict[str, Any] | None, mapping: Any) -> list[dict[str, Any]]:
+    """Where the roles the contract relied on came from.
+
+    Only the columns the accepted contract actually used. A reader asking
+    "why is this grouped that way" is asking about the grouping, not about
+    the provenance of eleven columns nothing touched.
+
+    A column whose role was confirmed is the interesting case, but a used
+    column that inference settled is reported too: the audit should be able
+    to say "this grouping is the engine's reading" as well as "this one is
+    yours".
+    """
+    if not schema or mapping is None:
+        return []
+
+    used: dict[str, list[str]] = {}
+
+    def note(column: str | None, how: str) -> None:
+        if not column:
+            return
+        used.setdefault(str(column), [])
+        if how not in used[str(column)]:
+            used[str(column)].append(how)
+
+    note(getattr(mapping, "measure", None), "measure")
+    for dimension in getattr(mapping, "dimensions", ()) or ():
+        note(dimension, "grouping")
+    note(getattr(mapping, "time_field", None), "time")
+    note(getattr(mapping, "period_field", None), "period")
+    for restriction in getattr(mapping, "filters", ()) or ():
+        note(getattr(restriction, "column", None), "filter")
+
+    evidence: list[dict[str, Any]] = []
+    for field_payload in schema.get("fields", []) or []:
+        name = str(field_payload.get("name", ""))
+        if name not in used:
+            continue
+        evidence.append(
+            {
+                "column": name,
+                "effective_role": field_payload.get("role"),
+                "inferred_role": field_payload.get("inferred_role", field_payload.get("role")),
+                "role_source": field_payload.get("role_source", "inferred"),
+                "ambiguous": bool(field_payload.get("ambiguous", False)),
+                "used_as": used[name],
+            }
+        )
+    return evidence
 
 
 def _outcome_from_reason(reason: str) -> RunOutcome:
@@ -315,6 +376,7 @@ async def run_analysis(
     run_id: str | None = None,
     telemetry: dict[str, Any] | None = None,
     open_planner: Any | None = None,
+    role_confirmations: Any | None = None,
 ) -> RunResult:
     """Execute one analysis end to end.
 
@@ -324,6 +386,13 @@ async def run_analysis(
     ledger slot, and a question the rules already answered must not spend
     quota on work that never happens. Omitted, the run behaves exactly as
     before -- one provider, chosen by the caller.
+
+    `role_confirmations` pins the generation of the session's role
+    confirmations this run executes against. The caller captures it once so
+    that a comparison's two children are guaranteed the same one: capturing
+    per child would let a confirmation land between them and produce two
+    runs of the same question under different schemas, reported side by
+    side as though they were comparable.
     """
     cfg = settings or get_settings()
     bus = events or EventBus()
@@ -365,6 +434,7 @@ async def run_analysis(
                 cfg.budgets,
                 telemetry,
                 open_planner=open_planner,
+                role_confirmations=role_confirmations,
             )
             if telemetry is not None:
                 # A live handle, not a copy. If the caller abandons this run
@@ -374,6 +444,10 @@ async def run_analysis(
                 # zero tool calls, which is precisely the case where knowing
                 # them matters most.
                 telemetry["toolset"] = toolset
+            # The generation this run executes against, taken from the
+            # context so every later reference agrees with what the nodes
+            # actually interpreted.
+            schema_revision = ctx.schema_revision
             graph = build_graph(ctx)
             state = await graph.ainvoke(
                 {"question": question, "session_id": session.session_id},
@@ -451,6 +525,10 @@ async def run_analysis(
         ),
         timings=dict(state.get("timings") or {}),
         chart_decision=dict(state.get("chart_decision") or {}),
+        schema_revision=schema_revision,
+        role_evidence=_role_evidence(
+            state.get("upload_schema") or None, state.get("query_mapping")
+        ),
         planner_fallback=bool(getattr(state.get("query_mapping"), "planner_note", "")),
         stopped_reason=state.get("stopped_reason", ""),
         outcome=_outcome_from_reason(state.get("stopped_reason", "")),

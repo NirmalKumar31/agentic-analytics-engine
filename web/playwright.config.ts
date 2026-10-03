@@ -1,5 +1,8 @@
 import { defineConfig, devices } from '@playwright/test'
 
+import { parseBrowsers } from './scripts/e2eGate.mjs'
+import { resolveBaseUrl } from './src/test/preflight'
+
 /**
  * Browser-level acceptance against a running server.
  *
@@ -12,16 +15,36 @@ import { defineConfig, devices } from '@playwright/test'
  * push costs more than it finds. Firefox and WebKit run against the
  * deployed URL at release time, where the cross-browser question is real.
  */
-const baseURL = process.env.AAE_E2E_BASE_URL ?? 'http://127.0.0.1:8000'
+const baseURL = resolveBaseUrl(process.env)
 
-const projects = [
-  { name: 'chromium', use: { ...devices['Desktop Chrome'] } },
-  { name: 'firefox', use: { ...devices['Desktop Firefox'] } },
-  { name: 'webkit', use: { ...devices['Desktop Safari'] } },
-]
+const available = {
+  chromium: { name: 'chromium', use: { ...devices['Desktop Chrome'] } },
+  firefox: { name: 'firefox', use: { ...devices['Desktop Firefox'] } },
+  webkit: { name: 'webkit', use: { ...devices['Desktop Safari'] } },
+}
+
+/**
+ * Validated here, before Playwright starts, so an unusable selection is an
+ * error rather than zero projects.
+ *
+ * The filter this replaced turned any unrecognised value into an empty
+ * project list, and an empty project list runs no tests and reports
+ * success. A shell quoting bug produced exactly that: `AAE_E2E_BROWSERS`
+ * held "chromium 0", nothing ran, and the skip guard approved it.
+ */
+const selected = parseBrowsers(process.env.AAE_E2E_BROWSERS)
+const projects = selected.map((name) => available[name as keyof typeof available])
+
+// Printed before execution so the log says which engines a run covered,
+// rather than leaving it to be inferred from the request.
+console.log(`E2E engines selected: ${selected.join(', ')}`)
 
 export default defineConfig({
   testDir: './e2e',
+  // Refuses the whole run unless /api/health reports provider_mode=fake.
+  // A paid provider was once listening on this suite's default port; see
+  // ./e2e/preflight.ts. There is no bypass flag on purpose.
+  globalSetup: './e2e/global-setup.ts',
   // Sessions are server-side and the deployment admits only a couple of
   // concurrent analyses, so these run one at a time rather than racing each
   // other into a 429.
@@ -42,7 +65,5 @@ export default defineConfig({
     // errors would let a misconfigured certificate pass unnoticed.
     ignoreHTTPSErrors: false,
   },
-  projects: projects.filter(
-    (p) => !process.env.AAE_E2E_BROWSERS || process.env.AAE_E2E_BROWSERS.split(',').includes(p.name),
-  ),
+  projects,
 })

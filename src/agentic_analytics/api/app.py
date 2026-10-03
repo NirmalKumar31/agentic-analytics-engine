@@ -28,7 +28,12 @@ from mcp.server.transport_security import TransportSecuritySettings
 
 from agentic_analytics import __version__
 from agentic_analytics.agents.scope import check_scope
-from agentic_analytics.analytics.semantic import infer_schema
+from agentic_analytics.analytics.semantic import (
+    RoleConfirmationError,
+    effective_schema,
+    infer_schema,
+    validate_role_confirmations,
+)
 from agentic_analytics.api.limits import Capacity, RateLimit, client_key
 from agentic_analytics.api.models import (
     AILimits,
@@ -41,6 +46,8 @@ from agentic_analytics.api.models import (
     HealthResponse,
     ModeCapability,
     ReadinessResponse,
+    RoleAction,
+    RoleConfirmationRequest,
     ServerConfig,
     SessionResponse,
     execution_mode,
@@ -71,6 +78,7 @@ from agentic_analytics.warehouse.session import (
     DatasetError,
     EngineLimits,
     SessionManager,
+    StaleSchemaRevision,
     open_demo_session,
     open_upload_session,
 )
@@ -698,7 +706,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         except StopIteration:
             return None
         try:
-            schema = infer_schema(session, table)
+            # The effective schema, not the raw inference: a reader looking
+            # at this panel must see the roles the engine will actually use,
+            # including any this session has settled.
+            schema = effective_schema(session, table)
         except Exception:
             log.warning("profile_failed", kind=session.kind)
             return None
@@ -798,6 +809,115 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     @app.get("/api/datasets/{session_id}")
     async def dataset(session_id: str, request: Request) -> SessionResponse:
         session = _session_or_404(session_id, request)
+        return SessionResponse(
+            session_id=session.session_id,
+            catalog=session.catalog(),
+            metrics=session.registry.describe_all() if session.registry else [],
+            summary=_summary(session),
+            expires_in_seconds=cfg.session_ttl_seconds,
+        )
+
+    @app.patch("/api/datasets/{session_id}/schema/roles")
+    async def confirm_schema_roles(
+        session_id: str, body: RoleConfirmationRequest, request: Request
+    ) -> SessionResponse:
+        """Settle a role the data cannot decide, for this session only.
+
+        Inference reports a close call when a numeric column sits in the
+        band where a code list and a genuine count look the same. The person
+        who uploaded the file knows which it is; nothing in the values does.
+
+        Everything is validated before anything is applied, so a batch wrong
+        in its third change does not leave the first two in place. The order
+        below is the order the refusals matter in: who is asking, whether
+        this kind of dataset has anything to confirm, whether the session is
+        still taking work, whether a run is relying on the current schema,
+        and only then whether the changes themselves make sense.
+        """
+        session = _session_or_404(session_id, request)
+
+        if session.registry is not None:
+            # The demo warehouse has governed metric definitions. Its roles
+            # are not inferred, so there is no close call to settle.
+            raise HTTPException(
+                status_code=422,
+                detail="this dataset's roles are governed definitions, not inferences",
+                headers={"X-Refusal-Reason": "not_an_upload"},
+            )
+
+        if not session.accepts_new_work:
+            raise HTTPException(
+                status_code=409,
+                detail="this dataset session is closing",
+                headers={"X-Refusal-Reason": "session_closing"},
+            )
+
+        # A run holds a schema snapshot for its whole execution. Changing the
+        # roles underneath it would leave evidence describing a schema the run
+        # never used. Scoped to this session: another visitor's analysis is
+        # none of this session's business.
+        if runs.has_active_run_for_session(session_id):
+            raise HTTPException(
+                status_code=409,
+                detail="an analysis is running on this dataset; try again when it finishes",
+                headers={"X-Refusal-Reason": "active_run"},
+            )
+
+        try:
+            table = next(iter(session.tables))
+        except StopIteration:
+            raise HTTPException(
+                status_code=422,
+                detail="this session has no table to describe",
+                headers={"X-Refusal-Reason": "no_table"},
+            ) from None
+
+        inferred = infer_schema(session, table)
+
+        changes: dict[str, str | None] = {}
+        confirmations_to_check: dict[str, str] = {}
+        for change in body.changes:
+            if change.action is RoleAction.RESET:
+                changes[change.column] = None
+            else:
+                role = str(change.role)
+                changes[change.column] = role
+                confirmations_to_check[change.column] = role
+
+        # Validate the confirmations against the real inferred schema before
+        # touching session state.
+        try:
+            validate_role_confirmations(inferred, confirmations_to_check)
+        except RoleConfirmationError as exc:
+            raise HTTPException(
+                status_code=422,
+                detail=str(exc),
+                headers={"X-Refusal-Reason": exc.reason},
+            ) from None
+
+        # A reset names a column too, and a reset of something that is not a
+        # column is as much a mistake as a confirmation of one.
+        known = {f.name for f in inferred.fields}
+        for column, requested in changes.items():
+            if requested is None and column not in known:
+                raise HTTPException(
+                    status_code=422,
+                    detail=f"{column!r} is not a column of this table",
+                    headers={"X-Refusal-Reason": "unknown_column"},
+                )
+
+        try:
+            session.apply_role_confirmation_changes(
+                changes, expected_revision=body.expected_revision
+            )
+        except StaleSchemaRevision as exc:
+            raise HTTPException(
+                status_code=409,
+                detail=str(exc),
+                headers={"X-Refusal-Reason": "stale_revision"},
+            ) from None
+
+        session.touch()
         return SessionResponse(
             session_id=session.session_id,
             catalog=session.catalog(),
@@ -972,6 +1092,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         mode: RunMode,
         comparison_id: str | None = None,
         client_id: str = "",
+        role_confirmations: Any | None = None,
     ) -> RunRecord:
         """Start one run. Capacity for it has already been acquired.
 
@@ -979,7 +1100,15 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         child is an ordinary run -- same registry, same event bus, same
         cancellation and teardown -- rather than a second orchestration path
         that would have to reimplement all of it.
+
+        `role_confirmations` pins the generation of the session's schema this
+        run executes against. A comparison captures it once and passes the
+        same snapshot to both children: capturing per child would let a
+        confirmation land between them and produce two runs of one question
+        under different schemas, presented side by side as comparable.
         """
+        if role_confirmations is None:
+            role_confirmations = session.role_confirmation_snapshot()
         record = runs.create(
             session.session_id,
             question,
@@ -1083,6 +1212,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                         events=record.bus,
                         run_id=record.run_id,
                         open_planner=planner_factory,
+                        role_confirmations=role_confirmations,
                     ),
                 )
             except TimeoutError:
@@ -1193,6 +1323,15 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         # second hand-rolled acquire/release here is how the slot leak this
         # guards against got written the first time, and `_launch` raising
         # after a bare `acquire()` would leak one every attempt.
+        # One snapshot for both children.
+        #
+        # The two runs answer the same question against the same rows, and a
+        # confirmation landing between their starts would give them different
+        # schemas -- then present them side by side as a like-for-like
+        # comparison. Capturing once is what makes the comparison mean what
+        # the page says it means.
+        shared_roles = session.role_confirmation_snapshot()
+
         with _admission(RunMode.DETERMINISTIC) as permits:
             if not permits.ok:
                 raise HTTPException(
@@ -1205,6 +1344,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 RunMode.DETERMINISTIC,
                 comparison_id,
                 client_id=client,
+                role_confirmations=shared_roles,
             )
             permits.keep()
 
@@ -1223,6 +1363,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                     RunMode.AI,
                     comparison_id,
                     client_id=client,
+                    role_confirmations=shared_roles,
                 )
                 ai_permits.keep()
 

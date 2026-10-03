@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { openApp } from "./helpers";
 
 /**
  * Dual-mode behaviour in a real browser.
@@ -9,7 +10,7 @@ import { expect, test } from "@playwright/test";
  */
 
 async function openDemo(page: import("@playwright/test").Page) {
-  await page.goto("/");
+  await openApp(page);
   await page.getByRole("button", { name: /Commerce demo warehouse/ }).click();
   await expect(
     page.getByRole("radiogroup", { name: /analysis mode/i }),

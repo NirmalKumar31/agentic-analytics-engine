@@ -1,7 +1,15 @@
 # 0006 — A schema-role override needs the backend, so the redesign only reports ambiguity
 
-Status: accepted
+Status: superseded by [0007](0007-session-scoped-role-confirmation.md)
 Date: 2026-10-01
+
+> This record deferred the override and gave the condition for
+> shipping one: the engine must honour the role and the audit must
+> record it. [0007](0007-session-scoped-role-confirmation.md) meets
+> that condition and implements it. The reasoning below is kept as
+> written rather than revised, because the deferral was correct at
+> the time and the condition it set is what the implementation had
+> to satisfy.
 
 ## Context
 

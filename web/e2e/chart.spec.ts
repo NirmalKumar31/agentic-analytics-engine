@@ -1,12 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-import {
-  ask,
-  sampleCsv,
-  suggestedQuestions,
-  uploadFile,
-  waitForReport,
-} from "./helpers";
+import { ask, openApp, sampleCsv, suggestedQuestions, uploadFile, waitForReport } from "./helpers";
 
 /**
  * That the chart actually draws.
@@ -69,7 +63,7 @@ test.describe("a chart on an uploaded dataset", () => {
   test("draws the plot rather than reporting its own specification", async ({
     page,
   }) => {
-    await page.goto("/");
+    await openApp(page);
     await uploadFile(page, "charted.csv", sampleCsv());
     await ask(page, "What is the total revenue by region?");
     await waitForReport(page);
@@ -82,7 +76,7 @@ test.describe("a chart on an uploaded dataset", () => {
     // The report offers "Print / Save PDF" as a first-class path, and the
     // PDF is the artefact a reader keeps. A chart that renders on screen
     // and vanishes on paper is the same loss.
-    await page.goto("/");
+    await openApp(page);
     await uploadFile(page, "printed.csv", sampleCsv());
     await ask(page, "What is the total revenue by region?");
     await waitForReport(page);
@@ -106,7 +100,7 @@ test.describe("a chart on an uploaded dataset", () => {
     // a trend plots the engine's synthesised `period` column rather than a
     // column of the uploaded file, which is the one field name that could
     // fail to resolve against the result.
-    await page.goto("/");
+    await openApp(page);
     await uploadFile(page, "trend.csv", sampleCsv());
     await ask(page, "Show the monthly trend of revenue");
     await waitForReport(page);
@@ -126,7 +120,7 @@ test.describe("a chart on an uploaded dataset", () => {
   }) => {
     // A total shown as 83,373,290.48 in the table and 83M on the axis
     // beside it reads as two different figures.
-    await page.goto("/");
+    await openApp(page);
     await uploadFile(page, "precision.csv", sampleCsv());
     await ask(page, "What is the total revenue by region?");
     await waitForReport(page);
@@ -156,7 +150,7 @@ test.describe("the stage lane", () => {
     // every run with the contract path's stages, so a working demo run
     // reported "Rule resolver: not reached" and "Contract validation: not
     // accepted" -- two false statements about a run that succeeded.
-    await page.goto("/");
+    await openApp(page);
     await page.getByRole("button", { name: /Commerce demo warehouse/ }).click();
     // The demo warehouse has no upload profile panel; its questions are
     // offered directly in the Ask panel.
@@ -184,7 +178,7 @@ test.describe("the stage lane", () => {
     // The branch diagram draws one branch for a one-query fast path, which
     // made the more governed path look like it did less. The lane names the
     // contract stages the diagram has no nodes for.
-    await page.goto("/");
+    await openApp(page);
     await uploadFile(page, "staged.csv", sampleCsv());
     await ask(page, "What is the total revenue by region?");
     await waitForReport(page);
@@ -257,7 +251,7 @@ test.describe("Compare Both, in a browser", () => {
     page,
   }) => {
     await compareOverOneRun(page);
-    await page.goto("/");
+    await openApp(page);
     await uploadFile(page, "shared.csv", sampleCsv());
     await page.getByRole("radio", { name: /^Compare planning strategies/ }).click();
     await page.getByLabel("Business question").fill(

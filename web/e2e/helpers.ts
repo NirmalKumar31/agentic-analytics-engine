@@ -118,3 +118,67 @@ export async function openDemoViaApi(request: APIRequestContext): Promise<string
   expect(response.status()).toBe(200)
   return (await response.json()).session_id as string
 }
+
+/**
+ * Open the application.
+ *
+ * Every test navigated with `page.goto("/")`, whose default `waitUntil` is
+ * `load` -- and on Firefox that intermittently never resolves. Twice in
+ * consecutive CI runs a test burned its entire 120s budget inside
+ * `page.goto`, "waiting until load", on two *different* tests: once in
+ * `foundation.spec.ts`, once in `informationArchitecture.spec.ts`. The
+ * trace from the second one is unambiguous about what had happened by
+ * then: the document, its script, its stylesheet and the app's own
+ * `/api/config` had all returned 200, and the page snapshot shows the
+ * banner, the theme toggle and all four progress steps rendered. The
+ * application was up and interactive; only `load` was outstanding. Which
+ * request held it cannot be named, because a trace has no entry for a
+ * request that never received a response.
+ *
+ * So no test waits on `load` any more. `load` means "every subresource
+ * settled", which is not what any of these tests assert about, and it put
+ * 63 call sites one stalled request away from a two-minute hang. The
+ * deterministic ready state is the application's own: the shell mounted.
+ * That is both narrower and a stronger signal -- `load` can fire before
+ * React has rendered anything.
+ */
+export async function openApp(page: Page): Promise<void> {
+  // `commit`, which resolves as soon as the response for the navigation is
+  // received. Not `load`, and not `domcontentloaded` either: both were
+  // tried and both hung on Firefox.
+  //
+  // The second trace is what settles it. With `domcontentloaded` the
+  // navigation still timed out -- and the report shows the document, the
+  // stylesheet, the bundle and the app's own `/api/config` all returned
+  // **200**, with the page snapshot and a 128KB screenshot showing the
+  // banner, the theme toggle and all four progress steps rendered. The
+  // server served everything and the application was running. What never
+  // arrived was Playwright's lifecycle event for the navigation.
+  //
+  // So neither a browser lifecycle *completion* event nor `commit` is a
+  // reliable gate here. Trigger navigation inside the page instead of with
+  // `page.goto`: Playwright makes locator assertions wait for an in-flight
+  // `page.goto`, which quietly turned the earlier Promise.race back into a
+  // lifecycle wait. A browser that reports navigation late still reaches the
+  // same app shell; a dead server cannot, so it fails through the bounded
+  // shell wait instead of being silently accepted.
+  const baseUrl = process.env.AAE_E2E_BASE_URL ?? 'http://127.0.0.1:8000';
+  await page.evaluate((url) => window.location.assign(url), new URL('/', baseUrl).href);
+  // `app-shell` is on the shell root, which React renders unconditionally,
+  // so its presence means the bundle parsed, executed and mounted -- not
+  // merely that bytes arrived. `index.html` contains only `<div id="root">`
+  // and the module script, so the marker cannot exist before mount.
+  //
+  // Not `getByRole("banner")`: the provenance drawer also renders a
+  // `<header>`, so that locator can match twice and fail strict mode for a
+  // reason unrelated to readiness. Not `<body>` or a piece of copy either
+  // -- one exists before React runs and the other moves when wording does.
+  //
+  // Bounded, so a server that never answers fails the test instead of
+  // hanging it: 30s on the navigation and 20s on the app-shell wait. The
+  // shell renders even when `/api/config` fails,
+  // because the error state is drawn inside it, so an API failure reaches
+  // the test's own assertions rather than stalling here.
+  const shell = page.getByTestId('app-shell');
+  await expect(shell).toBeVisible({ timeout: 20_000 });
+}

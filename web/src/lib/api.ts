@@ -6,6 +6,7 @@ import type {
   RunPayload,
   ServerConfig,
   SessionPayload,
+  RoleChange,
 } from './types'
 
 export class ApiError extends Error {
@@ -63,8 +64,31 @@ export const api = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ session_id: sessionId, question }),
     }),
+  /** Re-read a session, used to recover from a stale-schema refusal. */
+  dataset: (sessionId: string) =>
+    request<SessionPayload>(`/api/datasets/${encodeURIComponent(sessionId)}`),
   run: (runId: string) => request<RunPayload>(`/api/analyses/${encodeURIComponent(runId)}`),
   recording: (id: string) => request<RunPayload>(`/api/recordings/${encodeURIComponent(id)}`),
+  /**
+   * Settle roles inference could not, for this session.
+   *
+   * `expectedRevision` is the generation the browser was looking at. The
+   * server refuses a mismatch with 409 rather than applying an instruction
+   * against a column list the person is no longer being shown.
+   */
+  confirmSchemaRoles: (
+    sessionId: string,
+    expectedRevision: number,
+    changes: RoleChange[],
+  ) =>
+    request<SessionPayload>(
+      `/api/datasets/${encodeURIComponent(sessionId)}/schema/roles`,
+      {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ expected_revision: expectedRevision, changes }),
+      },
+    ),
   endSession: (sessionId: string) =>
     request<{ status: string }>(`/api/datasets/${encodeURIComponent(sessionId)}`, {
       method: 'DELETE',

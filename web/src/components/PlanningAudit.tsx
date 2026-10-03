@@ -4,6 +4,13 @@ function humanize(value: string) {
   return value.replaceAll("_", " ");
 }
 
+/** The engine's role words are not a reader's. */
+function readable(role: string): string {
+  if (role === "measure") return "quantity";
+  if (role === "dimension") return "category";
+  return humanize(role);
+}
+
 /**
  * The compact, optional record of how a governed answer was obtained.
  *
@@ -22,7 +29,11 @@ export function PlanningAudit({ run }: { run: RunPayload }) {
   const applied = coverage?.applied_components ?? [];
   const missing = coverage?.missing_components ?? [];
 
-  if (!contract && !coverage && !event) return null;
+  const roleEvidence = (run.role_evidence ?? []).filter(
+    (item) => item.role_source === "user_confirmed",
+  );
+
+  if (!contract && !coverage && !event && roleEvidence.length === 0) return null;
   return (
     <details className="technical-audit" data-testid="planning-audit">
       <summary>Planning audit</summary>
@@ -38,6 +49,32 @@ export function PlanningAudit({ run }: { run: RunPayload }) {
           {run.timings?.execution_ms != null ? <div><dt>Execution</dt><dd>{run.timings.execution_ms} ms</dd></div> : null}
           {run.timings?.verification_ms != null ? <div><dt>Verification</dt><dd>{run.timings.verification_ms} ms</dd></div> : null}
         </dl>
+        {roleEvidence.length > 0 && (
+          <div data-testid="role-evidence">
+            <p className="small dim" style={{ margin: "8px 0 4px" }}>
+              {/*
+                Only the confirmed columns, and only those the contract used.
+                A reader asking why something is grouped that way is not
+                asking about columns nothing touched, and a column the engine
+                classified on its own needs no explanation here.
+              */}
+              Roles confirmed for this dataset session
+            </p>
+            <dl className="audit-grid">
+              {roleEvidence.map((item) => (
+                <div key={item.column}>
+                  <dt>{item.column}</dt>
+                  <dd>
+                    Used as {item.used_as.join(", ")} · read as{" "}
+                    {readable(item.effective_role)} · originally inferred{" "}
+                    {readable(item.inferred_role)} · confirmed for this dataset
+                    session
+                  </dd>
+                </div>
+              ))}
+            </dl>
+          </div>
+        )}
         {contract ? (
           <div className="audit-contract">
             <h3>Accepted contract</h3>

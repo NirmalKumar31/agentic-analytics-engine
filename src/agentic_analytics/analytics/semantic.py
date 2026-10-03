@@ -17,8 +17,9 @@ not a model -- so the same file always yields the same schema.
 from __future__ import annotations
 
 import re
-from dataclasses import dataclass, field
-from typing import Any, Literal
+from collections.abc import Mapping
+from dataclasses import dataclass, field, replace
+from typing import Any, Literal, cast
 
 from agentic_analytics.analytics.execute import QueryError, fetch_rows
 from agentic_analytics.warehouse.session import AnalysisSession
@@ -203,6 +204,21 @@ NOISE_PREFIXES = ("noise_", "random_", "dummy_", "unused_")
 
 AdditiveConfidence = Literal["strong", "weak", "unknown"]
 
+#: Where a field's effective role came from. `inferred` is this module's own
+#: classification; `user_confirmed` means the person who uploaded the file
+#: said which of two readings applies, for their session only.
+RoleSource = Literal["inferred", "user_confirmed"]
+
+#: The only transitions this version offers.
+#:
+#: Deliberately narrow. The close call this module reports is a numeric
+#: column that could be a quantity or a code list, so those are the two
+#: readings a person can choose between. Offering `time`, `identifier` or
+#: `ignored` would be offering conversions no inference class has been
+#: tested against, and an untested transition is a way to produce a wrong
+#: number with a confident label on it.
+CONFIRMABLE_ROLES: tuple[FieldRole, ...] = ("measure", "dimension")
+
 
 def _additive_confidence(name: str, role: FieldRole, dtype: str) -> AdditiveConfidence:
     """How safe it is to *suggest* summing this column.
@@ -253,6 +269,32 @@ class InferredField:
     ambiguous: bool = False
     min_value: str | None = None
     max_value: str | None = None
+    #: What inference decided, kept even after a confirmation replaces the
+    #: effective role. `role` is the effective one and stays the
+    #: compatibility field; this is the historical fact beside it. Losing it
+    #: would make a confirmed column indistinguishable from one the engine
+    #: got right on its own, which is the difference a reader is entitled to.
+    #: `None` means the two are the same and nothing was confirmed.
+    inferred_role: FieldRole | None = None
+    #: Whether `role` is this module's classification or the session owner's.
+    role_source: RoleSource = "inferred"
+
+    @property
+    def effective_inferred_role(self) -> FieldRole:
+        """What inference decided, whether or not it was later confirmed."""
+        return self.inferred_role if self.inferred_role is not None else self.role
+
+    @property
+    def allowed_confirmed_roles(self) -> list[FieldRole]:
+        """The readings a session owner may choose between for this column.
+
+        Empty unless inference reported a close call: a confident
+        classification is not a menu, and offering one would invite someone
+        to "correct" a column the data already settles.
+        """
+        if not self.ambiguous:
+            return []
+        return list(CONFIRMABLE_ROLES)
 
     def as_dict(self) -> dict[str, Any]:
         return {
@@ -262,10 +304,16 @@ class InferredField:
             "null_pct": self.null_pct,
             "distinct_count": self.distinct_count,
             "additive": self.additive,
+            # Unchanged by a confirmation. The values are still
+            # indistinguishable; someone has supplied the missing fact, which
+            # is a different thing from the data having settled it.
             "ambiguous": self.ambiguous,
             "reason": self.reason,
             "min_value": self.min_value,
             "max_value": self.max_value,
+            "inferred_role": self.effective_inferred_role,
+            "role_source": self.role_source,
+            "allowed_confirmed_roles": self.allowed_confirmed_roles,
         }
 
 
@@ -279,6 +327,24 @@ class InferredSchema:
     #: Present when two or more columns could plausibly be the same concept
     #: and the choice changes the answer.
     ambiguities: list[dict[str, Any]] = field(default_factory=list)
+    #: Which generation of session role confirmations produced this schema.
+    #: Zero is raw inference. A run records the revision it used so its
+    #: evidence stays readable after the session's schema moves on.
+    schema_revision: int = 0
+
+    @property
+    def confirmed_role_count(self) -> int:
+        return sum(1 for f in self.fields if f.role_source == "user_confirmed")
+
+    @property
+    def unresolved_ambiguity_count(self) -> int:
+        """Close calls nobody has settled yet.
+
+        A confirmed field is still ambiguous -- the values did not change --
+        so counting `ambiguous` alone would keep reporting work that is
+        done.
+        """
+        return sum(1 for f in self.fields if f.ambiguous and f.role_source == "inferred")
 
     @property
     def time_fields(self) -> list[str]:
@@ -330,6 +396,13 @@ class InferredSchema:
             "identifiers": self.identifiers,
             "aggregatable_if_named": self.aggregatable_if_named,
             "ambiguities": self.ambiguities,
+            # Still "inferred" at the top level even when fields carry
+            # confirmations: the classification is this module's, and a
+            # session owner settling two close calls does not make the
+            # schema a governed definition.
+            "schema_revision": self.schema_revision,
+            "confirmed_role_count": self.confirmed_role_count,
+            "unresolved_ambiguity_count": self.unresolved_ambiguity_count,
         }
 
     def summary_line(self) -> str:
@@ -646,3 +719,155 @@ def _find_ambiguities(schema: InferredSchema) -> list[dict[str, Any]]:
                 }
             )
     return out
+
+
+class RoleConfirmationError(ValueError):
+    """A confirmation that must be refused before anything is applied.
+
+    Carries a stable `reason` beside the readable message so the API can
+    report which rule refused without parsing prose.
+    """
+
+    def __init__(self, reason: str, message: str) -> None:
+        super().__init__(message)
+        self.reason = reason
+
+
+def validate_role_confirmations(
+    inferred: InferredSchema,
+    confirmations: Mapping[str, str],
+) -> None:
+    """Refuse the whole batch before any of it is applied.
+
+    Validation is separate from application so a request that is wrong in
+    its third change does not leave the first two in place. Every rule here
+    is about the *class* of column, never about its name: a name-based
+    exception is a rule that is wrong on the next dataset.
+    """
+    by_name = {f.name: f for f in inferred.fields}
+    for column, role in confirmations.items():
+        field_ = by_name.get(column)
+        if field_ is None:
+            raise RoleConfirmationError(
+                "unknown_column",
+                f"{column!r} is not a column of this table",
+            )
+        if not field_.ambiguous:
+            raise RoleConfirmationError(
+                "not_ambiguous",
+                f"{column!r} was not a close call, so there is nothing to settle; "
+                f"the data classifies it as {field_.role}",
+            )
+        if role not in CONFIRMABLE_ROLES:
+            raise RoleConfirmationError(
+                "unsupported_role",
+                f"{role!r} is not offered for {column!r}; this close call is "
+                f"between {' and '.join(CONFIRMABLE_ROLES)}",
+            )
+        if field_.data_type not in NUMERIC_TYPES:
+            # The only close call this module reports is numeric. A
+            # non-numeric field reaching here means a new inference class
+            # arrived without its own tested transitions.
+            raise RoleConfirmationError(
+                "unsupported_type",
+                f"{column!r} holds {field_.data_type}, which has no confirmable readings",
+            )
+
+
+def apply_role_confirmations(
+    inferred: InferredSchema,
+    confirmations: Mapping[str, str],
+    *,
+    revision: int = 0,
+) -> InferredSchema:
+    """The inferred schema as the session owner has settled it.
+
+    Pure: `inferred` is not mutated, and the result is a new schema whose
+    derived lists are rebuilt from the effective roles. Serialization stays
+    out of this -- `as_dict()` never reaches into session state, so a schema
+    can be serialized without a session and this layer can be tested without
+    one.
+
+    What a confirmation does and does not change:
+
+      - `role` becomes the confirmed reading, and the derived lists follow.
+      - `inferred_role` keeps what classification decided.
+      - `ambiguous` stays true. The values are still indistinguishable;
+        someone has supplied the missing fact rather than the data having
+        settled it.
+      - `additive` is cleared to `unknown` when a column becomes a measure
+        by confirmation. Confirming that a column is a quantity is not
+        evidence that summing it is meaningful, and carrying a `strong`
+        from a different classification would let a suggestion claim more
+        than anyone established.
+
+    Confirming the role inference already chose is meaningful and is kept:
+    the reading is unchanged but its warrant is now the session owner's.
+    """
+    validate_role_confirmations(inferred, confirmations)
+
+    fields: list[InferredField] = []
+    for original in inferred.fields:
+        confirmed = confirmations.get(original.name)
+        if confirmed is None:
+            fields.append(replace(original))
+            continue
+        became_measure = confirmed == "measure" and original.role != "measure"
+        fields.append(
+            replace(
+                original,
+                role=cast(FieldRole, confirmed),
+                inferred_role=original.effective_inferred_role,
+                role_source="user_confirmed",
+                additive="unknown" if became_measure else original.additive,
+            )
+        )
+
+    return InferredSchema(
+        table=inferred.table,
+        row_count=inferred.row_count,
+        fields=fields,
+        ambiguities=list(inferred.ambiguities),
+        schema_revision=revision,
+    )
+
+
+def effective_schema(
+    session: Any,
+    table: str,
+    *,
+    confirmation_snapshot: Any | None = None,
+) -> InferredSchema:
+    """The schema every semantic consumer should read.
+
+    `infer_schema` stays the raw deterministic classification and is what
+    the inference tests exercise. This is that, plus whatever the session
+    owner has settled -- and it is the one place the two are combined.
+
+    That matters because three layers derive the schema independently: the
+    API for the profile a reader sees, the graph for the resolver and the
+    planner, and the MCP tools for execution. If each applied confirmations
+    for itself they would drift, and the failure would be the worst kind:
+    the reader shown one role while the arithmetic used another.
+
+    Pass `confirmation_snapshot` to pin a run to the generation it was
+    admitted with. Without it the session's current state is read, which is
+    right for a one-shot profile and wrong inside a run.
+    """
+    inferred = infer_schema(session, table)
+    snapshot = confirmation_snapshot
+    if snapshot is None:
+        getter = getattr(session, "role_confirmation_snapshot", None)
+        if getter is None:
+            return inferred
+        snapshot = getter()
+    confirmations = dict(getattr(snapshot, "confirmations", {}) or {})
+    if not confirmations:
+        # Still carry the revision: a run admitted at revision 2 that has no
+        # confirmations left should report 2, not 0.
+        return replace(inferred, schema_revision=int(getattr(snapshot, "revision", 0)))
+    return apply_role_confirmations(
+        inferred,
+        confirmations,
+        revision=int(getattr(snapshot, "revision", 0)),
+    )

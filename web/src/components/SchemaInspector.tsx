@@ -21,15 +21,31 @@
  */
 
 import { DatasetSummary } from "./DatasetSummary";
-import type { DatasetSummary as DatasetSummaryPayload } from "../lib/types";
+import type {
+  DatasetSummary as DatasetSummaryPayload,
+  RoleChange,
+} from "../lib/types";
 
 export function SchemaInspector({
   summary,
+  onConfirmRoles,
 }: {
   summary: DatasetSummaryPayload;
+  /**
+   * Applies a batch and resolves once the server has accepted it. Absent
+   * for a dataset whose roles are not confirmable -- a demo warehouse, or a
+   * replayed recording -- which is what hides the control entirely rather
+   * than showing a disabled one.
+   */
+  onConfirmRoles?: (changes: RoleChange[]) => Promise<void>;
 }) {
   const fields = summary.fields ?? [];
-  const ambiguous = fields.filter((field) => field.ambiguous).length;
+  // Close calls nobody has settled. A confirmed field is still ambiguous,
+  // so counting `ambiguous` alone would never reach zero.
+  const ambiguous =
+    summary.unresolved_ambiguity_count ??
+    fields.filter((field) => field.ambiguous && field.role_source !== "user_confirmed")
+      .length;
 
   return (
     <details className="technical-audit" data-testid="schema-inspector">
@@ -52,7 +68,11 @@ export function SchemaInspector({
         </span>
       </summary>
       <div className="technical-audit-body">
-        <DatasetSummary summary={summary} showHead={false} />
+        <DatasetSummary
+          summary={summary}
+          showHead={false}
+          onConfirmRoles={onConfirmRoles}
+        />
       </div>
     </details>
   );

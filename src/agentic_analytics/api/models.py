@@ -2,9 +2,10 @@
 
 from __future__ import annotations
 
+from enum import StrEnum
 from typing import Any, Literal
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from agentic_analytics.api.modes import RunMode
 
@@ -147,6 +148,72 @@ class SessionResponse(BaseModel):
     #: Deterministic profile shown before the first question is asked.
     summary: dict[str, Any] | None = None
     expires_in_seconds: float = 0.0
+
+
+#: A role change is one of two operations, and saying which is required.
+#: An empty string meaning "reset" would make a typo indistinguishable from
+#: an instruction.
+class RoleAction(StrEnum):
+    CONFIRM = "confirm"
+    RESET = "reset"
+
+
+#: The readings a session owner may choose between. Closed, and narrower
+#: than `FieldRole`: the close call this engine reports is between a
+#: quantity and a code list, and offering `time` or `identifier` would offer
+#: conversions no inference class has been tested against.
+class ConfirmableRole(StrEnum):
+    MEASURE = "measure"
+    DIMENSION = "dimension"
+
+
+#: Enough for any real schema's close calls, small enough that a request
+#: cannot be used to make the server do unbounded validation work.
+MAX_ROLE_CHANGES = 32
+
+
+class RoleChange(BaseModel):
+    """One column, and what the session owner says it is."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    column: str
+    action: RoleAction
+    #: Required for `confirm`, forbidden for `reset`. Carrying a role on a
+    #: reset would leave the caller's intent ambiguous.
+    role: ConfirmableRole | None = None
+
+    @model_validator(mode="after")
+    def _role_matches_the_action(self) -> RoleChange:
+        if self.action is RoleAction.CONFIRM and self.role is None:
+            raise ValueError("confirming a column requires a role")
+        if self.action is RoleAction.RESET and self.role is not None:
+            raise ValueError("resetting a column takes no role")
+        if not self.column.strip():
+            raise ValueError("a column name is required")
+        return self
+
+
+class RoleConfirmationRequest(BaseModel):
+    """A batch of role changes against a known generation of the schema.
+
+    `expected_revision` is what the browser was looking at. A mismatch means
+    the schema moved under it -- another tab, or its own earlier request --
+    and confirming against a column list it is no longer showing would apply
+    an instruction the person never gave.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    expected_revision: int = Field(ge=0)
+    changes: list[RoleChange] = Field(min_length=1, max_length=MAX_ROLE_CHANGES)
+
+    @model_validator(mode="after")
+    def _one_change_per_column(self) -> RoleConfirmationRequest:
+        seen = [change.column for change in self.changes]
+        if len(set(seen)) != len(seen):
+            raise ValueError("each column may appear only once in a batch")
+        return self
 
 
 class AnalysisRequest(BaseModel):

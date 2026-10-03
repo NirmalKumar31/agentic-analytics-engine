@@ -1,4 +1,5 @@
-import type { DatasetSummary as Summary } from "../lib/types";
+import { RoleConfirmation } from "./RoleConfirmation";
+import type { DatasetSummary as Summary, RoleChange } from "../lib/types";
 
 const ROLE_ORDER = [
   "time",
@@ -27,11 +28,14 @@ export function DatasetSummary({
   summary,
   onAsk,
   showHead = true,
+  onConfirmRoles,
 }: {
   summary: Summary;
   onAsk?: (question: string) => void;
   /** False when a disclosure already names this panel. */
   showHead?: boolean;
+  /** Present only where roles may be confirmed. */
+  onConfirmRoles?: (changes: RoleChange[]) => Promise<void>;
 }) {
   const shown = [...summary.fields].sort(
     (a, b) => ROLE_ORDER.indexOf(a.role) - ROLE_ORDER.indexOf(b.role),
@@ -80,9 +84,16 @@ export function DatasetSummary({
                     </span>
                     {field.ambiguous && (
                       <span className="tag ambiguous" data-testid="ambiguous-field">
-                        close call
+                        {field.role_source === "user_confirmed"
+                          ? "confirmed"
+                          : "close call"}
                       </span>
                     )}
+                    {onConfirmRoles &&
+                    field.ambiguous &&
+                    (field.allowed_confirmed_roles?.length ?? 0) > 0 ? (
+                      <RoleConfirmation field={field} onApply={onConfirmRoles} />
+                    ) : null}
                   </td>
                   <td>{field.distinct_count.toLocaleString()}</td>
                   <td>{field.null_pct.toFixed(1)}</td>
@@ -106,11 +117,23 @@ export function DatasetSummary({
             averaging or a code that identifies something, and nothing in
             the values separates the two. The engine has picked the more
             likely reading and marked it rather than hiding the choice.{" "}
-            <strong>You cannot confirm it here yet</strong> — a role you set
-            has to be validated by the engine and recorded in the audit
-            trail to mean anything, so a control that only changed the label
-            would be worse than none. If a close call matters for your
-            question, say which column you mean in the question itself.
+            {onConfirmRoles ? (
+              <>
+                <strong>You can settle it for this session.</strong> The
+                engine validates what you choose, uses it when it plans the
+                query, and names it in the planning audit. It is your
+                statement about this upload — not a governed definition, not
+                saved anywhere, and gone when the session ends.
+              </>
+            ) : (
+              <>
+                <strong>You cannot confirm it on this dataset</strong> —
+                settling a role needs an uploaded file of your own, because
+                the choice belongs to whoever knows what the column means. If
+                a close call matters for your question, say which column you
+                mean in the question itself.
+              </>
+            )}
           </p>
         )}
 
@@ -157,21 +180,59 @@ export function DatasetSummary({
  * an average is offered for one that reads as an attribute, and a
  * contribution question -- which only makes sense over an additive total
  * -- is offered for neither unless the engine is confident.
+ *
+ * A column the reader confirmed as a quantity counts as an attribute here.
+ * Confirming clears the additivity guess, because asserting "this is a
+ * quantity" says nothing about whether totalling it means anything -- so
+ * without this the confirmed column matched no branch and nothing on the
+ * page mentioned it again. An average is what the control offered in so
+ * many words ("can be averaged or totalled"); a sum is a further claim
+ * nobody made.
+ *
+ * Confirmed fields come first. `dimensions.find(usable)` took whatever the
+ * schema listed first, so confirming a column as a category changed
+ * nothing on screen whenever an ordinary dimension happened to precede it
+ * -- the reader answered the one question the engine could not and got no
+ * acknowledgement anywhere they were looking. Candidates are therefore
+ * ordered confirmed-first, independently for measures and dimensions, and
+ * in schema order inside each group so the result is deterministic rather
+ * than dependent on which column someone settled first.
  */
 export function suggestions(summary: Summary): string[] {
   const fields = summary.fields ?? [];
-  const confidence = (name: string) =>
-    fields.find((field) => field.name === name)?.additive ?? "unknown";
+  const field = (name: string) => fields.find((f) => f.name === name);
+  const confidence = (name: string) => field(name)?.additive ?? "unknown";
+  const confirmed = (name: string) => field(name)?.role_source === "user_confirmed";
   const usable = (name: string) => !/^(noise|random|dummy|unused)_/i.test(name);
 
-  const additive = summary.measures.find(
-    (name) => usable(name) && confidence(name) === "strong",
+  /**
+   * One role's usable candidates: confirmed first, schema order within
+   * each group.
+   *
+   * Driven off `fields` rather than the role list, because `fields` is the
+   * schema order. Sorting the role list would be ordering by whatever the
+   * API happened to emit, which is not a stable thing to depend on.
+   */
+  const candidates = (names: string[]): string[] => {
+    const wanted = new Set(names);
+    const inSchemaOrder = fields
+      .map((entry) => entry.name)
+      .filter((name) => wanted.has(name) && usable(name));
+    return [
+      ...inSchemaOrder.filter(confirmed),
+      ...inSchemaOrder.filter((name) => !confirmed(name)),
+    ];
+  };
+
+  const measures = candidates(summary.measures);
+  const dimensions = candidates(summary.dimensions);
+
+  const additive = measures.find((name) => confidence(name) === "strong");
+  const attribute = measures.find(
+    (name) => confidence(name) === "weak" || confirmed(name),
   );
-  const attribute = summary.measures.find(
-    (name) => usable(name) && confidence(name) === "weak",
-  );
-  const dimension = summary.dimensions.find(usable);
-  const time = summary.time_fields.find(usable);
+  const dimension = dimensions[0];
+  const time = candidates(summary.time_fields)[0];
 
   const out: string[] = [];
   if (additive && dimension)
@@ -183,8 +244,12 @@ export function suggestions(summary: Summary): string[] {
     out.push(`Which ${dimension} has the highest total ${additive}?`);
   }
   if (out.length === 0 && dimension) {
-    // Nothing safe to total. Counting rows is always meaningful.
+    // Nothing safe to total or average. Counting rows is always meaningful,
+    // and it is what keeps a confirmed category from going unmentioned on a
+    // dataset with no measure the engine will vouch for.
     out.push(`How many rows by ${dimension}?`);
   }
-  return out.slice(0, 3);
+  // Deduplicated before the cap, so a repeat cannot consume a slot and
+  // push the question naming a confirmed field off the end.
+  return [...new Set(out)].slice(0, 3);
 }

@@ -34,7 +34,7 @@
 
 import { expect, test, type Page } from "@playwright/test";
 
-import { ask, uploadFile, waitForReport } from "./helpers";
+import { ask, openApp, uploadFile, waitForReport } from "./helpers";
 
 /**
  * Open the demo warehouse.
@@ -89,7 +89,7 @@ test.describe("the schema inspector tells the truth about ambiguity", () => {
 
   test.beforeAll(async ({ browser }) => {
     page = await browser.newPage();
-    await page.goto("/");
+    await openApp(page);
     await uploadFile(page, "ia-ambiguous.csv", ambiguousCsv());
   });
 
@@ -105,7 +105,7 @@ test.describe("the schema inspector tells the truth about ambiguity", () => {
     }
   });
 
-  test("marks a role the data cannot settle, and offers no override", async () => {
+  test("marks a role the data cannot settle", async () => {
     const inspector = page.getByTestId("schema-inspector");
     // Collapsed, with the count of unsettled roles legible without opening.
     await expect(inspector).not.toHaveAttribute("open", "");
@@ -120,13 +120,17 @@ test.describe("the schema inspector tells the truth about ambiguity", () => {
     const row = inspector.locator('tr[data-ambiguous="true"]');
     await expect(row.first()).toContainText("age");
 
-    // ADR 0006: no control, because a label the engine does not honour is
-    // worse than no label.
-    await expect(inspector).toContainText(/cannot confirm it here yet/i);
+    // ADR 0006 refused any control, because a label the engine would not
+    // honour is worse than no label. ADR 0007 supplies the honouring, so
+    // this fixture -- an uploaded file, where the reader is the one who
+    // knows what the column means -- now gets the offer.
+    await expect(inspector).toContainText(/settle it for this session/i);
+    await expect(inspector.getByTestId("role-confirmation").first()).toBeVisible();
+    // Still no free-text or dropdown role editing: the choice is between
+    // the two readings the engine can actually act on.
     expect(await inspector.locator("select").count()).toBe(0);
-    await expect(
-      inspector.getByRole("button", { name: /set role|change role|confirm/i }),
-    ).toHaveCount(0);
+    // And it still refuses to overstate what a confirmation is.
+    await expect(inspector).toContainText(/not a governed definition/i);
   });
 
   test("is operable from the keyboard", async () => {
@@ -147,7 +151,7 @@ test.describe("a dataset with nothing ambiguous in it", () => {
 
   test.beforeAll(async ({ browser }) => {
     page = await browser.newPage();
-    await page.goto("/");
+    await openApp(page);
     await uploadFile(page, "ia-plain.csv", plainCsv());
   });
 
@@ -195,7 +199,7 @@ test.describe("a dataset with nothing ambiguous in it", () => {
 
 test.describe("the demo dataset keeps its curated questions", () => {
   test("the demo dataset still gets the curated questions", async ({ page }) => {
-    await page.goto("/");
+    await openApp(page);
     await page.getByRole("button", { name: /Commerce demo warehouse/ }).click();
     const examples = page.getByTestId("question-examples");
     await expect(examples).toBeVisible();
@@ -218,7 +222,7 @@ test.describe("terminal states, produced by the engine", () => {
 
   test.beforeAll(async ({ browser }) => {
     page = await browser.newPage();
-    await page.goto("/");
+    await openApp(page);
     await uploadFile(page, "ia-terminal.csv", plainCsv());
   });
 
@@ -273,7 +277,7 @@ test.describe("terminal states, produced by the engine", () => {
   });
 
   test("an answered question shows no state card at all", async ({ page }) => {
-    await page.goto("/");
+    await openApp(page);
     await openDemo(page);
     await ask(page, "What is total revenue by region?");
     await waitForReport(page);
@@ -366,7 +370,7 @@ test.describe("terminal states that need a payload fixture", () => {
 
   for (const [state, overrides, expected] of cases) {
     test(`${state} is shown as itself in single mode`, async ({ page }) => {
-      await page.goto("/");
+      await openApp(page);
       await openDemo(page);
       await serveRun(page, overrides);
       await ask(page, "What is total revenue by region?");
@@ -384,7 +388,7 @@ test.describe("terminal states that need a payload fixture", () => {
   }) => {
     // The two were one state, so the copy for "nothing published" pointed at
     // withheld findings that did not exist.
-    await page.goto("/");
+    await openApp(page);
     await openDemo(page);
     await serveRun(page, cases[1]![1]);
     await ask(page, "What is total revenue by region?");
@@ -407,7 +411,7 @@ test.describe("layout holds at every width", () => {
       page,
     }) => {
       await page.setViewportSize({ width, height });
-      await page.goto("/");
+      await openApp(page);
       await openDemo(page);
       await ask(page, "What is total revenue by region?");
       await waitForReport(page);
