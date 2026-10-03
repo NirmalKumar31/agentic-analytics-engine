@@ -631,10 +631,12 @@ inference:
   recorded separately in §11. They are not the same evidence and are not
   added together here: different dates, different release, different
   question, and §11's three exist to show **variance** — the model agreed
-  with the rules in two of three — which a single run cannot show. Four
-  paid runs have been made in total across both periods; no sentence in
-  this document should be read as claiming a larger sample than the one it
-  names.
+  with the rules in two of three — which a single run cannot show. A
+  further two were made on 3 Oct 2026 against `5913f6e`, testing the
+  lifecycle-clock refusal rather than contract agreement; they are also in
+  §11. **Six paid runs in total across three periods**, costing $0.004723
+  altogether; no sentence in this document should be read as claiming a
+  larger sample than the one it names.
 - The resource envelope has not been measured against the running instance
   under load, and cold-start latency is unquantified.
 
@@ -699,6 +701,53 @@ One question, over a 300-row upload: *"What was the total annual revenue in
 | 3 | confident, published `77,781.76 across 150 rows` | identical | $0.001349 |
 
 Total $0.003170. The deterministic pane published `77,782` in all three.
+
+### What two paid runs on 3 Oct 2026 showed about the period guard
+
+A separate, later pair of authorised runs, on the deployed service at
+`5913f6e`. They test a different thing from the three above and are not
+added to them: those measured whether a typed plan reaches the same
+contract as the rules; these measure whether the **lifecycle-clock
+refusal** can be bypassed by asking a model.
+
+Total cost $0.000393, against an authorised ceiling of $0.10.
+
+**Accepted case.** One generic clock, named in the question: *"What was
+total revenue in 2024 using order_date?"* over a 200-row upload. The
+expected total, computed with DuckDB first, is `29225.00`.
+
+| side | status | model calls | cost | published |
+|---|---|---|---|---|
+| deterministic | completed | 0 | $0 | 29,225.00 |
+| AI | completed | 1 | $0.000200 | 29,225.00 |
+
+Both matched the oracle, coverage agreed, and the two sides shared no
+evidence id. The **canonical** contracts were identical: every semantic
+field — operation, table, measure, dimensions, time field, grain, period,
+period field, filters — matched. The three fields that differed were
+`explanation`, `interpretation` and the *ordering* of `named_columns`,
+all of which the canonical contract excludes on purpose, because they
+record who decided rather than what is computed.
+
+**Protected case.** A table whose only date is `signup_date`, asked *"What
+was total annual revenue in 2024?"* — no clock named.
+
+| side | status | model calls | cost | published |
+|---|---|---|---|---|
+| deterministic | refused | 0 | $0 | nothing |
+| AI | refused | 1 | $0.000193 | nothing |
+
+Neither side published an annual revenue total. Neither described the
+result as revenue earned in 2024. Both gave a reason naming the date
+column. The AI side **made a model call and still refused**: the typed
+plan could not overturn a refusal the rules had made, which is what
+keeping `AMBIGUOUS_PERIOD_SEMANTICS` out of `AI_ELIGIBLE_ISSUES` is for.
+
+**What this does not support.** Two runs are two runs. This says the guard
+held for these two questions on this dataset shape at this revision. It is
+not a sample across phrasings, datasets or load, and no run here *attacked*
+the boundary — neither attempted to shift a period, substitute a clock or
+group by an identifier.
 
 **What this supports.** The typed plan validated to *byte-identical canonical
 contract* as the schema-grounded rules in two of three runs — same operation,

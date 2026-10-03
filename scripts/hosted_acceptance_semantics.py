@@ -51,7 +51,7 @@ def as_csv() -> str:
     account began. Filtering revenue by the second answers a different
     question, which is the whole point of the first case below.
     """
-    lines = ["order_date,signup_date,region,revenue,refund_value"]
+    lines = ["order_date,signup_date,region,revenue,refund_value,notes"]
     for i in range(240):
         region = REGIONS[i % 4]
         # 2024 orders for the first 160 rows, 2023 for the rest.
@@ -69,7 +69,9 @@ def as_csv() -> str:
         # question never reaches an aggregate. What this case needs is an
         # aggregate whose *matching* rows hold no value.
         refund = "" if region == "West" else f"{10 + (i % 9)}.25"
-        lines.append(f"{order},{signup},{region},{revenue},{refund}")
+        # `notes` is empty in every row: a real column a reader may name
+        # that no analytical role can use.
+        lines.append(f"{order},{signup},{region},{revenue},{refund},")
     return "\n".join(lines) + "\n"
 
 
@@ -383,6 +385,26 @@ def main() -> int:
             report.bad(
                 "7. an unmappable question refuses once, clearly",
                 f"published={bool(published)} reason={reason!r}",
+            )
+
+    # 8. A named column that can serve no role must not be swapped for one
+    #    that can. This is the defect hosted verification found on 242b2f4:
+    #    the question named `notes` and the service answered total revenue.
+    state, run = ask(client, session, "What is the total notes?")
+    if state == "limited":
+        report.skip("8. a named unusable column refuses, not substitutes", "analysis rate limit")
+    elif state != "ok":
+        report.bad("8. a named unusable column refuses, not substitutes", json.dumps(run)[:160])
+    else:
+        bodies.append(json.dumps(run))
+        published = run.get("results") or {}
+        value = _single_value(run)
+        if not published and value is None:
+            report.ok("8. 'total notes' refuses rather than answering with another column")
+        else:
+            report.bad(
+                "8. a named unusable column refuses, not substitutes",
+                f"published a value ({value}) for a question about 'notes'",
             )
 
     # ------------------------------------------------------------ hygiene
