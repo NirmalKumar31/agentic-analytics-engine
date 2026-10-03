@@ -46,6 +46,7 @@ import {
 const EXPECTED_ORDER = [
   "styles/tokens.css",
   "styles/reset.css",
+  "styles/foundation.css",
   "styles/shell.css",
   "styles/controls.css",
   "styles/workflow.css",
@@ -186,8 +187,24 @@ describe("rules stay in the module that owns their place in the cascade", () => 
     );
   });
 
-  it("keeps both print blocks, the second one last in states.css", () => {
-    expect(countAtRule(css, "@media print")).toBe(2);
+  it("keeps all three print blocks, the last one at the end of states.css", () => {
+    // Three, in cascade order:
+    //   foundation.css  the printed *page* -- size, margins, colour-adjust,
+    //                   and the white palette the other two assume.
+    //   print.css       how the report's own blocks print.
+    //   states.css      last, so no state rule can override print treatment.
+    //
+    // foundation's block must come first: it resets the palette to ink on
+    // white, and a later block restating a colour has to win over that, not
+    // be undone by it.
+    expect(countAtRule(css, "@media print")).toBe(3);
+    expect(
+      countAtRule(withoutComments(moduleSource("styles/foundation.css")), "@media print"),
+    ).toBe(1);
+    expect(
+      importOrder().indexOf("styles/foundation.css"),
+      "foundation.css must print-reset before print.css restates colours",
+    ).toBeLessThan(importOrder().indexOf("styles/print.css"));
     expect(countAtRule(withoutComments(moduleSource("styles/print.css")), "@media print")).toBe(1);
 
     const states = withoutComments(moduleSource("styles/states.css"));
@@ -219,6 +236,15 @@ describe("rules stay in the module that owns their place in the cascade", () => 
         `${mod} lost its reduced-motion block`,
       ).toBe(1);
     }
+    // foundation.css is deliberately absent: it declares no animation and no
+    // transition, so a reduced-motion block there would be guarding nothing.
+    // Asserted rather than assumed, because the day it does animate, the
+    // guard has to arrive with the animation.
+    expect(
+      withoutComments(moduleSource("styles/foundation.css")),
+      "foundation.css animates; it now needs a reduced-motion block",
+    ).not.toMatch(/\b(animation|transition)\s*:/);
+
     // Plus the token overrides, which zero the motion budgets themselves.
     expect(
       countAtRule(
@@ -353,6 +379,7 @@ describe("the split preserved the stylesheet", () => {
     // -- without pretending the stylesheet is frozen.
     const floors: Record<string, number> = {
       "styles/reset.css": 50,
+      "styles/foundation.css": 150,
       "styles/shell.css": 150,
       "styles/controls.css": 120,
       "styles/workflow.css": 120,

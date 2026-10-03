@@ -21,10 +21,28 @@ import { atRuleBlock, stylesheet } from "./stylesheet";
 // earlier state rule can override print treatment.
 const css = stylesheet();
 
+/**
+ * Every `@media print` block, concatenated in cascade order.
+ *
+ * There are three: the page foundations, the report's own rules, and the
+ * state overrides last. Reading only the first was fine while the first was
+ * `print.css`, and became wrong the moment a page-level block was added
+ * ahead of it -- every assertion below then searched a block that was never
+ * going to contain a report selector.
+ *
+ * The claim these tests make is about the print cascade as a whole: a block
+ * added to the report has to be restated somewhere in print. Which module
+ * states it is `cssArchitecture.test.ts`'s business, not this file's.
+ */
 function printBlock(): string {
-  const block = atRuleBlock(css, "@media print {");
-  expect(block, "no @media print block in the assembled stylesheet").not.toBeNull();
-  return block!;
+  const blocks: string[] = [];
+  for (let nth = 0; ; nth += 1) {
+    const block = atRuleBlock(css, "@media print {", nth);
+    if (block === null) break;
+    blocks.push(block);
+  }
+  expect(blocks.length, "no @media print block in the assembled stylesheet").toBeGreaterThan(0);
+  return blocks.join("\n");
 }
 
 describe("print stylesheet", () => {

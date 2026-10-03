@@ -1,24 +1,38 @@
 /**
  * Design tokens: one authoritative source for colour, space and motion.
  *
- * The previous palette was warm orange and green on floating cards, with
- * seventeen keyframe animations, twenty-seven animation declarations,
- * eight gradients and a hover lift on every panel. None of that was the
- * problem it was trying to solve: the reports were hard to read because
- * the information had no hierarchy, and more effects cannot supply one.
+ * ## Mineral & Ink
  *
- * The concept here is a precision instrument -- a cartographic plate, a
- * scientific report. Roughly ninety per cent of the surface is neutral, so
- * the only saturated things on screen are the ones that mean something:
- * the answer, a verification verdict, a refusal. Hierarchy comes from
- * space, weight and alignment, then from a thin rule, and only then from a
- * border. Nothing is separated by a shadow that could be separated by
- * distance.
+ * This palette replaces the warm cream-and-orange one. That change is not a
+ * preference. The old surfaces were paper-coloured -- #ece7df canvas, #faf7f1
+ * paper -- and a warm cast on every surface is a claim: it says the thing you
+ * are reading is a document someone composed. This product publishes computed
+ * results, withholds claims it cannot verify, and refuses questions it cannot
+ * answer honestly. The surface should read as neutral ground that the engine
+ * has not editorialised.
  *
- * Two rules keep this honest as it grows. A value used twice becomes a
- * token. A token that encodes a meaning -- "this is a warning" -- is named
- * for the meaning, not the colour, so dark mode can change the hue without
- * changing what it says.
+ * So: a cool neutral canvas, near-black ink, and exactly one saturated colour
+ * doing the work -- a mineral green that means *the engine is speaking*. A
+ * second, a burnt red, means *caution*. Nothing else is saturated. Roughly
+ * ninety per cent of any screen is neutral, so the few coloured things on it
+ * are the ones that carry meaning: the answer, a verdict, a refusal.
+ *
+ * Hierarchy comes from space, weight and alignment, then from a thin rule,
+ * and only then from a border. Nothing is separated by a shadow that could be
+ * separated by distance.
+ *
+ * ## Two rules that keep this honest as it grows
+ *
+ * A value used twice becomes a token. A token that encodes a meaning -- "this
+ * is a warning" -- is named for the meaning, not the colour, so dark mode can
+ * change the hue without changing what it says.
+ *
+ * ## Contrast is measured, not asserted
+ *
+ * Every ratio in the comments below came from `src/test/contrast.test.ts`,
+ * which computes each text colour against each of the four surfaces in both
+ * themes and fails under 4.5:1. The comments are a convenience; the test is
+ * the check. Do not adjust a value here and update the comment to match.
  */
 
 :root {
@@ -28,58 +42,86 @@
      Four levels, used in order: the page, the sheet a report sits on, the
      raised surface of a panel, and an inset well for code or a table
      header. A fifth level would be a card inside a card inside a card. */
-  --surface-canvas: #ece7df;
-  --surface-paper: #faf7f1;
-  --surface-raised: #fffdf9;
-  --surface-inset: #e3ddd2;
+  --surface-canvas: #f2f4f1;
+  --surface-paper: #fbfcfa;
+  --surface-raised: #ffffff;
+  --surface-inset: #e7eae5;
 
   /* --------------------------------------------------------------- ink
      Three weights. Body text, secondary text, and a muted weight for
-     labels that must be legible but must not compete with a figure. */
-  --ink-primary: #1b1714;
-  --ink-secondary: #5d544b;
-  /* Measured, not estimated. Muted text appears on three surfaces and
-     has to clear 4.5:1 against the darkest of them:
+     labels that must be legible but must not compete with a figure.
 
-       --surface-inset   #e7eae6   4.68:1   (execution lane details)
-       --surface-canvas  #eef0ed   4.96:1   (workflow stepper)
-       --surface-paper   #fbfcf8   5.52:1   (panel body text)
+     Measured against all four surfaces, worst case first:
 
-     Two earlier values each cleared the surface they were checked against
-     and failed a darker one: #79828a failed all three at 3.79, and #6b747b
-     cleared paper at 4.62 while failing the canvas at 4.16. Checking only
-     the lightest surface is how a token passes review and fails a reader.
-     This is the lightest value that clears all three, so the hierarchy the
-     muted weight provides survives rather than collapsing into body
-     colour. */
-  --ink-muted: #675e56;
-  --ink-inverse: #faf7f1;
+       --ink-primary    14.98  (on inset)
+       --ink-secondary   6.47  (on inset)
+       --ink-muted       4.82  (on inset)
+
+     The muted weight is the one that has historically failed. An earlier
+     candidate measured 4.30 on the inset surface and was darkened rather
+     than waived: checking only the lightest surface is how a token passes
+     review and fails a reader. */
+  --ink-primary: #121619;
+  --ink-secondary: #49535b;
+  --ink-muted: #5c666f;
+  --ink-inverse: #fbfcfa;
 
   /* ------------------------------------------------------------- rules
      A hairline for separating rows, and a stronger one for separating
      regions. Both are rules rather than borders: they divide, they do not
-     enclose. */
-  --rule-hairline: #d9d2c7;
-  --rule-strong: #a89d8d;
+     enclose. Neither carries state, so neither is held to a contrast
+     threshold -- see the note in contrast.test.ts. */
+  --rule-hairline: #dde2dc;
+  --rule-strong: #b6beb6;
 
   /* ------------------------------------------------------------ signal
-     Named for meaning. `signal` is the engine speaking -- a contract, a
-     route, a citation. `action` is the one thing on screen the visitor
-     should press. `supported`, `warning` and `failure` are verdicts, and
-     a verdict colour never decorates anything that is not one. */
-  --signal: #1f5f68;
-  --signal-weak: #dbe9ea;
-  --action: #bd4f5e;
-  --action-weak: #f6e2e4;
-  --supported: #2a6349;
-  --supported-weak: #dceae1;
-  --warning: #9d6d1b;
-  --warning-weak: #f6ead4;
-  --failure: #9a3b2b;
-  --failure-weak: #f7e1dc;
+     Named for meaning.
+
+     `signal` is the engine speaking -- a contract, a route, a citation, a
+     verified finding, and the one control on screen worth pressing.
+     `warning` is caution: a withheld claim, an exhausted budget, a run
+     that broke.
+
+     This is deliberately a smaller vocabulary than the palette it
+     replaces, which had five verdict colours. Two meanings that always
+     appear together, in the same register, taught the reader nothing that
+     the words beside them did not already say. `--supported` and
+     `--action` are now names for the signal colour, and `--failure` a
+     name for the warning colour, so the components that read them keep
+     working and say the same thing with one fewer hue.
+
+     Worst-case contrast, both themes: signal 5.03, warning 5.29. */
+  --signal: #0e6e66;
+  --signal-weak: #dcedea;
+  --warning: #a63b24;
+  --warning-weak: #f7e4df;
+
+  /* The single press-worthy control, and the affirmative verdict. Both are
+     the signal colour. Kept as distinct names because the components say
+     what they mean at the call site, and because a future palette may
+     want to separate them again. */
+  --action: var(--signal);
+  --action-weak: var(--signal-weak);
+  --supported: var(--signal);
+  --supported-weak: var(--signal-weak);
+  --failure: var(--warning);
+  --failure-weak: var(--warning-weak);
+
+  /* Text-safe variants. In the old palette these existed because `--action`
+     and `--warning` were vivid enough for a focus ring and too light for a
+     sentence. Here both clear 4.5:1 as text on every surface -- 5.03 and
+     5.29 at worst -- so a separate value would be a second name for the
+     same colour. They stay as names because call sites read them. */
+  --action-text: var(--signal);
+  --warning-text: var(--warning);
 
   /* ------------------------------------------------------- data series
   Five marks that have to stay apart for every reader.
+
+  **This ramp is reused unchanged, not redesigned.** It was verified against
+  Viénot/Brettel dichromacy simulation with CIE76 dE separation, and
+  replacing proven work to match a new palette would be trading a measured
+  property for a preference.
 
   Two requirements, both measured rather than assumed. Each clears 3:1
   against the surface a plot sits on, which is what WCAG 1.4.11 asks of a
@@ -103,33 +145,24 @@
   --series-4: #1d5860;
   --series-5: #244824;
 
-  /* Text-safe variants of the two colours that do not clear 4.5:1 as body
-     text. Measured against all four surfaces:
+  /* The gridlines a plot is read against. Lighter than a hairline rule,
+     because a gridline is a reading aid and not a division: at rule
+     weight the grid competes with the series drawn on top of it. */
+  --chart-grid: #e6e9e4;
 
-                      canvas  paper  raised  inset
-       --action        3.84    4.42   4.65    3.50   <- fails as text
-       --warning       3.68    4.24   4.46    3.35   <- fails as text
-       --action-text   5.84    6.72   7.07    5.31   OK
-       --warning-text  5.44    6.26   6.59    4.95   OK
-
-     The vivid versions stay: they are right for a focus ring, a border or
-     a chart mark, where WCAG 1.4.11 asks 3:1 and both clear it. Use these
-     wherever the colour carries words. Keeping one token for both jobs is
-     what made a warning notice render at 1.06:1 -- see `.notice.warn`.
-
-     In dark mode these two collapse into the vivid colours, because there
-     the same hues sit at the light end of the contrast. Leaving them
-     undefined there is what rendered light-surface ochre on a near-black
-     panel at 2.92:1. */
-  --action-text: #9a3341;
-  --warning-text: #7a5516;
+  /* The scrim behind a drawer or sheet.
+     A dedicated token, not `--ink-primary` at low opacity. Ink is
+     near-black in light and near-white in dark, so reusing it made the
+     page *brighter* behind the drawer in dark mode -- a scrim that lights
+     the thing it is meant to recede. */
+  --scrim: rgb(18 22 25 / 30%);
 
   /* RGB triples for the few places that need an alpha blend. Kept beside
      the hex so the two cannot drift apart. */
-  --signal-rgb: 31 95 104;
-  --supported-rgb: 42 99 73;
-  --warning-rgb: 157 109 27;
-  --failure-rgb: 154 59 43;
+  --signal-rgb: 14 110 102;
+  --supported-rgb: 14 110 102;
+  --warning-rgb: 166 59 36;
+  --failure-rgb: 166 59 36;
 
   /* --------------------------------------------------------------- type
      One grotesk for the interface and one mono for data. Both resolved
@@ -152,9 +185,17 @@
   --text-xl: 1.875rem;
   --text-figure: 2.25rem;
 
+  /* The typographic signature: the headline answer, and nothing else.
+     34px/700, sentence case, never truncated, never all-caps, **one per
+     page**. That single rule is what makes a report recognisable at a
+     glance, and it only works while nothing else competes at this size --
+     which is why this token has one legitimate call site. */
+  --text-display: 2.125rem;
+
   --weight-regular: 400;
   --weight-medium: 500;
   --weight-semibold: 600;
+  --weight-bold: 700;
 
   --leading-tight: 1.2;
   --leading-normal: 1.5;
@@ -185,9 +226,11 @@
 
   /* ------------------------------------------------------------ shadow
      Two, both barely there, and neither used to separate things that
-     space could separate. There is no glow.  */
-  --shadow-raised: 0 1px 2px rgb(18 22 26 / 6%);
-  --shadow-overlay: 0 8px 24px rgb(18 22 26 / 12%);
+     space could separate. There is no glow. The overlay shadow has one
+     job: telling a reader that the drawer floats above the page rather
+     than being part of it. */
+  --shadow-raised: 0 1px 2px rgb(18 22 25 / 6%);
+  --shadow-overlay: 0 8px 24px rgb(18 22 25 / 12%);
 
   /* ------------------------------------------------------------ motion
      Budgets rather than preferences. Feedback must land inside the
@@ -216,81 +259,67 @@
 
   /* ------------------------------------------------------------ measure
      A reading column, and the width a report may occupy. Prose set wider
-     than about 80 characters loses the line it is on. */
+     than about 80 characters loses the line it is on.
+
+     `--measure-content` is 1180px because that is the content column the
+     approved desktop composition is drawn at, at a 1440px viewport. The
+     chart is required to occupy at least 90% of it at every width. */
   --measure-prose: 68ch;
-  --measure-content: 1100px;
+  --measure-content: 1180px;
   --measure-wide: 1400px;
+
+  /* The page gutter, which is also the minimum distance any content keeps
+     from the viewport edge. 16px at phone widths is the floor the
+     responsive tests assert; it opens up as the viewport does. */
+  --gutter: var(--space-4);
 }
 
 :root[data-theme="dark"] {
-  --surface-canvas: #14110f;
-  --surface-paper: #1b1714;
-  --surface-raised: #231e1a;
-  --surface-inset: #17130f;
+  --surface-canvas: #0e1113;
+  --surface-paper: #14181b;
+  --surface-raised: #1a1f23;
+  --surface-inset: #0a0d0f;
 
-  --ink-primary: #f4efe8;
-  --ink-secondary: #a79a8c;
-  --ink-muted: #968b80;
-  --ink-inverse: #14110f;
+  --ink-primary: #edf1f3;
+  --ink-secondary: #a3aeb6;
+  --ink-muted: #8c98a1;
+  --ink-inverse: #0e1113;
 
-  --rule-hairline: #332c26;
-  --rule-strong: #4d443b;
+  --rule-hairline: #232a2f;
+  --rule-strong: #39434a;
 
-  --signal: #44a3b0;
-  --signal-weak: #123034;
-  --action: #d97a86;
-  --action-weak: #3a1c20;
-  --supported: #4fa87d;
-  --supported-weak: #13291f;
-  --warning: #c28a2a;
-  --warning-weak: #2d2211;
-  --failure: #dd7a66;
-  --failure-weak: #331a15;
+  /* The two meanings, lifted to the light end of the contrast range.
+     Worst case here: signal 7.67, warning 5.63 -- both well clear. */
+  --signal: #45c3b2;
+  --signal-weak: #10322e;
+  --warning: #e8755a;
+  --warning-weak: #391a12;
+
+  /* The aliases are `var()` references and resolve to the overrides above
+     without being restated. Restating them is how a palette drifts: a
+     later edit to `--signal` that forgets one of its four aliases leaves
+     a single component wearing the old hue. */
 
   /* ------------------------------------------------------- data series
-  Five marks that have to stay apart for every reader.
-
-  Two requirements, both measured rather than assumed. Each clears 3:1
-  against the surface a plot sits on, which is what WCAG 1.4.11 asks of a
-  graphical object. And the five stay distinguishable under red-green and
-  blue-yellow deficiency, which hue alone cannot deliver: the ramp climbs
-  a deliberate contrast ladder -- 3.0, 4.3, 5.8, 7.5, 9.5 -- so a reader
-  who cannot separate the hues still has lightness.
-
-  The ladder is not enough on its own either. Which hue sits on which rung
-  decides it: an earlier arrangement put teal and red one step apart,
-  where deuteranopia merges them, and the worst pair fell to dE 10.6. The
-  order below was chosen by searching every assignment for the best worst
-  case, which is dE 15.2 across both themes and all three deficiencies --
-  up from 6.9 when every colour was solved to the same contrast and hue
-  was doing all the work.
-
-  `src/test/chartSeries.test.ts` re-measures both properties. */
+  The same measured ramp, in its dark variant. Both variants are
+  dichromacy-verified; see the note in the light block. */
   --series-1: #b44352;
   --series-2: #8a78bc;
   --series-3: #c3912e;
   --series-4: #54becc;
   --series-5: #a1d1a1;
-  /* The text-safe variants collapse into the vivid colours here.
-     They exist in the light palette because #d94a36 and #a87522 are too
-     dark to carry words on a pale surface -- 3.31:1 at worst. On these
-     surfaces the same two hues are the light end of the contrast and
-     measure 5.92:1 to 8.13:1 across all four, so a separate value would
-     be a second name for the same colour.
-  
-     They were previously left undefined here, which is not the same
-     thing: an undefined override inherits, so dark mode rendered the
-     *light* values -- #855c17 ochre on a near-black surface at 2.92:1.
-     A warning notice, an ambiguous-field tag and a stopped workflow step
-     all carried it, and no accessibility scan runs in dark mode, so
-     nothing caught it. */
-  --action-text: var(--action);
-  --warning-text: var(--warning);
 
-  --signal-rgb: 68 163 176;
-  --supported-rgb: 79 168 125;
-  --warning-rgb: 194 138 42;
-  --failure-rgb: 221 122 102;
+  --chart-grid: #1e2429;
+
+  /* Pure black, and heavier. A scrim mixed from the dark canvas is barely
+     distinguishable from it, so the page behind the drawer stops reading
+     as "behind" at all. */
+  --scrim: rgb(0 0 0 / 62%);
+
+  --signal-rgb: 69 195 178;
+  --supported-rgb: 69 195 178;
+  --warning-rgb: 232 117 90;
+  --failure-rgb: 232 117 90;
 
   --shadow-raised: 0 1px 2px rgb(0 0 0 / 40%);
   --shadow-overlay: 0 8px 24px rgb(0 0 0 / 55%);

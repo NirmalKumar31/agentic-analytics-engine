@@ -1,0 +1,264 @@
+/**
+ * Foundations: the frame, the reading column, the typographic signature,
+ * the scrim, and the print page.
+ *
+ * These are the primitives the redesigned surfaces are composed from. They
+ * are deliberately a separate module from `shell.css`, which styles the
+ * current header and panel chrome: this one owns *where things sit and how
+ * big they are*, and nothing in it knows what a report or a finding is.
+ *
+ * It sits immediately after `reset.css` so every later module -- and every
+ * override in `states.css` -- can rely on the frame existing and can win
+ * over it where a specific surface needs to.
+ *
+ * Nothing here animates. Motion lives in `motion.css`, which comes later and
+ * is where the `prefers-reduced-motion` blocks are.
+ */
+
+/* ------------------------------------------------------------------ frame
+ *
+ * One column, gutters that open with the viewport, and a cap on how wide
+ * the content may run. The cap is `--measure-content` (1180px), which is the
+ * column the approved desktop composition is drawn at.
+ *
+ * `margin-inline: auto` rather than a centring flexbox: a flex parent would
+ * impose `min-width: auto` on this element, and a wide table inside it would
+ * then take the document sideways instead of scrolling in its own frame.
+ * That is the exact mechanism `responsive.css` was written to undo.
+ */
+.frame {
+  width: 100%;
+  max-width: var(--measure-content);
+  margin-inline: auto;
+  padding-inline: var(--gutter);
+  /* Content, not the frame, decides height. */
+  min-width: 0;
+}
+
+/* A frame that may run to the full working width -- the compare workspace
+   and the result table use it, because a difference shown field by field is
+   wider than prose and stays readable when it is. */
+.frame--wide {
+  max-width: var(--measure-wide);
+}
+
+/* Prose has its own narrower measure. Set wider than about 80 characters, a
+   line loses the reader on the return sweep, and that is true no matter how
+   much horizontal room the viewport has. */
+.frame--prose {
+  max-width: var(--measure-prose);
+}
+
+/* The gutter opens in two steps. Phone widths get 16px -- the floor the
+   responsive tests assert -- and nothing narrower is ever applied. */
+@media (min-width: 768px) {
+  :root {
+    --gutter: var(--space-6);
+  }
+}
+
+@media (min-width: 1200px) {
+  :root {
+    --gutter: var(--space-7);
+  }
+}
+
+/* --------------------------------------------------------------- stack
+ *
+ * Vertical rhythm as a property of the container, not of every child.
+ *
+ * The alternative -- a margin on each component -- is how a layout acquires
+ * margins that collapse differently depending on what happens to be rendered
+ * beside them. A refused run and a completed one would then have different
+ * spacing above the question, for no reason anyone chose.
+ */
+.stack {
+  display: flow-root;
+}
+
+.stack > * + * {
+  margin-block-start: var(--space-5);
+}
+
+.stack--tight > * + * {
+  margin-block-start: var(--space-3);
+}
+
+.stack--loose > * + * {
+  margin-block-start: var(--space-7);
+}
+
+/* ------------------------------------------------------------- division
+ *
+ * A region boundary is a hairline rule with space around it, never a box.
+ * `.divide` puts one between children; `.rule` is a standalone one.
+ */
+.divide > * + * {
+  padding-block-start: var(--space-6);
+  border-block-start: 1px solid var(--rule-hairline);
+  margin-block-start: var(--space-6);
+}
+
+.rule {
+  border: 0;
+  border-block-start: 1px solid var(--rule-hairline);
+  margin-block: var(--space-6);
+}
+
+/* ---------------------------------------------------------------- type
+ *
+ * The typographic signature. `--text-display` has exactly one legitimate
+ * call site -- the headline answer -- and the rule only works while nothing
+ * else competes at that size.
+ *
+ * `text-wrap: balance` rather than truncation. An answer is the one thing on
+ * the page that must never be cut off to fit, so when it wraps it wraps into
+ * even lines instead of one long line and one orphan.
+ */
+.display {
+  font-size: var(--text-display);
+  font-weight: var(--weight-bold);
+  line-height: var(--leading-tight);
+  letter-spacing: -0.015em;
+  color: var(--ink-primary);
+  text-wrap: balance;
+  /* Never truncated, never ellipsised, never all-caps. */
+  overflow-wrap: break-word;
+  text-transform: none;
+}
+
+/* The line under an answer that says what population it was computed over.
+   Muted, small, and never styled as a caption in italics: it is a factual
+   qualifier on the figure above it, not an aside. */
+.context-line {
+  font-size: var(--text-sm);
+  color: var(--ink-muted);
+  line-height: var(--leading-normal);
+}
+
+/* Every figure, in a table or in a sentence, uses lining tabular numerals so
+   that a column of them aligns on the decimal and a changing value does not
+   shift the text around it. */
+.figure,
+.numeric {
+  font-variant-numeric: var(--numeric);
+  font-feature-settings: "tnum" 1;
+}
+
+/* Identifiers the engine emits -- a contract id, a canonical hash, a build
+   SHA, a column name. Mono, because these are read character by character
+   and compared, not read as words. */
+.token-text {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--ink-muted);
+}
+
+/* A section heading. Sentence case at body-ish scale with weight doing the
+   work -- there are no ALL-CAPS headings in this design, because capitals
+   are slower to read and were being used to signal importance that the
+   position in the page already signals. */
+.section-heading {
+  font-size: var(--text-md);
+  font-weight: var(--weight-semibold);
+  color: var(--ink-primary);
+  line-height: var(--leading-tight);
+  text-transform: none;
+  letter-spacing: normal;
+}
+
+/* ---------------------------------------------------------------- scrim
+ *
+ * Behind a drawer or sheet. Uses the dedicated `--scrim` token rather than
+ * ink at an opacity: ink is near-black in light and near-white in dark, so
+ * ink-as-scrim lightens the page in dark mode instead of pushing it back.
+ */
+.scrim {
+  position: fixed;
+  inset: 0;
+  background: var(--scrim);
+  z-index: var(--z-drawer);
+}
+
+/* ----------------------------------------------------------- containment
+ *
+ * Anything that scrolls inside itself declares it here, together with the
+ * `min-width: 0` that lets it. A grid or flex item defaults to `min-width:
+ * auto` -- "at least as wide as my content" -- so a scroll container inside
+ * one expands to fit rather than scrolling, and takes the page sideways.
+ */
+.scroll-x {
+  overflow-x: auto;
+  min-width: 0;
+  /* The scrollbar stays visible: hiding it hides that there is more to see. */
+  scrollbar-width: thin;
+}
+
+/* -------------------------------------------------------- print page
+ *
+ * Page-level print foundations only. How a *report* prints -- which
+ * disclosures expand, where the evidence appendix begins -- belongs with the
+ * report, not here.
+ *
+ * Two rules carry most of the value. The page gets real margins and a size,
+ * so a browser does not invent them; and colour is preserved, because a
+ * verdict rendered in grey is a verdict the reader cannot act on.
+ */
+@page {
+  size: A4;
+  margin: 18mm 16mm;
+}
+
+@media print {
+  :root {
+    /* Print on white regardless of the theme on screen. A dark-mode page
+       sent to a printer is either an empty sheet or a solid black one. */
+    --surface-canvas: #ffffff;
+    --surface-paper: #ffffff;
+    --surface-raised: #ffffff;
+    --surface-inset: #f2f4f1;
+    --ink-primary: #121619;
+    --ink-secondary: #3b444b;
+    --ink-muted: #4b545c;
+    --rule-hairline: #c3cac3;
+    --scrim: transparent;
+  }
+
+  /* Keep the colours that mean something. Without this, Chrome and Safari
+     drop backgrounds and desaturate, and a withheld verdict prints looking
+     identical to a verified one. */
+  * {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .frame,
+  .frame--wide,
+  .frame--prose {
+    max-width: none;
+    padding-inline: 0;
+  }
+
+  /* Nothing scrolls on paper. A table in a scroll frame would print one
+     screenful and silently drop the rest of its rows. */
+  .scroll-x {
+    overflow: visible;
+  }
+
+  /* A scrim has no meaning on paper, and the thing it was dimming is not
+     being shown over the page any more -- it is an appendix. */
+  .scrim {
+    display: none;
+  }
+
+  /* An answer never breaks across a page from the line that qualifies it. */
+  .display {
+    break-after: avoid;
+  }
+
+  .display + .context-line,
+  .section-heading {
+    break-before: avoid;
+    break-after: avoid;
+  }
+}

@@ -7,13 +7,22 @@
   min-height: 100%;
 }
 
+/* A thin header: one rule's worth of chrome.
+ *
+ * It was two lines tall because it carried a tagline under the product
+ * name. Height in a persistent header is paid on every screen, forever, by
+ * the content below it -- and what it bought was a sentence nobody reads
+ * twice. One line now, 52px, which is the height the approved composition
+ * is drawn at. */
 .topbar {
   display: flex;
   align-items: center;
-  gap: 16px;
-  padding: 12px 22px;
+  gap: var(--space-4);
+  min-height: 52px;
+  padding-block: 0;
+  padding-inline: var(--gutter);
   border-bottom: 1px solid var(--rule-hairline);
-  background: var(--surface-raised);
+  background: var(--surface-paper);
   position: sticky;
   top: 0;
   z-index: 40;
@@ -22,18 +31,18 @@
 .brand {
   display: flex;
   align-items: center;
-  gap: 10px;
-  font-weight: 600;
+  gap: var(--space-2);
   letter-spacing: -0.01em;
 }
 .brand-mark {
-  width: 22px;
-  height: 22px;
+  width: 18px;
+  height: 18px;
+  flex: none;
 }
-.brand small {
-  color: var(--ink-muted);
-  font-weight: 400;
-  font-size: 12px;
+.brand-name {
+  font-size: var(--text-base);
+  font-weight: var(--weight-semibold);
+  color: var(--ink-primary);
 }
 
 .topbar-spacer {
@@ -156,10 +165,15 @@
   flex: 1;
   display: grid;
   grid-template-columns: minmax(0, 1fr) 330px;
-  gap: 22px;
-  padding: 26px 24px 48px;
+  gap: var(--space-5);
+  padding-block: var(--space-6) var(--space-8);
+  padding-inline: var(--gutter);
   align-items: start;
-  max-width: 1500px;
+  /* The measures are tokens now rather than two numbers invented here.
+     1500 and 1020 were close to, but not the same as, the widths the
+     compositions are drawn at, so every panel inside them sat a few pixels
+     off the column the design specifies. */
+  max-width: var(--measure-wide);
   width: 100%;
   margin: 0 auto;
 }
@@ -169,7 +183,7 @@
    page; the content is centred at a readable measure instead. */
 .main[data-rail="false"] {
   grid-template-columns: minmax(0, 1fr);
-  max-width: 1020px;
+  max-width: var(--measure-content);
 }
 
 @media (max-width: 1100px) {

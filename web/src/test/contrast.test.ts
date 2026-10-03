@@ -120,13 +120,37 @@ const LIGHT = resolve(hexTokens(LIGHT_BLOCK), aliasTokens(LIGHT_BLOCK));
  * Reading the block alone reports the rest as absent, which hides exactly
  * the failure this is looking for: a colour tuned for a light surface that
  * nobody remembered to redefine, still sitting there on a dark one.
+ *
+ * **Hexes and aliases compose differently, and conflating them is a bug.**
+ *
+ * A hex the dark block omits really does inherit the light value, and that
+ * is the defect this file was written to catch -- light-surface ochre left
+ * sitting on a near-black panel.
+ *
+ * An *alias* omitted by the dark block does not. `--action: var(--signal)`
+ * declared on `:root` is a substitution performed where the token is used,
+ * against whatever `--signal` holds on the element then. Under
+ * `[data-theme="dark"]` that is the dark signal, so the alias follows the
+ * override without being restated -- and restating it is how a palette
+ * drifts, because a later edit that forgets one alias leaves a single
+ * component wearing the old hue.
+ *
+ * Composing the light block's aliases onto dark's values models that. The
+ * earlier version resolved dark using only the aliases the dark block
+ * itself declared, so every alias held its *light* target. It reported the
+ * light signal green as dark mode's `--action` and failed it at 2.72:1
+ * against a surface no reader will ever see it on.
  */
 const DARK_BLOCK = blockAt(clean, clean.indexOf(':root[data-theme="dark"]'));
-const DARK_OVERRIDES = resolve(
-  { ...LIGHT, ...hexTokens(DARK_BLOCK) },
-  aliasTokens(DARK_BLOCK),
-);
-const DARK = { ...LIGHT, ...DARK_OVERRIDES };
+const DARK_HEXES = { ...hexTokens(LIGHT_BLOCK), ...hexTokens(DARK_BLOCK) };
+const DARK_ALIASES = { ...aliasTokens(LIGHT_BLOCK), ...aliasTokens(DARK_BLOCK) };
+// A token the dark block pins to a literal colour is no longer an alias
+// there, whatever `:root` said. Without this, the inherited alias would be
+// applied after the hex and quietly win.
+for (const name of Object.keys(hexTokens(DARK_BLOCK))) {
+  if (!(name in aliasTokens(DARK_BLOCK))) delete DARK_ALIASES[name];
+}
+const DARK = resolve(DARK_HEXES, DARK_ALIASES);
 
 // ------------------------------------------------------------ contrast maths
 
@@ -217,7 +241,10 @@ describe("the palette parses", () => {
     // surface and pass everything.
     expect(LIGHT["surface-canvas"]).not.toBe(DARK["surface-canvas"]);
     expect(LIGHT["ink-primary"]).not.toBe(DARK["ink-primary"]);
-    expect(Object.keys(DARK_OVERRIDES).length).toBeGreaterThan(10);
+    // The dark block must actually restate a substantial palette, not a
+    // token or two: a near-empty override block is the failure that leaves
+    // light-surface colours on dark surfaces.
+    expect(Object.keys(hexTokens(DARK_BLOCK)).length).toBeGreaterThan(10);
   });
 });
 
