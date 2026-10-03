@@ -693,6 +693,51 @@ def test_a_ranking_sums_missing_observations_across_every_returned_group() -> No
     )
 
 
+def test_the_observation_count_is_evidence_and_not_a_business_column() -> None:
+    """`value_count` belongs to scope, not to the table a reader reads.
+
+    It is `COUNT(measure)`, which exists so the engine can say how many rows
+    actually contributed to an aggregate. Shown beside `row_count` on every
+    result it reads as a second analytical measure, repeats a number the
+    scope line already states, and adds a column to a table that has to fit
+    a 360px phone.
+
+    This is asserted directly rather than through the page's width, because
+    the layout no longer notices: the report's tables scroll inside their
+    own wrapper, so an extra column stopped producing the horizontal
+    overflow a browser test could catch. A mutation restoring `value_count`
+    to the visible set passed the 360px golden test, the contract tests and
+    the ResultPanel tests alike -- the invariant was implemented and
+    unenforced.
+    """
+    result = snapshot(
+        ["store", "total_net_value", "row_count", "value_count"],
+        [["A", 100.0, 5, 5], ["B", 80.0, 6, 4]],
+        "total_net_value",
+        source="net_value",
+    )
+
+    presentation = build_presentation(
+        mapping=Mapping("rank", ("store",), "net_value", ascending=False), snapshot=result
+    )
+
+    shown = presentation.table.visible_columns
+    assert "value_count" not in shown, (
+        "value_count reached the business table; it is scope evidence, and a "
+        "reader would read it as a second measure"
+    )
+    # The columns a reader does need are still there, so this cannot pass by
+    # the table having been emptied.
+    assert "store" in shown
+    assert "total_net_value" in shown
+    assert "row_count" in shown
+
+    # And it is still available as evidence: excluded from the table is not
+    # the same as discarded.
+    assert "value_count" in result.columns
+    assert any(c.code == "missing_measure_values" for c in presentation.caveats)
+
+
 # ───────────────────────────────────── serialization
 
 
