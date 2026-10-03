@@ -30,6 +30,14 @@ interface Props {
 
 type SortState = { column: number; direction: "asc" | "desc" } | null;
 
+/* `value_count` is execution evidence, not another analytical dimension.
+ * It remains in the snapshot (and therefore in the full CSV export) so the
+ * non-null denominator is auditable, while the report states it in the scope
+ * sentence and caveat. Repeating it as a column for every group made the
+ * business table harder to scan and, at phone widths, widened the entire
+ * document instead of adding information. */
+const INTERNAL_EVIDENCE_COLUMNS = new Set(["value_count"]);
+
 export function ResultPanel({
   snapshot,
   question,
@@ -46,6 +54,9 @@ export function ResultPanel({
 
   const cited = new Set(highlight.map((cell) => `${cell.row}:${cell.column}`));
   const fields = new Map(displayFields.map((field) => [field.source_name, field]));
+  const tableColumns = snapshot.columns
+    .map((column, index) => ({ column, index }))
+    .filter(({ column }) => !INTERNAL_EVIDENCE_COLUMNS.has(column));
   const labelFor = (column: string) => fields.get(column)?.display_label ?? column.replaceAll("_", " ");
   const valueFor = (column: string, value: Cell) => {
     const labels = fields.get(column)?.boolean_labels;
@@ -100,7 +111,7 @@ export function ResultPanel({
               <th scope="col" aria-label="row number">
                 #
               </th>
-              {snapshot.columns.map((column, index) => (
+              {tableColumns.map(({ column, index }) => (
                 <th
                   key={column}
                   scope="col"
@@ -132,7 +143,7 @@ export function ResultPanel({
             {visible.map(({ row, index }) => (
               <tr key={index}>
                 <td className="dim">{index}</td>
-                {snapshot.columns.map((column, columnIndex) => (
+                {tableColumns.map(({ column, index: columnIndex }) => (
                   <td
                     key={column}
                     className={
@@ -196,5 +207,12 @@ export function scopeSentence(
     coverage.rows_represented != null && coverage.rows_matching != null
       ? `, over ${coverage.rows_represented.toLocaleString()} of ${coverage.rows_matching.toLocaleString()} matching rows`
       : "";
-  return `${preview} ${groups}${rows}.`;
+  const observations =
+    coverage.observations_represented != null &&
+    coverage.observations_matching != null &&
+    (coverage.observations_represented !== coverage.rows_represented ||
+      coverage.observations_matching !== coverage.rows_matching)
+      ? `; ${coverage.observations_represented.toLocaleString()} of ${coverage.observations_matching.toLocaleString()} non-null values contributed`
+      : "";
+  return `${preview} ${groups}${rows}${observations}.`;
 }

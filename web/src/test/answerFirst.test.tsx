@@ -12,6 +12,7 @@ import { ReportView } from "../components/ReportView";
 import {
   answerResult,
   directAnswer,
+  observationsUsed,
   populationClauses,
   rowsInScope,
 } from "../lib/answer";
@@ -117,6 +118,22 @@ describe("rowsInScope", () => {
 
   it("is null rather than wrong when a count is not a number", () => {
     expect(rowsInScope(snapshot({ rows: [["west", 1, "many"]] }))).toBeNull();
+  });
+});
+
+describe("observationsUsed", () => {
+  it("counts non-null measure values separately from population rows", () => {
+    expect(
+      observationsUsed(
+        snapshot({
+          columns: ["region", "average_annual_revenue", "row_count", "value_count"],
+          rows: [
+            ["west", 511.24, 100, 96],
+            ["south", 504.42, 100, 91],
+          ],
+        }),
+      ),
+    ).toBe(187);
   });
 });
 

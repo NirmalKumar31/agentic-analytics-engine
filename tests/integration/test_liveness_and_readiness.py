@@ -73,6 +73,18 @@ def test_version_alone_cannot_detect_a_restart(warehouse_dir: Path, tmp_path: Pa
     assert payloads[0]["instance_id"] != payloads[1]["instance_id"]
 
 
+def test_health_and_config_name_the_exact_deployed_revision(
+    warehouse_dir: Path, tmp_path: Path, monkeypatch
+) -> None:
+    monkeypatch.setenv("RENDER_GIT_COMMIT", "0123456789abcdef")
+    with TestClient(create_app(_settings(warehouse_dir, tmp_path))) as client:
+        health = client.get("/api/health").json()
+        config = client.get("/api/config").json()
+
+    assert health["build_sha"] == "0123456789abcdef"
+    assert config["build_sha"] == "0123456789abcdef"
+
+
 def test_the_capacity_smoke_compares_instance_id_not_version() -> None:
     """The script has to use the field that can actually change."""
     source = (REPO / "scripts" / "capacity_smoke.py").read_text()

@@ -566,6 +566,23 @@ def build_graph(ctx: RunContext) -> Any:
                 "timings": _with_timings(state, execution_ms=execution_ms, verification_ms=0.0),
             }
 
+        if _aggregate_has_no_values(snapshot):
+            return {
+                "verdicts": [],
+                "rejected": [],
+                "published": [],
+                "charts": [],
+                "report": AnalysisReport(
+                    question=state["question"],
+                    executive_summary="",
+                    key_findings=[],
+                    sections=[],
+                    limitations=[_no_values_limitation(mapping, snapshot)],
+                    next_questions=[],
+                ),
+                "timings": _with_timings(state, execution_ms=execution_ms, verification_ms=0.0),
+            }
+
         verify_started = time.perf_counter()
         candidate = _canonical_for(mapping, results, [])
         if candidate is None:
@@ -1261,6 +1278,38 @@ def _matched_no_rows(snapshot: Any) -> bool:
         return all(int(row[index] or 0) == 0 for row in rows)
     except (IndexError, TypeError, ValueError):
         return False
+
+
+def _aggregate_has_no_values(snapshot: Any) -> bool:
+    """Whether rows matched but every value of the aggregated measure is null."""
+    rows = list(getattr(snapshot, "rows", None) or [])
+    columns = list(getattr(snapshot, "columns", None) or [])
+    if not rows or "value_count" not in columns:
+        return False
+    index = columns.index("value_count")
+    try:
+        return all(int(row[index] or 0) == 0 for row in rows)
+    except (IndexError, TypeError, ValueError):
+        return False
+
+
+def _no_values_limitation(mapping: Any, snapshot: Any) -> str:
+    """Explain an empty aggregate without claiming the population was empty."""
+    measure = str(getattr(mapping, "measure", "") or "requested measure")
+    columns = list(getattr(snapshot, "columns", None) or [])
+    rows = list(getattr(snapshot, "rows", None) or [])
+    matched = 0
+    if "row_count" in columns:
+        index = columns.index("row_count")
+        try:
+            matched = sum(int(row[index] or 0) for row in rows)
+        except (IndexError, TypeError, ValueError):
+            matched = 0
+    population = f" across {matched:,} matching rows" if matched else ""
+    return (
+        f"The analysis ran, but {measure} had no non-null values{population}. "
+        "No aggregate was published."
+    )
 
 
 def _no_rows_limitation(mapping: Any) -> str:

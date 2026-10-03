@@ -99,6 +99,37 @@ export function rowsInScope(snapshot: ResultSnapshot | null): number | null {
   return total;
 }
 
+/** Non-null measure values that actually contributed to the aggregate. */
+export function observationsUsed(snapshot: ResultSnapshot | null): number | null {
+  if (!snapshot) return null;
+  const coverage = snapshot.group_coverage;
+  if (coverage) {
+    if (coverage.complete && coverage.observations_matching != null) {
+      return coverage.observations_matching;
+    }
+    if (coverage.observations_represented != null) {
+      return coverage.observations_represented;
+    }
+  }
+  const index = snapshot.columns.findIndex(
+    (column) => column.toLowerCase() === "value_count",
+  );
+  if (index < 0) return null;
+  let total = 0;
+  for (const row of snapshot.rows) {
+    const value = row[index];
+    if (typeof value === "number") total += value;
+    else if (
+      typeof value === "string" &&
+      value.trim() !== "" &&
+      !Number.isNaN(Number(value))
+    ) {
+      total += Number(value);
+    } else return null;
+  }
+  return total;
+}
+
 /**
  * What the answer covers, in the reader's terms, or null when the result is
  * not a grouped answer.
@@ -122,12 +153,19 @@ export function coverageScope(snapshot: ResultSnapshot | null): string | null {
     coverage.rows_represented != null && coverage.rows_matching != null
       ? `${coverage.rows_represented.toLocaleString()} of ${coverage.rows_matching.toLocaleString()} matching rows`
       : null;
+  const observations =
+    coverage.observations_represented != null &&
+    coverage.observations_matching != null &&
+    (coverage.observations_represented !== coverage.rows_represented ||
+      coverage.observations_matching !== coverage.rows_matching)
+      ? `${coverage.observations_represented.toLocaleString()} of ${coverage.observations_matching.toLocaleString()} non-null values used`
+      : null;
   const ordered = coverage.complete
     ? null
     : coverage.ranked_by_request
       ? "ranked as requested"
       : `ordered by ${coverage.ordering}`;
-  return [groups, rows, ordered].filter(Boolean).join(" · ");
+  return [groups, rows, observations, ordered].filter(Boolean).join(" · ");
 }
 
 /** Whether this answer covers every group the question asked for. */

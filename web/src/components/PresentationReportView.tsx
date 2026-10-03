@@ -21,6 +21,16 @@ function scopeText(presentation: AnalysisPresentation): string | null {
   if (scope.rows_represented != null && scope.rows_matching != null) {
     parts.push(`${scope.rows_represented.toLocaleString()} of ${scope.rows_matching.toLocaleString()} matching rows`);
   }
+  if (
+    scope.observations_represented != null &&
+    scope.observations_matching != null &&
+    (scope.observations_represented !== scope.rows_represented ||
+      scope.observations_matching !== scope.rows_matching)
+  ) {
+    parts.push(
+      `${scope.observations_represented.toLocaleString()} of ${scope.observations_matching.toLocaleString()} non-null values used`,
+    );
+  }
   if (scope.groups_returned != null) {
     const total = scope.groups_total ?? scope.groups_returned;
     parts.push(

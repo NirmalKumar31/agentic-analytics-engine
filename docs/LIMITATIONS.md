@@ -129,6 +129,14 @@ coroutine.
   an allow-list *is* configured, Host and Origin validation is the SDK's, and
   the endpoint still accepts any caller who supplies a valid session handle
   and capability.
+- **The build is audited, but not hermetic or attested.** Python constraints
+  and the npm lockfile bound application dependencies; CI runs pip-audit,
+  npm audit and gitleaks. The workflow actions and Docker base images still
+  use mutable release tags, however, and the downloaded gitleaks binary is
+  not independently checksum-verified by this repository. There is no SLSA
+  provenance or reproducible-build claim. A high-assurance deployment should
+  pin actions and images by digest, verify downloaded tools, and automate the
+  corresponding update process.
 
 ---
 
@@ -178,10 +186,20 @@ coroutine.
   called `revenue` is refused, because synonym matching would be guessing.
   The refusal says which column to name instead, which is the most a rule
   system can honestly offer.
-- **A named period is applied or the question is refused.** "Total revenue in
+- **A named time axis or period is applied only when its date semantics are
+  established.** "Total revenue in
   1998" filters to 1998 and reports nothing if no row falls there. On a table
   with no date column it is refused, rather than answered over every row --
-  which is what it used to do.
+  which is what it used to do. A lifecycle date such as `signup_date` is not
+  silently treated as the date of revenue or as a revenue trend axis: the
+  question must name that date column explicitly. A sole generic event clock
+  such as `order_date` or `transaction_date` may define the time axis or
+  period without extra wording.
+- **Aggregate population and effective observations are distinct.** `SUM` and
+  `AVG` ignore null measures. Results therefore record matching rows with
+  `row_count` and contributing non-null values with `value_count`; reports
+  disclose both and warn when they differ. This does not impute missing data
+  or make a recorded-value total a total of unknown values.
 - **A grouping that names no column is refused**, quoting the name back.
   "Total revenue by loyalty_tier" on a table without that column used to
   return an ungrouped total, presented confidently as the answer.
@@ -504,53 +522,26 @@ sequence.
 
 ## 8. Resource envelope and scale
 
-Sized for a demo. The public deployment is one Render `1c-2g` instance --
-1 CPU, 2 GB -- and the limits are set against that: 384 MB and one thread per
-session's DuckDB, 12 sessions admitted, 6 of them uploads, 2 analyses at once.
+Sized for a demo. The public deployment declared by `render.yaml` is one
+Render **free** instance with 512 MB. Each session's DuckDB is limited to
+160 MB and one thread; the process admits three live sessions, at most two of
+them uploads, and two analyses at once. Uploads are capped at 10 MB, 400,000
+rows and 200 columns. These are the current deployment settings; the Python
+defaults are intentionally broader and must not be quoted as public limits.
 
-**Those are admission limits, not a measured concurrency guarantee.** Nothing
-here establishes that 12 sessions running large aggregates simultaneously
-would survive; what the numbers do is stop the instance accepting work whose
-resource envelopes alone exceed it. `scripts/capacity_smoke.py` checks for
-breakage under a small bounded load and deliberately reports no throughput
-figure.
+**The admission policy is based on a bounded rehearsal, not a throughput
+claim.** With two analyses running against a full session table, three live
+sessions peaked at 438 MB; four reached 497 MB, within 15 MB of the instance
+limit; six and eight exceeded the instance and were killed. Hence a fourth
+visitor evicts the least-recently-used session instead of being admitted.
+The detailed table and operational consequences live in `DEPLOYMENT.md`.
 
-Note that neither `384 MB x 12 sessions` nor `384 MB x 2 analyses` is the
-real figure. `AAE_DUCKDB_MEMORY_LIMIT` is a ceiling DuckDB will not exceed,
-not an allocation it makes up front — but an idle session is not free
-either, because it has already materialised its rows into a private
-in-memory database and holds them until it ends. The honest number is not
-derivable from the configuration, so it is measured instead.
-
-**What was measured.** `scripts/resource_rehearsal.py --cycles 10` against a
-local process configured to the deployment's shape — 384 MB, one thread, and
-per cycle 4 demo sessions plus 4 uploads of 120,000 rows, 2 concurrent
-analyses, then every session deleted. All 68 checks passed. RSS after each
-cycle's cleanup:
-
-| Cycle | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 |
-|---|---|---|---|---|---|---|---|---|---|---|
-| RSS (MiB) | 378 | 446 | 546 | 602 | 610 | 572 | 591 | 594 | 593 | 386 |
-
-Baseline before the first cycle was 280 MiB.
-
-**What those readings support, and nothing more.** RSS rose above baseline
-and stayed there for most of the run; it stopped rising after roughly the
-fifth cycle rather than growing without bound; it fell back to 386 MiB by
-the end; and no out-of-memory kill or restart occurred — the process
-reported the same `instance_id` throughout, which is how a restart would
-have been visible.
-
-**The test does not establish why memory was retained.** An allocator
-holding freed pages and a slow leak can both look like this, and telling
-them apart needs a longer run and a heap profiler, neither of which this
-is. No claim of "no memory leak" is made or supported here. The practical
-consequence either way is that a long-lived instance sits above its idle
-figure, so headroom should be judged from the high-water mark — around 610
-MiB in this run, against a 2 GB instance — rather than from the baseline.
-
-This was a process on a developer machine, not a container on the target
-instance. It establishes no bound, and no throughput figure was recorded.
+`AAE_DUCKDB_MEMORY_LIMIT` is a ceiling, not an up-front allocation. An idle
+session is still not free: it holds a private in-memory database until expiry.
+The measurements above do not establish a universal memory bound, leak
+freedom, or throughput. They establish why the public cap is three on this
+specific 512 MB plan. A paid `1c-2g` instance is documented only as the next
+capacity option; it is not what the public service currently runs.
 
 Sessions expire on a timer rather than on the next request, and a browser
 opening a second dataset retires its first. Both were previously true only
@@ -572,31 +563,30 @@ developer's machine is not the constraint the deployment is.
 - Vega is 298 kB gzipped, lazily loaded on first chart render, and dominates
   the bundle.
 - Tested with Vitest and Testing Library for components, and with Playwright
-  for the assembled application: **21 browser tests** covering the landing
-  page, a recorded run, a demo analysis, provenance, upload, refusal,
-  session deletion, cross-session isolation, cookie flags, the MCP endpoint
-  policy, mode selection and Compare Both. They run against a real server,
-  not a mock.
+  for the assembled application: **96 discovered browser scenarios** covering
+  the landing page, recorded and live analysis, provenance, uploads,
+  refusals, session deletion, cross-session isolation, cookie flags, MCP
+  policy, planning modes, reports, charts, accessibility and schema-role
+  confirmation. They run against a real server, not a mocked page.
 - The report leads with the answer, the population it covers, the rows it was
   counted over and the grouped result, and puts the provenance after them.
-  "Rows counted" is summed from the engine's own `row_count` column across
-  the groups, not read from the result's row count — for a grouped answer
-  that is the number of *groups*, and reporting four where the answer covers
-  four hundred rows misstates the population by two orders of magnitude. It
-  is omitted rather than guessed when a result does not carry one.
+  Population rows and non-null observations used by an aggregate are separate
+  facts. `row_count` records rows matching the contract; `value_count` records
+  non-null measure values that contributed to `SUM` or `AVG`. Grouped coverage
+  carries both across the complete population and the returned groups.
 - Print rules are maintained per block, and `printStyles.test.ts` reads the
   stylesheet to enforce it. jsdom does not apply print media, so nothing else
   in the suite can see those rules, and the screen palette is tuned for a
   dark background — a block added without them renders close to white on
   white in a saved PDF.
-- **Chromium only.** That is true of CI and it was true of the v0.1.0
-  release: Firefox and WebKit were *not* run against the deployed build.
-  An earlier version of this section said they were run at release time;
-  they were not, and a browser-specific regression in either would not have
-  been caught.
-- The suite uploads several files per browser, which a deployment's per-IP
-  hourly ceiling will legitimately refuse. Those tests skip with the reason
-  rather than failing, so a rate-limited run reports fewer executed tests.
+- CI runs Chromium, Firefox and WebKit separately. Chromium executes all 96;
+  Firefox and WebKit each declare one skip for Playwright's Chromium-only PDF
+  API. The report guard reconciles every discovered result and rejects zero
+  execution, undeclared skips, missing engines and retry-rescued flakes.
+- Browser tests preflight `/api/health` and refuse to run unless
+  `provider_mode` is `fake`. Their CI upload ceiling is set for the suite's
+  known aggregate demand; rate-limit refusals are failures, not passes or
+  silently accepted skips.
 
 ---
 

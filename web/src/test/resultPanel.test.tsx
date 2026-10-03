@@ -77,9 +77,50 @@ describe("scopeSentence", () => {
     expect(text).toContain("3,575 of 6,435 matching rows");
     expect(text).not.toMatch(/all 45 groups/);
   });
+
+  it("does not call null measure rows observations", () => {
+    const text = scopeSentence(
+      snapshot(2, {
+        group_coverage: coverage({
+          groups_returned: 2,
+          groups_total: 2,
+          rows_matching: 200,
+          rows_represented: 200,
+          observations_matching: 187,
+          observations_represented: 187,
+        }),
+      }),
+      2,
+    );
+    expect(text).toContain("200 of 200 matching rows");
+    expect(text).toContain("187 of 187 non-null values contributed");
+  });
 });
 
 describe("ResultPanel", () => {
+  it("keeps the non-null denominator in evidence without repeating it as a table column", () => {
+    const withObservationEvidence = snapshot(1, {
+      columns: ["store", "total_sales", "row_count", "value_count"],
+      rows: [["s0", 1000, 143, 139]],
+      group_coverage: coverage({
+        groups_returned: 1,
+        groups_total: 1,
+        rows_matching: 143,
+        rows_represented: 143,
+        observations_matching: 139,
+        observations_represented: 139,
+      }),
+    });
+
+    render(<ResultPanel snapshot={withObservationEvidence} question="q" />);
+
+    expect(screen.queryByRole("columnheader", { name: /value count/i })).toBeNull();
+    expect(screen.getByTestId("result-scope")).toHaveTextContent(
+      "139 of 139 non-null values contributed",
+    );
+    expect(resultToCsv(withObservationEvidence)).toContain("value_count");
+  });
+
   it("previews rows without hiding how many the analysis holds", () => {
     render(<ResultPanel snapshot={snapshot(40)} question="q" />);
     expect(screen.getAllByRole("row")).toHaveLength(13); // header + 12

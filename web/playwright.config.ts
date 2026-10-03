@@ -11,9 +11,9 @@ import { resolveBaseUrl } from './src/test/preflight'
  * to exercise the thing that will actually be served. Set AAE_E2E_BASE_URL
  * and start the target yourself.
  *
- * Chromium alone in CI, because installing three browser engines on every
- * push costs more than it finds. Firefox and WebKit run against the
- * deployed URL at release time, where the cross-browser question is real.
+ * CI selects Chromium, Firefox and WebKit in separate steps. The closed-set
+ * parser below makes the selected engine explicit, and the report guard
+ * reconciles every discovered test for that engine.
  */
 const baseURL = resolveBaseUrl(process.env)
 

@@ -3,6 +3,7 @@ import {
   coverageScope,
   directAnswer,
   isComplete,
+  observationsUsed,
   populationClauses,
   rowsInScope,
 } from "../lib/answer";
@@ -48,6 +49,7 @@ export function ReportView({
   const answer = directAnswer(findings, results);
   const answerSnapshot = answerResult(answer, results);
   const rows = rowsInScope(answerSnapshot);
+  const observations = observationsUsed(answerSnapshot);
   const population = populationClauses(queryContract);
   const scope = coverageScope(answerSnapshot);
   const complete = isComplete(answerSnapshot);
@@ -95,8 +97,16 @@ export function ReportView({
                 </div>
                 {rows !== null ? (
                   <div>
-                    <dt>Rows counted</dt>
+                    <dt>Population rows</dt>
                     <dd data-testid="answer-rows">{rows.toLocaleString()}</dd>
+                  </div>
+                ) : null}
+                {observations !== null && observations !== rows ? (
+                  <div>
+                    <dt>Observations used</dt>
+                    <dd data-testid="answer-observations">
+                      {observations.toLocaleString()}
+                    </dd>
                   </div>
                 ) : null}
                 {scope ? (

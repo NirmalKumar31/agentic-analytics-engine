@@ -7,10 +7,13 @@ and SQL behind every published number.
 
 **Live demo:** [agentic-analytics-engine.onrender.com](https://agentic-analytics-engine.onrender.com/)
 
-This is not a model that writes SQL and narrates whatever comes back. A model
-may help interpret an ambiguous upload question, but it never executes SQL,
-calculates a figure, chooses whether a claim is supported, or writes the
-factual answer shown to the reader.
+This is not a model that writes SQL and narrates whatever comes back. For the
+canonical upload path, a model may propose a typed interpretation, but local
+code validates it, compiles and executes the SQL, constructs the answer and
+verifies every number. The richer multi-task warehouse path may use models to
+propose findings and judge semantic support; deterministic arithmetic,
+evidence and policy gates can still withhold them. A model never executes SQL
+or calculates an analytical value.
 
 ## What makes it governed
 
@@ -53,7 +56,7 @@ Two explicit audit paths are also available when the deployment enables them:
 | Path | Purpose | What can spend money |
 | --- | --- | --- |
 | Deterministic Analytics | Inspect the rule-based interpretation | Nothing leaves the server |
-| AI Analytics | Inspect a validated AI planning proposal | The single planning request only |
+| AI Analytics | Inspect the cloud-assisted path | One typed planning request for canonical uploads; the richer warehouse workflow may make multiple bounded model calls |
 | Compare planning strategies | Run the deterministic and AI planning paths over one dataset | The AI side only |
 
 Comparison does not rank planners. It says whether the accepted contracts,
@@ -131,11 +134,10 @@ HTTP transport for external callers and is withdrawn on the public deployment.
 ## Verification evidence
 
 The exact counts vary as the suite grows, so release evidence—not this
-introduction—is the source of record. At the current `main` merge containing
-the schema-role confirmation feature:
+introduction—is the source of record. At the principal-audit closeout:
 
-- Python: **2,194 passing tests**, 89% branch coverage.
-- Frontend: **453 passing tests**.
+- Python: **2,212 passing tests**, 89% branch coverage.
+- Frontend: **457 passing tests**.
 - Browser: Chromium **96/96**, Firefox **95/96** and WebKit **95/96**; the
   latter two have one declared Chromium-only PDF skip. The harness reconciles
   every discovered test and fails on a retry-rescued flake.

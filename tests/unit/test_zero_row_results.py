@@ -19,7 +19,12 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any
 
-from agentic_analytics.graph.build import _matched_no_rows, _no_rows_limitation
+from agentic_analytics.graph.build import (
+    _aggregate_has_no_values,
+    _matched_no_rows,
+    _no_rows_limitation,
+    _no_values_limitation,
+)
 
 
 @dataclass
@@ -65,6 +70,21 @@ def test_a_snapshot_without_a_row_count_column_is_left_alone() -> None:
     assert not _matched_no_rows(_Snapshot(columns=["total_revenue"], rows=[[None]]))
 
 
+def test_matching_rows_with_only_null_measure_values_are_not_called_no_rows() -> None:
+    snapshot = _Snapshot(
+        columns=["total_revenue", "row_count", "value_count"], rows=[[None, 17, 0]]
+    )
+
+    assert not _matched_no_rows(snapshot)
+    assert _aggregate_has_no_values(snapshot)
+
+
+def test_a_zero_aggregate_with_values_is_not_empty() -> None:
+    snapshot = _Snapshot(columns=["total_revenue", "row_count", "value_count"], rows=[[0, 17, 17]])
+
+    assert not _aggregate_has_no_values(snapshot)
+
+
 def test_a_malformed_row_is_left_alone() -> None:
     assert not _matched_no_rows(_Snapshot(columns=["total", "row_count"], rows=[["x"]]))
     assert not _matched_no_rows(
@@ -84,6 +104,7 @@ class _Mapping:
     filters: tuple[Any, ...] = ()
     period: tuple[str, str] | None = None
     period_field: str | None = None
+    measure: str | None = "revenue"
 
 
 def test_the_explanation_names_the_filters_that_produced_it() -> None:
@@ -119,3 +140,14 @@ def test_an_empty_table_is_explained_without_blaming_a_filter() -> None:
     text = _no_rows_limitation(_Mapping())
     assert "No rows were available" in text
     assert "filters" not in text
+
+
+def test_all_null_values_name_the_measure_and_matching_population() -> None:
+    text = _no_values_limitation(
+        _Mapping(measure="revenue"),
+        _Snapshot(columns=["total_revenue", "row_count", "value_count"], rows=[[None, 17, 0]]),
+    )
+
+    assert "revenue had no non-null values" in text
+    assert "17 matching rows" in text
+    assert "No aggregate was published" in text

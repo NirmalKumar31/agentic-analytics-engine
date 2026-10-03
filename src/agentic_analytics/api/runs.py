@@ -72,6 +72,7 @@ class RunRecord:
     requested_model: str | None = None
     resolved_model: str | None = None
     engine_version: str | None = None
+    build_sha: str | None = None
     pricing_source: str | None = None
     pricing_reviewed: str | None = None
     dataset_fingerprint: str | None = None
@@ -122,6 +123,7 @@ class RunRecord:
             "requested_model",
             "resolved_model",
             "engine_version",
+            "build_sha",
             "dataset_fingerprint",
             "pricing_source",
             "pricing_reviewed",

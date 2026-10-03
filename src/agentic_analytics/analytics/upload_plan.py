@@ -171,6 +171,57 @@ _TIME_GRAIN_PATTERNS: tuple[tuple[str, Literal["day", "week", "month", "quarter"
     (r"\b(?:by|per|for each|grouped by|group by)\s+years?\b|\byearly\b", "year"),
 )
 
+#: Date fields whose name is a defensible default event clock for an uploaded
+#: fact table.  Deliberately a short allow-list rather than "anything ending
+#: in _date": `signup_date`, `birth_date` and `created_at` describe an entity,
+#: and filtering a stock or annual measure by one silently changes the
+#: business question.  Any real time field remains usable when the question
+#: names it explicitly.
+_DEFAULT_EVENT_TIME_FIELDS = frozenset(
+    {
+        "date",
+        "event_date",
+        "invoice_date",
+        "observation_date",
+        "order_date",
+        "record_date",
+        "sale_date",
+        "sales_date",
+        "trade_date",
+        "trading_date",
+        "transaction_date",
+    }
+)
+
+
+def _period_field_for_question(
+    question: str, time_fields: list[str]
+) -> tuple[str | None, str | None]:
+    """Choose the period clock only when its meaning is stated or generic.
+
+    Returns ``(field, refusal)``.  A model is not allowed to settle the
+    refusal: the missing fact is business semantics, not language parsing.
+    """
+    text = _normalise(question)
+    explicit = [field for field in time_fields if _mentions(text, field) >= 0]
+    if len(explicit) == 1:
+        return explicit[0], None
+    if len(explicit) > 1:
+        return None, (
+            "the question names more than one date column; name the one that "
+            "defines the requested time axis or period"
+        )
+    if (
+        len(time_fields) == 1
+        and _normalise(time_fields[0]).replace(" ", "_") in _DEFAULT_EVENT_TIME_FIELDS
+    ):
+        return time_fields[0], None
+    choices = ", ".join(repr(field) for field in time_fields[:4])
+    return None, (
+        "the table does not establish which date defines the requested time axis "
+        f"or period; name the date column explicitly ({choices})"
+    )
+
 
 def _time_grain(
     question: str, schema: dict[str, Any]
@@ -738,6 +789,12 @@ def mapping_from_plan(question: str, schema: dict[str, Any], plan: Any) -> Quest
         return refuse("the AI plan supplied an unsupported time grain")
     if time_grain is not None and time_field is None:
         return refuse("the AI plan supplied a time grain without a time field")
+    if operation == "trend":
+        expected_time_field, time_refusal = _period_field_for_question(question, time_fields)
+        if time_refusal:
+            return refuse(time_refusal)
+        if time_field != expected_time_field:
+            return refuse("the AI plan used a trend date column the question did not establish")
 
     # The column a period filters is not the same thing as the axis a trend
     # is drawn along, and a model is only ever asked for the latter. A
@@ -821,6 +878,15 @@ def mapping_from_plan(question: str, schema: dict[str, Any], plan: Any) -> Quest
                 )
             return refuse("the AI plan dropped the time period stated in the question")
         return refuse("the AI plan changed the time period stated in the question")
+
+    if period is not None:
+        expected_period_field, period_refusal = _period_field_for_question(question, time_fields)
+        if period_refusal:
+            return refuse(period_refusal)
+        if period_field != expected_period_field:
+            return refuse(
+                "the AI plan applied the period to a date column the question did not establish"
+            )
 
     # Protect explicit rule-resolved components from being reinterpreted.
     rules = resolve_question(question, schema)
@@ -1067,7 +1133,17 @@ def resolve_question(question: str, schema: dict[str, Any]) -> QuestionMapping:
                 named_columns=[],
                 issues=(ResolutionIssue.MISSING_PERIOD_FIELD,),
             )
-        period_field = time_fields[0]
+        period_field, period_refusal = _period_field_for_question(question, time_fields)
+        if period_refusal:
+            return QuestionMapping(
+                operation="profile",
+                table=table,
+                confident=False,
+                explanation=period_refusal,
+                named_columns=[],
+                period=named_period,
+                issues=(ResolutionIssue.AMBIGUOUS_PERIOD_SEMANTICS,),
+            )
 
     # Row restrictions, resolved before anything else is decided.
     #
@@ -1271,6 +1347,14 @@ def resolve_question(question: str, schema: dict[str, Any]) -> QuestionMapping:
         )
         if time_field is None:
             return refuse(str(why), *([issue] if issue else []))
+        expected_time_field, time_refusal = _period_field_for_question(question, time_fields)
+        if time_refusal:
+            return refuse(time_refusal, ResolutionIssue.AMBIGUOUS_PERIOD_SEMANTICS)
+        if time_field != expected_time_field:  # defensive: `_pick` and the policy must agree
+            return refuse(
+                "the question does not establish that date column as its time axis",
+                ResolutionIssue.AMBIGUOUS_PERIOD_SEMANTICS,
+            )
         measure = next((c for c in named if c in measures), None)
         if measure is None and len(measures) == 1:
             measure = measures[0]
@@ -1512,6 +1596,13 @@ def sql_lineage(mapping: QuestionMapping) -> dict[str, dict[str, str]]:
             "column": mapping.measure,
             "expression": f"{aggregate}({mapping.table}.{mapping.measure})",
         }
+        out["value_count"] = {
+            "kind": "aggregate",
+            "aggregate": "COUNT",
+            "table": mapping.table,
+            "column": mapping.measure,
+            "expression": f"COUNT({mapping.table}.{mapping.measure})",
+        }
     elif mapping.operation in ("count", "ranking", "trend"):
         out["row_total" if mapping.operation == "trend" else "row_count"] = {
             "kind": "aggregate",
@@ -1561,6 +1652,15 @@ def _where(mapping: QuestionMapping) -> str:
     return f" WHERE {' AND '.join(parts)} " if parts else ""
 
 
+def _execution_where(mapping: QuestionMapping) -> str:
+    """The exact row predicate shared by result and coverage queries."""
+    where = _where(mapping)
+    if mapping.operation != "trend" or not mapping.time_field:
+        return where
+    stamp = _quote(mapping.time_field)
+    return f" WHERE {stamp} IS NOT NULL{where.replace(' WHERE ', ' AND ', 1)}"
+
+
 def _period_filter(mapping: QuestionMapping) -> str:
     """A `WHERE` fragment for a named period, or an empty string."""
     if not mapping.period or not mapping.period_field:
@@ -1608,16 +1708,21 @@ def build_coverage_sql(mapping: QuestionMapping) -> str | None:
     if not is_breakdown(mapping):
         return None
     table = _quote(mapping.table)
-    where = _where(mapping)
+    where = _execution_where(mapping)
     grouping = [_quote(item) for item in mapping.dimensions]
     if mapping.operation == "trend" and mapping.time_field:
         grouping.insert(0, _trend_period_expression(mapping))
     select = ", ".join(f"{expr} AS g{index}" for index, expr in enumerate(grouping, 1))
     ordinals = ", ".join(str(index) for index in range(1, len(grouping) + 1))
+    value_inner = ""
+    value_outer = ""
+    if mapping.measure:
+        value_inner = f", COUNT({_quote(mapping.measure)}) AS value_rows"
+        value_outer = ", COALESCE(SUM(value_rows), 0) AS observations_matching"
     return (
         "SELECT COUNT(*) AS groups_total, "
-        "COALESCE(SUM(group_rows), 0) AS rows_matching FROM ("
-        f"SELECT {select}, COUNT(*) AS group_rows "
+        f"COALESCE(SUM(group_rows), 0) AS rows_matching{value_outer} FROM ("
+        f"SELECT {select}, COUNT(*) AS group_rows{value_inner} "
         f"FROM {table}{where} GROUP BY {ordinals}) AS grouped"
     )
 
@@ -1637,12 +1742,11 @@ def build_sql(mapping: QuestionMapping) -> str | None:
     if not mapping.confident or mapping.operation == "profile":
         return None
     table = _quote(mapping.table)
-    where = _where(mapping)
+    where = _execution_where(mapping)
 
     if mapping.operation == "trend":
         if mapping.time_field is None:
             return None
-        stamp = _quote(mapping.time_field)
         period = _trend_period_expression(mapping)
         grouping_select = [f"{period} AS period"] + [
             f"{_quote(item)} AS {_alias(item)}" for item in mapping.dimensions
@@ -1651,12 +1755,15 @@ def build_sql(mapping: QuestionMapping) -> str | None:
         group_by = ", ".join(str(index) for index in range(1, group_count + 1))
         if mapping.measure is None:
             value = "COUNT(*) AS row_total"
+            observation_count = ""
         else:
             label = _alias("total", mapping.measure)
             value = f"ROUND(SUM(CAST({_quote(mapping.measure)} AS DOUBLE)), 4) AS {label}"
+            observation_count = f", COUNT({_quote(mapping.measure)}) AS value_count"
         return (
-            f"SELECT {', '.join(grouping_select)}, {value}, COUNT(*) AS row_count "
-            f"FROM {table} WHERE {stamp} IS NOT NULL{where.replace(' WHERE ', ' AND ', 1)} "
+            f"SELECT {', '.join(grouping_select)}, {value}, COUNT(*) AS row_count"
+            f"{observation_count} "
+            f"FROM {table}{where} "
             f"GROUP BY {group_by} ORDER BY {group_by} LIMIT {TREND_LIMIT + 1}"
         )
 
@@ -1689,7 +1796,10 @@ def build_sql(mapping: QuestionMapping) -> str | None:
     value = f"ROUND({aggregate}(CAST({_quote(mapping.measure)} AS DOUBLE)), 4) AS {label}"
 
     if not mapping.dimensions:
-        return f"SELECT {value}, COUNT(*) AS row_count FROM {table}{where}"
+        return (
+            f"SELECT {value}, COUNT(*) AS row_count, "
+            f"COUNT({_quote(mapping.measure)}) AS value_count FROM {table}{where}"
+        )
 
     selected = [f"{_quote(item)} AS {_alias(item)}" for item in mapping.dimensions]
     ordinals = ", ".join(str(index) for index in range(1, len(selected) + 1))
@@ -1698,7 +1808,8 @@ def build_sql(mapping: QuestionMapping) -> str | None:
         # measure is the answer rather than an artefact of the limit.
         direction = "ASC" if mapping.ascending else "DESC"
         return (
-            f"SELECT {', '.join(selected)}, {value}, COUNT(*) AS row_count "
+            f"SELECT {', '.join(selected)}, {value}, COUNT(*) AS row_count, "
+            f"COUNT({_quote(mapping.measure)}) AS value_count "
             f"FROM {table}{where} GROUP BY {ordinals} "
             f"ORDER BY {len(selected) + 1} {direction} NULLS LAST "
             f"LIMIT {RANK_LIMIT}"
@@ -1708,7 +1819,8 @@ def build_sql(mapping: QuestionMapping) -> str | None:
     # undeclared top-list -- which is exactly how a 25-of-45 result came to
     # be published as the complete breakdown.
     return (
-        f"SELECT {', '.join(selected)}, {value}, COUNT(*) AS row_count "
+        f"SELECT {', '.join(selected)}, {value}, COUNT(*) AS row_count, "
+        f"COUNT({_quote(mapping.measure)}) AS value_count "
         f"FROM {table}{where} GROUP BY {ordinals} ORDER BY {ordinals} NULLS LAST "
         f"LIMIT {GROUP_RESULT_MAX + 1}"
     )

@@ -181,3 +181,100 @@ def test_a_null_grouping_value_is_a_group_and_is_counted(tmp_path: Path) -> None
     # Every source row is behind some group, including the empty label.
     assert coverage.rows_represented == coverage.rows_matching == 60
     assert coverage.groups_returned == coverage.groups_total
+
+
+def test_null_measure_values_are_not_reported_as_observations(tmp_path: Path) -> None:
+    """Population and effective aggregate sample size are different facts."""
+    buffer = io.StringIO()
+    writer = csv.writer(buffer)
+    writer.writerow(["Region", "Net_Value"])
+    writer.writerows(
+        [
+            ["north", 10],
+            ["north", ""],
+            ["north", 30],
+            ["south", ""],
+            ["south", 50],
+        ]
+    )
+    path = tmp_path / "null_measures.csv"
+    path.write_text(buffer.getvalue())
+
+    result = _run(path, "What is the average Net_Value by Region?")
+    snapshot, coverage = _coverage(result)
+
+    assert snapshot.columns == [
+        "region",
+        "average_net_value",
+        "row_count",
+        "value_count",
+    ]
+    assert {row[0]: tuple(row[1:]) for row in snapshot.rows} == {
+        "north": (20.0, 3, 2),
+        "south": (50.0, 2, 1),
+    }
+    assert coverage is not None
+    assert coverage.rows_matching == coverage.rows_represented == 5
+    assert coverage.observations_matching == coverage.observations_represented == 3
+    assert result.presentation is not None
+    assert result.presentation.scope.rows_matching == 5
+    assert result.presentation.scope.observations_matching == 3
+    caveat = next(
+        item for item in result.presentation.caveats if item.code == "missing_measure_values"
+    )
+    assert "2 matching rows" in caveat.message
+    assert "excluded from the aggregate" in caveat.message
+
+
+def test_an_all_null_filtered_measure_is_no_findings_not_a_failure(tmp_path: Path) -> None:
+    buffer = io.StringIO()
+    writer = csv.writer(buffer)
+    writer.writerow(["Region", "Net_Value"])
+    writer.writerows(
+        [
+            ["north", ""],
+            ["north", ""],
+            ["south", 40],
+            ["south", 60],
+        ]
+    )
+    path = tmp_path / "all_null_subset.csv"
+    path.write_text(buffer.getvalue())
+
+    result = _run(path, "What is the average Net_Value where Region is north?")
+
+    assert result.outcome == "completed"
+    assert result.stopped_reason == ""
+    assert not result.published
+    assert result.report is not None
+    assert result.report.limitations == [
+        "The analysis ran, but Net_Value had no non-null values across 2 matching rows. "
+        "No aggregate was published."
+    ]
+
+
+def test_trend_coverage_excludes_rows_without_a_time_axis(tmp_path: Path) -> None:
+    buffer = io.StringIO()
+    writer = csv.writer(buffer)
+    writer.writerow(["Date", "Net_Value"])
+    writer.writerows(
+        [
+            ["2024-01-05", 10],
+            ["2024-01-20", 20],
+            ["", 999],
+            ["2024-02-10", ""],
+        ]
+    )
+    path = tmp_path / "null_trend_axis.csv"
+    path.write_text(buffer.getvalue())
+
+    result = _run(path, "Show the monthly trend of Net_Value")
+    snapshot, coverage = _coverage(result)
+
+    assert [row[:2] for row in snapshot.rows] == [
+        ["2024-01", 30.0],
+        ["2024-02", None],
+    ]
+    assert coverage is not None
+    assert coverage.rows_matching == coverage.rows_represented == 3
+    assert coverage.observations_matching == coverage.observations_represented == 2

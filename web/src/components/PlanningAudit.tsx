@@ -48,6 +48,10 @@ export function PlanningAudit({ run }: { run: RunPayload }) {
           {run.timings?.planning_ms != null ? <div><dt>Planning</dt><dd>{run.timings.planning_ms} ms</dd></div> : null}
           {run.timings?.execution_ms != null ? <div><dt>Execution</dt><dd>{run.timings.execution_ms} ms</dd></div> : null}
           {run.timings?.verification_ms != null ? <div><dt>Verification</dt><dd>{run.timings.verification_ms} ms</dd></div> : null}
+          {run.engine_version ? <div><dt>Engine</dt><dd>{run.engine_version}</dd></div> : null}
+          {run.build_sha && run.build_sha !== "unknown" ? (
+            <div><dt>Build</dt><dd><code>{run.build_sha.slice(0, 12)}</code></dd></div>
+          ) : null}
         </dl>
         {roleEvidence.length > 0 && (
           <div data-testid="role-evidence">

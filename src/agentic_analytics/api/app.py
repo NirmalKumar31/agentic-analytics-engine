@@ -26,7 +26,7 @@ from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from mcp.server.transport_security import TransportSecuritySettings
 
-from agentic_analytics import __version__
+from agentic_analytics import __version__, build_sha
 from agentic_analytics.agents.scope import check_scope
 from agentic_analytics.analytics.semantic import (
     RoleConfirmationError,
@@ -285,6 +285,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     # process it started with is the process it finished with, which is how
     # an OOM kill and restart is detected from outside. Not a secret.
     instance_id = uuid.uuid4().hex
+    revision = build_sha()
     # Every session's DuckDB connection is built with the configured
     # envelope, so the deployment's instance size is what decides it.
     engine_limits = EngineLimits.from_settings(cfg)
@@ -353,6 +354,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             log.info(
                 "startup",
                 version=__version__,
+                build_sha=revision,
                 provider=cfg.provider_mode,
                 live=cfg.live_analytics_enabled,
                 recordings=len(recordings),
@@ -459,6 +461,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         """
         return HealthResponse(
             version=__version__,
+            build_sha=revision,
             instance_id=instance_id,
             provider_mode=cfg.provider_mode,
             execution_mode=mode,
@@ -499,6 +502,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     async def config() -> ServerConfig:
         return ServerConfig(
             version=__version__,
+            build_sha=revision,
             provider_mode=cfg.provider_mode,
             execution_mode=mode,
             # Only an actual language model sends anything off this server.
@@ -1117,6 +1121,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             comparison_id=comparison_id,
         )
         record.engine_version = __version__
+        record.build_sha = revision
         record.dataset_fingerprint = session.dataset_fingerprint
         if mode is RunMode.AI:
             record.requested_model = cfg.cloud_model

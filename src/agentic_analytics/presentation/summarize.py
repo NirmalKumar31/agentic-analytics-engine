@@ -221,6 +221,8 @@ def scope_for(
         rows_total=coverage.rows_total if coverage else rows_total,
         rows_matching=coverage.rows_matching if coverage else None,
         rows_represented=coverage.rows_represented if coverage else None,
+        observations_matching=coverage.observations_matching if coverage else None,
+        observations_represented=coverage.observations_represented if coverage else None,
         groups_returned=coverage.groups_returned if coverage else None,
         groups_total=coverage.groups_total if coverage else None,
         complete=coverage.complete if coverage else None,
@@ -262,6 +264,8 @@ def numbers_resolve(
         scope.rows_total,
         scope.rows_matching,
         scope.rows_represented,
+        scope.observations_matching,
+        scope.observations_represented,
         scope.groups_returned,
         scope.groups_total,
     ):
@@ -291,8 +295,18 @@ def _scalar(
     secondary = None
     if "row_count" in snapshot.columns and column != "row_count":
         rows = as_number(snapshot.cell(0, "row_count"))
-        if rows is not None:
-            secondary = f"Measured across {format_number(rows)} matching records."
+        values = (
+            as_number(snapshot.cell(0, "value_count"))
+            if "value_count" in snapshot.columns
+            else rows
+        )
+        if rows is not None and values is not None:
+            secondary = (
+                f"Measured from {format_number(values)} non-null values across "
+                f"{format_number(rows)} matching records."
+                if values != rows
+                else f"Measured across {format_number(rows)} matching records."
+            )
 
     highlight = PresentationHighlight(
         highlight_id="scalar",

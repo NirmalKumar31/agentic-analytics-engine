@@ -674,6 +674,25 @@ def test_a_planner_fallback_is_not_presented_as_agreement() -> None:
     assert "not the model agreeing independently" in caveat.message
 
 
+def test_a_ranking_sums_missing_observations_across_every_returned_group() -> None:
+    result = snapshot(
+        ["store", "total_net_value", "row_count", "value_count"],
+        [["A", 100.0, 5, 5], ["B", 80.0, 6, 4]],
+        "total_net_value",
+        source="net_value",
+    )
+
+    presentation = build_presentation(
+        mapping=Mapping("rank", ("store",), "net_value", ascending=False), snapshot=result
+    )
+
+    caveat = next(c for c in presentation.caveats if c.code == "missing_measure_values")
+    assert caveat.message == (
+        "2 rows represented in this result had no net_value value and were excluded "
+        "from the aggregate."
+    )
+
+
 # ───────────────────────────────────── serialization
 
 
