@@ -1,0 +1,11 @@
+react: https://cdn.jsdelivr.net/npm/simple-icons@latest/icons/react.svg
+typescript: https://cdn.jsdelivr.net/npm/simple-icons@latest/icons/typescript.svg
+fastapi: https://cdn.jsdelivr.net/npm/simple-icons@latest/icons/fastapi.svg
+duckdb: https://cdn.jsdelivr.net/npm/simple-icons@latest/icons/duckdb.svg
+redis: https://cdn.jsdelivr.net/npm/simple-icons@latest/icons/redis.svg
+docker: https://cdn.jsdelivr.net/npm/simple-icons@latest/icons/docker.svg
+render: https://cdn.jsdelivr.net/npm/simple-icons@latest/icons/render.svg
+langgraph: https://cdn.jsdelivr.net/npm/simple-icons@latest/icons/langgraph.svg
+modelcontextprotocol: https://cdn.jsdelivr.net/npm/simple-icons@latest/icons/modelcontextprotocol.svg
+Brand marks: Simple Icons, CC0; trademarks belong to their respective owners.
+Generic file/shield/model/storage symbols are original line drawings.

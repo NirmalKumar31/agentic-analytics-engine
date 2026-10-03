@@ -6,6 +6,11 @@ unverified it says so.
 
 Measured on `8e385fc`.
 
+> Historical evidence. Later releases added cross-browser CI, schema-role
+> confirmation, a fake-provider browser preflight and further browser-harness
+> checks. For the current closeout evidence, see
+> [RELEASE-EVIDENCE-schema-confirmation.md](RELEASE-EVIDENCE-schema-confirmation.md).
+
 ---
 
 ## What shipped
@@ -115,7 +120,7 @@ states on three engines, and every text token measured at or above 4.5:1 on
 every surface in both themes. That is a set of requirements checked, not
 conformance.
 
-## Open, and why
+## Open at this historical snapshot, and why
 
 - **`prefers-color-scheme` is dead code.** `useTheme` writes `data-theme` on
   every render and defaults to light, so `:root:not([data-theme="light"])`
@@ -123,12 +128,10 @@ conformance.
   press the control. Defaulting to light is deliberate; a media block that
   can never match is not. Changing first-load behaviour is a design
   decision, so it was left rather than quietly altered.
-- **The schema-role override** is deferred with reasons in ADR 0006: it
-  needs server-side validation, query-contract invalidation, provenance and
-  Planning Audit integration, and an end-to-end test through real
-  `infer_schema()`. Ambiguity is reported; it cannot be confirmed.
-- **age versus `Store`** (LIMITATIONS §11a) remains undecidable from the
-  data and waits on that override.
+- **The schema-role override** was deferred at this snapshot in ADR 0006.
+  It was later implemented as session-scoped confirmation in
+  [ADR 0007](adr/0007-session-scoped-role-confirmation.md); the underlying
+  age-versus-Store ambiguity remains a fact values alone cannot settle.
 - **One unexplained `color-contrast` violation** at `tr:nth-child(1) > .key`
   in a single loaded WebKit run. `.key` is vega-tooltip's markup, which this
   project does not style. Not reproducible in three isolated runs or a clean

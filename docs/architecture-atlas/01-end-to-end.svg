@@ -1,0 +1,68 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1000" viewBox="0 0 1600 1000"><defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10" fill="#147c72"/></marker><marker id="rust" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10" fill="#b3442d"/></marker></defs><rect width="1600" height="1000" fill="#f5f2e9"/><g font-family="Arial, Helvetica, sans-serif">
+<text x="70" y="62" fill="#147c72" font-size="14" font-weight="700">AGENTIC ANALYTICS ENGINE     /     ENGINEERING ATLAS 01</text>
+<text x="70" y="128" fill="#192d35" font-size="43" font-weight="700">From dataset to an inspectable answer</text>
+<text x="70" y="170" fill="#58696b" font-size="20" font-weight="400">One application, two execution paths, and a shared evidence boundary.</text>
+<path d="M70 207H1530" stroke="#d5dbd3"/>
+<circle cx="120" cy="295" r="38" fill="#147c72" fill-opacity=".07"/>
+<image href="data:image/svg+xml;base64,PHN2ZyByb2xlPSJpbWciIHZpZXdCb3g9IjAgMCAyNCAyNCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48dGl0bGU+UmVhY3Q8L3RpdGxlPjxwYXRoIGQ9Ik0xNC4yMyAxMi4wMDRhMi4yMzYgMi4yMzYgMCAwIDEtMi4yMzUgMi4yMzYgMi4yMzYgMi4yMzYgMCAwIDEtMi4yMzYtMi4yMzYgMi4yMzYgMi4yMzYgMCAwIDEgMi4yMzUtMi4yMzYgMi4yMzYgMi4yMzYgMCAwIDEgMi4yMzYgMi4yMzZ6bTIuNjQ4LTEwLjY5Yy0xLjM0NiAwLTMuMTA3Ljk2LTQuODg4IDIuNjIyLTEuNzgtMS42NTMtMy41NDItMi42MDItNC44ODctMi42MDItLjQxIDAtLjc4My4wOTMtMS4xMDYuMjc4LTEuMzc1Ljc5My0xLjY4MyAzLjI2NC0uOTczIDYuMzY1QzEuOTggOC45MTcgMCAxMC40MiAwIDEyLjAwNGMwIDEuNTkgMS45OSAzLjA5NyA1LjA0MyA0LjAzLS43MDQgMy4xMTMtLjM5IDUuNTg4Ljk4OCA2LjM4LjMyLjE4Ny42OS4yNzUgMS4xMDIuMjc1IDEuMzQ1IDAgMy4xMDctLjk2IDQuODg4LTIuNjI0IDEuNzggMS42NTQgMy41NDIgMi42MDMgNC44ODcgMi42MDMuNDEgMCAuNzgzLS4wOSAxLjEwNi0uMjc1IDEuMzc0LS43OTIgMS42ODMtMy4yNjMuOTczLTYuMzY1QzIyLjAyIDE1LjA5NiAyNCAxMy41OSAyNCAxMi4wMDRjMC0xLjU5LTEuOTktMy4wOTctNS4wNDMtNC4wMzIuNzA0LTMuMTEuMzktNS41ODctLjk4OC02LjM4LS4zMTgtLjE4NC0uNjg4LS4yNzctMS4wOTItLjI3OHptLS4wMDUgMS4wOXYuMDA2Yy4yMjUgMCAuNDA2LjA0NC41NTguMTI3LjY2Ni4zODIuOTU1IDEuODM1LjczIDMuNzA0LS4wNTQuNDYtLjE0Mi45NDUtLjI1IDEuNDQtLjk2LS4yMzYtMi4wMDYtLjQxNy0zLjEwNy0uNTM0LS42Ni0uOTA1LTEuMzQ1LTEuNzI3LTIuMDM1LTIuNDQ3IDEuNTkyLTEuNDggMy4wODctMi4yOTIgNC4xMDUtMi4yOTV6bS05Ljc3LjAyYzEuMDEyIDAgMi41MTQuODA4IDQuMTEgMi4yOC0uNjg2LjcyLTEuMzcgMS41MzctMi4wMiAyLjQ0Mi0xLjEwNy4xMTctMi4xNTQuMjk4LTMuMTEzLjUzOC0uMTEyLS40OS0uMTk1LS45NjQtLjI1NC0xLjQyLS4yMy0xLjg2OC4wNTQtMy4zMi43MTQtMy43MDcuMTktLjA5LjQtLjEyNy41NjMtLjEzMnptNC44ODIgMy4wNWMuNDU1LjQ2OC45MS45OTIgMS4zNiAxLjU2NC0uNDQtLjAyLS44OS0uMDM0LTEuMzQ1LS4wMzQtLjQ2IDAtLjkxNS4wMS0xLjM2LjAzNC40NC0uNTcyLjg5NS0xLjA5NiAxLjM0NS0xLjU2NXpNMTIgOC4xYy43NCAwIDEuNDc3LjAzNCAyLjIwMi4wOTMuNDA2LjU4Mi44MDIgMS4yMDMgMS4xODMgMS44Ni4zNzIuNjQuNzEgMS4yOSAxLjAxOCAxLjk0Ni0uMzA4LjY1NS0uNjQ2IDEuMzEtMS4wMTMgMS45NS0uMzguNjYtLjc3MyAxLjI4OC0xLjE4IDEuODctLjcyOC4wNjMtMS40NjYuMDk4LTIuMjEuMDk4LS43NCAwLTEuNDc3LS4wMzUtMi4yMDItLjA5My0uNDA2LS41ODItLjgwMi0xLjIwNC0xLjE4My0xLjg2LS4zNzItLjY0LS43MS0xLjI5LTEuMDE4LTEuOTQ2LjMwMy0uNjU3LjY0Ni0xLjMxMyAxLjAxMy0xLjk1NC4zOC0uNjYuNzczLTEuMjg2IDEuMTgtMS44NjguNzI4LS4wNjQgMS40NjYtLjA5OCAyLjIxLS4wOTh6bS0zLjYzNS4yNTRjLS4yNC4zNzctLjQ4Ljc2My0uNzA0IDEuMTYtLjIyNS4zOS0uNDM1Ljc4Mi0uNjM1IDEuMTc0LS4yNjUtLjY1Ni0uNDktMS4zMS0uNjc2LTEuOTQ3LjY0LS4xNSAxLjMxNS0uMjgzIDIuMDE1LS4zODZ6bTcuMjYgMGMuNjk1LjEwMyAxLjM2NS4yMyAyLjAwNi4zODctLjE4LjYzMi0uNDA1IDEuMjgyLS42NiAxLjkzMy0uMi0uMzktLjQxLS43ODMtLjY0LTEuMTc0LS4yMjUtLjM5Mi0uNDY1LS43NzQtLjcwNS0xLjE0NnptMy4wNjMuNjc1Yy40ODQuMTUuOTQ0LjMxNyAxLjM3NS40OTggMS43MzIuNzQgMi44NTIgMS43MDggMi44NTIgMi40NzYtLjAwNS43NjgtMS4xMjUgMS43NC0yLjg1NyAyLjQ3NS0uNDIuMTgtLjg4LjM0Mi0xLjM1NS40OTMtLjI4LS45NTgtLjY0Ni0xLjk1Ni0xLjEtMi45OC40NS0xLjAxNy44MS0yLjAxIDEuMDg1LTIuOTY0em0tMTMuMzk1LjAwNGMuMjc4Ljk2LjY0NSAxLjk1NyAxLjEgMi45OC0uNDUgMS4wMTctLjgxMiAyLjAxLTEuMDg2IDIuOTY0LS40ODQtLjE1LS45NDQtLjMxOC0xLjM3LS41LTEuNzMyLS43MzctMi44NTItMS43MDYtMi44NTItMi40NzQgMC0uNzY4IDEuMTItMS43NDIgMi44NTItMi40NzYuNDItLjE4Ljg4LS4zNDIgMS4zNTYtLjQ5NHptMTEuNjc4IDQuMjhjLjI2NS42NTcuNDkgMS4zMTIuNjc2IDEuOTQ4LS42NC4xNTctMS4zMTYuMjktMi4wMTYuMzkuMjQtLjM3NS40OC0uNzYyLjcwNS0xLjE1OC4yMjUtLjM5LjQzNS0uNzg4LjYzNi0xLjE4em0tOS45NDUuMDJjLjIuMzkyLjQxLjc4My42NCAxLjE3NS4yMy4zOS40NjUuNzcyLjcwNSAxLjE0My0uNjk1LS4xMDItMS4zNjUtLjIzLTIuMDA2LS4zODYuMTgtLjYzLjQwNi0xLjI4Mi42Ni0xLjkzM3pNMTcuOTIgMTYuMzJjLjExMi40OTMuMi45NjguMjU0IDEuNDIzLjIzIDEuODY4LS4wNTQgMy4zMi0uNzE0IDMuNzA4LS4xNDcuMDktLjMzOC4xMjgtLjU2My4xMjgtMS4wMTIgMC0yLjUxNC0uODA3LTQuMTEtMi4yOC42ODYtLjcyIDEuMzctMS41MzYgMi4wMi0yLjQ0IDEuMTA3LS4xMTggMi4xNTQtLjMgMy4xMTMtLjU0em0tMTEuODMuMDFjLjk2LjIzNCAyLjAwNi40MTUgMy4xMDcuNTMyLjY2LjkwNSAxLjM0NSAxLjcyNyAyLjAzNSAyLjQ0Ni0xLjU5NSAxLjQ4My0zLjA5MiAyLjI5NS00LjExIDIuMjk1LS4yMi0uMDA1LS40MDYtLjA1LS41NTMtLjEzMi0uNjY2LS4zOC0uOTU1LTEuODM0LS43My0zLjcwMy4wNTQtLjQ2LjE0Mi0uOTQ0LjI1LTEuNDM4em00LjU2LjY0Yy40NC4wMi44OS4wMzQgMS4zNDUuMDM0LjQ2IDAgLjkxNS0uMDEgMS4zNi0uMDM0LS40NC41NzItLjg5NSAxLjA5NS0xLjM0NSAxLjU2NS0uNDU1LS40Ny0uOTEtLjk5My0xLjM2LTEuNTY1eiIvPjwvc3ZnPg==" x="98" y="273" width="44" height="44"/>
+<text x="95" y="360" fill="#192d35" font-size="23" font-weight="650">Ask in the browser</text>
+<text x="95" y="392" fill="#58696b" font-size="18" font-weight="400">React + TypeScript</text>
+<text x="95" y="419" fill="#58696b" font-size="18" font-weight="400">CSV / Parquet or demo</text>
+<text x="95" y="446" fill="#58696b" font-size="18" font-weight="400">Question + planning mode</text>
+<circle cx="415" cy="295" r="38" fill="#147c72" fill-opacity=".07"/>
+<image href="data:image/svg+xml;base64,PHN2ZyByb2xlPSJpbWciIHZpZXdCb3g9IjAgMCAyNCAyNCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48dGl0bGU+RmFzdEFQSTwvdGl0bGU+PHBhdGggZD0iTTEyIC4wMzg3QzUuMzcyOS4wMzg0LjAwMDMgNS4zOTMxIDAgMTEuOTk4OGMtLjAwMSA2LjYwNjYgNS4zNzIgMTEuOTYyOCAxMiAxMS45NjI1IDYuNjI4LjAwMDMgMTIuMDAxLTUuMzU1OSAxMi0xMS45NjI1LS4wMDAzLTYuNjA1Ny01LjM3MjktMTEuOTYwNC0xMi0xMS45Nm0tLjgyOSA1LjQxNTNoNy41NWwtNy41ODA1IDUuMzI4NGg1LjE4MjhMNS4yNzkgMTguNTQzNnEyLjk0NjYtNi41NDQ0IDUuODkyLTEzLjA4OTYiLz48L3N2Zz4=" x="393" y="273" width="44" height="44"/>
+<text x="390" y="360" fill="#192d35" font-size="23" font-weight="650">Open a run</text>
+<text x="390" y="392" fill="#58696b" font-size="18" font-weight="400">FastAPI + session capability</text>
+<text x="390" y="419" fill="#58696b" font-size="18" font-weight="400">Profile uploads / load registry</text>
+<text x="390" y="446" fill="#58696b" font-size="18" font-weight="400">Stream progress over SSE</text>
+<circle cx="725" cy="295" r="38" fill="#147c72" fill-opacity=".07"/>
+<image href="data:image/svg+xml;base64,PHN2ZyByb2xlPSJpbWciIHZpZXdCb3g9IjAgMCAyNCAyNCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48dGl0bGU+TGFuZ0dyYXBoPC90aXRsZT48cGF0aCBkPSJNNSAxOUgxMEE1IDUgMCAxMTUgMTRaTTE5IDE0QTUgNSAwIDExMTQgMTlIMTlaTTEwIDVBNSA1IDAgMTA1IDEwVjVaTTE5IDVWMTBBNSA1IDAgMTAxNCA1WiIvPjwvc3ZnPg==" x="703" y="273" width="44" height="44"/>
+<text x="700" y="360" fill="#192d35" font-size="23" font-weight="650">Resolve &amp; orchestrate</text>
+<text x="700" y="392" fill="#58696b" font-size="18" font-weight="400">LangGraph state machine</text>
+<text x="700" y="419" fill="#58696b" font-size="18" font-weight="400">Rules or governed AI planning</text>
+<text x="700" y="446" fill="#58696b" font-size="18" font-weight="400">Validate the accepted contract</text>
+<circle cx="1055" cy="295" r="38" fill="#147c72" fill-opacity=".07"/>
+<image href="data:image/svg+xml;base64,PHN2ZyByb2xlPSJpbWciIHZpZXdCb3g9IjAgMCAyNCAyNCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48dGl0bGU+RHVja0RCPC90aXRsZT48cGF0aCBkPSJNMTIgMEM1LjM2MyAwIDAgNS4zNjMgMCAxMnM1LjM2MyAxMiAxMiAxMiAxMi01LjM2MyAxMi0xMlMxOC42MzcgMCAxMiAwek05LjUwMiA3LjAzYTQuOTc0IDQuOTc0IDAgMCAxIDQuOTcgNC45NyA0Ljk3NCA0Ljk3NCAwIDAgMS00Ljk3IDQuOTdBNC45NzQgNC45NzQgMCAwIDEgNC41MzIgMTJhNC45NzQgNC45NzQgMCAwIDEgNC45Ny00Ljk3em02LjU2MyAzLjE4M2gyLjM1MWMuOTggMCAxLjc4Ny43ODIgMS43ODcgMS43NjJzLS44MDcgMS43ODktMS43ODcgMS43ODloLTIuMzUxdi0zLjU1MXoiLz48L3N2Zz4=" x="1033" y="273" width="44" height="44"/>
+<text x="1030" y="360" fill="#192d35" font-size="23" font-weight="650">Compute through MCP</text>
+<text x="1030" y="392" fill="#58696b" font-size="18" font-weight="400">In-process MCP tools</text>
+<text x="1030" y="419" fill="#58696b" font-size="18" font-weight="400">Guarded SQL → DuckDB</text>
+<text x="1030" y="446" fill="#58696b" font-size="18" font-weight="400">Bounded result snapshots</text>
+<circle cx="1355" cy="295" r="38" fill="#147c72" fill-opacity=".07"/>
+<g transform="translate(1330,270)" fill="none" stroke="#147c72" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M25 2L44 10V26Q42 40 25 49Q8 40 6 26V10Z M15 25L23 33L36 18"/></g>
+<text x="1330" y="360" fill="#192d35" font-size="23" font-weight="650">Verify</text>
+<text x="1330" y="392" fill="#58696b" font-size="18" font-weight="400">Cells + numbers</text>
+<text x="1330" y="419" fill="#58696b" font-size="18" font-weight="400">Intent + coverage</text>
+<text x="1330" y="446" fill="#58696b" font-size="18" font-weight="400">Publication gate</text>
+<path d="M165 293H360" fill="none" stroke="#147c72" stroke-width="2.5"  marker-end="url(#arrow)"/>
+<path d="M460 293H670" fill="none" stroke="#147c72" stroke-width="2.5"  marker-end="url(#arrow)"/>
+<path d="M770 293H1000" fill="none" stroke="#147c72" stroke-width="2.5"  marker-end="url(#arrow)"/>
+<path d="M1100 293H1300" fill="none" stroke="#147c72" stroke-width="2.5"  marker-end="url(#arrow)"/>
+<text x="95" y="543" fill="#147c72" font-size="14" font-weight="700">EXECUTION PATHS</text>
+<text x="95" y="590" fill="#192d35" font-size="23" font-weight="650">Resolved upload aggregate</text>
+<text x="95" y="625" fill="#58696b" font-size="18" font-weight="400">Count · sum · average · trend · rank</text>
+<text x="95" y="652" fill="#58696b" font-size="18" font-weight="400">Direct MCP execution, canonical answer,</text>
+<text x="95" y="679" fill="#58696b" font-size="18" font-weight="400">deterministic verification and chart selection.</text>
+<text x="610" y="590" fill="#192d35" font-size="23" font-weight="650">Other analysis paths</text>
+<text x="610" y="625" fill="#58696b" font-size="18" font-weight="400">Plan → workers → aggregate → critic</text>
+<text x="610" y="652" fill="#58696b" font-size="18" font-weight="400">Bounded follow-up → visualizer → reporter</text>
+<text x="610" y="679" fill="#58696b" font-size="18" font-weight="400">Both paths reach publication verification.</text>
+<path d="M725 463V512H360V553" fill="none" stroke="#147c72" stroke-width="2.5" stroke-dasharray="7 7" marker-end="url(#arrow)"/>
+<path d="M750 463V530H820V553" fill="none" stroke="#147c72" stroke-width="2.5" stroke-dasharray="7 7" marker-end="url(#arrow)"/>
+<circle cx="1185" cy="595" r="38" fill="#147c72" fill-opacity=".07"/>
+<g transform="translate(1160,570)" fill="none" stroke="#147c72" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 3V45H48 M13 34L23 24L32 29L44 9"/></g>
+<text x="1160" y="660" fill="#192d35" font-size="23" font-weight="650">Present the result</text>
+<text x="1160" y="692" fill="#58696b" font-size="18" font-weight="400">Typed AnalysisPresentation</text>
+<text x="1160" y="719" fill="#58696b" font-size="18" font-weight="400">Answer · table · Vega-Lite chart</text>
+<text x="1160" y="746" fill="#58696b" font-size="18" font-weight="400">Coverage · provenance · audit</text>
+<path d="M1425 465V515H1200V542" fill="none" stroke="#147c72" stroke-width="2.5"  marker-end="url(#arrow)"/>
+<path d="M70 770H1530" stroke="#d5dbd3"/>
+<text x="95" y="806" fill="#b3442d" font-size="14" font-weight="700">REPLAY</text>
+<text x="95" y="838" fill="#58696b" font-size="18" font-weight="400">Committed recordings bypass new analysis;</text>
+<text x="95" y="865" fill="#58696b" font-size="18" font-weight="400">the browser reads captured results and provenance.</text>
+<text x="650" y="793" fill="#b3442d" font-size="14" font-weight="700">COMPARE PLANNING STRATEGIES</text>
+<text x="650" y="825" fill="#58696b" font-size="18" font-weight="400">Two runs over the same dataset; each owns its evidence IDs.</text>
+<text x="650" y="852" fill="#58696b" font-size="18" font-weight="400">Compare contracts, coverage and values—not prose alone.</text>
+<path d="M70 929H1530" stroke="#d5dbd3"/>
+<text x="70" y="963" fill="#58696b" font-size="14" font-weight="400">SOURCE SNAPSHOT 5180381  •  Code architecture; runtime settings may differ.</text>
+<text x="1120" y="963" fill="#58696b" font-size="14" font-weight="400">Solid: execution   ·   Dashed: optional path</text>
+</g></svg>
