@@ -28,6 +28,7 @@ from __future__ import annotations
 
 import math
 import re
+from collections.abc import Callable
 from dataclasses import dataclass
 from decimal import Decimal, InvalidOperation
 from typing import Any
@@ -124,12 +125,59 @@ MAX_FILTERS = 6
 #: An escaping bug is a vulnerability; a refusal is an inconvenience.
 _SAFE_VALUE = re.compile(r"^[\w][\w .-]{0,62}$", re.UNICODE)
 
-#: `where status is active`, `for region Cairo`. The value is whatever
-#: follows, and it is checked against the column's own values before it
-#: becomes a predicate.
+#: Where an unquoted category value has to stop.
+#:
+#: `where chronotype is Night Owl by age` states a filter *and* a grouping,
+#: and a value class that simply allowed spaces would swallow `by age` into
+#: the category. These are the words that begin another clause, so a value
+#: runs up to the first one of them and no further. Sentence punctuation
+#: ends it too.
+#:
+#: This is a closed list rather than "stop at anything suspicious": a
+#: boundary the grammar does not know about ends the value early, which
+#: produces a refusal naming a value the column does not have -- visible and
+#: correctable. The opposite error, swallowing a clause, produces a filter
+#: nobody asked for.
+#: A lookahead, so the boundary word is not consumed. Consuming it hid an
+#: `or` from the disjunction guard, and a question that asked for a union
+#: was read as a single filter -- silently widening nothing, but answering a
+#: narrower question than the one asked.
+_VALUE_BOUNDARY = (
+    r"(?=\s+(?:by|per|grouped\s+by|group\s+by|for|with|where|and|or|only|"
+    r"top|bottom|highest|lowest|most|least|ordered|order|sorted|sort|"
+    r"ranked|rank|between|over|during|in)\b|\s*[,;.?!]|\s*$)"
+)
+
+#: `where status is active`, `where chronotype is "Night Owl"`.
+#:
+#: Two ways to write a value. A quoted one is taken literally and may hold
+#: spaces without further argument. An unquoted one may hold spaces too, but
+#: only as far as `_VALUE_BOUNDARY` allows, because an unquoted value has no
+#: closing mark of its own.
+#:
+#: The captured text is a *candidate*. Which value it names is settled
+#: against the column's own values, server-side, by `parse_filters`.
 _EQUALITY = re.compile(
     r"\b(?:where|for|with|only)\s+(?P<col>[A-Za-z_][\w ]{0,40}?)\s+"
-    r"(?:is|=|equals|equal\s+to)\s+(?P<val>[\w][\w.-]{0,62})\b",
+    r"(?:is|=|equals|equal\s+to)\s+"
+    r"(?:"
+    r"(?P<q>[\"\'])(?P<qval>[^\"\']{1,62})(?P=q)"
+    r"|"
+    r"(?P<val>[\w][\w .-]{0,62}?)"
+    r")" + _VALUE_BOUNDARY,
+    re.IGNORECASE,
+)
+
+#: A categorical restriction that was stated and not parsed.
+#:
+#: `_restricts` looks for a leftover *number* beside a restrictive word, so
+#: it cannot see `where weather is <something unreadable>`: there is no
+#: number in it. Such a clause used to disappear, and the question was
+#: answered over every row -- the same failure the unknown-column branch
+#: refuses, arriving by a different route.
+_STATED_CATEGORY = re.compile(
+    r"\b(?:where|with|only)\s+(?P<col>[A-Za-z_][\w ]{0,40}?)\s+"
+    r"(?:is|=|equals|equal\s+to)\b",
     re.IGNORECASE,
 )
 
@@ -415,8 +463,86 @@ def _stem_match(column: str, tokens: list[str]) -> bool:
     return all(any(t.startswith(p) or p.startswith(t) for t in tokens) for p in parts)
 
 
-def parse_filters(question: str, schema: dict[str, Any]) -> FilterResolution:
-    """Every row restriction the question states, or a refusal."""
+#: How many distinct values of a column the binder will consider. A
+#: category a reader names in a sentence is one of a handful; a column with
+#: thousands of distinct values is not a category and the binder declines to
+#: guess rather than scanning them.
+VALUE_LOOKUP_LIMIT = 200
+
+#: Supplied by a caller that holds the session. Returns the column's own
+#: distinct values, or None when it cannot say.
+ValueLookup = Callable[[str], "list[str] | None"]
+
+
+def bind_category_value(
+    column: str, candidate: str, lookup: ValueLookup | None
+) -> tuple[str | None, str | None]:
+    """Settle a captured value against the column's own values.
+
+    Returns ``(value, refusal)``. The value returned is the one the data
+    holds, not the one the question typed: matching is case-insensitive so
+    `night owl` finds `Night Owl`, and execution then uses the stored
+    spelling.
+
+    Without a lookup this returns the candidate unchanged, which is the
+    behaviour every caller had before: the value reaches SQL, matches
+    nothing if it is wrong, and the empty-population guard declines the run.
+    Safe, but it never says the value was the problem.
+
+    The values are read server-side, from the session, and never travel to
+    the browser. `infer_schema` deliberately emits NULL bounds for
+    non-numeric columns, so a schema payload carries no cell values; adding
+    them there to make this easier would have widened that boundary.
+    """
+    if lookup is None:
+        return candidate, None
+    try:
+        values = lookup(column)
+    except Exception:  # a profiling failure must not become a wrong answer
+        values = None
+    if values is None:
+        return candidate, None
+
+    folded = candidate.casefold()
+    exact = [value for value in values if value.casefold() == folded]
+    if len(exact) == 1:
+        return exact[0], None
+    if len(exact) > 1:
+        # Two stored spellings differing only in case. Picking one would be
+        # a coin toss that changes which rows are counted.
+        return None, (
+            f"{column.replace('_', ' ')} has more than one value spelled like "
+            f"{candidate!r}; the question cannot say which was meant"
+        )
+
+    prefixed = [value for value in values if value.casefold().startswith(folded)]
+    if len(prefixed) > 1:
+        shown = ", ".join(repr(value) for value in sorted(prefixed)[:3])
+        return None, (
+            f"{candidate!r} begins more than one value of "
+            f"{column.replace('_', ' ')} ({shown}); name the whole value"
+        )
+    if len(prefixed) == 1:
+        # A unique prefix is still not what the reader wrote. Completing it
+        # would answer a question they did not ask, and the whole value is
+        # one word away.
+        return None, (
+            f"{column.replace('_', ' ')} has no value {candidate!r}; did you mean {prefixed[0]!r}?"
+        )
+    return None, (
+        f"{column.replace('_', ' ')} has no value {candidate!r}, so the filter was not applied"
+    )
+
+
+def parse_filters(
+    question: str, schema: dict[str, Any], *, value_lookup: ValueLookup | None = None
+) -> FilterResolution:
+    """Every row restriction the question states, or a refusal.
+
+    `value_lookup` lets a caller holding the session settle a category
+    value against the column's own values. Without it the parser behaves
+    exactly as before.
+    """
     columns = _numeric_columns(schema)
     text = question.strip()
 
@@ -540,7 +666,7 @@ def parse_filters(question: str, schema: dict[str, Any]) -> FilterResolution:
             # A number written as a word against a numeric column is a
             # comparison, not a category, and `_COMPARISON` owns it.
             continue
-        text_value = match.group("val").strip()
+        text_value = (match.group("qval") or match.group("val") or "").strip()
         if not _SAFE_VALUE.match(text_value):
             return FilterResolution(
                 constraint_detected=True,
@@ -549,7 +675,11 @@ def parse_filters(question: str, schema: dict[str, Any]) -> FilterResolution:
                     "into a query; quote a plain value"
                 ),
             )
-        filters.append(CategoryFilter(column, text_value, source_text=match.group(0).strip()))
+        bound, value_refusal = bind_category_value(column, text_value, value_lookup)
+        if value_refusal:
+            return FilterResolution(constraint_detected=True, refusal=value_refusal)
+        assert bound is not None
+        filters.append(CategoryFilter(column, bound, source_text=match.group(0).strip()))
         consumed.append((match.start(), match.end()))
 
     # Presence and absence.
@@ -590,6 +720,28 @@ def parse_filters(question: str, schema: dict[str, Any]) -> FilterResolution:
     contradiction = _contradiction(filters)
     if contradiction is not None:
         return FilterResolution(constraint_detected=True, refusal=contradiction)
+
+    # A categorical clause that nothing above consumed. Erring toward
+    # detecting is this module's policy, and the cost of the two mistakes is
+    # not symmetric: a false refusal is an inconvenience with a reason
+    # attached, a missed restriction is a confident answer to a narrower
+    # question than the one that was asked.
+    for match in _STATED_CATEGORY.finditer(scannable):
+        # Overlap across the whole clause, not just its first character.
+        # A range records only the span of its numbers, so `where age is
+        # between 30 and 40` leaves `where age is` unconsumed and would
+        # otherwise be reported as unreadable after being read correctly.
+        window_end = min(len(scannable), match.end() + 60)
+        if any(start < window_end and end > match.start() for start, end in consumed):
+            continue
+        clause = scannable[match.start() : min(len(scannable), match.end() + 40)].strip()
+        return FilterResolution(
+            constraint_detected=True,
+            refusal=(
+                f"the question restricts rows with {clause!r}, and the value could "
+                "not be read; quote it, or name a value the column has"
+            ),
+        )
 
     detected = bool(filters) or _restricts(scannable, consumed)
     return FilterResolution(tuple(_deduplicate(filters)), constraint_detected=detected)

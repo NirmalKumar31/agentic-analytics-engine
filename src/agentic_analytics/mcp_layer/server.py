@@ -39,7 +39,7 @@ from agentic_analytics.analytics import upload_plan
 from agentic_analytics.analytics.execute import QueryError, run_query
 from agentic_analytics.analytics.filters import FilterError, coerce_filters
 from agentic_analytics.analytics.results import GroupCoverage, ResultSnapshot
-from agentic_analytics.analytics.semantic import effective_schema
+from agentic_analytics.analytics.semantic import category_value_lookup, effective_schema
 from agentic_analytics.config import Budgets, Settings, get_settings
 from agentic_analytics.logging import get_logger
 from agentic_analytics.warehouse.metrics import load_registry
@@ -786,7 +786,11 @@ def build_server(manager: SessionManager, settings: Settings | None = None) -> M
                 f"{expected_schema_revision})"
             )
         if contract is None:
-            mapping = upload_plan.resolve_question(question, schema.as_dict())
+            mapping = upload_plan.resolve_question(
+                question,
+                schema.as_dict(),
+                value_lookup=category_value_lookup(session, name),
+            )
         else:
             if len(json.dumps(contract, sort_keys=True).encode("utf-8")) > 16_384:
                 raise ToolError("the query contract is too large")

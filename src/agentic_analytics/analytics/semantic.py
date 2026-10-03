@@ -22,6 +22,7 @@ from dataclasses import dataclass, field, replace
 from typing import Any, Literal, cast
 
 from agentic_analytics.analytics.execute import QueryError, fetch_rows
+from agentic_analytics.analytics.row_filters import VALUE_LOOKUP_LIMIT
 from agentic_analytics.warehouse.session import AnalysisSession
 
 FieldRole = Literal["time", "dimension", "measure", "identifier", "ignored"]
@@ -420,6 +421,52 @@ def _base_type(duck_type: str) -> str:
 def _looks_like_identifier(name: str) -> bool:
     lowered = name.lower()
     return lowered.endswith("id") or any(hint in lowered for hint in IDENTIFIER_HINTS)
+
+
+def category_value_lookup(session: AnalysisSession, table: str) -> Any:
+    """A reader of a column's own values, for binding a named category.
+
+    Built here because this is where the session and the profiled schema
+    already meet. The values are read on the server and handed to the
+    resolver; they are never put in a schema payload. `infer_schema` emits
+    NULL bounds for non-numeric columns on purpose, so no cell value of a
+    text column reaches the browser, and binding a filter must not be the
+    thing that changes that.
+
+    Returns `None` for a column that is not a bounded category -- too many
+    distinct values to be something a reader names in a sentence -- so the
+    caller falls back to its previous behaviour instead of scanning.
+    """
+    cache: dict[str, list[str] | None] = {}
+
+    def lookup(column: str) -> list[str] | None:
+        if column in cache:
+            return cache[column]
+        info = session.tables.get(table)
+        names = {str(c["name"]) for c in (getattr(info, "columns", None) or [])}
+        if column not in names:
+            cache[column] = None
+            return None
+        quoted = f'"{column.replace(chr(34), chr(34) * 2)}"'
+        quoted_table = f'"{table.replace(chr(34), chr(34) * 2)}"'
+        try:
+            _, rows = fetch_rows(
+                session,
+                f"SELECT DISTINCT {quoted}::VARCHAR FROM {quoted_table} "
+                f"WHERE {quoted} IS NOT NULL LIMIT {VALUE_LOOKUP_LIMIT + 1}",
+            )
+        except QueryError:
+            cache[column] = None
+            return None
+        if len(rows) > VALUE_LOOKUP_LIMIT:
+            # Not a category. Declining to answer is the caller's job; this
+            # only declines to pretend it knows the value set.
+            cache[column] = None
+            return None
+        cache[column] = [str(row[0]) for row in rows]
+        return cache[column]
+
+    return lookup
 
 
 def infer_schema(session: AnalysisSession, table: str) -> InferredSchema:

@@ -695,7 +695,9 @@ def _source_is_in_question(source: str, question: str) -> bool:
     return bool(wanted) and wanted in _normalise(question)
 
 
-def mapping_from_plan(question: str, schema: dict[str, Any], plan: Any) -> QuestionMapping:
+def mapping_from_plan(
+    question: str, schema: dict[str, Any], plan: Any, *, value_lookup: Any | None = None
+) -> QuestionMapping:
     """Validate an AI upload plan and turn it into the governed mapping.
 
     The provider supplies language interpretation only.  Identifiers, types,
@@ -824,7 +826,7 @@ def mapping_from_plan(question: str, schema: dict[str, Any], plan: Any) -> Quest
     # must preserve.  This catches a cloud plan that simply omits "aged 30
     # to 40" while still allowing it to ground a safe synonym the rules do
     # not understand.
-    deterministic_filters = parse_filters(question, schema)
+    deterministic_filters = parse_filters(question, schema, value_lookup=value_lookup)
     if deterministic_filters.constraint_detected:
         if deterministic_filters.refusal and not resolution.filters:
             return refuse(deterministic_filters.refusal)
@@ -889,7 +891,7 @@ def mapping_from_plan(question: str, schema: dict[str, Any], plan: Any) -> Quest
             )
 
     # Protect explicit rule-resolved components from being reinterpreted.
-    rules = resolve_question(question, schema)
+    rules = resolve_question(question, schema, value_lookup=value_lookup)
     if rules.confident:
         if operation != rules.operation:
             return refuse("the AI plan changed the operation explicitly requested in the question")
@@ -1103,7 +1105,9 @@ def question_requirements(question: str, schema: dict[str, Any]) -> QuestionRequ
     )
 
 
-def resolve_question(question: str, schema: dict[str, Any]) -> QuestionMapping:
+def resolve_question(
+    question: str, schema: dict[str, Any], *, value_lookup: Any | None = None
+) -> QuestionMapping:
     """Decide, from rules alone, what to compute for this question.
 
     Returns a mapping whose ``confident`` flag is false -- with ``operation``
@@ -1153,7 +1157,7 @@ def resolve_question(question: str, schema: dict[str, Any]) -> QuestionMapping:
     # had no way to represent the restriction and therefore no way to
     # notice it had dropped one. An unresolvable restriction refuses here
     # rather than falling through.
-    resolution = parse_filters(question, schema)
+    resolution = parse_filters(question, schema, value_lookup=value_lookup)
     if resolution.refusal is not None:
         return QuestionMapping(
             operation="profile",
