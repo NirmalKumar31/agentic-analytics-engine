@@ -236,6 +236,21 @@ describe("rules stay in the module that owns their place in the cascade", () => 
     );
   });
 
+  it("overrides the runtime Vega tooltip with semantic text and surface tokens", () => {
+    // vega-embed injects a default tooltip sheet after application CSS.
+    // Its #808080 key text is not sufficiently distinct from its translucent
+    // white panel, and its dark theme is unrelated to our explicit theme.
+    // Repeating the id is intentional specificity, not a selector accident:
+    // it must outrank the dependency despite being loaded first.
+    const report = withoutComments(moduleSource("styles/report.css"));
+    expect(report).toMatch(
+      /#vg-tooltip-element#vg-tooltip-element\s*\{[\s\S]*background:\s*var\(--surface-raised\)[\s\S]*color:\s*var\(--ink-primary\)/,
+    );
+    expect(report).toMatch(
+      /#vg-tooltip-element#vg-tooltip-element\s+table\s+tr\s+td\.key\s*\{[\s\S]*color:\s*var\(--ink-secondary\)/,
+    );
+  });
+
   it("keeps narrow-viewport containment in responsive.css", () => {
     const responsive = withoutComments(moduleSource("styles/responsive.css"));
     // `min-width: 0` on the three elements that declare overflow-x. Without
