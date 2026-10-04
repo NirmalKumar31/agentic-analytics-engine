@@ -232,19 +232,22 @@ test.describe("a real report, at every approved width and in both themes", () =>
           ).toBeLessThan(viewport.height);
 
           /*
-           * And no finding is hidden behind a control or clipped.
+           * And no finding is clipped.
            *
-           * The brief asks for "exactly one finding expanded on arrival at
-           * mobile widths", which assumes the mockup's four multi-sentence
-           * findings. The engine publishes one-line label/value rows --
-           * "Lowest: North 11,770" -- so there is nothing to collapse, and
-           * collapsing one would hide a line to save a line. The claim
-           * worth holding is the one underneath it: a reader on a phone is
-           * not shown a truncated finding.
+           * The brief's "exactly one finding expanded on arrival at mobile
+           * widths" is implemented, but only where there is something to
+           * fold: this payload publishes two one-line rows, so all of it is
+           * shown. `findingFold.test.tsx` covers the threshold, and
+           * `report.spec.ts` covers a recorded run with six.
            */
           const findings = page.locator(".finding-item");
           const count = await findings.count();
           expect(count, `${viewport.label}: no findings rendered`).toBeGreaterThan(0);
+          // Two one-line rows: nothing to fold, and nothing folded.
+          expect(
+            await page.locator(".findings-more").count(),
+            `${viewport.label}: two findings were folded`,
+          ).toBe(0);
           for (let i = 0; i < count; i += 1) {
             const clipped = await findings.nth(i).evaluate((node) => {
               const style = getComputedStyle(node);

@@ -112,7 +112,10 @@ test.describe("a chart on an uploaded dataset", () => {
     expect(
       await card.locator(".chart-host svg path.line, .chart-host svg path").count(),
     ).toBeGreaterThan(0);
-    await expect(card.locator("h4")).toContainText(/over time/i);
+    // `figcaption`, not `h4`: a figure's name is a caption, and an `<h4>`
+    // in a document whose headings run h1, h2 was both a skipped level and
+    // a competitor in the heading outline.
+    await expect(card.locator("figcaption")).toContainText(/over time/i);
   });
 
   test("a revenue axis reads at the same precision as the table", async ({
@@ -373,4 +376,75 @@ test.describe("every colour in a chart comes from the palette", () => {
       ).toEqual([]);
     });
   }
+});
+
+test.describe("the chart's category labels", () => {
+  /*
+   * Vega turns a nominal x axis to vertical by default, whatever the
+   * labels are: four words at 1440px were printed on their sides, in the
+   * same product whose demo-warehouse specifications set `-30` and look as
+   * the mockup intends. The angle is decided from the labels now --
+   * `categoryLabelAngle`, unit-tested in `axisLabels.test.ts` -- and this
+   * is the half that only a browser can check: that the decision reaches
+   * the rendered SVG.
+   */
+  async function labelRotations(page: import("@playwright/test").Page) {
+    return page.evaluate(() => {
+      const labels = Array.from(
+        document.querySelectorAll(
+          ".chart-host svg g.role-axis-label text, .chart-host svg .mark-text.role-axis-label text",
+        ),
+      );
+      return labels.map((node) => {
+        const transform = node.getAttribute("transform") ?? "";
+        const match = transform.match(/rotate\(\s*(-?[\d.]+)/);
+        return {
+          text: (node.textContent ?? "").trim(),
+          angle: match ? Number(match[1]) : 0,
+        };
+      });
+    });
+  }
+
+  test("four short categories are not printed on their sides", async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await openApp(page);
+    await uploadFile(page, "labels.csv", sampleCsv());
+    await ask(page, "What is the total revenue by region?");
+    await waitForReport(page);
+    await expectDrawnChart(page);
+
+    const labels = await labelRotations(page);
+    const named = labels.filter((label) => /East|North|South|West/.test(label.text));
+    expect(named.length, "the region labels were not found").toBeGreaterThan(0);
+    for (const label of named) {
+      expect(
+        Math.abs(label.angle),
+        `"${label.text}" is rotated ${label.angle} degrees`,
+      ).toBeLessThan(1);
+    }
+  });
+
+  test("and a crowded axis keeps every label rather than dropping any", async ({
+    page,
+  }) => {
+    // The opposite failure. Flat labels on a wide axis collide, and Vega
+    // resolves a collision by removing labels -- a chart that silently
+    // loses most of its axis is worse than one read at an angle.
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await openApp(page);
+    await uploadFile(page, "labels-wide.csv", sampleCsv(400));
+    await ask(page, "What is the total revenue by order_date?");
+    await waitForReport(page);
+
+    const chart = page.locator(".chart-host svg");
+    if ((await chart.count()) === 0) return;
+    const labels = await labelRotations(page);
+    if (labels.length < 10) return;
+    const angles = new Set(labels.map((label) => Math.round(label.angle)));
+    expect(
+      [...angles].every((angle) => angle === 0 || angle === -30),
+      `unexpected angles: ${[...angles].join(", ")}`,
+    ).toBe(true);
+  });
 });

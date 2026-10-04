@@ -33,6 +33,7 @@
 import { useState } from "react";
 
 import { compareRuns } from "../lib/comparison";
+import { COMPARED_FIELD_COUNT } from "../lib/contractDiff";
 import { runState } from "../lib/runState";
 import { opensSheet } from "./SideSheet";
 import { CompareEvidenceDrawer } from "./CompareEvidenceDrawer";
@@ -339,6 +340,19 @@ export function CompareWorkspace({
           {differences.length > 0 ? (
             <div className="scroll-x">
               <table className="data contract-diff" data-testid="contract-diff">
+                {/*
+                  The caption's numbers are the table's own: `differences`
+                  is what the rows are mapped from, and
+                  `COMPARED_FIELD_COUNT` is the length of the list those
+                  rows were selected out of. Neither is written here, so
+                  neither can drift from what is underneath it.
+                */}
+                <caption data-testid="contract-diff-caption">
+                  {differences.length} of {COMPARED_FIELD_COUNT} compared
+                  contract {differences.length === 1 ? "field" : "fields"}{" "}
+                  {differences.length === 1 ? "differs" : "differ"}; the rest
+                  are identical.
+                </caption>
                 <thead>
                   <tr>
                     <th scope="col">field</th>

@@ -26,12 +26,84 @@
  * and a loss.
  */
 
+import { useMediaQuery } from "../lib/useMediaQuery";
 import { Chart } from "./Chart";
 import { EvidenceBody } from "./EvidenceDrawer";
 import { opensSheet } from "./SideSheet";
 import { ResultPanel } from "./ResultPanel";
 import type { ReportModel } from "../lib/reportModel";
 import type { RunPayload } from "../lib/types";
+
+/** The phone widths the brief names: 360 and 390 are both below this. */
+const FOLD_BELOW = 640;
+/** Below this many, folding hides a line to save a line. */
+const FOLD_ABOVE = 3;
+
+function Finding({
+  highlight,
+  rank,
+}: {
+  highlight: ReportModel["highlights"][number];
+  rank: number;
+}) {
+  return (
+    <li className="finding-item">
+      <span className="finding-rank" aria-hidden="true">
+        {rank}
+      </span>
+      <span className="finding-body">
+        <span className="finding-label">{highlight.label}</span>
+        {highlight.value && (
+          <span className="finding-value figure">{highlight.value}</span>
+        )}
+        {highlight.compare && (
+          <span className="finding-compare">vs {highlight.compare}</span>
+        )}
+      </span>
+    </li>
+  );
+}
+
+/**
+ * `contract a7c31a · sha 5913f6e · 21 ms`, beside the one control.
+ *
+ * The approved mockup carries this line and the implementation dropped it,
+ * on the reading that requirement 6 forbids technical material on the
+ * default canvas. That requirement names the panels it is about -- the
+ * activity log, the stage list, the planning audit, the DAG -- and this is
+ * none of them: it is the identity of what produced the numbers above it,
+ * in the same register as the dataset strip that names the file.
+ *
+ * Which is also why it is three facts and not four. It answers "can I
+ * refer to this run later" without starting to explain the run; everything
+ * that explains it is still behind "Show work".
+ */
+function ReportStamp({ run }: { run: RunPayload | null }) {
+  if (!run) return null;
+  const contract = run.query_contract?.contract_hash?.slice(0, 6) ?? null;
+  const build =
+    run.build_sha && run.build_sha !== "unknown"
+      ? run.build_sha.slice(0, 7)
+      : null;
+  const total = run.timings?.total_ms ?? null;
+
+  const parts = [
+    contract ? `contract ${contract}` : null,
+    build ? `sha ${build}` : null,
+    total != null ? `${Math.round(total)} ms` : null,
+  ].filter((part): part is string => part !== null);
+
+  // Nothing rather than a line of placeholders: a stamp that says
+  // "contract — · sha — · — ms" is worse than no stamp, because it looks
+  // like a record and holds none.
+  if (parts.length === 0) return null;
+
+  return (
+    <span className="report-stamp mono" data-testid="report-stamp">
+      {parts.join(" · ")}
+    </span>
+  );
+}
 
 export function AnswerReport({
   question,
@@ -61,6 +133,22 @@ export function AnswerReport({
    */
   compact?: boolean;
 }) {
+  /*
+   * Requirement: exactly one finding expanded on arrival at phone widths.
+   *
+   * Only where there is something to fold, and only on the report itself
+   * -- a Compare pane is already two columns of summary and folding inside
+   * one would bury the comparison. `useMediaQuery` rather than a CSS rule
+   * because the fold is a change of markup, not of layout: a `<details>`
+   * forced open by a media query still carries a summary nobody wants on a
+   * desktop, and a reader tabbing past it finds a control that does
+   * nothing.
+   */
+  const narrow = useMediaQuery(`(max-width: ${FOLD_BELOW}px)`);
+  const folds = !compact && narrow && model.highlights.length > FOLD_ABOVE;
+  const shown = folds ? model.highlights.slice(0, 1) : model.highlights;
+  const folded = folds ? model.highlights.slice(1) : [];
+
   return (
     <article
       // Keyed on the tone, not on the eyebrow. The eyebrow is suppressed
@@ -131,27 +219,37 @@ export function AnswerReport({
         <section className="findings" aria-label="What the numbers show">
           <h2 className="section-heading">What the numbers show</h2>
           <ol className="finding-list">
-            {model.highlights.map((highlight, index) => (
-              <li key={highlight.id} className="finding-item">
-                <span className="finding-rank" aria-hidden="true">
-                  {index + 1}
-                </span>
-                <span className="finding-body">
-                  <span className="finding-label">{highlight.label}</span>
-                  {highlight.value && (
-                    <span className="finding-value figure">
-                      {highlight.value}
-                    </span>
-                  )}
-                  {highlight.compare && (
-                    <span className="finding-compare">
-                      vs {highlight.compare}
-                    </span>
-                  )}
-                </span>
-              </li>
+            {shown.map((highlight, index) => (
+              <Finding key={highlight.id} highlight={highlight} rank={index + 1} />
             ))}
           </ol>
+          {folded.length > 0 && (
+            /*
+             * One finding on arrival at phone widths, which is the brief's
+             * requirement and only makes sense where there is something to
+             * fold: an engine that published two one-line rows has nothing
+             * to hide, and hiding one to save a line would be worse than
+             * showing it.
+             *
+             * A `<details>`, so it is open to the keyboard and to a reader
+             * who prints -- the print cascade expands every disclosure, so
+             * the paper copy is never the folded one.
+             */
+            <details className="findings-more">
+              <summary>
+                {folded.length} more {folded.length === 1 ? "finding" : "findings"}
+              </summary>
+              <ol className="finding-list" start={shown.length + 1}>
+                {folded.map((highlight, index) => (
+                  <Finding
+                    key={highlight.id}
+                    highlight={highlight}
+                    rank={shown.length + index + 1}
+                  />
+                ))}
+              </ol>
+            </details>
+          )}
         </section>
       )}
 
@@ -196,6 +294,7 @@ export function AnswerReport({
         >
           Print / Save PDF
         </button>
+        <ReportStamp run={run ?? null} />
       </div>
       )}
 

@@ -389,6 +389,48 @@ describe("the report workspace", () => {
     expect(headings[0]).toBe(answer);
   });
 
+  it("stamps the run's identity beside the one control", () => {
+    /*
+     * The approved mockup carries `contract a3f9c1 · sha 5913f6e · 412 ms`
+     * under the report and the implementation dropped it, reading
+     * requirement 6 as forbidding anything technical on the canvas. That
+     * requirement names the panels it is about; this is the identity of
+     * what produced the numbers, in the same register as the dataset strip
+     * that names the file.
+     *
+     * The numbers are read from the payload, so a stamp that silently
+     * stopped tracking the run would fail here rather than keep printing a
+     * stale hash.
+     */
+    const stamped = run({
+      query_contract: {
+        contract_hash: "a7c31ad7adfdb83cf19352a90fe9f02406c8cce6fd7d416f",
+      } as RunPayload["query_contract"],
+      build_sha: "5913f6e2b1c4",
+      timings: { total_ms: 412 } as RunPayload["timings"],
+    });
+    workspace(stamped);
+    const stamp = screen.getByTestId("report-stamp");
+
+    // The short forms, not the whole hash: this is a reference a reader can
+    // quote, not the record itself -- which is in the evidence drawer.
+    expect(stamp).toHaveTextContent("a7c31a");
+    expect(stamp).toHaveTextContent("5913f6e");
+    expect(stamp).toHaveTextContent("412 ms");
+    expect(stamp.textContent).not.toContain(
+      "a7c31ad7adfdb83cf19352a90fe9f02406c8cce6fd7d416f",
+    );
+  });
+
+  it("stamps nothing rather than a row of placeholders", () => {
+    // A stamp reading "contract — · sha — · — ms" looks like a record and
+    // holds none.
+    workspace(
+      run({ query_contract: undefined, build_sha: "unknown", timings: undefined }),
+    );
+    expect(screen.queryByTestId("report-stamp")).toBeNull();
+  });
+
   it("keeps the planning audit off the report canvas entirely", () => {
     // It used to be a closed disclosure resident under every report. A
     // closed disclosure is still a thing in the reading order, still a tab

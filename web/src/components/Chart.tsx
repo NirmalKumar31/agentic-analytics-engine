@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 
+import { categoryLabelAngle } from "../lib/axisLabels";
 import { hydrateChartSpec } from "../lib/chartHydration";
 import { checkChartSpec } from "../lib/chartSafety";
 import type { ChartSpec, ResultSnapshot } from "../lib/types";
@@ -108,6 +109,10 @@ export function Chart({ chart, snapshot, onOpenProvenance }: Props) {
       css.getPropertyValue(name).trim() || fallback;
     const plotWidth = plotWidthOf(element);
 
+    // Flat where the labels fit, angled where they would collide. Vega's
+    // own default turns every nominal label to vertical, whatever it says.
+    const labelAngle = categoryLabelAngle(hydrated.spec);
+
     void import("vega-embed")
       .then(({ default: embed }) =>
         // The card renders the title above the plot, so the spec's own title
@@ -155,6 +160,15 @@ export function Chart({ chart, snapshot, onOpenProvenance }: Props) {
                 domainColor: token("--rule-hairline", "#d9d2c7"),
                 tickColor: token("--rule-hairline", "#d9d2c7"),
               },
+              /*
+               * `axisX` rather than `axis`, and config rather than the
+               * spec: a specification that set its own `axis.labelAngle`
+               * -- which the demo warehouse's do -- overrides config and
+               * keeps the decision it made.
+               */
+              ...(labelAngle === null
+                ? {}
+                : { axisX: { labelAngle, labelOverlap: false } }),
               legend: {
                 labelColor: token("--ink-secondary", "#5d544b"),
                 titleColor: token("--ink-secondary", "#5d544b"),
@@ -212,7 +226,17 @@ export function Chart({ chart, snapshot, onOpenProvenance }: Props) {
 
   return (
     <figure className="chart-card" style={{ margin: 0 }}>
-      <h4>{chart.title}</h4>
+      {/*
+        A caption, not a heading.
+        
+        It was an `<h4>` in a document whose headings run h1, h2 -- a skipped
+        level, and a heading for something that is a figure rather than a
+        section. `<figcaption>` says what it is and keeps it out of the
+        heading outline, where "total revenue by region" was competing with
+        "What the numbers show" and "Result" for a reader navigating by
+        heading.
+      */}
+      <figcaption className="chart-title">{chart.title}</figcaption>
       {error ? (
         <div className="notice warn">{error}</div>
       ) : (

@@ -65,7 +65,7 @@
   .topbar,
   .no-print,
   .context-bar-inspect,
-  .report-actions,
+  .report-actions .btn,
   .composer,
   .landing,
   .analytical-field,
@@ -167,6 +167,22 @@
     max-width: none;
   }
 
+  /* The run's identity survives to paper even though the controls beside it
+     do not: a printed report that cannot be traced back to the run that
+     produced it is the thing the stamp exists to prevent. The row itself is
+     therefore not in the chrome-off list above; its buttons are. */
+  .report-actions {
+    display: block;
+    border-top: 0.5pt solid #bbb;
+    padding-top: 3mm;
+    margin-top: 5mm;
+  }
+
+  .report-stamp {
+    font-size: 8pt;
+    color: #444;
+  }
+
   /* ------------------------------------------------------------- chart
    *
    * Vector, full width, and bounded in height so it cannot push the
@@ -216,6 +232,20 @@
     stroke: #999 !important;
   }
 
+  /* Every mark gets a boundary. See the note at the head of this file: the
+     fills are baked in at embed time and carry whichever theme was on
+     screen, so the shape has to be legible on white regardless of them.
+     `.mark-*` are Vega's own group classes; the axis, grid and background
+     paths are excluded because they are rules, not marks. */
+  .chart-host svg g.mark-rect path,
+  .chart-host svg g.mark-arc path,
+  .chart-host svg g.mark-area path,
+  .chart-host svg g.mark-symbol path,
+  .chart-host svg g.mark-line path {
+    stroke: #333 !important;
+    stroke-width: 0.6 !important;
+  }
+
   /* ---------------------------------------------------------- findings
    *
    * All of them, expanded. Print has no disclosure: a `<details>` that
@@ -231,6 +261,12 @@
 
   .finding-item {
     break-inside: avoid;
+  }
+
+  /* The phone fold is a screen device. On paper every finding is printed,
+     and the control that folded them is not. */
+  .findings-more > summary {
+    display: none;
   }
 
   .finding-rank {

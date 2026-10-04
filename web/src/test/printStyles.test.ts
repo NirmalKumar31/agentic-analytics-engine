@@ -122,6 +122,25 @@ describe("the chart", () => {
   it("does not break across a page", () => {
     expect(block).toMatch(/\.report-visual\s*\{[^}]*break-inside:\s*avoid/);
   });
+
+  it("outlines every mark, whatever theme baked its fill", () => {
+    /*
+     * Vega resolves `--series-*` at embed time and writes the result inline
+     * on the SVG, where no print rule reaches it. A chart embedded in dark
+     * mode prints `#54becc` on white -- about 2:1, no discernible boundary,
+     * and WCAG 1.4.11 is about exactly that. A hairline in ink around each
+     * mark satisfies it whatever the fill turns out to be.
+     */
+    expect(block).toMatch(
+      /g\.mark-rect path[\s\S]{0,300}?\{[^}]*stroke:\s*#[0-9a-f]+\s*!important/i,
+    );
+    expect(block).toMatch(
+      /g\.mark-rect path[\s\S]{0,300}?\{[^}]*stroke-width:\s*[\d.]+\s*!important/,
+    );
+    // The rules are not marks: outlining the gridlines would print a cage.
+    const marks = block.slice(block.indexOf("g.mark-rect path"));
+    expect(marks.slice(0, marks.indexOf("}"))).not.toMatch(/gridline|path\.domain/);
+  });
 });
 
 describe("nothing animates on paper", () => {
@@ -249,7 +268,7 @@ describe("screen-only chrome does not print", () => {
     [".timeline", "the run timeline"],
     [".side-sheet", "a side sheet"],
     [".scrim", "the scrim behind a sheet"],
-    [".report-actions", "the report's own buttons"],
+    [".report-actions .btn", "the report's own buttons"],
     [".evidence-tabs", "the evidence drawer's tabs"],
     [".suggestions", "the suggested questions"],
   ])("%s is hidden (%s)", (selector) => {
@@ -264,6 +283,19 @@ describe("screen-only chrome does not print", () => {
     // They are a single selector list; a per-element rule is how one gets
     // forgotten.
     expect(block).toMatch(/\.topbar,[\s\S]{0,400}?\.suggestions\s*\{\s*display:\s*none\s*!important/);
+  });
+
+  it("keeps the run's stamp, which is not a control", () => {
+    // `.report-actions` holds two buttons and the `contract · sha · ms`
+    // line. The buttons do not print; the line does, because a printed
+    // report that cannot be traced back to its run is the thing the stamp
+    // exists to prevent.
+    expect(block).toMatch(/\.report-actions\s*\{[^}]*display:\s*block/);
+    expect(block).toMatch(/\.report-stamp\s*\{[^}]*color:\s*#/);
+    expect(
+      block,
+      "the actions row is hidden wholesale, taking the stamp with it",
+    ).not.toMatch(/\.report-actions,/);
   });
 });
 

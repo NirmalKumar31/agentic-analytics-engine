@@ -170,10 +170,20 @@
 .report-actions {
   display: flex;
   flex-wrap: wrap;
+  align-items: center;
   gap: var(--space-3);
   margin-block-start: var(--space-7);
   padding-block-start: var(--space-5);
   border-block-start: 1px solid var(--rule-hairline);
+}
+
+/* The run's identity, beside the control rather than under a heading: it
+   is a reference, not a section. Muted and small, because a reader who is
+   not copying a hash should not have to read past it. */
+.report-stamp {
+  font-size: var(--text-xs);
+  color: var(--ink-muted);
+  letter-spacing: 0.01em;
 }
 
 .report-compat {

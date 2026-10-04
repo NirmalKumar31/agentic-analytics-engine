@@ -1,6 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 
-import { ask, canvasTestId, openApp, uploadFile, waitForReport } from "./helpers";
+import { ask, canvasTestId, openApp, recordingButtons, uploadFile, waitForReport } from "./helpers";
 
 /**
  * The answer-first report, measured.
@@ -281,5 +281,54 @@ test.describe("the report canvas is only what the brief allows", () => {
       await drawer.locator('.timeline-stage[data-state="active"]').count(),
       "a stage is still active under a finished report",
     ).toBe(0);
+  });
+});
+
+test.describe("a long report on a phone", () => {
+  test("shows one finding and folds the rest", async ({ page }) => {
+    /*
+     * The brief's requirement, against the payload it was written for: a
+     * recorded run publishes six full-sentence findings, and at 390px they
+     * push the result table a long way below the fold.
+     *
+     * A recording rather than an upload, because the uploaded path
+     * publishes one-line label/value rows -- two of them -- which is the
+     * case the fold deliberately leaves alone.
+     */
+    await page.setViewportSize({ width: 390, height: 844 });
+    await openApp(page);
+    await recordingButtons(page).first().click();
+    await waitForReport(page);
+
+    // Asserted, not skipped on. A conditional `test.skip` here would be
+    // counted by the report guard as a declared skip, and a recording that
+    // stopped publishing enough findings would quietly stop exercising the
+    // fold while the run still looked clean.
+    const total = await page.locator(".finding-item").count();
+    expect(
+      total,
+      "this recording publishes too few findings to fold",
+    ).toBeGreaterThan(3);
+
+    const fold = page.locator(".findings-more");
+    await expect(fold).toHaveCount(1);
+
+    // One above the fold, the rest inside it.
+    const above = page.locator(".findings > .finding-list > .finding-item");
+    await expect(above).toHaveCount(1);
+    await expect(fold.locator(".finding-item")).toHaveCount(total - 1);
+
+    // And it opens, rather than being a label over hidden content.
+    await fold.locator("summary").click();
+    await expect(fold).toHaveAttribute("open", "");
+    await expect(fold.locator(".finding-item").first()).toBeVisible();
+  });
+
+  test("and shows all of them on a desktop", async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await openApp(page);
+    await recordingButtons(page).first().click();
+    await waitForReport(page);
+    await expect(page.locator(".findings-more")).toHaveCount(0);
   });
 });

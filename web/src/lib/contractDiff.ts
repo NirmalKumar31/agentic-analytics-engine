@@ -59,6 +59,33 @@ export function canonicalOf(
   return contract.canonical_contract ?? contract;
 }
 
+/**
+ * Every canonical field that is compared, in the order it is reported.
+ *
+ * At module scope rather than inside the function, so the caption over the
+ * diff table can say "n of m fields differ" with both numbers coming from
+ * the same place as the rows underneath it. A caption written beside a
+ * table is a caption that drifts from it.
+ */
+const CANONICAL_FIELDS: Array<[string, (c: CanonicalContract) => string]> = [
+  ["Calculation", (c) => c.operation],
+  ["Table", (c) => c.table],
+  ["Measure", (c) => describeColumn(c.measure)],
+  // Every cut, in order. Reading the singular projection here made a
+  // two-cut contract look ungrouped, so two panes that grouped
+  // differently compared as identical.
+  ["Grouping", (c) => describeGroupings(c.dimensions)],
+  ["Time grain", (c) => c.time_grain ?? NONE],
+  ["Row filters", (c) => describeFilters(c.filters)],
+  ["Time period", (c) => describePeriod(c.period)],
+  ["Period column", (c) => describeColumn(c.period_field)],
+  ["Time axis", (c) => describeColumn(c.time_field)],
+  ["Sort order", (c) => (c.ascending ? "ascending" : "descending")],
+];
+
+/** How many canonical fields are compared at all — the `m` in "n of m". */
+export const COMPARED_FIELD_COUNT = CANONICAL_FIELDS.length;
+
 export function contractDifferences(
   deterministic: QueryContract | null | undefined,
   ai: QueryContract | null | undefined,
@@ -67,24 +94,8 @@ export function contractDifferences(
   const right = canonicalOf(ai);
   if (!left || !right) return [];
 
-  const fields: Array<[string, (c: CanonicalContract) => string]> = [
-    ["Calculation", (c) => c.operation],
-    ["Table", (c) => c.table],
-    ["Measure", (c) => describeColumn(c.measure)],
-    // Every cut, in order. Reading the singular projection here made a
-    // two-cut contract look ungrouped, so two panes that grouped
-    // differently compared as identical.
-    ["Grouping", (c) => describeGroupings(c.dimensions)],
-    ["Time grain", (c) => c.time_grain ?? NONE],
-    ["Row filters", (c) => describeFilters(c.filters)],
-    ["Time period", (c) => describePeriod(c.period)],
-    ["Period column", (c) => describeColumn(c.period_field)],
-    ["Time axis", (c) => describeColumn(c.time_field)],
-    ["Sort order", (c) => (c.ascending ? "ascending" : "descending")],
-  ];
-
   const out: ContractDifference[] = [];
-  for (const [label, read] of fields) {
+  for (const [label, read] of CANONICAL_FIELDS) {
     const a = read(left);
     const b = read(right);
     if (a !== b) out.push({ label, deterministic: a, ai: b });

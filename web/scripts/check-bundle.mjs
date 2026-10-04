@@ -21,20 +21,19 @@
  * columns are real builds, not estimates:
  *
  *                     0d82e87      feat/visual-redesign     delta
- *   index.css        32.89 kB           42.09 kB          +9.20 kB
- *   index.js        316.54 kB          312.01 kB          -4.53 kB
+ *   index.css        32.89 kB           41.87 kB          +8.98 kB
+ *   index.js        316.54 kB          307.13 kB          -9.41 kB
  *   vega.js         840.81 kB          840.81 kB        same chunk hash
  *
  *   initial payload, gzipped, as this script measures it:
- *                   102.20 kB          102.75 kB          +0.55 kB
- *                   (css 7.55,         (css 8.55,
- *                    js 94.65)          js 94.20)
+ *                   102.20 kB          103.72 kB          +1.52 kB
+ *                   (css 7.55,         (css 8.66,
+ *                    js 94.65)          js 95.06)
  *
- * That is +0.5% on what the browser downloads first. (Vite's build log
- * reports slightly larger gzip figures -- 7.73 -> 8.75 kB for the
- * stylesheet -- because it compresses at a different level; the comparison
- * holds either way, and the numbers above are the ones this script prints,
- * so they can be re-measured.)
+ * That is +1.5% on what the browser downloads first. (Vite's build log
+ * reports slightly larger gzip figures, because it compresses at a
+ * different level; the numbers above are the ones this script prints, so
+ * they can be re-measured.)
  *
  * The stylesheet grew because seventeen modules of new surfaces replaced
  * seven panels, and because those modules carry their reasoning. The

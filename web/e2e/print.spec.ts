@@ -103,7 +103,9 @@ test.describe("the print cascade, applied to a live page", () => {
       for (const selector of [
         ".topbar",
         ".composer",
-        ".report-actions",
+        // The row itself prints -- it holds the run's `contract · sha · ms`
+        // stamp -- but nothing in it that is operated does.
+        ".report-actions .btn",
         ".analytical-field",
         ".suggestions",
         ".side-sheet",
@@ -113,6 +115,13 @@ test.describe("the print cascade, applied to a live page", () => {
         if ((await control.count()) > 0) {
           await expect(control, `${selector} prints`).toBeHidden();
         }
+      }
+
+      // And the stamp survives: a printed report that cannot be traced
+      // back to the run that produced it is what it exists to prevent.
+      const stamp = page.getByTestId("report-stamp");
+      if ((await stamp.count()) > 0) {
+        await expect(stamp.first(), "the run's stamp does not print").toBeVisible();
       }
 
       // And the appendix, which is `hidden` on screen, is on the page.

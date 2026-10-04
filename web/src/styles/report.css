@@ -30,11 +30,17 @@
   background: var(--surface-inset);
   padding: 12px;
 }
-.chart-card h4 {
-  margin: 0 0 9px;
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--ink-secondary);
+/* The figure's name, legible at the weight the mockup gives it.
+   It was 13px/500 in `--ink-secondary`: a grey whisper over the one
+   element on the page a reader is most likely to screenshot. */
+.chart-title {
+  margin: 0 0 var(--space-3);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+  line-height: var(--leading-tight);
+  color: var(--ink-primary);
+  text-transform: none;
+  letter-spacing: normal;
 }
 .chart-host {
   min-height: 240px;

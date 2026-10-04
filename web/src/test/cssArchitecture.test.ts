@@ -396,7 +396,7 @@ describe("rules stay in the module that owns their place in the cascade", () => 
     expect(states).not.toMatch(/\.column\s*>[^{]*\{[^}]*order:/);
   });
 
-  it("adds no !important beyond the twenty-one that need one", () => {
+  it("adds no !important beyond the twenty-three that need one", () => {
     /*
      * Not forbidden outright. Each of these is a case where `!important` is
      * the correct tool, and the two modules are the only two that may use
@@ -405,8 +405,13 @@ describe("rules stay in the module that owns their place in the cascade", () => 
      *   motion.css x4   the `prefers-reduced-motion` idiom, which has to
      *                   beat every animation declared anywhere.
      *
-     *   print.css x17   four kinds, all of them overriding something this
+     *   print.css x19   five kinds, all of them overriding something this
      *                   stylesheet does not control:
+     *                     - the outline every chart mark gets on paper,
+     *                       because Vega bakes the series fills in at embed
+     *                       time and a chart embedded in dark mode would
+     *                       otherwise print pale shapes with no discernible
+     *                       boundary (x2);
      *                     - every animation and transition in the
      *                       stylesheet, because Chromium restarts them when
      *                       it lays the page out to print and an entrance
@@ -436,7 +441,7 @@ describe("rules stay in the module that owns their place in the cascade", () => 
       const hits = withoutComments(src).match(/!\s*important/g);
       if (hits) counts[name] = hits.length;
     }
-    expect(counts).toEqual({ "styles/print.css": 17, "styles/motion.css": 4 });
+    expect(counts).toEqual({ "styles/print.css": 19, "styles/motion.css": 4 });
   });
 });
 
