@@ -2,7 +2,7 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { ReportView } from "../components/ReportView";
+import { ReportUnderTest } from "./renderReport";
 import type { AnalysisPresentation, QueryContract, ResultSnapshot } from "../lib/types";
 
 const contract: QueryContract = {
@@ -23,8 +23,7 @@ const contract: QueryContract = {
 };
 
 function report() {
-  return render(
-    <ReportView
+  return render(<ReportUnderTest
       question="Average annual revenue for people aged 30 to 40 by region"
       report={null}
       findings={[]}
@@ -68,7 +67,7 @@ describe("ReportView", () => {
       columns: ["flag", "average_sleep"], rows: [[0, 6.21], [1, 6.33]], row_count: 2,
       truncated: false, dataset_fingerprint: "x", duration_ms: 1, parameters: {}, warnings: [], statistical_result: null,
     } as ResultSnapshot;
-    render(<ReportView question="q" report={null} findings={[]} rejected={[]} charts={[]} results={{ r1: result }} presentation={presentation} onShowWork={() => {}} />);
+    render(<ReportUnderTest question="q" report={null} findings={[]} rejected={[]} charts={[]} results={{ r1: result }} presentation={presentation} onShowWork={() => {}} />);
     expect(screen.getByTestId("direct-answer")).toHaveTextContent("Average sleep is 6.33 when the filter is On.");
     expect(screen.getByText("A chart is not needed for two values.")).toBeVisible();
     expect(screen.queryByText(/and further groups/i)).toBeNull();

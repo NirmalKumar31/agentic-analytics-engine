@@ -1,11 +1,10 @@
-import { render, screen, within } from '@testing-library/react'
+import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 
 import { ActivityLog } from '../components/ActivityLog'
-import { ProvenanceDrawer } from '../components/ProvenanceDrawer'
 import { ResultTable } from '../components/ResultTable'
-import { event, finding, hostileSnapshot, snapshot, task, trace } from './fixtures'
+import { event, finding, hostileSnapshot, snapshot, trace } from './fixtures'
 
 describe('ResultTable', () => {
   it('marks the cells a finding cites', () => {
@@ -30,73 +29,20 @@ describe('ResultTable', () => {
   })
 })
 
-describe('ProvenanceDrawer', () => {
-  function open(onClose = vi.fn()) {
-    render(
-      <ProvenanceDrawer
-        finding={finding}
-        results={{ [snapshot.result_id]: snapshot }}
-        tasks={[task]}
-        trace={trace}
-        onClose={onClose}
-      />,
-    )
-    return onClose
-  }
-
-  it('shows readable task context, the SQL and the cited cells', () => {
-    open()
-    const dialog = screen.getByRole('dialog')
-    expect(within(dialog).getByText('Completed analytical task')).toBeInTheDocument()
-    expect(within(dialog).getByText(/SELECT period, gross_margin_pct/)).toBeInTheDocument()
-    expect(within(dialog).getByText(/gross_margin_pct at 2025-04-01/)).toBeInTheDocument()
-    expect(document.querySelectorAll('td.cited')).toHaveLength(2)
-  })
-
-  it('shows the recomputed calculation', () => {
-    open()
-    expect(screen.getByText(/recalculated this from the cells above/)).toBeInTheDocument()
-    // The stated change appears twice on purpose: once in the calculation
-    // panel and once in the result row it was computed from.
-    expect(screen.getAllByText('-7.67').length).toBeGreaterThanOrEqual(2)
-  })
-
-  it('does not expose an opaque dataset fingerprint', () => {
-    open()
-    expect(screen.queryByText(/sha256:/)).not.toBeInTheDocument()
-  })
-
-  it('shows the MCP tool path', () => {
-    open()
-    expect(screen.getByText('Analyze Timeseries')).toBeInTheDocument()
-  })
-
-  it('never displays model reasoning', () => {
-    open()
-    const text = screen.getByRole('dialog').textContent ?? ''
-    for (const word of ['reasoning', 'thinking', 'chain of thought', 'scratchpad']) {
-      expect(text.toLowerCase()).not.toContain(word)
-    }
-  })
-
-  it('closes on Escape and on the close button', async () => {
-    const onClose = open()
-    await userEvent.keyboard('{Escape}')
-    expect(onClose).toHaveBeenCalled()
-    await userEvent.click(screen.getByLabelText('Close'))
-    expect(onClose).toHaveBeenCalledTimes(2)
-  })
-})
-
 /*
- * The `ExecutionFlow` suite that stood here went with the agent DAG.
+ * The `ProvenanceDrawer` suite stood here and went with the component.
  *
- * It asserted node counts and which edges animated -- true things about a
- * diagram that drew the same boxes and arrows for every run, before
- * anything had happened. The timeline that replaces it is tested in
- * `timeline.test.ts`, against event sequences, which is what it actually
- * derives from.
+ * It was a per-finding drawer, opened from a "Show work" on every published
+ * finding card -- six identical cards meant six triggers for six drawers
+ * describing one run. The evidence drawer carries the contract,
+ * verification outcomes, cited cells, timings and the trace once, for the
+ * report, and `evidence.spec.ts` asserts every one of those is present.
+ *
+ * Its focus behaviour -- in on open, contained, back to the trigger on
+ * close -- moved into `SideSheet` and is asserted there, on both sheets,
+ * including the two WebKit-only failures the original never caught.
  */
+
 
 describe('ActivityLog', () => {
   const events = [

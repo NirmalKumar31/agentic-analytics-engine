@@ -72,6 +72,15 @@ export interface ReportModel {
   displayFields: DisplayField[] | null;
   /** True when the breakdown shown is not the whole answer. */
   partial: boolean;
+  /**
+   * The exact coverage, for the partial notice.
+   *
+   * "This is a partial breakdown" without numbers is a hedge. The numbers
+   * are what make it actionable -- 25 of 45 groups, 3,575 of 6,435 matching
+   * rows -- and dropping them was a regression this file's first draft
+   * introduced and `answerFirst.test.tsx` caught.
+   */
+  partialDetail: string | null;
   compatibilityDerived: boolean;
 }
 
@@ -161,6 +170,7 @@ function fromPresentation(
     previewRows: table?.preview_limit ?? 12,
     displayFields: table?.display_fields ?? presentation.display_fields ?? null,
     partial: presentation.scope.complete === false,
+    partialDetail: presentationScope(presentation),
     compatibilityDerived: Boolean(presentation.compatibility_derived),
   };
 }
@@ -250,6 +260,7 @@ function fromFindings({
     previewRows: 12,
     displayFields: null,
     partial: complete === false,
+    partialDetail: scope,
     compatibilityDerived: false,
   };
 }

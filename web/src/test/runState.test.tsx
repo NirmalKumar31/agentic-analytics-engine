@@ -8,7 +8,7 @@
 
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
-import { ComparisonView } from "../components/ComparisonView";
+import { CompareWorkspace } from "../components/CompareWorkspace";
 import { runState } from "../lib/runState";
 import type { Finding, RunPayload } from "../lib/types";
 
@@ -128,7 +128,7 @@ describe("Compare Both terminal states", () => {
 
   it("deterministic completes and AI refuses", () => {
     render(
-      <ComparisonView
+      <CompareWorkspace
         question="q"
         deterministic={side({
           run: run({ status: "completed", findings: [finding] }),
@@ -152,7 +152,7 @@ describe("Compare Both terminal states", () => {
 
   it("deterministic refuses and AI completes", () => {
     render(
-      <ComparisonView
+      <CompareWorkspace
         question="q"
         deterministic={side({ run: run({ status: "refused" }) })}
         ai={side({ run: run({ status: "completed", findings: [finding] }) })}
@@ -163,7 +163,7 @@ describe("Compare Both terminal states", () => {
 
   it("one side fails", () => {
     render(
-      <ComparisonView
+      <CompareWorkspace
         question="q"
         deterministic={side({
           run: run({ status: "completed", findings: [finding] }),
@@ -179,7 +179,7 @@ describe("Compare Both terminal states", () => {
 
   it("both refuse", () => {
     render(
-      <ComparisonView
+      <CompareWorkspace
         question="q"
         deterministic={side({ run: run({ status: "refused" }) })}
         ai={side({ run: run({ status: "refused" }) })}
@@ -191,7 +191,7 @@ describe("Compare Both terminal states", () => {
 
   it("verification publishes zero findings", () => {
     render(
-      <ComparisonView
+      <CompareWorkspace
         question="q"
         deterministic={side({
           run: run({ status: "completed", findings: [] }),
@@ -212,7 +212,7 @@ describe("Compare Both terminal states", () => {
 
   it("both complete, and then says nothing extra", () => {
     render(
-      <ComparisonView
+      <CompareWorkspace
         question="q"
         deterministic={side({
           run: run({ status: "completed", findings: [finding] }),
@@ -233,7 +233,7 @@ describe("Compare Both terminal states", () => {
       "cancelled",
     ]) {
       const { container, unmount } = render(
-        <ComparisonView
+        <CompareWorkspace
           question="q"
           deterministic={side({ run: run({ status }) })}
           ai={side({ run: run({ status }) })}

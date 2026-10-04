@@ -5,9 +5,8 @@ import { DatasetContextBar } from "./components/DatasetContextBar";
 import { EvidenceDrawer } from "./components/EvidenceDrawer";
 import { LandingView } from "./components/LandingView";
 import { ProductHeader } from "./components/ProductHeader";
-import { ProvenanceDrawer } from "./components/ProvenanceDrawer";
 import { QuestionComposer } from "./components/QuestionComposer";
-import { ReportWorkspace, type ProvenanceSide } from "./components/ReportWorkspace";
+import { ReportWorkspace } from "./components/ReportWorkspace";
 import { RunProgress } from "./components/RunProgress";
 import { SchemaInspector } from "./components/SchemaInspector";
 import { SideSheet } from "./components/SideSheet";
@@ -27,7 +26,6 @@ import type {
 } from "./lib/types";
 import { useRunEvents } from "./lib/useRunEvents";
 
-type ProvenanceTarget = { side: ProvenanceSide; findingId: string };
 
 export function App() {
   const [config, setConfig] = useState<ServerConfig | null>(null);
@@ -39,7 +37,6 @@ export function App() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showTrace, setShowTrace] = useState(false);
-  const [target, setTarget] = useState<ProvenanceTarget | null>(null);
   const [replay, setReplay] = useState<RecordingSummary | null>(null);
   const [uiMode, setUiMode] = useState<UiMode>("auto");
   const [theme, toggleTheme] = useTheme();
@@ -181,7 +178,7 @@ export function App() {
   }, [comparison]);
 
   const reset = useCallback(() => {
-    setRun(null); setRunId(null); setReplay(null); setTarget(null);
+    setRun(null); setRunId(null); setReplay(null);
     setComparison(null); setAiRun(null); setAiError(null);
   }, []);
 
@@ -191,7 +188,7 @@ export function App() {
     try { await api.endSession(session.session_id); } catch { /* expired is already gone */ }
     finally {
       setSession(null); setRun(null); setRunId(null); setReplay(null);
-      setTarget(null); setQuestion(""); setBusy(false);
+      setQuestion(""); setBusy(false);
     }
   }, [session]);
 
@@ -206,8 +203,13 @@ export function App() {
   useEffect(() => { setEvidenceOpen(false); }, [runId]);
   useEffect(() => { setSchemaOpen(false); }, [session?.session_id]);
 
-  const provenanceRun = target ? (target.side === "ai" ? aiRun : run) : null;
-  const finding = provenanceRun?.findings.find((candidate) => candidate.finding_id === target?.findingId) ?? null;
+  /*
+   * The per-finding provenance drawer is gone with the finding cards that
+   * opened it. Every published finding used to carry its own "Show work →",
+   * and six identical cards meant six triggers for six drawers describing
+   * one run. The evidence drawer carries the contract, verification, cited
+   * cells, timings and the trace once, for the report.
+   */
   const catalog = run?.dataset ?? session?.catalog ?? null;
   const hasRun = Boolean(run || runId);
 
@@ -251,7 +253,7 @@ export function App() {
           into the evidence drawer with the rest of the technical record.
         */}
         {hasRun && !run && <RunProgress events={recordedEvents} replay={replay} />}
-        <ReportWorkspace comparison={comparison} run={run} aiRun={aiRun} aiError={aiError} config={config} deterministicPending={Boolean(runId) && !finished} onShowWork={(side, findingId) => setTarget({ side, findingId })} onShowEvidence={() => setEvidenceOpen(true)} />
+        <ReportWorkspace comparison={comparison} run={run} aiRun={aiRun} aiError={aiError} config={config} deterministicPending={Boolean(runId) && !finished} onShowEvidence={() => setEvidenceOpen(true)} />
       </div>
       {evidenceOpen && run && (
         <EvidenceDrawer
@@ -275,13 +277,6 @@ export function App() {
             }
           />
         </SideSheet>
-      )}
-      {finding && provenanceRun && <ProvenanceDrawer finding={finding} results={provenanceRun.results} tasks={provenanceRun.tasks} trace={provenanceRun.mcp_trace} onClose={() => setTarget(null)} />}
-      {target && !finding && (
-        <div className="drawer" role="dialog" aria-label="Provenance unavailable">
-          <div className="drawer-head"><h3>Provenance unavailable</h3><button type="button" onClick={() => setTarget(null)}>Close</button></div>
-          <p>This finding is no longer part of the {target.side === "ai" ? "AI" : "deterministic"} run, so its working cannot be shown. Re-run the question to inspect it.</p>
-        </div>
       )}
     </AppShell>
   );

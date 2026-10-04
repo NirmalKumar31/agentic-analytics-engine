@@ -26,11 +26,11 @@ import { join } from "node:path";
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
-import { ComparisonView } from "../components/ComparisonView";
+import { CompareWorkspace } from "../components/CompareWorkspace";
 import { QuestionComposer } from "../components/QuestionComposer";
 import { DatasetContextBar } from "../components/DatasetContextBar";
 import { ModeBadge, badgeMode } from "../components/ModeBadge";
-import { PresentationReportView } from "../components/PresentationReportView";
+import { ReportUnderTest } from "./renderReport";
 import { ReportWorkspace } from "../components/ReportWorkspace";
 import { SchemaInspector } from "../components/SchemaInspector";
 import { runState } from "../lib/runState";
@@ -207,7 +207,7 @@ describe("every terminal state is distinguishable", () => {
         aiError={null}
         config={null}
         deterministicPending={false}
-        onShowWork={() => undefined}
+
       />,
     );
     const card = screen.getByTestId("run-state-card");
@@ -238,7 +238,7 @@ describe("every terminal state is distinguishable", () => {
         aiError={null}
         config={null}
         deterministicPending={false}
-        onShowWork={() => undefined}
+
       />,
     );
     expect(screen.queryByTestId("run-state-card")).toBeNull();
@@ -270,7 +270,7 @@ describe("automatic routing in Compare", () => {
 
   it("reports a recorded route as fact", () => {
     render(
-      <ComparisonView
+      <CompareWorkspace
         question="q"
         deterministic={side(resolved({ route: "rules_exact", model_calls: 0 }))}
         ai={side(run({ status: "completed", findings: [finding] }))}
@@ -286,7 +286,7 @@ describe("automatic routing in Compare", () => {
     // model-eligible, which this path does not record. Saying so is the
     // correct output; naming a route would be a guess.
     render(
-      <ComparisonView
+      <CompareWorkspace
         question="q"
         deterministic={side(resolved({ confident: false }))}
         ai={side(run({ status: "completed", findings: [finding] }))}
@@ -302,7 +302,7 @@ describe("automatic routing in Compare", () => {
 
   it("says automatic mode would have used the rules when they resolved it", () => {
     render(
-      <ComparisonView
+      <CompareWorkspace
         question="q"
         deterministic={side(resolved({ confident: true, model_calls: 0 }))}
         ai={side(run({ status: "completed", findings: [finding] }))}
@@ -315,7 +315,7 @@ describe("automatic routing in Compare", () => {
 
   it("adds no third column for a policy that is not a planner", () => {
     render(
-      <ComparisonView
+      <CompareWorkspace
         question="q"
         deterministic={side(resolved({ route: "rules_exact", model_calls: 0 }))}
         ai={side(run({ status: "completed", findings: [finding] }))}
@@ -328,7 +328,7 @@ describe("automatic routing in Compare", () => {
 
   it("shows nothing when no planning record exists", () => {
     render(
-      <ComparisonView
+      <CompareWorkspace
         question="q"
         deterministic={side(run({ status: "completed", findings: [finding] }))}
         ai={side(null)}
@@ -358,7 +358,7 @@ describe("the report workspace", () => {
         aiError={null}
         config={null}
         deterministicPending={false}
-        onShowWork={() => undefined}
+
       />,
     );
   }
@@ -555,7 +555,7 @@ describe("a query that matched nothing", () => {
         aiError={null}
         config={null}
         deterministicPending={false}
-        onShowWork={() => undefined}
+
       />,
     );
   }
@@ -586,7 +586,7 @@ describe("a query that matched nothing", () => {
 describe("the report card says what it actually is", () => {
   function present(shape: string, headline: string, caveats: unknown[] = []) {
     return render(
-      <PresentationReportView
+      <ReportUnderTest
         question="What is the total gross margin by region?"
         presentation={
           {
@@ -614,7 +614,7 @@ describe("the report card says what it actually is", () => {
           } as never
         }
         results={{}}
-        onShowWork={() => undefined}
+
       />,
     );
   }
@@ -685,7 +685,7 @@ describe("the comparison is named the same thing everywhere", () => {
     const sources = [
       "components/ModeBadge.tsx",
       "components/ModeSelector.tsx",
-      "components/ComparisonView.tsx",
+      "components/CompareWorkspace.tsx",
     ].map((f) => readFileSync(join(__dirname, "..", f), "utf8"));
 
     for (const [index, source] of sources.entries()) {

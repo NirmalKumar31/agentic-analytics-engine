@@ -8,7 +8,7 @@
 
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
-import { ReportView } from "../components/ReportView";
+import { ReportUnderTest } from "./renderReport";
 import {
   answerResult,
   directAnswer,
@@ -155,11 +155,10 @@ describe("populationClauses", () => {
   });
 });
 
-describe("ReportView order", () => {
+describe("the report order", () => {
   const results = { res_1: snapshot() };
   const render_ = (over: Partial<QueryContract> = {}) =>
-    render(
-      <ReportView
+    render(<ReportUnderTest
         question="What is the average annual revenue by region?"
         report={{
           question: "q",
@@ -183,8 +182,11 @@ describe("ReportView order", () => {
     const text = container.textContent ?? "";
     const answerAt = text.indexOf("Average annual revenue by region");
     expect(answerAt).toBeGreaterThan(-1);
-    expect(answerAt).toBeLessThan(text.indexOf("Applied analysis"));
+    // The limitation is a note *under* the answer, not above it.
     expect(answerAt).toBeLessThan(text.indexOf("A limitation."));
+    // "Applied analysis" was a resident contract panel. It is in the
+    // evidence drawer now, under "Accepted contract".
+    expect(text).not.toContain("Applied analysis");
     // The executive summary is gone beside a canonical answer. It said
     // "Each finding below passed the publication checks", which is true of
     // every report; a real one would restate the answer above it.
@@ -195,10 +197,13 @@ describe("ReportView order", () => {
     render_({
       filters: [{ column: "age", operator: ">=", value: 30 }],
     });
-    expect(screen.getByTestId("answer-population")).toHaveTextContent(
-      "age >= 30",
-    );
-    expect(screen.getByTestId("answer-rows")).toHaveTextContent("200");
+    // One context line now, rather than a `<dl>` of Population / Population
+    // rows / Observations used / Coverage. The facts are the same and all
+    // still stated; what is gone is four labelled rows between the answer
+    // and the chart.
+    const context = screen.getByTestId("answer-coverage");
+    expect(context).toHaveTextContent("age >= 30");
+    expect(context).toHaveTextContent("200");
   });
 
   it("names the requested population rather than staying silent", () => {
@@ -207,14 +212,14 @@ describe("ReportView order", () => {
     // answer covers is the coverage line's job, and conflating the two is
     // how "every row in the dataset" came to sit above a 55% result.
     render_();
-    expect(screen.getByTestId("answer-population")).toHaveTextContent(
+    expect(screen.getByTestId("answer-coverage")).toHaveTextContent(
       "no row filters requested",
     );
   });
 
   it("shows the grouped result beside the answer", () => {
     const { container } = render_();
-    const table = container.querySelector(".answer-result table");
+    const table = container.querySelector(".report-table table");
     expect(table).not.toBeNull();
     expect(table?.textContent).toContain("west");
     expect(table?.textContent).toContain("511.24");
@@ -222,13 +227,14 @@ describe("ReportView order", () => {
 
   it("does not repeat the answer in the findings list below", () => {
     const { container } = render_();
-    // The answer is itself an `article.finding`, so the rest of the app and
-    // the browser suite still select it; it must not also appear twice.
-    expect(container.querySelectorAll("article.finding")).toHaveLength(1);
-    // The findings panel is gone: with the answer above it, its whole
-    // content was "the answer above is the only published finding", a
-    // heading explaining its own emptiness. The browser suite waits on
-    // `report-panel` instead of on this heading.
+    // One published finding, and it is the answer -- so the ranked list
+    // beneath has nothing left to rank and does not render at all.
+    expect(container.querySelectorAll(".finding-item")).toHaveLength(0);
+    // The answer appears once.
+    const said = (container.textContent ?? "").match(
+      /Average annual revenue by region/g,
+    );
+    expect(said).toHaveLength(1);
     expect(screen.queryByText("Key findings")).toBeNull();
     expect(screen.getByTestId("report-panel")).toBeInTheDocument();
     // And the sentence that panel used to carry is gone with it.
@@ -236,8 +242,7 @@ describe("ReportView order", () => {
   });
 
   it("says so plainly when nothing answered the question", () => {
-    render(
-      <ReportView
+    render(<ReportUnderTest
         question="q"
         report={null}
         findings={[]}
@@ -248,11 +253,16 @@ describe("ReportView order", () => {
         onShowWork={() => {}}
       />,
     );
-    expect(screen.getByTestId("no-direct-answer")).toBeInTheDocument();
+    // The report says so in the answer slot itself rather than in a
+    // separate "no direct answer" line: there is one place a reader looks
+    // for the answer, and this is what it says when there is not one.
+    expect(screen.getByTestId("direct-answer")).toHaveTextContent(
+      /no verified finding answered/i,
+    );
   });
 });
 
-describe("ReportView empty states", () => {
+describe("the report empty states", () => {
   const base = {
     question: "q",
     report: null,
@@ -263,8 +273,7 @@ describe("ReportView empty states", () => {
   };
 
   it("reads as a completion, not a crash, and says it once", () => {
-    const { container } = render(
-      <ReportView {...base} findings={[]} results={{}} />,
+    const { container } = render(<ReportUnderTest {...base} findings={[]} results={{}} />,
     );
     expect(
       screen.getByText(/no verified finding answered the requested analysis/i),
@@ -280,18 +289,22 @@ describe("ReportView empty states", () => {
   it("distinguishes supporting context from a missing direct answer", () => {
     // Published, but citing a profile rather than the executed contract.
     const results = { res_1: snapshot({ tool_name: "profile_table" }) };
-    render(<ReportView {...base} findings={[finding()]} results={results} />);
-    expect(screen.getByTestId("no-direct-answer")).toHaveTextContent(
-      /supporting context/i,
+    render(<ReportUnderTest {...base} findings={[finding()]} results={results} />);
+    // A published finding citing a profile rather than the executed
+    // contract is not the answer to the question -- but it is the engine's
+    // own first published statement, and leading with it in the engine's
+    // words beats leading with a sentence about the absence of an answer.
+    // The alternative shipped briefly in step E and read "No published
+    // finding answered this question directly" above three verified claims.
+    expect(screen.getByTestId("direct-answer")).toHaveTextContent(
+      /Average annual revenue by region/i,
     );
-    expect(screen.getByText("Key findings")).toBeVisible();
   });
 });
 
 describe("the report anchor the browser suite waits on", () => {
   it("renders the Key findings heading even when nothing was published", () => {
-    render(
-      <ReportView
+    render(<ReportUnderTest
         question="q"
         report={null}
         findings={[]}
@@ -307,10 +320,12 @@ describe("the report anchor the browser suite waits on", () => {
     // other signal that the report had rendered at all.
     // Nothing published at all: the panel still appears, because now it
     // is saying something a reader needs rather than restating the answer.
-    expect(screen.getByText("Key findings")).toBeVisible();
-    expect(
-      screen.getByText("None were published for this question."),
-    ).toBeVisible();
+    // The anchor is `report-panel`, and it is present even when nothing
+    // was published.
+    expect(screen.getByTestId("report-panel")).toBeInTheDocument();
+    expect(screen.getByTestId("direct-answer")).toHaveTextContent(
+      /no verified finding answered/i,
+    );
   });
 });
 
@@ -332,8 +347,7 @@ describe("coverage wording", () => {
     } as never);
 
   const report = (snap: ReturnType<typeof snapshot>) =>
-    render(
-      <ReportView
+    render(<ReportUnderTest
         question="q"
         report={null}
         findings={[finding()]}
@@ -353,7 +367,7 @@ describe("coverage wording", () => {
     expect(screen.getByTestId("answer-coverage")).toHaveTextContent(
       "6,435 of 6,435 matching rows",
     );
-    expect(screen.getByTestId("answer-rows")).toHaveTextContent("6,435");
+    expect(screen.getByTestId("answer-coverage")).toHaveTextContent("6,435");
     expect(screen.queryByTestId("partial-answer")).toBeNull();
   });
 
@@ -392,6 +406,6 @@ describe("coverage wording", () => {
         rows_represented: 3575,
       }),
     );
-    expect(screen.getByTestId("answer-rows")).toHaveTextContent("3,575");
+    expect(screen.getByTestId("answer-coverage")).toHaveTextContent("3,575");
   });
 });

@@ -7,7 +7,7 @@
 
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
-import { ComparisonView } from "../components/ComparisonView";
+import { CompareWorkspace } from "../components/CompareWorkspace";
 import { canonicalOf, contractDifferences } from "../lib/contractDiff";
 import type {
   CanonicalContract,
@@ -131,7 +131,7 @@ describe("contractDifferences", () => {
   });
 });
 
-describe("ComparisonView contract diff", () => {
+describe("CompareWorkspace contract diff", () => {
   const side = (run: RunPayload | null) => ({
     title: "T",
     subtitle: "S",
@@ -145,7 +145,7 @@ describe("ComparisonView contract diff", () => {
 
   it("shows the differing rows when the two panes disagree", () => {
     render(
-      <ComparisonView
+      <CompareWorkspace
         question="Q"
         deterministic={side(runWith(contract()))}
         ai={side(runWith(withCanonical({ dimensions: ["store_id"] })))}
@@ -160,7 +160,7 @@ describe("ComparisonView contract diff", () => {
 
   it("shows no diff table when the panes agree", () => {
     render(
-      <ComparisonView
+      <CompareWorkspace
         question="Q"
         deterministic={side(runWith(contract()))}
         ai={side(runWith(contract({ interpretation: "ai-grounded" })))}
@@ -177,7 +177,7 @@ describe("ComparisonView contract diff", () => {
 
   it("reads identical canonical fields as agreement, whatever the hash says", () => {
     render(
-      <ComparisonView
+      <CompareWorkspace
         question="Q"
         deterministic={side(runWith(contract()))}
         ai={side(runWith(contract({ contract_hash: "hash-z" })))}

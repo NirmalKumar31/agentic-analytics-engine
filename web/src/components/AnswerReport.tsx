@@ -37,28 +37,50 @@ export function AnswerReport({
   publishedCount,
   withheldCount,
   onShowEvidence,
+  compact,
 }: {
   question: string;
   model: ReportModel;
   publishedCount: number;
   withheldCount: number;
   /** Opens the evidence drawer. One trigger, for the whole report. */
-  onShowEvidence: () => void;
+  onShowEvidence?: () => void;
+  /**
+   * Inside a Compare pane.
+   *
+   * The question is stated once at the top of the comparison, and the
+   * comparison has one evidence control for both strategies -- so a pane
+   * repeats neither. Without this the screen carried the question three
+   * times and three "Show work" buttons, which is the duplication Compare
+   * exists to remove.
+   */
+  compact?: boolean;
 }) {
   return (
-    <article className="report" data-testid="report-panel">
-      <p className="report-question" data-testid="report-question">
-        {question}
-      </p>
+    <article
+      className={`report${compact ? " report--compact" : ""}`}
+      data-testid={compact ? "compare-report" : "report-panel"}
+    >
+      {!compact && (
+        <p className="report-question" data-testid="report-question">
+          {question}
+        </p>
+      )}
 
       {/* Only when the shape is not an answer. A "Verified answer" label
           above every answer is a badge the reader learns to skip, and it
           delays the sentence they came for by one line. */}
       {model.eyebrow && <p className="report-eyebrow">{model.eyebrow}</p>}
 
-      <h1 className="display" data-testid="direct-answer">
-        {model.answer}
-      </h1>
+      {compact ? (
+        <p className="compare-answer" data-testid="direct-answer">
+          {model.answer}
+        </p>
+      ) : (
+        <h1 className="display" data-testid="direct-answer">
+          {model.answer}
+        </h1>
+      )}
 
       {model.context && (
         <p className="context-line" data-testid="answer-coverage">
@@ -68,8 +90,9 @@ export function AnswerReport({
 
       {model.partial && (
         <p className="notice warn" role="status" data-testid="partial-answer">
-          This is a partial breakdown. It is not the complete answer to the
-          question as asked.
+          This is a partial breakdown.
+          {model.partialDetail ? ` ${model.partialDetail}.` : ""} It is not the
+          complete answer to the question as asked.
         </p>
       )}
 
@@ -135,6 +158,7 @@ export function AnswerReport({
       )}
 
       {/* One control. Everything technical is behind it. */}
+      {!compact && onShowEvidence && (
       <div className="report-actions">
         <button
           type="button"
@@ -152,6 +176,7 @@ export function AnswerReport({
           Print / Save PDF
         </button>
       </div>
+      )}
 
       {model.compatibilityDerived && (
         <p className="report-compat">

@@ -1,6 +1,5 @@
 import { AnswerReport } from "./AnswerReport";
-import { ComparisonView } from "./ComparisonView";
-import { ReportView } from "./ReportView";
+import { CompareWorkspace } from "./CompareWorkspace";
 import { RunStateCard } from "./RunStateCard";
 import { reportModel } from "../lib/reportModel";
 import { runState } from "../lib/runState";
@@ -10,8 +9,6 @@ import type {
   ServerConfig,
 } from "../lib/types";
 
-export type ProvenanceSide = "deterministic" | "ai";
-
 export function ReportWorkspace({
   comparison,
   run,
@@ -19,7 +16,6 @@ export function ReportWorkspace({
   aiError,
   config,
   deterministicPending,
-  onShowWork,
   onShowEvidence,
 }: {
   comparison: ComparisonStarted | null;
@@ -28,13 +24,12 @@ export function ReportWorkspace({
   aiError: string | null;
   config: ServerConfig | null;
   deterministicPending: boolean;
-  onShowWork: (side: ProvenanceSide, findingId: string) => void;
   /** Opens the evidence drawer for the single-run report. */
   onShowEvidence?: () => void;
 }) {
   if (comparison) {
     return (
-      <ComparisonView
+      <CompareWorkspace
         question={comparison.question}
         deterministic={{
           title: "Deterministic Analytics",
@@ -42,12 +37,8 @@ export function ReportWorkspace({
           run,
           error: null,
           pending: deterministicPending,
-          children: run ? (
-            <RunReport
-              run={run}
-              onShowWork={(id) => onShowWork("deterministic", id)}
-            />
-          ) : null,
+          usage: run?.usage,
+          children: run ? <PaneReport run={run} /> : null,
         }}
         ai={{
           title: "AI Analytics",
@@ -67,10 +58,7 @@ export function ReportWorkspace({
           usage: aiRun?.usage,
           children:
             aiRun && runState(aiRun).showsReport ? (
-              <RunReport
-                run={aiRun}
-                onShowWork={(id) => onShowWork("ai", id)}
-              />
+              <PaneReport run={aiRun} />
             ) : null,
         }}
       />
@@ -125,24 +113,29 @@ export function ReportWorkspace({
   );
 }
 
-function RunReport({
-  run,
-  onShowWork,
-}: {
-  run: RunPayload;
-  onShowWork: (findingId: string) => void;
-}) {
+/**
+ * One strategy's report, inside a Compare pane.
+ *
+ * The same answer-first report as a single run, compact: no repeated
+ * question and no second evidence control, because Compare states the
+ * question once and carries one "Inspect both traces".
+ */
+function PaneReport({ run }: { run: RunPayload }) {
   return (
-    <ReportView
+    <AnswerReport
+      compact
       question={run.question}
-      report={run.report}
-      findings={run.findings}
-      rejected={run.rejected}
-      charts={run.charts}
-      results={run.results}
-      queryContract={run.query_contract}
-      presentation={run.presentation}
-      onShowWork={onShowWork}
+      model={reportModel({
+        presentation: run.presentation,
+        report: run.report,
+        findings: run.findings,
+        rejected: run.rejected,
+        charts: run.charts,
+        results: run.results,
+        queryContract: run.query_contract ?? null,
+      })}
+      publishedCount={run.findings.length}
+      withheldCount={run.rejected.length}
     />
   );
 }

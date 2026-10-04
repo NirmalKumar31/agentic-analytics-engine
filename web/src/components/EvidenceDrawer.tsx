@@ -19,6 +19,8 @@
  * that is easy to get wrong and invisible when it is.
  */
 
+import { useState } from "react";
+
 import { ActivityLog } from "./ActivityLog";
 import { PlanningAudit } from "./PlanningAudit";
 import { RunTimeline } from "./RunTimeline";
@@ -67,6 +69,39 @@ export function EvidenceDrawer({
   onToggleTrace: () => void;
   onClose: () => void;
 }) {
+  return (
+    <SideSheet title="Evidence" testId="evidence-drawer" onClose={onClose}>
+      <EvidenceBody
+        run={run}
+        showTrace={showTrace}
+        onToggleTrace={onToggleTrace}
+      />
+    </SideSheet>
+  );
+}
+
+/**
+ * The evidence itself, without the sheet around it.
+ *
+ * Shared with `CompareEvidenceDrawer`, which shows one of these per tab.
+ * Keeping it in one place is what lets `EVIDENCE_SECTIONS` mean something:
+ * a datum dropped here is dropped from both drawers, and the test catches
+ * it once.
+ */
+export function EvidenceBody({
+  run,
+  showTrace,
+  onToggleTrace,
+}: {
+  run: RunPayload;
+  /** Optional: the compare drawer renders traces collapsed by default. */
+  showTrace?: boolean;
+  onToggleTrace?: () => void;
+}) {
+  const [localTrace, setLocalTrace] = useState(false);
+  const traceShown = showTrace ?? localTrace;
+  const toggleTrace = onToggleTrace ?? (() => setLocalTrace((v) => !v));
+
   const resolution = resolutionOf(run);
   const contract = run.query_contract ?? null;
   const timings = run.timings ?? null;
@@ -83,7 +118,7 @@ export function EvidenceDrawer({
   );
 
   return (
-    <SideSheet title="Evidence" testId="evidence-drawer" onClose={onClose}>
+    <>
       <dl className="evidence-list">
         <Row term="Route">
           {resolution?.route ?? run.mode ?? "deterministic"}
@@ -244,11 +279,11 @@ export function EvidenceDrawer({
         <ActivityLog
           events={run.events}
           trace={run.mcp_trace ?? []}
-          showTrace={showTrace}
-          onToggleTrace={onToggleTrace}
+          showTrace={traceShown}
+          onToggleTrace={toggleTrace}
           running={false}
         />
       </section>
-    </SideSheet>
+    </>
   );
 }
