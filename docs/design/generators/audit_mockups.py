@@ -4,19 +4,30 @@ A mockup that says 200 rows on one sheet and 240 on another is not a style
 problem: it is the same class of defect as a chart whose axis contradicts its
 headline, and a reviewer who spots it stops trusting the rest of the package.
 """
-import pathlib, re, sys
+
+import json
+import pathlib
+import re
+import sys
 import xml.etree.ElementTree as ET
 
-ROOT = pathlib.Path('docs/design')
-SHEETS = sorted(ROOT.glob('mockups/*.svg')) + sorted(ROOT.glob('wireframes/*.svg')) + [ROOT / 'visual-system.svg']
+ROOT = pathlib.Path("docs/design")
+SHEETS = (
+    sorted(ROOT.glob("mockups/*.svg"))
+    + sorted(ROOT.glob("wireframes/*.svg"))
+    + [ROOT / "visual-system.svg"]
+)
 fails, checks = [], 0
+
 
 def fail(sheet, msg):
     fails.append(f"{sheet}: {msg}")
 
+
 def text_of(path):
     root = ET.parse(path).getroot()
-    return [(e.text or "") for e in root.iter('{http://www.w3.org/2000/svg}text')]
+    return [(e.text or "") for e in root.iter("{http://www.w3.org/2000/svg}text")]
+
 
 ALL = {}
 for p in SHEETS:
@@ -30,7 +41,7 @@ raw = {p.name: p.read_text() for p in SHEETS}
 
 # 1. No unescaped ampersand survived `esc()`.
 for name, src in raw.items():
-    for m in re.finditer(r'&(?!amp;|lt;|gt;|quot;|apos;|#\d+;)', src):
+    for m in re.finditer(r"&(?!amp;|lt;|gt;|quot;|apos;|#\d+;)", src):
         fail(name, f"unescaped & at offset {m.start()}")
     checks += 1
 
@@ -64,7 +75,7 @@ for name, texts in ALL.items():
 SHA = "5913f6e"
 for name, texts in ALL.items():
     for t in texts:
-        for m in re.finditer(r'\bsha ([0-9a-f]{7})\b', t):
+        for m in re.finditer(r"\bsha ([0-9a-f]{7})\b", t):
             if m.group(1) != SHA:
                 fail(name, f"build sha {m.group(1)} != {SHA}")
             checks += 1
@@ -79,11 +90,17 @@ for name, texts in ALL.items():
 
 # 6. One terminal state per state sheet.
 STATUSES = ["refused", "completed", "failed", "timeout", "budget_exhausted", "cancelled"]
-EXPECTED = {"refused": "refused", "no-findings": "completed", "verification-withheld": "completed",
-            "quota-stopped": "budget_exhausted", "failed": "failed", "cancelled": "cancelled"}
+EXPECTED = {
+    "refused": "refused",
+    "no-findings": "completed",
+    "verification-withheld": "completed",
+    "quota-stopped": "budget_exhausted",
+    "failed": "failed",
+    "cancelled": "cancelled",
+}
 seen_states = set()
 for name, texts in ALL.items():
-    m = re.match(r'state-(.+)-(light|dark)\.svg$', name)
+    m = re.match(r"state-(.+)-(light|dark)\.svg$", name)
     if not m:
         continue
     key = m.group(1)
@@ -93,14 +110,16 @@ for name, texts in ALL.items():
         fail(name, f"unknown terminal state {key!r}")
         continue
     want = EXPECTED[key]
-    found = {s for s in STATUSES if re.search(rf'\b{s}\b', joined)}
+    found = {s for s in STATUSES if re.search(rf"\b{s}\b", joined)}
     # `completed` legitimately appears inside the quota sheet's prose? It must not.
     if found != {want}:
         fail(name, f"expected exactly the status {want!r}, found {sorted(found)}")
     checks += 1
     # The sheet must carry one headline register, not two stacked states.
     if joined.count("outcome ") != 1:
-        fail(name, f"expected exactly one `outcome ...` truth line, found {joined.count('outcome ')}")
+        fail(
+            name, f"expected exactly one `outcome ...` truth line, found {joined.count('outcome ')}"
+        )
     checks += 1
 
 MUST_COVER = set(EXPECTED)
@@ -114,8 +133,11 @@ for name, texts in ALL.items():
     if not name.startswith("compare-") or "evidence" in name:
         continue
     joined = " | ".join(texts)
-    if joined.count("Inspect both traces") != 2:   # desktop pane + mobile pane
-        fail(name, f"expected one Inspect-both-traces action per pane, found {joined.count('Inspect both traces')}")
+    if joined.count("Inspect both traces") != 2:  # desktop pane + mobile pane
+        fail(
+            name,
+            f"expected one Inspect-both-traces action per pane, found {joined.count('Inspect both traces')}",
+        )
     if "Evidence · deterministic" in joined or "Evidence · AI" in joined:
         fail(name, "two persistent per-strategy evidence buttons are still present")
     checks += 2
@@ -125,9 +147,9 @@ for name, texts in ALL.items():
     if "compare-diff" not in name:
         continue
     joined = " | ".join(texts)
-    same = len(re.findall(r'\bsame\b', joined))
-    differs = len(re.findall(r'\bdiffers\b', joined))
-    cap = re.search(r'(\d+) fields agree · (\d+) differ', joined)
+    same = len(re.findall(r"\bsame\b", joined))
+    differs = len(re.findall(r"\bdiffers\b", joined))
+    cap = re.search(r"(\d+) fields agree · (\d+) differ", joined)
     if not cap:
         fail(name, "no agree/differ caption found")
     else:
@@ -138,7 +160,7 @@ for name, texts in ALL.items():
 
 # 9. The composite terminal sheet must say it is documentation.
 for name, texts in ALL.items():
-    if not re.match(r'terminal-(light|dark)\.svg', name):
+    if not re.match(r"terminal-(light|dark)\.svg", name):
         continue
     joined = " | ".join(texts)
     if "DOCUMENTATION COMPOSITE" not in joined.upper():
@@ -148,8 +170,8 @@ for name, texts in ALL.items():
     checks += 2
 
 # 10. The arithmetic behind the report table, checked rather than eyeballed.
-import json
-facts_path = ROOT / 'facts.json'
+
+facts_path = ROOT / "facts.json"
 if not facts_path.exists():
     fails.append("facts.json missing — run sheets.py")
 else:
@@ -159,7 +181,9 @@ else:
     shares = [float(r[2].rstrip("%")) for r in rows]
 
     if sum(revenues) != facts["report_table"]["revenue_total"]:
-        fails.append(f"report table revenues sum to {sum(revenues):,}, total says {facts['report_table']['revenue_total']:,}")
+        fails.append(
+            f"report table revenues sum to {sum(revenues):,}, total says {facts['report_table']['revenue_total']:,}"
+        )
     checks += 1
     if abs(sum(shares) - 100.0) > 0.15:
         fails.append(f"share column sums to {sum(shares):.1f}%, not 100%")
@@ -167,7 +191,7 @@ else:
     if revenues != sorted(revenues, reverse=True):
         fails.append("report table is captioned `ranked` but is not in descending revenue order")
     checks += 1
-    for r, share in zip(rows, shares):
+    for r, share in zip(rows, shares, strict=False):
         want = int(r[1].replace(",", "")) / facts["report_table"]["revenue_total"] * 100
         if abs(share - want) > 0.05:
             fails.append(f"{r[0]}: share {share}% != {want:.1f}% of total")
