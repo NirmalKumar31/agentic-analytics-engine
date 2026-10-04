@@ -29,6 +29,8 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
+import { modules } from "./stylesheet";
+
 const TOKENS = readFileSync(
   join(__dirname, "..", "styles", "tokens.css"),
   "utf8",
@@ -314,6 +316,69 @@ describe("text on a filled control clears 4.5:1", () => {
         expect(
           Number(ratio.toFixed(2)),
           `--${fg} (${palette[fg]}) on --${fill} (${palette[fill]})`,
+        ).toBeGreaterThanOrEqual(4.5);
+      });
+    }
+  }
+});
+
+/**
+ * Every (background, colour) pair the stylesheet actually declares.
+ *
+ * `FILL_PAIRS` above is a hand-kept list, and a hand-kept list is exactly
+ * what missed `.btn.primary` in the first place. This derives the pairs
+ * from the CSS instead: any rule that sets both `background: var(--x)` and
+ * `color: var(--y)` is a filled element with a foreground on it, and both
+ * themes are measured. Adding a new filled control covers itself.
+ *
+ * Only token-to-token pairs are checked. A literal hex in a rule is a
+ * separate problem and `cssArchitecture.test.ts` is where it is caught.
+ */
+function declaredFillPairs(): Array<[string, string, string]> {
+  const out: Array<[string, string, string]> = [];
+  const seen = new Set<string>();
+  for (const [module, source] of modules()) {
+    const css = withoutComments(source);
+    // Brace-matched rule bodies, with the selector that introduced them.
+    for (const match of css.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
+      const selector = match[1]!.trim().replace(/\s+/g, " ");
+      const body = match[2]!;
+      const bg = /background(?:-color)?:\s*var\(\s*--([\w-]+)\s*\)/.exec(body);
+      const fg = /(?<!-)color:\s*var\(\s*--([\w-]+)\s*\)/.exec(body);
+      if (!bg || !fg) continue;
+      const key = `${fg[1]}|${bg[1]}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      out.push([fg[1]!, bg[1]!, `${module} ${selector}`]);
+    }
+  }
+  return out;
+}
+
+describe("every filled element declared in the stylesheet", () => {
+  const pairs = declaredFillPairs();
+
+  it("finds pairs to measure", () => {
+    // A derivation that silently matched nothing would pass every
+    // assertion below by having none to make.
+    expect(pairs.length).toBeGreaterThan(4);
+  });
+
+  for (const [theme, palette] of THEMES) {
+    for (const [fg, bg, where] of pairs) {
+      it(`${theme}: --${fg} on --${bg} (${where})`, () => {
+        const foreground = palette[fg];
+        const background = palette[bg];
+        // A pair naming a token the palette does not define is itself a
+        // defect: the browser drops the declaration and the element
+        // inherits something nobody chose.
+        expect(foreground, `--${fg} is not defined`).toBeTruthy();
+        expect(background, `--${bg} is not defined`).toBeTruthy();
+
+        const ratio = contrast(foreground!, background!);
+        expect(
+          Number(ratio.toFixed(2)),
+          `${where}: --${fg} (${foreground}) on --${bg} (${background})`,
         ).toBeGreaterThanOrEqual(4.5);
       });
     }

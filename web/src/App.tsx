@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { AppShell } from "./components/AppShell";
 import { DatasetContextBar } from "./components/DatasetContextBar";
+import { EvidenceDrawer } from "./components/EvidenceDrawer";
 import { LandingView } from "./components/LandingView";
 import { ProductHeader } from "./components/ProductHeader";
 import { ProvenanceDrawer } from "./components/ProvenanceDrawer";
@@ -198,6 +199,11 @@ export function App() {
   // default and closed again whenever the dataset changes: a sheet left
   // open across an upload would be describing the previous file.
   const [schemaOpen, setSchemaOpen] = useState(false);
+  // The evidence drawer. One per report, opened by one control, closed on
+  // Escape. Reset whenever a new run begins, so a drawer left open is never
+  // describing the previous run.
+  const [evidenceOpen, setEvidenceOpen] = useState(false);
+  useEffect(() => { setEvidenceOpen(false); }, [runId]);
   useEffect(() => { setSchemaOpen(false); }, [session?.session_id]);
 
   const provenanceRun = target ? (target.side === "ai" ? aiRun : run) : null;
@@ -239,9 +245,22 @@ export function App() {
                     ? session.summary
                     : null
                 } question={question} onQuestionChange={setQuestion} onAsk={() => void ask()} busy={busy} uiMode={uiMode} onModeChange={setUiMode} />}
-        {hasRun && <RunProgress run={run} events={recordedEvents} replay={replay} showTrace={showTrace} onToggleTrace={() => setShowTrace((value) => !value)} running={Boolean(runId) && !finished} />}
-        <ReportWorkspace comparison={comparison} run={run} aiRun={aiRun} aiError={aiError} config={config} deterministicPending={Boolean(runId) && !finished} onShowWork={(side, findingId) => setTarget({ side, findingId })} />
+        {/*
+          The timeline narrates a run in flight. Once the report exists it
+          is no longer the thing on screen -- the answer is -- so it moves
+          into the evidence drawer with the rest of the technical record.
+        */}
+        {hasRun && !run && <RunProgress events={recordedEvents} replay={replay} />}
+        <ReportWorkspace comparison={comparison} run={run} aiRun={aiRun} aiError={aiError} config={config} deterministicPending={Boolean(runId) && !finished} onShowWork={(side, findingId) => setTarget({ side, findingId })} onShowEvidence={() => setEvidenceOpen(true)} />
       </div>
+      {evidenceOpen && run && (
+        <EvidenceDrawer
+          run={run}
+          showTrace={showTrace}
+          onToggleTrace={() => setShowTrace((value) => !value)}
+          onClose={() => setEvidenceOpen(false)}
+        />
+      )}
       {schemaOpen && session?.summary && (
         <SideSheet
           title="Dataset schema"

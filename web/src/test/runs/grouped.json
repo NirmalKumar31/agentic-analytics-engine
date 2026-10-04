@@ -1,0 +1,994 @@
+{
+  "run_id": "run_d85823ab177e",
+  "session_id": "ses_Ij9tN_KFusSy_MLB",
+  "question": "What is the total revenue by region?",
+  "status": "completed",
+  "created_at": 1791084234.035986,
+  "mode": "deterministic",
+  "provider_kind": "scripted",
+  "engine_version": "0.1.0",
+  "build_sha": "unknown",
+  "dataset_fingerprint": "sha256:8e9ad9348f7dc18660d78ed3cd4d4b32",
+  "usage": {
+    "input_tokens": 4441,
+    "output_tokens": 251,
+    "provider_attempts": 6,
+    "estimated_cost_microdollars": 0
+  },
+  "dataset": {
+    "dataset_kind": "demo",
+    "source": "Commerce demo warehouse",
+    "dataset_fingerprint": "sha256:8e9ad9348f7dc18660d78ed3cd4d4b32",
+    "dataset_seed": 20260924,
+    "tables": [
+      {
+        "name": "customers",
+        "row_count": 30000,
+        "columns": [
+          {
+            "name": "customer_id",
+            "type": "BIGINT"
+          },
+          {
+            "name": "signup_date",
+            "type": "DATE"
+          },
+          {
+            "name": "customer_segment",
+            "type": "VARCHAR"
+          },
+          {
+            "name": "region",
+            "type": "VARCHAR"
+          },
+          {
+            "name": "acquisition_channel",
+            "type": "VARCHAR"
+          }
+        ]
+      },
+      {
+        "name": "products",
+        "row_count": 800,
+        "columns": [
+          {
+            "name": "product_id",
+            "type": "BIGINT"
+          },
+          {
+            "name": "product_name",
+            "type": "VARCHAR"
+          },
+          {
+            "name": "category",
+            "type": "VARCHAR"
+          },
+          {
+            "name": "brand",
+            "type": "VARCHAR"
+          },
+          {
+            "name": "list_price",
+            "type": "DOUBLE"
+          },
+          {
+            "name": "unit_cost",
+            "type": "DOUBLE"
+          }
+        ]
+      },
+      {
+        "name": "orders",
+        "row_count": 104915,
+        "columns": [
+          {
+            "name": "order_id",
+            "type": "BIGINT"
+          },
+          {
+            "name": "customer_id",
+            "type": "BIGINT"
+          },
+          {
+            "name": "order_date",
+            "type": "DATE"
+          },
+          {
+            "name": "channel",
+            "type": "VARCHAR"
+          },
+          {
+            "name": "discount_rate",
+            "type": "DOUBLE"
+          },
+          {
+            "name": "shipping_cost",
+            "type": "DOUBLE"
+          },
+          {
+            "name": "status",
+            "type": "VARCHAR"
+          },
+          {
+            "name": "is_first_order",
+            "type": "BOOLEAN"
+          }
+        ]
+      },
+      {
+        "name": "order_items",
+        "row_count": 239794,
+        "columns": [
+          {
+            "name": "order_item_id",
+            "type": "BIGINT"
+          },
+          {
+            "name": "order_id",
+            "type": "BIGINT"
+          },
+          {
+            "name": "product_id",
+            "type": "BIGINT"
+          },
+          {
+            "name": "quantity",
+            "type": "BIGINT"
+          },
+          {
+            "name": "unit_price",
+            "type": "DOUBLE"
+          },
+          {
+            "name": "unit_cost",
+            "type": "DOUBLE"
+          },
+          {
+            "name": "list_price",
+            "type": "DOUBLE"
+          },
+          {
+            "name": "discount_amount",
+            "type": "DOUBLE"
+          }
+        ]
+      },
+      {
+        "name": "returns",
+        "row_count": 19471,
+        "columns": [
+          {
+            "name": "return_id",
+            "type": "BIGINT"
+          },
+          {
+            "name": "order_id",
+            "type": "BIGINT"
+          },
+          {
+            "name": "order_item_id",
+            "type": "BIGINT"
+          },
+          {
+            "name": "product_id",
+            "type": "BIGINT"
+          },
+          {
+            "name": "customer_id",
+            "type": "BIGINT"
+          },
+          {
+            "name": "return_date",
+            "type": "DATE"
+          },
+          {
+            "name": "return_reason",
+            "type": "VARCHAR"
+          },
+          {
+            "name": "refund_amount",
+            "type": "DOUBLE"
+          }
+        ]
+      },
+      {
+        "name": "shipping_events",
+        "row_count": 104915,
+        "columns": [
+          {
+            "name": "order_id",
+            "type": "BIGINT"
+          },
+          {
+            "name": "carrier",
+            "type": "VARCHAR"
+          },
+          {
+            "name": "region",
+            "type": "VARCHAR"
+          },
+          {
+            "name": "shipped_date",
+            "type": "DATE"
+          },
+          {
+            "name": "promised_days",
+            "type": "BIGINT"
+          },
+          {
+            "name": "delivered_date",
+            "type": "DATE"
+          },
+          {
+            "name": "delivery_days",
+            "type": "BIGINT"
+          },
+          {
+            "name": "is_late",
+            "type": "BOOLEAN"
+          }
+        ]
+      },
+      {
+        "name": "marketing_daily",
+        "row_count": 2924,
+        "columns": [
+          {
+            "name": "date",
+            "type": "DATE"
+          },
+          {
+            "name": "channel",
+            "type": "VARCHAR"
+          },
+          {
+            "name": "campaign",
+            "type": "VARCHAR"
+          },
+          {
+            "name": "spend",
+            "type": "DOUBLE"
+          },
+          {
+            "name": "impressions",
+            "type": "BIGINT"
+          },
+          {
+            "name": "clicks",
+            "type": "BIGINT"
+          }
+        ]
+      }
+    ],
+    "metrics_available": [
+      "average_order_value",
+      "avg_delivery_days",
+      "avg_discount_rate",
+      "cogs",
+      "contribution_margin",
+      "contribution_margin_pct",
+      "customer_count",
+      "discount_amount",
+      "gross_margin_pct",
+      "gross_profit",
+      "late_delivery_rate",
+      "marketing_spend",
+      "orders",
+      "refund_amount",
+      "repeat_purchase_rate",
+      "return_rate",
+      "revenue",
+      "roas",
+      "shipments",
+      "units"
+    ]
+  },
+  "report": {
+    "question": "What is the total revenue by region?",
+    "executive_summary": "Each finding below passed the publication checks and is listed once, with the results it was checked against.",
+    "key_findings": [
+      "Revenue by region: Midwest: $1,918,803.05; Northeast: $2,181,994.01; Southeast: $2,131,252.46; Southwest: $1,465,447.35; West: $2,389,882.60."
+    ],
+    "sections": [
+      {
+        "heading": "What the numbers show",
+        "finding_ids": [
+          "fin_f78e1f15"
+        ]
+      }
+    ],
+    "limitations": [
+      "1 proposed finding was withheld because the engine published the complete breakdown instead, so a summary naming only some of the groups was not needed."
+    ],
+    "next_questions": [
+      "Which dimension explains the largest share of the variation seen here?"
+    ]
+  },
+  "findings": [
+    {
+      "finding_id": "fin_f78e1f15",
+      "text": "Revenue by region: Midwest: $1,918,803.05; Northeast: $2,181,994.01; Southeast: $2,131,252.46; Southwest: $1,465,447.35; West: $2,389,882.60.",
+      "kind": "calculated_fact",
+      "task_id": null,
+      "result_ids": [
+        "res_1e38c737245e"
+      ],
+      "evidence_cells": [
+        {
+          "result_id": "res_1e38c737245e",
+          "row": 0,
+          "column": "revenue",
+          "value": 1918803.0499999893,
+          "label": "revenue for Midwest"
+        },
+        {
+          "result_id": "res_1e38c737245e",
+          "row": 1,
+          "column": "revenue",
+          "value": 2181994.0099999965,
+          "label": "revenue for Northeast"
+        },
+        {
+          "result_id": "res_1e38c737245e",
+          "row": 2,
+          "column": "revenue",
+          "value": 2131252.4599999893,
+          "label": "revenue for Southeast"
+        },
+        {
+          "result_id": "res_1e38c737245e",
+          "row": 3,
+          "column": "revenue",
+          "value": 1465447.3500000038,
+          "label": "revenue for Southwest"
+        },
+        {
+          "result_id": "res_1e38c737245e",
+          "row": 4,
+          "column": "revenue",
+          "value": 2389882.6000000024,
+          "label": "revenue for West"
+        }
+      ],
+      "metric_ids": [],
+      "verification_status": "supported",
+      "verifier_reason": "Composed by the engine from the executed aggregate and its result lineage, and checked against the cells it cites.",
+      "verifier_rule": "engine_canonical",
+      "numeric_check": {
+        "ok": true,
+        "reason": "Every stated number traces to a cited result.",
+        "checks": [
+          {
+            "stated": 1918803.05,
+            "matched": true,
+            "source": "res_1e38c737245e[0].revenue",
+            "computed": 1918803.0499999893
+          },
+          {
+            "stated": 2181994.01,
+            "matched": true,
+            "source": "res_1e38c737245e[1].revenue",
+            "computed": 2181994.0099999965
+          },
+          {
+            "stated": 2131252.46,
+            "matched": true,
+            "source": "res_1e38c737245e[2].revenue",
+            "computed": 2131252.4599999893
+          },
+          {
+            "stated": 1465447.35,
+            "matched": true,
+            "source": "res_1e38c737245e[3].revenue",
+            "computed": 1465447.3500000038
+          },
+          {
+            "stated": 2389882.6,
+            "matched": true,
+            "source": "res_1e38c737245e[4].revenue",
+            "computed": 2389882.6000000024
+          }
+        ],
+        "claimed_change_discarded": false
+      },
+      "evidence_supported": true,
+      "answers_question": true,
+      "relevance_reason": "",
+      "claimed_change": null
+    }
+  ],
+  "rejected": [
+    {
+      "finding_id": "task_01:fin_f6a11c1b:0",
+      "status": "unsupported",
+      "reason": "The engine published the complete registry-grounded answer instead of a partial summary.",
+      "rule": "partial_metric_answer",
+      "numeric_check": null,
+      "evidence_supported": true,
+      "answers_question": false,
+      "relevance_reason": ""
+    }
+  ],
+  "charts": [
+    {
+      "chart_id": "cht_20633bf9",
+      "title": "revenue by region",
+      "result_id": "res_1e38c737245e",
+      "finding_ids": [
+        "fin_f78e1f15"
+      ],
+      "spec": {
+        "$schema": "https://vega.github.io/schema/vega-lite/v5.json",
+        "title": "revenue by region",
+        "data": {
+          "values": [
+            {
+              "region": "Midwest",
+              "revenue": 1918803.0499999893
+            },
+            {
+              "region": "Northeast",
+              "revenue": 2181994.0099999965
+            },
+            {
+              "region": "Southeast",
+              "revenue": 2131252.4599999893
+            },
+            {
+              "region": "Southwest",
+              "revenue": 1465447.3500000038
+            },
+            {
+              "region": "West",
+              "revenue": 2389882.6000000024
+            }
+          ]
+        },
+        "mark": {
+          "type": "bar",
+          "tooltip": true
+        },
+        "encoding": {
+          "x": {
+            "field": "region",
+            "type": "nominal",
+            "title": "region",
+            "axis": {
+              "labelOverlap": "greedy",
+              "labelAngle": -30,
+              "labelLimit": 120
+            },
+            "scale": {
+              "paddingInner": 0.3,
+              "paddingOuter": 0.15
+            }
+          },
+          "y": {
+            "field": "revenue",
+            "type": "quantitative",
+            "title": "revenue"
+          },
+          "tooltip": [
+            {
+              "field": "region",
+              "type": "nominal"
+            },
+            {
+              "field": "revenue",
+              "type": "quantitative"
+            }
+          ]
+        },
+        "width": "container",
+        "height": 240,
+        "padding": {
+          "left": 4,
+          "right": 8,
+          "top": 4,
+          "bottom": 4
+        }
+      }
+    }
+  ],
+  "tasks": [
+    {
+      "task_id": "task_01",
+      "status": "succeeded",
+      "findings": [
+        {
+          "finding_id": "task_01:fin_f6a11c1b:0",
+          "text": "revenue for the selected scope is 1,918,803.",
+          "kind": "calculated_fact",
+          "task_id": "task_01",
+          "result_ids": [
+            "res_1e38c737245e"
+          ],
+          "evidence_cells": [
+            {
+              "result_id": "res_1e38c737245e",
+              "row": 0,
+              "column": "revenue",
+              "value": 1918803.0499999893,
+              "label": "revenue"
+            }
+          ],
+          "metric_ids": [
+            "revenue"
+          ],
+          "claimed_change": null
+        }
+      ],
+      "result_ids": [
+        "res_1e38c737245e"
+      ],
+      "tool_calls": 1,
+      "error": null,
+      "notes": [],
+      "tool_telemetry": {
+        "tool_calls_attempted": 1,
+        "tool_calls_succeeded": 1,
+        "tool_calls_failed": 0,
+        "preflight_rejections": 0,
+        "duplicate_failed_calls_suppressed": 0,
+        "mcp_failures": 0,
+        "failures_by_category": {},
+        "execution_contract_characters": 3028
+      }
+    }
+  ],
+  "results": {
+    "res_1e38c737245e": {
+      "result_id": "res_1e38c737245e",
+      "tool_name": "compute_metric",
+      "task_id": "task_01",
+      "sql": "SELECT \"region\" AS \"region\", SUM(quantity * unit_price) AS \"revenue\"\nFROM (\nSELECT\n  o.order_id,\n  o.order_date,\n  o.customer_id,\n  o.channel            AS order_channel,\n  o.discount_rate,\n  o.shipping_cost,\n  o.status,\n  o.is_first_order,\n  i.order_item_id,\n  i.product_id,\n  i.quantity,\n  i.unit_price,\n  i.unit_cost,\n  i.list_price,\n  i.discount_amount,\n  p.category,\n  p.brand,\n  c.region,\n  c.customer_segment,\n  c.acquisition_channel,\n  CASE WHEN r.return_id IS NULL THEN 0 ELSE 1 END AS is_returned,\n  COALESCE(r.refund_amount, 0)                    AS refund_amount,\n  r.return_reason\nFROM orders o\nJOIN order_items i ON i.order_id = o.order_id\nJOIN products p    ON p.product_id = i.product_id\nJOIN customers c   ON c.customer_id = o.customer_id\nLEFT JOIN returns r ON r.order_item_id = i.order_item_id\n) AS m\nGROUP BY \"region\"\nORDER BY \"region\"",
+      "columns": [
+        "region",
+        "revenue"
+      ],
+      "rows": [
+        [
+          "Midwest",
+          1918803.0499999893
+        ],
+        [
+          "Northeast",
+          2181994.0099999965
+        ],
+        [
+          "Southeast",
+          2131252.4599999893
+        ],
+        [
+          "Southwest",
+          1465447.3500000038
+        ],
+        [
+          "West",
+          2389882.6000000024
+        ]
+      ],
+      "row_count": 5,
+      "truncated": false,
+      "dataset_fingerprint": "sha256:8e9ad9348f7dc18660d78ed3cd4d4b32",
+      "started_at": 1791084234.103285,
+      "duration_ms": 14.19,
+      "parameters": {
+        "metric": "revenue",
+        "dimensions": [
+          "region"
+        ],
+        "time_grain": null,
+        "filters": []
+      },
+      "warnings": [],
+      "statistical_result": null,
+      "decomposition": null,
+      "withhold_cells": false,
+      "column_types": {
+        "region": "VARCHAR",
+        "revenue": "DOUBLE"
+      },
+      "column_lineage": {},
+      "group_coverage": null
+    }
+  },
+  "mcp_trace": [
+    {
+      "tool_name": "compute_metric",
+      "agent": "analysis_worker",
+      "task_id": "task_01",
+      "arguments": {
+        "metric": "revenue",
+        "dimensions": [
+          "region"
+        ],
+        "filters": [],
+        "task_id": "task_01"
+      },
+      "duration_ms": 22.44,
+      "result_id": "res_1e38c737245e",
+      "row_count": 5,
+      "ok": true,
+      "error": null
+    }
+  ],
+  "events": [
+    {
+      "event_id": "ev_bdfabcc0274b",
+      "seq": 1,
+      "type": "run_started",
+      "at": 1791084234.048872,
+      "data": {
+        "run_id": "run_d85823ab177e",
+        "question": "What is the total revenue by region?",
+        "provider": "fake",
+        "session_id": "ses_Ij9tN_KFusSy_MLB"
+      }
+    },
+    {
+      "event_id": "ev_ce99148fcde4",
+      "seq": 2,
+      "type": "dataset_loaded",
+      "at": 1791084234.097046,
+      "data": {
+        "dataset_kind": "demo",
+        "source": "Commerce demo warehouse",
+        "dataset_fingerprint": "sha256:8e9ad9348f7dc18660d78ed3cd4d4b32",
+        "tables": [
+          {
+            "name": "customers",
+            "row_count": 30000
+          },
+          {
+            "name": "products",
+            "row_count": 800
+          },
+          {
+            "name": "orders",
+            "row_count": 104915
+          },
+          {
+            "name": "order_items",
+            "row_count": 239794
+          },
+          {
+            "name": "returns",
+            "row_count": 19471
+          },
+          {
+            "name": "shipping_events",
+            "row_count": 104915
+          },
+          {
+            "name": "marketing_daily",
+            "row_count": 2924
+          }
+        ],
+        "metrics": [
+          "average_order_value",
+          "avg_delivery_days",
+          "avg_discount_rate",
+          "cogs",
+          "contribution_margin",
+          "contribution_margin_pct",
+          "customer_count",
+          "discount_amount",
+          "gross_margin_pct",
+          "gross_profit",
+          "late_delivery_rate",
+          "marketing_spend",
+          "orders",
+          "refund_amount",
+          "repeat_purchase_rate",
+          "return_rate",
+          "revenue",
+          "roas",
+          "shipments",
+          "units"
+        ]
+      }
+    },
+    {
+      "event_id": "ev_6bd4a74770bf",
+      "seq": 3,
+      "type": "contract_resolved",
+      "at": 1791084234.0979881,
+      "data": {
+        "planner": "metric-registry",
+        "model_calls": 0,
+        "duration_ms": 0.4,
+        "fallback": false,
+        "confident": true,
+        "contract_hash": "694e4bddba53fd969e0c7f6442ec13d1992677ae18b8c13e4de90ad59f675f86",
+        "operation": "aggregate",
+        "dimensions": [
+          "region"
+        ]
+      }
+    },
+    {
+      "event_id": "ev_7f178440b3fd",
+      "seq": 4,
+      "type": "question_analyzed",
+      "at": 1791084234.097999,
+      "data": {
+        "intent": "What is the total revenue by region?",
+        "analysis_type": "segmentation",
+        "target_metrics": [
+          "revenue"
+        ],
+        "dimensions": [
+          "region"
+        ],
+        "time_scope": null,
+        "ambiguities": []
+      }
+    },
+    {
+      "event_id": "ev_e324133bc6e2",
+      "seq": 5,
+      "type": "plan_generated",
+      "at": 1791084234.099047,
+      "data": {
+        "task_count": 1,
+        "contract_hash": "694e4bddba53fd969e0c7f6442ec13d1992677ae18b8c13e4de90ad59f675f86",
+        "interpretation": "metric-registry",
+        "tasks": [
+          {
+            "task_id": "task_01",
+            "objective": "Compute the accepted query contract",
+            "analysis_type": "segmentation",
+            "preferred_tool": "compute_metric",
+            "metrics": [
+              "revenue"
+            ],
+            "dimensions": [
+              "region"
+            ],
+            "priority": 1
+          }
+        ]
+      }
+    },
+    {
+      "event_id": "ev_7c387eab450a",
+      "seq": 6,
+      "type": "analysis_task_started",
+      "at": 1791084234.0999858,
+      "data": {
+        "task_id": "task_01",
+        "objective": "Compute the accepted query contract",
+        "analysis_type": "segmentation",
+        "preferred_tool": "compute_metric",
+        "metrics": [
+          "revenue"
+        ],
+        "dimensions": [
+          "region"
+        ]
+      }
+    },
+    {
+      "event_id": "ev_e85fe9bc37d7",
+      "seq": 7,
+      "type": "mcp_tool_called",
+      "at": 1791084234.102468,
+      "data": {
+        "tool_name": "compute_metric",
+        "agent": "analysis_worker",
+        "task_id": "task_01",
+        "arguments": {
+          "metric": "revenue",
+          "dimensions": [
+            "region"
+          ],
+          "filters": [],
+          "task_id": "task_01"
+        },
+        "duration_ms": 0,
+        "result_id": null,
+        "row_count": null,
+        "ok": true,
+        "error": null,
+        "transport": "in-process"
+      }
+    },
+    {
+      "event_id": "ev_b1be7f9363b1",
+      "seq": 8,
+      "type": "mcp_tool_completed",
+      "at": 1791084234.124952,
+      "data": {
+        "tool_name": "compute_metric",
+        "agent": "analysis_worker",
+        "task_id": "task_01",
+        "arguments": {
+          "metric": "revenue",
+          "dimensions": [
+            "region"
+          ],
+          "filters": [],
+          "task_id": "task_01"
+        },
+        "duration_ms": 22.44,
+        "result_id": "res_1e38c737245e",
+        "row_count": 5,
+        "ok": true,
+        "error": null
+      }
+    },
+    {
+      "event_id": "ev_fb727f713da9",
+      "seq": 9,
+      "type": "finding_proposed",
+      "at": 1791084234.127032,
+      "data": {
+        "finding_id": "task_01:fin_f6a11c1b:0",
+        "task_id": "task_01",
+        "kind": "calculated_fact",
+        "text": "revenue for the selected scope is 1,918,803.",
+        "result_ids": [
+          "res_1e38c737245e"
+        ]
+      }
+    },
+    {
+      "event_id": "ev_71c934ece08f",
+      "seq": 10,
+      "type": "analysis_task_completed",
+      "at": 1791084234.127052,
+      "data": {
+        "task_id": "task_01",
+        "objective": "Compute the accepted query contract",
+        "status": "succeeded",
+        "findings": 1,
+        "tool_calls": 1,
+        "result_ids": [
+          "res_1e38c737245e"
+        ]
+      }
+    },
+    {
+      "event_id": "ev_63d1c1429193",
+      "seq": 11,
+      "type": "finding_verified",
+      "at": 1791084234.1307259,
+      "data": {
+        "finding_id": "task_01:fin_f6a11c1b:0",
+        "task_id": "task_01",
+        "status": "supported",
+        "reason": "The wording matches the values in the cited result.",
+        "text": "revenue for the selected scope is 1,918,803."
+      }
+    },
+    {
+      "event_id": "ev_fd00aed1088b",
+      "seq": 12,
+      "type": "chart_created",
+      "at": 1791084234.1324391,
+      "data": {
+        "chart_id": "cht_20633bf9",
+        "result_id": "res_1e38c737245e",
+        "title": "revenue by region",
+        "mark": "bar",
+        "finding_ids": [
+          "fin_f78e1f15"
+        ]
+      }
+    },
+    {
+      "event_id": "ev_4a42c60afbc8",
+      "seq": 13,
+      "type": "report_started",
+      "at": 1791084234.1328168,
+      "data": {
+        "finding_count": 1
+      }
+    },
+    {
+      "event_id": "ev_d0c2d782b431",
+      "seq": 14,
+      "type": "report_completed",
+      "at": 1791084234.1341262,
+      "data": {
+        "finding_count": 1,
+        "rejected_count": 1,
+        "chart_count": 1,
+        "sections": [
+          "What the numbers show"
+        ]
+      }
+    },
+    {
+      "event_id": "ev_e30149394c44",
+      "seq": 15,
+      "type": "run_completed",
+      "at": 1791084234.134816,
+      "data": {
+        "run_id": "run_d85823ab177e",
+        "runtime_seconds": 0.086,
+        "provider": "fake",
+        "analysis_tasks": 1,
+        "tasks_succeeded": 1,
+        "tasks_warned": 0,
+        "tasks_failed": 0,
+        "mcp_tool_calls": 1,
+        "mcp_tool_failures": 0,
+        "findings_proposed": 2,
+        "findings_published": 1,
+        "findings_rejected": 1,
+        "charts": 1,
+        "provider_request_attempts": 6,
+        "provider_successful_responses": 6,
+        "llm_calls": 6,
+        "input_tokens": 4441,
+        "output_tokens": 251
+      }
+    }
+  ],
+  "metrics": {
+    "runtime_seconds": 0.086,
+    "provider": "fake",
+    "analysis_tasks": 1,
+    "tasks_succeeded": 1,
+    "tasks_warned": 0,
+    "tasks_failed": 0,
+    "mcp_tool_calls": 1,
+    "mcp_tool_failures": 0,
+    "findings_proposed": 2,
+    "findings_published": 1,
+    "findings_rejected": 1,
+    "charts": 1,
+    "provider_request_attempts": 6,
+    "provider_successful_responses": 6,
+    "llm_calls": 6,
+    "input_tokens": 4441,
+    "output_tokens": 251,
+    "by_role": {
+      "worker_next_tool": 2,
+      "worker_findings": 1,
+      "critic": 1,
+      "visualizer": 1,
+      "reporter": 1
+    }
+  },
+  "query_contract": {
+    "kind": "metric_registry",
+    "operation": "aggregate",
+    "metric": "revenue",
+    "dimensions": [
+      "region"
+    ],
+    "time_grain": null,
+    "table": null,
+    "measure": "revenue",
+    "dimension": "region",
+    "filters": [],
+    "ascending": false,
+    "confident": true,
+    "explanation": "",
+    "interpretation": "metric-registry",
+    "contract_hash": "694e4bddba53fd969e0c7f6442ec13d1992677ae18b8c13e4de90ad59f675f86",
+    "canonical_contract": {
+      "kind": "metric_registry",
+      "operation": "aggregate",
+      "metric": "revenue",
+      "dimensions": [
+        "region"
+      ],
+      "time_grain": null
+    }
+  },
+  "question_coverage": null,
+  "timings": {
+    "planning_ms": 0.4
+  },
+  "chart_decision": {},
+  "presentation": null,
+  "planner_fallback": false,
+  "stopped_reason": "",
+  "outcome": "completed",
+  "schema_revision": 0,
+  "role_evidence": []
+}

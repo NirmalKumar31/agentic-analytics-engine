@@ -51,6 +51,7 @@ const EXPECTED_ORDER = [
   "styles/landing.css",
   "styles/composer.css",
   "styles/timeline.css",
+  "styles/answer.css",
   "styles/controls.css",
   "styles/workflow.css",
   "styles/findings.css",
@@ -194,7 +195,7 @@ describe("rules stay in the module that owns their place in the cascade", () => 
   });
 
   it("keeps every print block, the last one at the end of states.css", () => {
-    // Six, in cascade order:
+    // Seven, in cascade order:
     //   foundation.css  the printed *page* -- size, margins, colour-adjust,
     //                   and the white palette the other two assume.
     //   landing.css     the landing's own controls, which paper cannot use.
@@ -207,7 +208,7 @@ describe("rules stay in the module that owns their place in the cascade", () => 
     // foundation's block must come first: it resets the palette to ink on
     // white, and a later block restating a colour has to win over that, not
     // be undone by it.
-    expect(countAtRule(css, "@media print")).toBe(6);
+    expect(countAtRule(css, "@media print")).toBe(7);
     expect(
       countAtRule(withoutComments(moduleSource("styles/composer.css")), "@media print"),
     ).toBe(1);
@@ -410,6 +411,7 @@ describe("the split preserved the stylesheet", () => {
       "styles/landing.css": 150,
       "styles/composer.css": 180,
       "styles/timeline.css": 100,
+      "styles/answer.css": 150,
       "styles/controls.css": 120,
       "styles/workflow.css": 120,
       "styles/findings.css": 120,

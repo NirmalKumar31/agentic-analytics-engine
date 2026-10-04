@@ -15,6 +15,7 @@
  * The full schema is one control away, as a side sheet.
  */
 
+import { opensSheet } from "./SideSheet";
 import type { DatasetCatalog, DatasetSummary } from "../lib/types";
 
 /**
@@ -130,21 +131,7 @@ export function DatasetContextBar({
         <button
           type="button"
           className="context-bar-inspect"
-          // Focused explicitly before opening.
-          //
-          // WebKit does not focus a `<button>` when it is clicked -- that
-          // is Safari's long-standing behaviour, not a bug in Playwright --
-          // so `document.activeElement` was `<body>` at the moment the
-          // sheet mounted, and the sheet dutifully restored focus to
-          // `<body>` on close. A keyboard-and-mouse user was dropped at the
-          // top of the document; the two other engines happened to be fine.
-          //
-          // A control that opens a dialog should hold focus anyway: it is
-          // where the reader is, and it is where they expect to be put back.
-          onClick={(event) => {
-            event.currentTarget.focus();
-            onInspect();
-          }}
+          {...opensSheet(onInspect)}
           data-testid="inspect-schema"
         >
           Inspect schema <span aria-hidden="true">→</span>

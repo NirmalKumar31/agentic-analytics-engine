@@ -88,15 +88,17 @@ test.describe("motion restraint", () => {
     ).toBe("none");
   });
 
-  test("no panel moves under the pointer", async ({ page }) => {
-    // Opened on a report rather than on the landing: the landing has no
-    // `.panel` any more, because it is no longer built out of panels.
+  test("nothing moves under the pointer", async ({ page }) => {
+    // There are no `.panel` elements left on the report: the landing, the
+    // composer and the report are all built without them. The claim is
+    // unchanged -- hovering must not lift or shadow anything -- so it is
+    // made against the report itself.
     await openApp(page);
     await page.getByRole("button", { name: /Commerce demo warehouse/ }).click();
     await ask(page, "What is the total revenue by region?");
     await waitForReport(page);
 
-    const panel = page.locator("section.panel").first();
+    const panel = page.getByTestId("report-panel");
     await expect(panel).toBeVisible();
 
     await panel.hover();
@@ -116,8 +118,7 @@ test.describe("motion restraint", () => {
     // how the lift used to be reinforced. So this compares before with
     // after rather than asserting there is none at all.
     const resting = await page
-      .locator("section.panel")
-      .last()
+      .getByTestId("report-question")
       .evaluate((el) => getComputedStyle(el).boxShadow);
     const hovered = await panel.evaluate(
       (el) => getComputedStyle(el).boxShadow,

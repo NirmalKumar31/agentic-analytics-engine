@@ -45,30 +45,29 @@ test.describe("a recorded run", () => {
     await waitForReport(page);
     await expect(page.locator(".mode-pill")).toHaveText("Recorded");
 
-    const findings = page.locator("article.finding");
+    // Published findings are ranked list items now, not bordered cards.
+    const findings = page.locator(".finding-item");
     expect(await findings.count()).toBeGreaterThan(0);
 
-    // Provenance: finding -> task -> MCP call -> result cells.
-    await page.getByRole("button", { name: "Show work →" }).first().click();
-    const drawer = page.getByRole("dialog", { name: "How this was derived" });
+    // Provenance: one drawer, carrying the contract, the verification
+    // outcomes, the cited cells and the MCP trace. It used to be a
+    // per-finding drawer reached from a button on every card.
+    await page.getByTestId("show-work").click();
+    const drawer = page.getByTestId("evidence-drawer");
     await expect(drawer).toBeVisible();
-    await expect(
-      drawer.getByRole("heading", { name: "Finding" }),
-    ).toBeVisible();
-    await expect(
-      drawer.getByRole("heading", { name: "Analytical task" }),
-    ).toBeVisible();
-    await expect(
-      drawer.getByRole("heading", { name: "Agent and tool path" }),
-    ).toBeVisible();
-    await expect(
-      drawer.getByRole("heading", { name: "Referenced cells" }),
-    ).toBeVisible();
-    await expect(drawer.getByText(/MCP:/).first()).toBeVisible();
+    await expect(drawer).toContainText("Accepted contract");
+    await expect(drawer).toContainText("Cited cells");
+    // The tool path, by its new name: the activity trace, which is where
+    // the per-call MCP record lives now.
+    await expect(drawer).toContainText("Activity trace");
+    await expect(drawer).toContainText("Timings");
+    // The dataset fingerprint stays out of the reader's way. It is an
+    // unexplained hash, and the drawer is for provenance a reader can act
+    // on, not for every identifier the engine holds.
     await expect(drawer).not.toContainText(/sha256:/);
 
     await drawer.getByRole("button", { name: "Close" }).click();
-    await expect(drawer).toBeHidden();
+    await expect(drawer).toHaveCount(0);
   });
 
   test("prints a complete report as a browser PDF", async ({
@@ -91,7 +90,7 @@ test.describe("a recorded run", () => {
     // answer block, so this asserts the report and a published finding --
     // which is what the test is about.
     await expect(page.getByTestId("report-panel")).toBeVisible();
-    expect(await page.locator("article.finding").count()).toBeGreaterThan(0);
+    expect(await page.locator(".finding-item").count()).toBeGreaterThan(0);
     const pdf = await page.pdf({
       format: "A4",
       landscape: true,
@@ -125,10 +124,9 @@ test.describe("the demo warehouse", () => {
     await suggestedQuestions(page).first().click();
     await page.getByRole("button", { name: "Run analysis" }).click();
 
-    // Progress is visible while it runs.
-    await expect(
-      page.getByRole("heading", { name: "Analysis" }).first(),
-    ).toBeVisible();
+    // Progress is visible while it runs. The ANALYSIS panel heading is
+    // gone; the run timeline is what narrates a run in flight.
+    await expect(page.getByTestId("run-timeline")).toBeVisible();
     await waitForReport(page);
 
     // Now that something has run, the badge names what produced it. The
@@ -137,16 +135,21 @@ test.describe("the demo warehouse", () => {
       /Recorded|Deterministic live|AI live|Compare both/,
     );
 
-    const findings = page.locator("article.finding");
+    // Published findings are ranked list items now, not bordered cards.
+    const findings = page.locator(".finding-item");
     expect(await findings.count()).toBeGreaterThan(0);
-    // Every finding on screen carries its verification verdict.
-    const supported = page.locator("article.finding .tag.supported");
-    expect(await supported.count()).toBeGreaterThan(0);
+    // Verification is stated once, for the report, rather than as a
+    // SUPPORTED badge repeated on six identical cards. The per-verdict
+    // detail is in the evidence drawer.
+    await expect(page.getByTestId("answer-coverage")).toContainText(
+      /\d+ verified, \d+ withheld/,
+    );
 
-    await page.getByRole("button", { name: "Show work →" }).first().click();
-    await expect(
-      page.getByRole("dialog", { name: "How this was derived" }),
-    ).toBeVisible();
+    await page.getByTestId("show-work").click();
+    await expect(page.getByTestId("evidence-drawer")).toBeVisible();
+    await expect(page.getByTestId("evidence-drawer")).toContainText(
+      "Verification",
+    );
   });
 });
 
@@ -178,19 +181,26 @@ test.describe("uploading a file", () => {
 
     await ask(page, "What is the total revenue by region?");
     await waitForReport(page);
-    const answered = page.locator("article.finding");
+    const answered = page.locator(".finding-item");
     expect(await answered.count()).toBeGreaterThan(0);
-    await expect(page.locator("article.finding").first()).toContainText(
+    // Against the answer, not the first ranked highlight. A highlight is a
+    // label and a figure -- "Highest: West  12,330" -- and asserting the
+    // question's nouns against it was really asserting the presentation
+    // builder's phrasing. The answer is where the claim belongs.
+    await expect(page.getByTestId("direct-answer")).toContainText(
       /region|revenue/i,
     );
-    // The audit is a disclosure rather than a permanent dashboard. It
-    // records the governed contract and coverage, not a provider prompt or
-    // hidden reasoning.
+    // The audit is in the evidence drawer rather than resident under the
+    // report. It records the governed contract and coverage, not a provider
+    // prompt or hidden reasoning.
+    await page.getByTestId("show-work").click();
     const audit = page.getByTestId("planning-audit");
     await expect(audit).toBeVisible();
     await audit.locator("summary").click();
     await expect(audit).toContainText(/accepted contract/i);
     await expect(audit).toContainText(/question coverage/i);
+    await page.keyboard.press("Escape");
+    await expect(page.getByTestId("evidence-drawer")).toHaveCount(0);
 
     // A question the rules cannot map must not be answered anyway.
     await page.getByRole("button", { name: "Start over" }).click();
@@ -381,6 +391,6 @@ test.describe("the public MCP endpoint", () => {
     await suggestedQuestions(page).first().click();
     await page.getByRole("button", { name: "Run analysis" }).click();
     await waitForReport(page);
-    expect(await page.locator("article.finding").count()).toBeGreaterThan(0);
+    expect(await page.locator(".finding-item").count()).toBeGreaterThan(0);
   });
 });

@@ -139,6 +139,17 @@ export function Chart({ chart, snapshot, onOpenProvenance }: Props) {
                 labelColor: token("--ink-secondary", "#5d544b"),
                 titleColor: token("--ink-secondary", "#5d544b"),
               },
+              // The default mark colour.
+              //
+              // `range.category` below only applies where a *colour
+              // encoding* exists. A single-series bar or line has none, so
+              // every such chart in the product was drawn in Vega's own
+              // default `#4c78a8` -- a blue from neither palette, unchanged
+              // between light and dark, and never measured for contrast
+              // against the plot surface. Observed on a real report, not
+              // inferred: the token range was right and simply never
+              // reached.
+              mark: { color: token("--series-4", "#1d5860") },
               // The series ramp, from tokens, so it follows the theme.
               //
               // Three of these five used to be hardcoded hexes chosen for a

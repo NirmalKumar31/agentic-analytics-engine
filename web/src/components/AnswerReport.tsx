@@ -1,0 +1,164 @@
+/**
+ * The report, answer first.
+ *
+ * What was here opened with a panel headed **REPORT**, then a line labelled
+ * "Question", then a bordered card labelled "Verified answer" holding the
+ * sentence a reader came for, then **CHARTS**, then **ANALYSIS**, then
+ * **LIMITATIONS AND NEXT QUESTIONS**, then **ANALYSIS** again (a duplicate
+ * heading, this time an agent diagram), then **STAGES**, then **ACTIVITY**.
+ * Seven panels, in which the answer was the third thing and was wearing a
+ * label describing its own epistemic status before stating itself.
+ *
+ * The order here is the order a reader needs:
+ *
+ *   question          what was asked, quietly, so the answer has a subject
+ *   ANSWER            display scale, one per page, never truncated
+ *   context line      population, observations, period, coverage
+ *   chart             full content width
+ *   findings          ranked: headline, driver, exception, caveat
+ *   result table      every row, in its own scroll frame
+ *   [ Show work → ]   one control, everything technical behind it
+ *
+ * Nothing technical is resident. Route, contract, build SHA, coverage,
+ * verification outcomes, cited cells, timings, planner fallback, the
+ * activity trace and the limitations all live in the evidence drawer --
+ * **relocated, not deleted**, which is the difference between a disclosure
+ * and a loss.
+ */
+
+import { Chart } from "./Chart";
+import { opensSheet } from "./SideSheet";
+import { ResultPanel } from "./ResultPanel";
+import type { ReportModel } from "../lib/reportModel";
+
+export function AnswerReport({
+  question,
+  model,
+  publishedCount,
+  withheldCount,
+  onShowEvidence,
+}: {
+  question: string;
+  model: ReportModel;
+  publishedCount: number;
+  withheldCount: number;
+  /** Opens the evidence drawer. One trigger, for the whole report. */
+  onShowEvidence: () => void;
+}) {
+  return (
+    <article className="report" data-testid="report-panel">
+      <p className="report-question" data-testid="report-question">
+        {question}
+      </p>
+
+      {/* Only when the shape is not an answer. A "Verified answer" label
+          above every answer is a badge the reader learns to skip, and it
+          delays the sentence they came for by one line. */}
+      {model.eyebrow && <p className="report-eyebrow">{model.eyebrow}</p>}
+
+      <h1 className="display" data-testid="direct-answer">
+        {model.answer}
+      </h1>
+
+      {model.context && (
+        <p className="context-line" data-testid="answer-coverage">
+          {model.context} · {publishedCount} verified, {withheldCount} withheld
+        </p>
+      )}
+
+      {model.partial && (
+        <p className="notice warn" role="status" data-testid="partial-answer">
+          This is a partial breakdown. It is not the complete answer to the
+          question as asked.
+        </p>
+      )}
+
+      {model.summary && <p className="report-summary">{model.summary}</p>}
+
+      {model.chart && model.chartSnapshot ? (
+        <section className="report-visual" aria-label="Analysis visualisation">
+          <Chart chart={model.chart} snapshot={model.chartSnapshot} />
+        </section>
+      ) : model.noChartReason ? (
+        <p className="report-no-chart">{model.noChartReason}</p>
+      ) : null}
+
+      {model.highlights.length > 0 && (
+        <section className="findings" aria-label="What the numbers show">
+          <h2 className="section-heading">What the numbers show</h2>
+          <ol className="finding-list">
+            {model.highlights.map((highlight, index) => (
+              <li key={highlight.id} className="finding-item">
+                <span className="finding-rank" aria-hidden="true">
+                  {index + 1}
+                </span>
+                <span className="finding-body">
+                  <span className="finding-label">{highlight.label}</span>
+                  {highlight.value && (
+                    <span className="finding-value figure">
+                      {highlight.value}
+                    </span>
+                  )}
+                  {highlight.compare && (
+                    <span className="finding-compare">
+                      vs {highlight.compare}
+                    </span>
+                  )}
+                </span>
+              </li>
+            ))}
+          </ol>
+        </section>
+      )}
+
+      {model.notes.length > 0 && (
+        <section className="report-notes" aria-label="Analysis notes">
+          <h2 className="section-heading">What to be careful about</h2>
+          {model.notes.map((note) => (
+            <p className={`notice ${note.severity}`} key={note.code}>
+              {note.message}
+            </p>
+          ))}
+        </section>
+      )}
+
+      {model.tableSnapshot && (
+        <section className="report-table" aria-label="Result table">
+          <h2 className="section-heading">Result</h2>
+          <ResultPanel
+            snapshot={model.tableSnapshot}
+            question={question}
+            previewRows={model.previewRows}
+            displayFields={model.displayFields ?? undefined}
+          />
+        </section>
+      )}
+
+      {/* One control. Everything technical is behind it. */}
+      <div className="report-actions">
+        <button
+          type="button"
+          className="btn"
+          {...opensSheet(onShowEvidence)}
+          data-testid="show-work"
+        >
+          Show work <span aria-hidden="true">→</span>
+        </button>
+        <button
+          type="button"
+          className="btn ghost small no-print"
+          onClick={() => window.print()}
+        >
+          Print / Save PDF
+        </button>
+      </div>
+
+      {model.compatibilityDerived && (
+        <p className="report-compat">
+          This archived run predates the presentation contract; its layout is
+          derived from the preserved evidence.
+        </p>
+      )}
+    </article>
+  );
+}

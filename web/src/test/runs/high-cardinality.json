@@ -1,0 +1,1163 @@
+{
+  "run_id": "run_fc1ccbe0ca22",
+  "session_id": "ses_ECVTWMImN5sxvKjk",
+  "question": "What is the total revenue by category?",
+  "status": "completed",
+  "created_at": 1791084235.2457018,
+  "mode": "deterministic",
+  "provider_kind": "scripted",
+  "engine_version": "0.1.0",
+  "build_sha": "unknown",
+  "dataset_fingerprint": "sha256:2beaa1b6a3aa855c9f9468aaec38993f",
+  "dataset": {
+    "dataset_kind": "upload",
+    "source": "Uploaded file: wide.csv",
+    "dataset_fingerprint": "sha256:2beaa1b6a3aa855c9f9468aaec38993f",
+    "dataset_seed": null,
+    "tables": [
+      {
+        "name": "uploaded_data",
+        "row_count": 400,
+        "columns": [
+          {
+            "name": "id",
+            "type": "BIGINT"
+          },
+          {
+            "name": "order_date",
+            "type": "DATE"
+          },
+          {
+            "name": "category",
+            "type": "VARCHAR"
+          },
+          {
+            "name": "revenue",
+            "type": "DOUBLE"
+          }
+        ]
+      }
+    ],
+    "metrics_available": []
+  },
+  "report": {
+    "question": "What is the total revenue by category?",
+    "executive_summary": "",
+    "key_findings": [],
+    "sections": [],
+    "limitations": [],
+    "next_questions": []
+  },
+  "findings": [
+    {
+      "finding_id": "fin_b42fd2d8",
+      "text": "Total revenue by category is highest for cat_22, at 6,496, and lowest for cat_34, at 3,712. Every group is listed in the result below.",
+      "kind": "calculated_fact",
+      "task_id": null,
+      "result_ids": [
+        "res_cc6487158203"
+      ],
+      "evidence_cells": [
+        {
+          "result_id": "res_cc6487158203",
+          "row": 22,
+          "column": "total_revenue",
+          "value": 6496,
+          "label": "sum of revenue for cat_22"
+        },
+        {
+          "result_id": "res_cc6487158203",
+          "row": 34,
+          "column": "total_revenue",
+          "value": 3712,
+          "label": "sum of revenue for cat_34"
+        }
+      ],
+      "metric_ids": [],
+      "verification_status": "supported",
+      "verifier_reason": "Composed by the engine from the executed aggregate and its result lineage, and checked against the cells it cites.",
+      "verifier_rule": "engine_canonical",
+      "numeric_check": {
+        "ok": true,
+        "reason": "Every stated number traces to a cited result.",
+        "checks": [
+          {
+            "stated": 6496,
+            "matched": true,
+            "source": "res_cc6487158203[22].total_revenue",
+            "computed": 6496
+          },
+          {
+            "stated": 3712,
+            "matched": true,
+            "source": "res_cc6487158203[34].total_revenue",
+            "computed": 3712
+          }
+        ],
+        "claimed_change_discarded": false
+      },
+      "evidence_supported": true,
+      "answers_question": true,
+      "relevance_reason": "",
+      "claimed_change": null
+    }
+  ],
+  "rejected": [],
+  "charts": [
+    {
+      "chart_id": "cht_74ba7619",
+      "title": "total revenue by category",
+      "result_id": "res_cc6487158203",
+      "finding_ids": [
+        "fin_b42fd2d8"
+      ],
+      "spec": {
+        "mark": "bar",
+        "encoding": {
+          "x": {
+            "field": "category",
+            "type": "nominal",
+            "title": "category"
+          },
+          "y": {
+            "field": "total_revenue",
+            "type": "quantitative",
+            "title": "total revenue",
+            "axis": {
+              "format": ","
+            }
+          },
+          "tooltip": [
+            {
+              "field": "category",
+              "type": "nominal",
+              "title": "category"
+            },
+            {
+              "field": "total_revenue",
+              "type": "quantitative",
+              "title": "total revenue",
+              "format": ","
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "tasks": [],
+  "results": {
+    "res_cc6487158203": {
+      "result_id": "res_cc6487158203",
+      "tool_name": "aggregate_for_question",
+      "task_id": null,
+      "sql": "SELECT \"category\" AS category, ROUND(SUM(CAST(\"revenue\" AS DOUBLE)), 4) AS total_revenue, COUNT(*) AS row_count, COUNT(\"revenue\") AS value_count FROM \"uploaded_data\" GROUP BY 1 ORDER BY 1 LIMIT 501",
+      "columns": [
+        "category",
+        "total_revenue",
+        "row_count",
+        "value_count"
+      ],
+      "rows": [
+        [
+          "cat_00",
+          4008,
+          12,
+          12
+        ],
+        [
+          "cat_01",
+          4164,
+          12,
+          12
+        ],
+        [
+          "cat_02",
+          4320,
+          12,
+          12
+        ],
+        [
+          "cat_03",
+          4476,
+          12,
+          12
+        ],
+        [
+          "cat_04",
+          3922,
+          11,
+          11
+        ],
+        [
+          "cat_05",
+          4065,
+          11,
+          11
+        ],
+        [
+          "cat_06",
+          4208,
+          11,
+          11
+        ],
+        [
+          "cat_07",
+          4351,
+          11,
+          11
+        ],
+        [
+          "cat_08",
+          4494,
+          11,
+          11
+        ],
+        [
+          "cat_09",
+          4637,
+          11,
+          11
+        ],
+        [
+          "cat_10",
+          4780,
+          11,
+          11
+        ],
+        [
+          "cat_11",
+          4923,
+          11,
+          11
+        ],
+        [
+          "cat_12",
+          5066,
+          11,
+          11
+        ],
+        [
+          "cat_13",
+          5209,
+          11,
+          11
+        ],
+        [
+          "cat_14",
+          5352,
+          11,
+          11
+        ],
+        [
+          "cat_15",
+          5495,
+          11,
+          11
+        ],
+        [
+          "cat_16",
+          5638,
+          11,
+          11
+        ],
+        [
+          "cat_17",
+          5781,
+          11,
+          11
+        ],
+        [
+          "cat_18",
+          5924,
+          11,
+          11
+        ],
+        [
+          "cat_19",
+          6067,
+          11,
+          11
+        ],
+        [
+          "cat_20",
+          6210,
+          11,
+          11
+        ],
+        [
+          "cat_21",
+          6353,
+          11,
+          11
+        ],
+        [
+          "cat_22",
+          6496,
+          11,
+          11
+        ],
+        [
+          "cat_23",
+          5739,
+          11,
+          11
+        ],
+        [
+          "cat_24",
+          5882,
+          11,
+          11
+        ],
+        [
+          "cat_25",
+          5125,
+          11,
+          11
+        ],
+        [
+          "cat_26",
+          5268,
+          11,
+          11
+        ],
+        [
+          "cat_27",
+          5411,
+          11,
+          11
+        ],
+        [
+          "cat_28",
+          4654,
+          11,
+          11
+        ],
+        [
+          "cat_29",
+          4797,
+          11,
+          11
+        ],
+        [
+          "cat_30",
+          4940,
+          11,
+          11
+        ],
+        [
+          "cat_31",
+          4183,
+          11,
+          11
+        ],
+        [
+          "cat_32",
+          4326,
+          11,
+          11
+        ],
+        [
+          "cat_33",
+          4469,
+          11,
+          11
+        ],
+        [
+          "cat_34",
+          3712,
+          11,
+          11
+        ],
+        [
+          "cat_35",
+          3855,
+          11,
+          11
+        ]
+      ],
+      "row_count": 36,
+      "truncated": false,
+      "dataset_fingerprint": "sha256:2beaa1b6a3aa855c9f9468aaec38993f",
+      "started_at": 1791084235.283124,
+      "duration_ms": 0.735,
+      "parameters": {
+        "table": "uploaded_data",
+        "question": "What is the total revenue by category?",
+        "operation": "sum",
+        "measure": "revenue",
+        "period": null,
+        "period_field": null,
+        "filters": [],
+        "dimension": "category",
+        "dimensions": [
+          "category"
+        ],
+        "time_field": null,
+        "time_grain": null,
+        "ascending": false,
+        "confident": true,
+        "explanation": "validated schema-grounded AI plan",
+        "named_columns": [
+          "category",
+          "revenue"
+        ],
+        "interpretation": "rule-based",
+        "planner_note": "",
+        "contract_hash": "4d426d7e681aa9d5081560b010580f88e2700b9732c59b553e0460a88abe7f9f",
+        "canonical_contract": {
+          "operation": "sum",
+          "table": "uploaded_data",
+          "measure": "revenue",
+          "dimensions": [
+            "category"
+          ],
+          "time_field": null,
+          "time_grain": null,
+          "period": null,
+          "period_field": null,
+          "filters": [],
+          "ascending": false
+        }
+      },
+      "warnings": [
+        "question interpreted by rule-based: validated schema-grounded AI plan"
+      ],
+      "statistical_result": null,
+      "decomposition": null,
+      "withhold_cells": false,
+      "column_types": {
+        "category": "VARCHAR",
+        "total_revenue": "DOUBLE",
+        "row_count": "BIGINT",
+        "value_count": "BIGINT"
+      },
+      "column_lineage": {
+        "category": {
+          "kind": "grouping",
+          "table": "uploaded_data",
+          "column": "category"
+        },
+        "total_revenue": {
+          "kind": "aggregate",
+          "aggregate": "SUM",
+          "table": "uploaded_data",
+          "column": "revenue",
+          "expression": "SUM(uploaded_data.revenue)"
+        },
+        "value_count": {
+          "kind": "aggregate",
+          "aggregate": "COUNT",
+          "table": "uploaded_data",
+          "column": "revenue",
+          "expression": "COUNT(uploaded_data.revenue)"
+        },
+        "row_count": {
+          "kind": "aggregate",
+          "aggregate": "COUNT",
+          "table": "uploaded_data",
+          "column": "*",
+          "expression": "COUNT(*) over uploaded_data"
+        }
+      },
+      "group_coverage": {
+        "complete": true,
+        "groups_returned": 36,
+        "groups_total": 36,
+        "rows_total": 400,
+        "rows_matching": 400,
+        "rows_represented": 400,
+        "observations_matching": 400,
+        "observations_represented": 400,
+        "query_limit": null,
+        "ordering": "dimension",
+        "ranked_by_request": false
+      }
+    }
+  },
+  "mcp_trace": [
+    {
+      "tool_name": "aggregate_for_question",
+      "agent": "fast_path",
+      "task_id": "task_01",
+      "arguments": {
+        "table": "uploaded_data",
+        "question": "What is the total revenue by category?",
+        "contract": {
+          "operation": "sum",
+          "table": "uploaded_data",
+          "measure": "revenue",
+          "period": null,
+          "period_field": null,
+          "filters": [],
+          "dimension": "category",
+          "dimensions": [
+            "category"
+          ],
+          "time_field": null,
+          "time_grain": null,
+          "ascending": false,
+          "confident": true,
+          "explanation": "total revenue by category",
+          "named_columns": [
+            "revenue",
+            "category"
+          ],
+          "interpretation": "rule-based",
+          "planner_note": "",
+          "contract_hash": "4d426d7e681aa9d5081560b010580f88e2700b9732c59b553e0460a88abe7f9f",
+          "canonical_contract": {
+            "operation": "sum",
+            "table": "uploaded_data",
+            "measure": "revenue",
+            "dimensions": [
+              "category"
+            ],
+            "time_field": null,
+            "time_grain": null,
+            "period": null,
+            "period_field": null,
+            "filters": [],
+            "ascending": false
+          }
+        },
+        "expected_schema_revision": 0
+      },
+      "duration_ms": 18.52,
+      "result_id": "res_cc6487158203",
+      "row_count": 36,
+      "ok": true,
+      "error": null
+    }
+  ],
+  "events": [
+    {
+      "event_id": "ev_4eabfdd1aa16",
+      "seq": 1,
+      "type": "run_started",
+      "at": 1791084235.245833,
+      "data": {
+        "run_id": "run_fc1ccbe0ca22",
+        "question": "What is the total revenue by category?",
+        "provider": "fake",
+        "session_id": "ses_ECVTWMImN5sxvKjk"
+      }
+    },
+    {
+      "event_id": "ev_7bd7e41472bf",
+      "seq": 2,
+      "type": "dataset_loaded",
+      "at": 1791084235.264878,
+      "data": {
+        "dataset_kind": "upload",
+        "source": "Uploaded file: wide.csv",
+        "dataset_fingerprint": "sha256:2beaa1b6a3aa855c9f9468aaec38993f",
+        "tables": [
+          {
+            "name": "uploaded_data",
+            "row_count": 400
+          }
+        ],
+        "metrics": []
+      }
+    },
+    {
+      "event_id": "ev_9949e1f384fe",
+      "seq": 3,
+      "type": "contract_resolved",
+      "at": 1791084235.2729769,
+      "data": {
+        "planner": "rule-based",
+        "model_calls": 0,
+        "duration_ms": 6.9,
+        "fallback": false,
+        "confident": true,
+        "contract_hash": "4d426d7e681aa9d5081560b010580f88e2700b9732c59b553e0460a88abe7f9f",
+        "operation": "sum",
+        "dimensions": [
+          "category"
+        ]
+      }
+    },
+    {
+      "event_id": "ev_906f866c86ff",
+      "seq": 4,
+      "type": "question_analyzed",
+      "at": 1791084235.2729878,
+      "data": {
+        "intent": "What is the total revenue by category?",
+        "analysis_type": "segmentation",
+        "target_metrics": [
+          "revenue"
+        ],
+        "dimensions": [
+          "category"
+        ],
+        "time_scope": null,
+        "ambiguities": []
+      }
+    },
+    {
+      "event_id": "ev_422862e02998",
+      "seq": 5,
+      "type": "mcp_tool_called",
+      "at": 1791084235.274369,
+      "data": {
+        "tool_name": "aggregate_for_question",
+        "agent": "fast_path",
+        "task_id": "task_01",
+        "arguments": {
+          "table": "uploaded_data",
+          "question": "What is the total revenue by category?",
+          "contract": {
+            "operation": "sum",
+            "table": "uploaded_data",
+            "measure": "revenue",
+            "period": null,
+            "period_field": null,
+            "filters": [],
+            "dimension": "category",
+            "dimensions": [
+              "category"
+            ],
+            "time_field": null,
+            "time_grain": null,
+            "ascending": false,
+            "confident": true,
+            "explanation": "total revenue by category",
+            "named_columns": [
+              "revenue",
+              "category"
+            ],
+            "interpretation": "rule-based",
+            "planner_note": "",
+            "contract_hash": "4d426d7e681aa9d5081560b010580f88e2700b9732c59b553e0460a88abe7f9f",
+            "canonical_contract": {
+              "operation": "sum",
+              "table": "uploaded_data",
+              "measure": "revenue",
+              "dimensions": [
+                "category"
+              ],
+              "time_field": null,
+              "time_grain": null,
+              "period": null,
+              "period_field": null,
+              "filters": [],
+              "ascending": false
+            }
+          },
+          "expected_schema_revision": 0
+        },
+        "duration_ms": 0,
+        "result_id": null,
+        "row_count": null,
+        "ok": true,
+        "error": null,
+        "transport": "in-process"
+      }
+    },
+    {
+      "event_id": "ev_dd3bcec3d5db",
+      "seq": 6,
+      "type": "mcp_tool_completed",
+      "at": 1791084235.292937,
+      "data": {
+        "tool_name": "aggregate_for_question",
+        "agent": "fast_path",
+        "task_id": "task_01",
+        "arguments": {
+          "table": "uploaded_data",
+          "question": "What is the total revenue by category?",
+          "contract": {
+            "operation": "sum",
+            "table": "uploaded_data",
+            "measure": "revenue",
+            "period": null,
+            "period_field": null,
+            "filters": [],
+            "dimension": "category",
+            "dimensions": [
+              "category"
+            ],
+            "time_field": null,
+            "time_grain": null,
+            "ascending": false,
+            "confident": true,
+            "explanation": "total revenue by category",
+            "named_columns": [
+              "revenue",
+              "category"
+            ],
+            "interpretation": "rule-based",
+            "planner_note": "",
+            "contract_hash": "4d426d7e681aa9d5081560b010580f88e2700b9732c59b553e0460a88abe7f9f",
+            "canonical_contract": {
+              "operation": "sum",
+              "table": "uploaded_data",
+              "measure": "revenue",
+              "dimensions": [
+                "category"
+              ],
+              "time_field": null,
+              "time_grain": null,
+              "period": null,
+              "period_field": null,
+              "filters": [],
+              "ascending": false
+            }
+          },
+          "expected_schema_revision": 0
+        },
+        "duration_ms": 18.52,
+        "result_id": "res_cc6487158203",
+        "row_count": 36,
+        "ok": true,
+        "error": null
+      }
+    },
+    {
+      "event_id": "ev_88d28065c192",
+      "seq": 7,
+      "type": "finding_verified",
+      "at": 1791084235.2934191,
+      "data": {
+        "finding_id": "fin_b42fd2d8",
+        "status": "supported",
+        "rule": "engine_canonical"
+      }
+    },
+    {
+      "event_id": "ev_f4a7d8d4f19b",
+      "seq": 8,
+      "type": "chart_created",
+      "at": 1791084235.293473,
+      "data": {
+        "chart_id": "cht_74ba7619",
+        "chart_kind": "bar",
+        "result_id": "res_cc6487158203"
+      }
+    },
+    {
+      "event_id": "ev_edeeba194a40",
+      "seq": 9,
+      "type": "report_completed",
+      "at": 1791084235.294498,
+      "data": {
+        "finding_count": 1,
+        "rejected_count": 0,
+        "chart_count": 1,
+        "sections": []
+      }
+    },
+    {
+      "event_id": "ev_2c77fc9098ff",
+      "seq": 10,
+      "type": "run_completed",
+      "at": 1791084235.295556,
+      "data": {
+        "run_id": "run_fc1ccbe0ca22",
+        "runtime_seconds": 0.049,
+        "provider": "fake",
+        "analysis_tasks": 0,
+        "tasks_succeeded": 0,
+        "tasks_warned": 0,
+        "tasks_failed": 0,
+        "mcp_tool_calls": 1,
+        "mcp_tool_failures": 0,
+        "findings_proposed": 1,
+        "findings_published": 1,
+        "findings_rejected": 0,
+        "charts": 1,
+        "provider_request_attempts": 0,
+        "provider_successful_responses": 0,
+        "llm_calls": 0,
+        "input_tokens": 0,
+        "output_tokens": 0
+      }
+    }
+  ],
+  "metrics": {
+    "runtime_seconds": 0.049,
+    "provider": "fake",
+    "analysis_tasks": 0,
+    "tasks_succeeded": 0,
+    "tasks_warned": 0,
+    "tasks_failed": 0,
+    "mcp_tool_calls": 1,
+    "mcp_tool_failures": 0,
+    "findings_proposed": 1,
+    "findings_published": 1,
+    "findings_rejected": 0,
+    "charts": 1,
+    "provider_request_attempts": 0,
+    "provider_successful_responses": 0,
+    "llm_calls": 0,
+    "input_tokens": 0,
+    "output_tokens": 0,
+    "by_role": {}
+  },
+  "query_contract": {
+    "operation": "sum",
+    "table": "uploaded_data",
+    "measure": "revenue",
+    "period": null,
+    "period_field": null,
+    "filters": [],
+    "dimension": "category",
+    "dimensions": [
+      "category"
+    ],
+    "time_field": null,
+    "time_grain": null,
+    "ascending": false,
+    "confident": true,
+    "explanation": "total revenue by category",
+    "named_columns": [
+      "revenue",
+      "category"
+    ],
+    "interpretation": "rule-based",
+    "planner_note": "",
+    "contract_hash": "4d426d7e681aa9d5081560b010580f88e2700b9732c59b553e0460a88abe7f9f",
+    "canonical_contract": {
+      "operation": "sum",
+      "table": "uploaded_data",
+      "measure": "revenue",
+      "dimensions": [
+        "category"
+      ],
+      "time_field": null,
+      "time_grain": null,
+      "period": null,
+      "period_field": null,
+      "filters": [],
+      "ascending": false
+    }
+  },
+  "question_coverage": {
+    "complete": true,
+    "required_components": [
+      "operation",
+      "measure",
+      "dimensions"
+    ],
+    "applied_components": [
+      "operation",
+      "measure",
+      "dimensions"
+    ],
+    "missing_components": [],
+    "rejection_codes": [],
+    "details": []
+  },
+  "timings": {
+    "planning_ms": 6.9,
+    "execution_ms": 18.7,
+    "verification_ms": 0.4,
+    "total_ms": 26
+  },
+  "chart_decision": {
+    "kind": "bar",
+    "title": "total revenue by category",
+    "spec": {
+      "mark": "bar",
+      "encoding": {
+        "x": {
+          "field": "category",
+          "type": "nominal",
+          "title": "category"
+        },
+        "y": {
+          "field": "total_revenue",
+          "type": "quantitative",
+          "title": "total revenue",
+          "axis": {
+            "format": ","
+          }
+        },
+        "tooltip": [
+          {
+            "field": "category",
+            "type": "nominal",
+            "title": "category"
+          },
+          {
+            "field": "total_revenue",
+            "type": "quantitative",
+            "title": "total revenue",
+            "format": ","
+          }
+        ]
+      }
+    }
+  },
+  "presentation": {
+    "schema_version": "1.0",
+    "shape": "categorical_breakdown",
+    "headline": "Total revenue is highest for cat_22, at 6,496, and lowest for cat_34, at 3,712.",
+    "secondary_summary": "Every group is listed in the table below.",
+    "highlights": [
+      {
+        "highlight_id": "highest",
+        "label": "Highest: cat_22",
+        "value": {
+          "raw_value": 6496,
+          "formatted_value": "6,496",
+          "unit": null
+        },
+        "comparison_value": null,
+        "delta": null,
+        "evidence_cells": [
+          {
+            "result_id": "res_cc6487158203",
+            "row": 22,
+            "column": "total_revenue",
+            "value": 6496,
+            "label": "total revenue, highest"
+          }
+        ],
+        "interpretation_level": "measured"
+      },
+      {
+        "highlight_id": "lowest",
+        "label": "Lowest: cat_34",
+        "value": {
+          "raw_value": 3712,
+          "formatted_value": "3,712",
+          "unit": null
+        },
+        "comparison_value": null,
+        "delta": null,
+        "evidence_cells": [
+          {
+            "result_id": "res_cc6487158203",
+            "row": 34,
+            "column": "total_revenue",
+            "value": 3712,
+            "label": "total revenue, lowest"
+          }
+        ],
+        "interpretation_level": "measured"
+      }
+    ],
+    "scope": {
+      "rows_total": 400,
+      "rows_matching": 400,
+      "rows_represented": 400,
+      "observations_matching": 400,
+      "observations_represented": 400,
+      "groups_returned": 36,
+      "groups_total": 36,
+      "complete": true,
+      "filters": [],
+      "period": null,
+      "ordering": "dimension"
+    },
+    "display_fields": [
+      {
+        "source_name": "revenue",
+        "display_label": "Revenue",
+        "semantic_kind": "measure",
+        "unit": null,
+        "precision": 2,
+        "boolean_labels": null,
+        "ordered": true,
+        "identifier": false,
+        "sensitive": false
+      },
+      {
+        "source_name": "category",
+        "display_label": "Category",
+        "semantic_kind": "category",
+        "unit": null,
+        "precision": null,
+        "boolean_labels": null,
+        "ordered": false,
+        "identifier": false,
+        "sensitive": false
+      },
+      {
+        "source_name": "total_revenue",
+        "display_label": "Total revenue",
+        "semantic_kind": "ordered_numeric",
+        "unit": null,
+        "precision": 2,
+        "boolean_labels": null,
+        "ordered": true,
+        "identifier": false,
+        "sensitive": false
+      },
+      {
+        "source_name": "row_count",
+        "display_label": "Row count",
+        "semantic_kind": "measure",
+        "unit": null,
+        "precision": null,
+        "boolean_labels": null,
+        "ordered": true,
+        "identifier": false,
+        "sensitive": false
+      },
+      {
+        "source_name": "value_count",
+        "display_label": "Value count",
+        "semantic_kind": "measure",
+        "unit": null,
+        "precision": null,
+        "boolean_labels": null,
+        "ordered": true,
+        "identifier": false,
+        "sensitive": false
+      }
+    ],
+    "table": {
+      "result_id": "res_cc6487158203",
+      "visible_columns": [
+        "category",
+        "total_revenue",
+        "row_count"
+      ],
+      "display_fields": [
+        {
+          "source_name": "category",
+          "display_label": "Category",
+          "semantic_kind": "category",
+          "unit": null,
+          "precision": null,
+          "boolean_labels": null,
+          "ordered": false,
+          "identifier": false,
+          "sensitive": false
+        },
+        {
+          "source_name": "total_revenue",
+          "display_label": "Total revenue",
+          "semantic_kind": "ordered_numeric",
+          "unit": null,
+          "precision": 2,
+          "boolean_labels": null,
+          "ordered": true,
+          "identifier": false,
+          "sensitive": false
+        },
+        {
+          "source_name": "row_count",
+          "display_label": "Row count",
+          "semantic_kind": "measure",
+          "unit": null,
+          "precision": null,
+          "boolean_labels": null,
+          "ordered": true,
+          "identifier": false,
+          "sensitive": false
+        },
+        {
+          "source_name": "value_count",
+          "display_label": "Value count",
+          "semantic_kind": "measure",
+          "unit": null,
+          "precision": null,
+          "boolean_labels": null,
+          "ordered": true,
+          "identifier": false,
+          "sensitive": false
+        }
+      ],
+      "default_sort": null,
+      "preview_limit": 25,
+      "complete": true
+    },
+    "chart": {
+      "chart_id": "fin_b42fd2d8",
+      "result_id": "res_cc6487158203",
+      "kind": "bar",
+      "title": "total revenue by category",
+      "subtitle": null,
+      "x_field": "category",
+      "y_field": "total_revenue",
+      "series_field": null,
+      "no_chart_reason": null,
+      "spec": {
+        "mark": "bar",
+        "encoding": {
+          "x": {
+            "field": "category",
+            "type": "nominal",
+            "title": "category"
+          },
+          "y": {
+            "field": "total_revenue",
+            "type": "quantitative",
+            "title": "total revenue",
+            "axis": {
+              "format": ","
+            }
+          },
+          "tooltip": [
+            {
+              "field": "category",
+              "type": "nominal",
+              "title": "category"
+            },
+            {
+              "field": "total_revenue",
+              "type": "quantitative",
+              "title": "total revenue",
+              "format": ","
+            }
+          ]
+        }
+      }
+    },
+    "caveats": [],
+    "provenance_refs": [
+      {
+        "finding_id": "fin_b42fd2d8",
+        "result_id": "res_cc6487158203",
+        "evidence_cells": [
+          {
+            "result_id": "res_cc6487158203",
+            "row": 22,
+            "column": "total_revenue",
+            "value": 6496,
+            "label": "sum of revenue for cat_22"
+          },
+          {
+            "result_id": "res_cc6487158203",
+            "row": 34,
+            "column": "total_revenue",
+            "value": 3712,
+            "label": "sum of revenue for cat_34"
+          }
+        ]
+      }
+    ],
+    "compatibility_derived": false
+  },
+  "planner_fallback": false,
+  "stopped_reason": "",
+  "outcome": "completed",
+  "schema_revision": 0,
+  "role_evidence": [
+    {
+      "column": "category",
+      "effective_role": "dimension",
+      "inferred_role": "dimension",
+      "role_source": "inferred",
+      "ambiguous": false,
+      "used_as": [
+        "grouping"
+      ]
+    },
+    {
+      "column": "revenue",
+      "effective_role": "measure",
+      "inferred_role": "measure",
+      "role_source": "inferred",
+      "ambiguous": false,
+      "used_as": [
+        "measure"
+      ]
+    }
+  ]
+}

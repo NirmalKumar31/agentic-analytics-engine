@@ -22,9 +22,28 @@
 
 import { useCallback, useEffect, useRef, type ReactNode } from "react";
 
-/** Everything that can take focus, in document order. */
-const FOCUSABLE =
-  'a[href], button:not(:disabled), input:not(:disabled), select:not(:disabled), textarea:not(:disabled), summary, [tabindex]:not([tabindex="-1"])';
+/**
+ * Click handler for a control that opens a sheet.
+ *
+ * WebKit does not focus a `<button>` when it is clicked -- Safari's
+ * long-standing behaviour, not a Playwright artefact -- so
+ * `document.activeElement` is `<body>` at the moment the sheet mounts, and
+ * the sheet dutifully restores focus to `<body>` on close. A
+ * keyboard-and-mouse user is dropped at the top of the document.
+ *
+ * It is a shared helper rather than a line at each call site because this
+ * was fixed once for the schema inspector and then reintroduced verbatim by
+ * the evidence drawer. A control that opens a dialog should hold focus
+ * anyway: it is where the reader is, and where they expect to be put back.
+ */
+export function opensSheet(open: () => void) {
+  return {
+    onClick: (event: React.MouseEvent<HTMLElement>) => {
+      event.currentTarget.focus();
+      open();
+    },
+  };
+}
 
 export function SideSheet({
   title,
@@ -65,31 +84,63 @@ export function SideSheet({
         close();
         return;
       }
-      if (event.key !== "Tab") return;
+    };
 
-      // Containment. Without it, Tab from the last control in the sheet
-      // moves to the page underneath, which is covered by a scrim and
-      // cannot be seen -- focus simply disappears.
+    /*
+     * Containment, as a backstop rather than as manual Tab cycling.
+     *
+     * The first version computed the sheet's first and last focusable
+     * elements and wrapped Tab between them. That is wrong on WebKit:
+     * Safari leaves buttons out of the tab order by default, so the
+     * computed `last` was an element Tab would never reach, the wrap never
+     * fired, and focus walked out of the sheet after two presses onto a
+     * page covered by a scrim -- where it simply disappears.
+     *
+     * Listening for focus *arriving* outside the sheet needs no model of
+     * which elements a given engine considers tabbable. Whatever the
+     * browser's natural order inside the sheet is, it is already correct;
+     * the only thing to prevent is leaving.
+     */
+    const pullBack = () => {
       const sheet = sheetRef.current;
       if (!sheet) return;
-      const stops = [...sheet.querySelectorAll<HTMLElement>(FOCUSABLE)].filter(
-        (el) => el.offsetParent !== null || el === document.activeElement,
-      );
-      if (stops.length === 0) return;
-      const first = stops[0]!;
-      const last = stops[stops.length - 1]!;
-      if (event.shiftKey && document.activeElement === first) {
-        event.preventDefault();
-        last.focus();
-      } else if (!event.shiftKey && document.activeElement === last) {
-        event.preventDefault();
-        first.focus();
-      }
+      if (sheet.contains(document.activeElement)) return;
+      closeRef.current?.focus();
+    };
+
+    const onFocusIn = (event: FocusEvent) => {
+      const sheet = sheetRef.current;
+      if (!sheet) return;
+      const target = event.target as Node | null;
+      if (target && sheet.contains(target)) return;
+      closeRef.current?.focus();
+    };
+
+    /*
+     * `focusin` alone is not enough on WebKit.
+     *
+     * Safari leaves buttons out of the tab order, so Tab from inside the
+     * sheet can move focus out of the *document* -- to the browser chrome
+     * -- rather than to another element. Nothing receives focus, so
+     * `focusin` never fires, `document.activeElement` falls back to
+     * `<body>`, and the next Tab re-enters the page at the top: on the
+     * surface behind the scrim.
+     *
+     * `focusout` fires in that case. The check is deferred a tick because
+     * at `focusout` time the new target has not been focused yet, so
+     * reading `activeElement` immediately would always see the old one.
+     */
+    const onFocusOut = () => {
+      window.setTimeout(pullBack, 0);
     };
 
     document.addEventListener("keydown", onKey);
+    document.addEventListener("focusin", onFocusIn);
+    document.addEventListener("focusout", onFocusOut);
     return () => {
       document.removeEventListener("keydown", onKey);
+      document.removeEventListener("focusin", onFocusIn);
+      document.removeEventListener("focusout", onFocusOut);
       // Give focus back to the control that opened the sheet.
       //
       // Deferred by a frame rather than restored synchronously. Cleanup

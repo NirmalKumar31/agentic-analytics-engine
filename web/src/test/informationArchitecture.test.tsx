@@ -363,24 +363,26 @@ describe("the report workspace", () => {
     );
   }
 
-  it("leads with the answer, before the technical audit", () => {
+  it("leads with the answer, and the answer is the first heading", () => {
     workspace(audited);
     const report = screen.getByTestId("report-panel");
-    const audit = screen.getByTestId("planning-audit");
+    const answer = screen.getByTestId("direct-answer");
     // DOM order, not text search: this is a claim about structure, and a
     // text index would pass on a coincidental substring.
-    expect(
-      report.compareDocumentPosition(audit) &
-        Node.DOCUMENT_POSITION_FOLLOWING,
-      "the planning audit must come after the report",
-    ).toBeTruthy();
+    expect(report.contains(answer)).toBe(true);
+    expect(answer.tagName).toBe("H1");
+    const headings = report.querySelectorAll("h1, h2, h3");
+    expect(headings[0]).toBe(answer);
   });
 
-  it("keeps the technical audit a closed disclosure", () => {
+  it("keeps the planning audit off the report canvas entirely", () => {
+    // It used to be a closed disclosure resident under every report. A
+    // closed disclosure is still a thing in the reading order, still a tab
+    // stop, and still the last thing on the page -- so the claim is now
+    // stronger: it is not on the canvas at all, and lives in the evidence
+    // drawer with everything else the canvas gave up.
     workspace(audited);
-    const audit = screen.getByTestId("planning-audit");
-    expect(audit.tagName).toBe("DETAILS");
-    expect(audit).not.toHaveAttribute("open");
+    expect(screen.queryByTestId("planning-audit")).toBeNull();
   });
 
   it("puts the state card above the report when a run did not answer", () => {

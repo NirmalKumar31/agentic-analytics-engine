@@ -165,6 +165,7 @@ test.describe("the run timeline, on real runs", () => {
     await page.getByRole("button", { name: "Run analysis" }).click();
     await waitForReport(page);
 
+    await page.getByTestId("show-work").click();
     const timeline = page.getByTestId("run-timeline");
     await expect(timeline).toBeVisible();
     expect(await timeline.locator('[data-state="stopped"]').count()).toBe(0);
@@ -178,6 +179,7 @@ test.describe("the run timeline, on real runs", () => {
     await ask(page, "What is the total revenue by region?");
     await waitForReport(page);
 
+    await page.getByTestId("show-work").click();
     const timeline = page.getByTestId("run-timeline");
     await expect(timeline).toBeVisible();
     // Five stages for a deterministic run, every one of them reached.

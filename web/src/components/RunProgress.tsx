@@ -8,29 +8,20 @@
  * five steps a third time, after the stepper and the DAG had each already
  * said them.
  *
- * One timeline now, derived from backend events only. The activity log
- * stays -- it is the per-call record, which is different information -- and
- * moves into the evidence drawer in step E.
+ * One timeline now, derived from backend events only. The activity log is
+ * the per-call record -- different information, and technical -- so it
+ * moved into the evidence drawer with everything else the canvas gave up.
  */
 
-import { ActivityLog } from "./ActivityLog";
 import { RunTimeline } from "./RunTimeline";
-import type { RecordingSummary, RunEvent, RunPayload } from "../lib/types";
+import type { RecordingSummary, RunEvent } from "../lib/types";
 
 export function RunProgress({
-  run,
   events,
   replay,
-  showTrace,
-  onToggleTrace,
-  running,
 }: {
-  run: RunPayload | null;
   events: RunEvent[];
   replay: RecordingSummary | null;
-  showTrace: boolean;
-  onToggleTrace: () => void;
-  running: boolean;
 }) {
   return (
     <>
@@ -40,13 +31,6 @@ export function RunProgress({
           recorded run · <span className="mono">{replay.recording_id}</span>
         </p>
       )}
-      <ActivityLog
-        events={events}
-        trace={run?.mcp_trace ?? []}
-        showTrace={showTrace}
-        onToggleTrace={onToggleTrace}
-        running={running}
-      />
     </>
   );
 }

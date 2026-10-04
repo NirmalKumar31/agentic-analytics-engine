@@ -207,18 +207,20 @@ test.describe("chart width is independent of cardinality", () => {
 
 test.describe("touch targets on a phone", () => {
   test("a standalone disclosure is a thumb-sized target", async ({ page }) => {
-    // The Planning Audit disclosure on a completed report, which is a
-    // control in its own right rather than a link inside a sentence. The
-    // inline privacy disclosure is exempt under WCAG 2.2 SC 2.5.8; this
-    // one is not, and the rule that sizes it was previously unverified --
-    // removing it failed nothing, because the only summary on the
-    // landing page is the exempt one.
+    // The Planning Audit disclosure, which is a control in its own right
+    // rather than a link inside a sentence. The inline privacy disclosure
+    // is exempt under WCAG 2.2 SC 2.5.8; this one is not.
+    //
+    // It is inside the evidence drawer now, which is where a phone meets it
+    // -- and a drawer is exactly where a cramped target hurts most.
     await page.setViewportSize({ width: 390, height: 844 });
     await openApp(page);
     await page.getByRole("button", { name: /Commerce demo warehouse/ }).click();
     await expect(page.getByTestId("composer")).toBeVisible();
     await ask(page, "What is the total revenue by region?");
     await waitForReport(page);
+    await page.getByTestId("show-work").click();
+    await expect(page.getByTestId("evidence-drawer")).toBeVisible();
 
     const standalone = await page.evaluate(() =>
       [...document.querySelectorAll("details:not(.disclosure) > summary")]

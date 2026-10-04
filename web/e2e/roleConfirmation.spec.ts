@@ -344,8 +344,10 @@ test.describe("what the engine then does with it", () => {
   });
 
   test("the audit names the confirmation, per entry", async () => {
-    // The audit is a closed `<details>`: its body is hidden from the
-    // accessibility tree and from `toBeVisible` until a reader opens it.
+    // The audit is in the evidence drawer now, and is still a closed
+    // `<details>` inside it: its body is hidden from the accessibility tree
+    // and from `toBeVisible` until a reader opens it.
+    await page.getByTestId("show-work").click();
     const audit = page.getByTestId("planning-audit");
     await expect(audit).toBeVisible();
     await audit.locator("summary").first().click();

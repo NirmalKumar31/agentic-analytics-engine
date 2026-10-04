@@ -1,7 +1,8 @@
+import { AnswerReport } from "./AnswerReport";
 import { ComparisonView } from "./ComparisonView";
 import { ReportView } from "./ReportView";
 import { RunStateCard } from "./RunStateCard";
-import { TechnicalInspector } from "./TechnicalInspector";
+import { reportModel } from "../lib/reportModel";
 import { runState } from "../lib/runState";
 import type {
   ComparisonStarted,
@@ -19,6 +20,7 @@ export function ReportWorkspace({
   config,
   deterministicPending,
   onShowWork,
+  onShowEvidence,
 }: {
   comparison: ComparisonStarted | null;
   run: RunPayload | null;
@@ -27,6 +29,8 @@ export function ReportWorkspace({
   config: ServerConfig | null;
   deterministicPending: boolean;
   onShowWork: (side: ProvenanceSide, findingId: string) => void;
+  /** Opens the evidence drawer for the single-run report. */
+  onShowEvidence?: () => void;
 }) {
   if (comparison) {
     return (
@@ -85,13 +89,38 @@ export function ReportWorkspace({
   return (
     <>
       <RunStateCard state={state} />
+      {/*
+        One report for both payload shapes. An uploaded file comes back with
+        a `presentation`; the demo warehouse does not, because it is
+        answered through the metric registry. `reportModel` derives the same
+        seven elements from either, so the demo is not left on the old
+        seven-panel report.
+      */}
       {state.showsReport && (
-        <RunReport
-          run={run}
-          onShowWork={(id) => onShowWork("deterministic", id)}
+        <AnswerReport
+          question={run.question}
+          model={reportModel({
+            presentation: run.presentation,
+            report: run.report,
+            findings: run.findings,
+            rejected: run.rejected,
+            charts: run.charts,
+            results: run.results,
+            queryContract: run.query_contract ?? null,
+          })}
+          publishedCount={run.findings.length}
+          withheldCount={run.rejected.length}
+          onShowEvidence={onShowEvidence ?? (() => undefined)}
         />
       )}
-      <TechnicalInspector run={run} />
+      {/*
+        `TechnicalInspector` -- the planning audit -- used to render here,
+        resident under every report. It is in the evidence drawer now,
+        together with the activity trace, the contract, the route, coverage,
+        verification, cited cells, timings and the limitations. Relocated,
+        not deleted: `EVIDENCE_SECTIONS` names each one and a test asserts
+        they are all reachable.
+      */}
     </>
   );
 }

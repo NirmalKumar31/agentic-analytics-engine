@@ -40,6 +40,9 @@ test.describe("the run timeline", () => {
     await ask(page, "What is the total revenue by region?");
     await waitForReport(page);
 
+    // In the evidence drawer: once the report exists the answer is the
+    // thing on screen, so the timeline moves behind "Show work".
+    await page.getByTestId("show-work").click();
     const timeline = page.getByTestId("run-timeline");
     await expect(timeline).toBeVisible();
 
@@ -60,6 +63,7 @@ test.describe("the run timeline", () => {
     await ask(page, "What is the total revenue by region?");
     await waitForReport(page);
 
+    await page.getByTestId("show-work").click();
     // A finished run has finished stages. Read from `data-state`, which is
     // what the stylesheet colours from, so a stage cannot look complete
     // while reporting something else.
@@ -95,6 +99,7 @@ test.describe("the run timeline", () => {
     await expect(page.getByTestId("run-state-card")).toBeVisible({
       timeout: 90_000,
     });
+    await page.getByTestId("show-work").click();
 
     const stopped = page.locator('[data-state="stopped"]');
     await expect(stopped).toHaveCount(1);

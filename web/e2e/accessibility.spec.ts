@@ -146,9 +146,17 @@ test.describe("accessibility", () => {
     await ask(page, "What is the total revenue by region?");
     await waitForReport(page);
 
+    // In the evidence drawer, which is also the more demanding scan: the
+    // drawer is a modal over a scrim, so its surfaces, its dense key/value
+    // rows and its trace all composite differently from the canvas.
+    //
     // Unconditional. This was wrapped in `if (count > 0)`, so an audit that
     // stopped rendering would have left the scan passing over a page that no
     // longer contained the thing the test is named for.
+    await page.getByTestId("show-work").click();
+    await expect(page.getByTestId("evidence-drawer")).toBeVisible();
+    await scan(page, "evidence drawer open");
+
     const audit = page.getByTestId('planning-audit');
     await expect(audit).toBeVisible();
     await audit.locator('summary').first().click();
@@ -431,8 +439,11 @@ test.describe("keyboard operation", () => {
     await ask(page, "What is the total revenue by region?");
     await waitForReport(page);
 
-    const opener = page.getByRole("button", { name: /show work/i }).first();
-    if ((await opener.count()) === 0) return;
+    // Unconditional: a `return` here would have turned a missing control
+    // into a silent pass, which is how a drawer that stopped opening would
+    // have kept this test green.
+    const opener = page.getByTestId("show-work");
+    await expect(opener).toBeVisible();
 
     // Opened from the keyboard, not with a click.
     //
@@ -447,11 +458,11 @@ test.describe("keyboard operation", () => {
     await expect(opener).toBeFocused();
     await page.keyboard.press("Enter");
 
-    const drawer = page.locator(".drawer").first();
+    const drawer = page.getByTestId("evidence-drawer");
     await expect(drawer).toBeVisible();
 
     await page.keyboard.press("Escape");
-    await expect(drawer).toBeHidden();
+    await expect(drawer).toHaveCount(0);
     await expect(opener).toBeFocused();
   });
 });

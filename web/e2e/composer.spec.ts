@@ -195,11 +195,27 @@ test.describe("the schema side sheet", () => {
     // there simply disappears.
     for (let i = 0; i < 30; i += 1) {
       await page.keyboard.press("Tab");
-      const inside = await page.evaluate(() => {
-        const sheet = document.querySelector('[data-testid="schema-sheet"]');
-        return sheet ? sheet.contains(document.activeElement) : false;
-      });
-      expect(inside, `focus left the sheet after ${i + 1} tabs`).toBe(true);
+      // Polled, not read on the frame after the key.
+      //
+      // Containment is a backstop: when focus leaves the sheet it is pulled
+      // back on the next tick, because at `focusout` time the new target
+      // has not been focused yet and reading `activeElement` synchronously
+      // would always see the old one. The guarantee is that focus cannot
+      // *settle* outside the sheet, which is what a reader experiences; a
+      // single read catches the frame in between and fails on whichever
+      // engine happens to be quickest.
+      await expect
+        .poll(
+          () =>
+            page.evaluate(() => {
+              const sheet = document.querySelector(
+                '[data-testid="schema-sheet"]',
+              );
+              return sheet ? sheet.contains(document.activeElement) : false;
+            }),
+          { message: `focus settled outside the sheet after ${i + 1} tabs` },
+        )
+        .toBe(true);
     }
   });
 });
