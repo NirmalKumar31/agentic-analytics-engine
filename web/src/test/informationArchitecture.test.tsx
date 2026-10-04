@@ -210,8 +210,21 @@ describe("every terminal state is distinguishable", () => {
 
       />,
     );
-    const card = screen.getByTestId("run-state-card");
-    expect(card).toHaveTextContent(expected);
+    // The terminal state is part of the report now, inside the same
+    // reading column as the question and the chart.
+    const report = screen.getByTestId("report-panel");
+    expect(report).toHaveTextContent(expected);
+
+    // One heading, once. The defect this guards is a refusal stating its
+    // reason twice -- in a card and again as the display headline --
+    // which is counted on the headline, not on every occurrence of the
+    // word: "withheld" legitimately recurs in a sentence explaining that a
+    // claim which cannot be checked is withheld.
+    const headline = screen.getByTestId("direct-answer");
+    expect(screen.getAllByTestId("direct-answer")).toHaveLength(1);
+    const text = (headline.textContent ?? "").trim();
+    const said = (report.textContent ?? "").split(text).length - 1;
+    expect(said, `the headline is stated ${said} times`).toBe(1);
   });
 
   it("gives each state its own label, with no two sharing one", () => {
@@ -385,22 +398,35 @@ describe("the report workspace", () => {
     expect(screen.queryByTestId("planning-audit")).toBeNull();
   });
 
-  it("puts the state card above the report when a run did not answer", () => {
+  it("states the outcome at the top of the report when a run did not answer", () => {
     workspace(
       run({ status: "refused", stopped_reason: "no date column", findings: [] }),
     );
-    const card = screen.getByTestId("run-state-card");
-    const panel = screen.queryByTestId("report-panel");
-    // A refusal still has a report worth showing -- it carries the accepted
-    // interpretation -- but the reason comes first.
-    if (panel) {
-      expect(
-        card.compareDocumentPosition(panel) &
-          Node.DOCUMENT_POSITION_FOLLOWING,
-      ).toBeTruthy();
-    } else {
-      expect(card).toBeTruthy();
-    }
+    /*
+     * The outcome is the first thing in the report, and it is *in* the
+     * report rather than above it.
+     *
+     * This used to compare the position of a separate state card against
+     * the report panel. The card is gone: it sat outside the reading
+     * column, and an `order: -2` rule lifted it above the dataset context
+     * strip, so a refusal appeared as a banner before the reader had been
+     * told which file it was about.
+     */
+    const panel = screen.getByTestId("report-panel");
+    const state = screen.getByTestId("terminal-state");
+    expect(panel.contains(state)).toBe(true);
+
+    const question = screen.getByTestId("report-question");
+    const answer = screen.getByTestId("direct-answer");
+    expect(
+      question.compareDocumentPosition(state) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+      "the outcome must follow the question it is about",
+    ).toBeTruthy();
+    expect(
+      state.compareDocumentPosition(answer) & Node.DOCUMENT_POSITION_FOLLOWING,
+      "the outcome must precede the headline",
+    ).toBeTruthy();
   });
 
   it("keeps the schema inspector a closed disclosure", () => {
@@ -562,10 +588,20 @@ describe("a query that matched nothing", () => {
 
   it("reads as no findings, not as a failure", () => {
     workspace(emptyResult);
-    const card = screen.getByTestId("run-state-card");
-    expect(card).toHaveAttribute("data-state", "no_findings");
-    expect(card).not.toHaveTextContent(/failed/i);
-    expect(card).not.toHaveTextContent(/\bComplete\b/);
+    const report = screen.getByTestId("report-panel");
+    expect(screen.getByTestId("direct-answer")).toHaveTextContent(
+      /no findings to publish/i,
+    );
+    expect(report).not.toHaveTextContent(/failed/i);
+    expect(report).not.toHaveTextContent(/\bComplete\b/);
+    // And never refusal language. "No findings" is a *completed* run, and
+    // the whole reason these states are separate is that a reader can tell
+    // a run that declined to answer from one that answered and found
+    // nothing. "Not answered" above a completed run erases that.
+    expect(report).not.toHaveTextContent(/not answered/i);
+    expect(report).not.toHaveTextContent(/refus/i);
+    // It says the execution finished, in those words.
+    expect(report).toHaveTextContent(/ran and completed/i);
   });
 
   it("shows the reason the engine gave, naming the restriction", () => {
@@ -576,8 +612,9 @@ describe("a query that matched nothing", () => {
 
   it("does not blame verification for withholding something", () => {
     workspace(emptyResult);
-    const card = screen.getByTestId("run-state-card");
-    expect(card).toHaveTextContent(/nothing was withheld/i);
+    expect(screen.getByTestId("report-panel")).toHaveTextContent(
+      /nothing was withheld/i,
+    );
   });
 });
 

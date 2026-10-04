@@ -357,17 +357,23 @@ describe("rules stay in the module that owns their place in the cascade", () => 
     expect(withoutComments(moduleSource("styles/tokens.css"))).toMatch(/--z-[\w-]+\s*:/);
   });
 
-  it("keeps the state card with the report it explains", () => {
-    // `.report-workspace` is pulled to the top of the column with
-    // `order: -1`. The state card is a sibling, so without its own order it
-    // stayed in document order -- below the execution panels, a long scroll
-    // from the outcome it describes. A reader met "Not answered" at the top
-    // and found "Refused." somewhere further down.
+  it("orders the report column by document order alone", () => {
+    /*
+     * Two `order` rules used to live in states.css: `.report-workspace` at
+     * -1 and the state card at -2. They existed because the execution
+     * panels streamed above the report, so the outcome ended up a long
+     * scroll below them.
+     *
+     * Those panels are gone -- the activity log is in the evidence drawer
+     * and the timeline is not resident once a report exists -- and the
+     * rules then lifted the terminal state *above the dataset context
+     * strip*: outside the reading column, before the reader had been told
+     * which file it was about.
+     *
+     * Nothing in the column may reorder itself again without a reason.
+     */
     const states = withoutComments(moduleSource("styles/states.css"));
-    expect(states).toMatch(/\.column\s*>\s*\.report-workspace\s*\{[^}]*order:\s*-1/);
-    expect(states).toMatch(
-      /\.column\s*>\s*\[data-testid="run-state-card"\]\s*\{[^}]*order:\s*-2/,
-    );
+    expect(states).not.toMatch(/\.column\s*>[^{]*\{[^}]*order:/);
   });
 
   it("adds no !important beyond the thirteen already justified", () => {

@@ -96,7 +96,7 @@ test.describe("the run timeline", () => {
     await uploadFile(page, "timeline-refusal.csv", sampleCsv());
     await ask(page, "What is the total gross margin by region?");
 
-    await expect(page.getByTestId("run-state-card")).toBeVisible({
+    await expect(page.getByTestId("report-panel")).toBeVisible({
       timeout: 90_000,
     });
     await page.getByTestId("show-work").click();

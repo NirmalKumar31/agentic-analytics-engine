@@ -246,7 +246,9 @@ test.describe("accessibility", () => {
     // The surfaces this scan exists for: the route disclosure, and a state
     // card for the refused lane.
     await expect(page.getByTestId("auto-route-note")).toBeVisible();
-    await expect(page.getByTestId("run-state-card").first()).toBeVisible();
+    // Compare has no single-run report: the two strategies render compact
+    // panes and, under agreement, one shared result.
+    await expect(page.getByTestId("compare-workspace")).toBeVisible();
     await scan(page, "compare with route disclosure");
   });
 
@@ -283,7 +285,7 @@ test.describe("accessibility", () => {
     await expect(page.locator("body")).toHaveAttribute("data-phase", "refused", {
       timeout: 60_000,
     });
-    await expect(page.getByTestId("run-state-card")).toBeVisible();
+    await expect(page.getByTestId("report-panel")).toBeVisible();
     await scan(page, "dark mode, refused report");
 
     // And the ordinary report, where the muted ink does most of the work.

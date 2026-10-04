@@ -30,6 +30,7 @@ import type { RunPayload } from "../lib/types";
 
 /** Every technical datum the canvas gave up, by the name it is shown under. */
 export const EVIDENCE_SECTIONS = [
+  "Outcome",
   "Route",
   "Accepted contract",
   "Coverage",
@@ -121,6 +122,7 @@ export function EvidenceBody({
    * drawer *vanished* the moment a reader switched to a strategy that had
    * not finished. It looked like the drawer closing itself.
    */
+  const rawReason = (run.stopped_reason || run.error || "").trim();
   const findings = run.findings ?? [];
   const rejected = run.rejected ?? [];
   const citedCells = findings.flatMap((finding) =>
@@ -132,6 +134,25 @@ export function EvidenceBody({
   return (
     <>
       <dl className="evidence-list">
+        {/*
+          How the run ended, in the engine's own words.
+
+          The canvas carries a sentence written for a reader; this carries
+          the record. For a refusal those differ on purpose -- the raw
+          reason begins "the question could not be mapped safely: ...",
+          which is the engine describing its own difficulty rather than the
+          reader's next move -- and the unedited string has to remain
+          somewhere or the rewrite is a loss.
+        */}
+        <Row term="Outcome">
+          <span className="mono">{run.outcome ?? run.status ?? "completed"}</span>
+          {rawReason && (
+            <span className="evidence-note" data-testid="raw-stop-reason">
+              {rawReason}
+            </span>
+          )}
+        </Row>
+
         <Row term="Route">
           {resolution?.route ?? run.mode ?? "deterministic"}
           {resolution?.modelCalls != null && (

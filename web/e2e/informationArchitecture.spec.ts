@@ -256,12 +256,16 @@ test.describe("terminal states, produced by the engine", () => {
   test("a refused question is reported as refused, not as an empty report", async () => {
     await ask(page, "What is the total gross margin by region?");
 
-    const card = page.getByTestId("run-state-card");
-    await expect(card).toBeVisible({ timeout: 90_000 });
-    await expect(card).toHaveAttribute("data-state", "refused");
-    await expect(card).toContainText(/refused/i);
+    // The terminal state is part of the report now, inside the same
+    // reading column as the question. It was a separate card, which is
+    // what let a refusal state its reason twice -- once in the card and
+    // once as the display headline.
+    const report = page.getByTestId("report-panel");
+    await expect(report).toBeVisible({ timeout: 90_000 });
+    await expect(report).toHaveAttribute("data-state", "refused");
+    await expect(report).toContainText(/refused/i);
     // Never the word that would send a reader looking for an answer.
-    await expect(card).not.toContainText(/\bComplete\b/);
+    await expect(report).not.toContainText(/\bComplete\b/);
 
     // The three `.step` assertions that stood here -- Analyse stopped,
     // Verify idle, Report idle -- went with the five-step pipeline index.
@@ -282,23 +286,31 @@ test.describe("terminal states, produced by the engine", () => {
     // the table held no matching rows, which is a result.
     await ask(page, "What is total revenue by region where region is Atlantis?");
 
-    const card = page.getByTestId("run-state-card");
-    await expect(card).toBeVisible({ timeout: 90_000 });
-    await expect(card).toHaveAttribute("data-state", "no_findings");
-    await expect(card).not.toContainText(/\bComplete\b/);
-    await expect(card).not.toContainText(/failed/i);
+    const report = page.getByTestId("report-panel");
+    await expect(report).toBeVisible({ timeout: 90_000 });
+    await expect(report).toHaveAttribute("data-state", "no_findings");
+    await expect(report).not.toContainText(/\bComplete\b/);
+    await expect(report).not.toContainText(/failed/i);
+    // A completed run must never wear refusal language.
+    await expect(report).not.toContainText(/not answered/i);
     // And the reason names the restriction that emptied it.
     await expect(
       page.getByText(/No rows matched the requested filters/),
     ).toBeVisible();
   });
 
-  test("an answered question shows no state card at all", async ({ page }) => {
+  test("an answered question carries no terminal state at all", async ({ page }) => {
     await openApp(page);
     await openDemo(page);
     await ask(page, "What is total revenue by region?");
     await waitForReport(page);
-    await expect(page.getByTestId("run-state-card")).toHaveCount(0);
+    // A verified answer speaks for itself: no eyebrow, no rule bar, no
+    // state attribute.
+    await expect(page.getByTestId("terminal-state")).toHaveCount(0);
+    await expect(page.getByTestId("report-panel")).not.toHaveAttribute(
+      "data-state",
+      /.+/,
+    );
 
     // And the report has to contain the answer.
     //
@@ -393,11 +405,11 @@ test.describe("terminal states that need a payload fixture", () => {
       await serveRun(page, overrides);
       await ask(page, "What is total revenue by region?");
 
-      const card = page.getByTestId("run-state-card");
-      await expect(card).toBeVisible({ timeout: 90_000 });
-      await expect(card).toHaveAttribute("data-state", state);
-      await expect(card).toContainText(expected);
-      await expect(card).not.toContainText(/\bComplete\b/);
+      const report = page.getByTestId("report-panel");
+      await expect(report).toBeVisible({ timeout: 90_000 });
+      await expect(report).toHaveAttribute("data-state", state);
+      await expect(report).toContainText(expected);
+      await expect(report).not.toContainText(/\bComplete\b/);
     });
   }
 
@@ -410,7 +422,7 @@ test.describe("terminal states that need a payload fixture", () => {
     await openDemo(page);
     await serveRun(page, cases[1]![1]);
     await ask(page, "What is total revenue by region?");
-    const card = page.getByTestId("run-state-card");
+    const card = page.getByTestId("report-panel");
     await expect(card).toBeVisible({ timeout: 90_000 });
     await expect(card).toContainText(/nothing was withheld/i);
     await expect(card).not.toContainText(/withheld findings below/i);

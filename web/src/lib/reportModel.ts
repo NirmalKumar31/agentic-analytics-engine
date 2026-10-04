@@ -22,6 +22,7 @@
  * printing a placeholder.
  */
 
+import { terminalPresentation } from "./terminalReport";
 import {
   answerResult,
   coverageScope,
@@ -31,6 +32,8 @@ import {
   populationClauses,
   rowsInScope,
 } from "./answer";
+import type { RunState } from "./runState";
+import type { RunPayload } from "./types";
 import type {
   AnalysisPresentation,
   ChartSpec,
@@ -59,6 +62,16 @@ export interface ReportModel {
   /** Set only when the shape is not an answer: a refusal or a failure. */
   eyebrow: string | null;
   answer: string;
+  /** Severity for the rule bar beside a terminal state. */
+  terminalTone?: "supported" | "warn" | "error" | "neutral";
+  /**
+   * The state identifier, for anything reading the outcome rather than the
+   * prose. It is what the stylesheet and the suite key on, so a report
+   * cannot look like one outcome while reporting another.
+   */
+  terminalState?: string;
+  /** Deprecated alias of `answer`, kept so both names read naturally. */
+  headline?: string;
   /** Population, observations, period, coverage -- whatever was recorded. */
   context: string | null;
   summary: string | null;
@@ -273,16 +286,55 @@ export function reportModel(input: {
   charts: ChartSpec[];
   results: Record<string, ResultSnapshot>;
   queryContract: QueryContract | null;
+  /** The run's terminal state, when it did not end in a verified answer. */
+  state?: RunState | null;
+  run?: RunPayload | null;
 }): ReportModel {
-  if (input.presentation) {
-    return fromPresentation(input.presentation, input.results);
-  }
-  return fromFindings({
-    report: input.report,
-    findings: input.findings,
-    rejected: input.rejected,
-    charts: input.charts,
-    results: input.results,
-    queryContract: input.queryContract,
-  });
+  const base = input.presentation
+    ? fromPresentation(input.presentation, input.results)
+    : fromFindings({
+        report: input.report,
+        findings: input.findings,
+        rejected: input.rejected,
+        charts: input.charts,
+        results: input.results,
+        queryContract: input.queryContract,
+      });
+
+  /*
+   * A terminal state owns the top of the report.
+   *
+   * It used to be a separate card beside the report, which meant a refusal
+   * stated its reason twice -- once in the card and once as the headline,
+   * because the presentation builder sets the headline from the same stop
+   * reason. One of them has to win, and it is the one written for a reader.
+   */
+  const terminal = input.state
+    ? terminalPresentation(input.state, input.run ?? null)
+    : null;
+  if (!terminal) return base;
+
+  // An eyebrow the headline already contains is an echo: "No findings"
+  // above "No findings to publish" is the state said twice, one line apart.
+  const echoes =
+    terminal.eyebrow != null &&
+    terminal.headline.toLowerCase().startsWith(terminal.eyebrow.toLowerCase());
+
+  return {
+    ...base,
+    eyebrow: echoes ? null : terminal.eyebrow,
+    terminalState: input.state?.state,
+    headline: terminal.headline,
+    answer: terminal.headline,
+    terminalTone: terminal.tone,
+    // The engine's own sentence, under the headline. The *raw*
+    // `stopped_reason` is not here: it is in the evidence drawer.
+    summary: terminal.explanation,
+    // A caveat that repeats what the state already said is an echo.
+    notes: base.notes.filter(
+      (note) =>
+        note.message.trim() !== terminal.headline.trim() &&
+        note.message.trim() !== (terminal.explanation ?? "").trim(),
+    ),
+  };
 }

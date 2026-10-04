@@ -207,21 +207,19 @@
 .chart-host svg {
   max-width: 100%;
 }
-/* App retains the execution panels in DOM before the report so an in-flight
-   run can stream them. Once a report exists, the document workspace is the
-   first thing a reader sees; the technical trace remains available below. */
-.column > .report-workspace {
-  order: -1;
-}
-/* The state card belongs with the report it explains.
-   `ReportWorkspace` renders it as a sibling of the report, so the rule
-   above moved the report to the top and left the card in document order --
-   below the execution panels, a long scroll from the outcome it describes.
-   A reader met "Not answered" at the top and found "Refused." somewhere
-   further down. -2 puts it immediately above the report. */
-.column > [data-testid="run-state-card"] {
-  order: -2;
-}
+/* The two `order` rules that stood here are gone.
+ *
+ * They lifted `.report-workspace` to `order: -1` and the state card to
+ * `order: -2`, because the execution panels used to stream above the report
+ * and the outcome ended up a long scroll below them. Those panels are gone:
+ * the activity log is in the evidence drawer and the timeline is not
+ * resident once a report exists, so document order is already right.
+ *
+ * Left in place, they put the terminal state *above the dataset context
+ * strip* -- outside the reading column, full width, before the reader had
+ * been told which file this was about. A refusal appeared as a banner
+ * floating over the top of the page.
+ */
 .technical-audit {
   padding: var(--space-3) var(--space-4);
   border-top: 1px solid var(--rule-hairline);

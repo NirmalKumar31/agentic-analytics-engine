@@ -1,6 +1,5 @@
 import { AnswerReport } from "./AnswerReport";
 import { CompareWorkspace } from "./CompareWorkspace";
-import { RunStateCard } from "./RunStateCard";
 import { reportModel } from "../lib/reportModel";
 import { runState } from "../lib/runState";
 import type {
@@ -76,7 +75,16 @@ export function ReportWorkspace({
   const state = runState(run);
   return (
     <>
-      <RunStateCard state={state} />
+      {/*
+        No separate `RunStateCard` here.
+
+        It was a sibling of the report, which meant a refusal said its
+        reason twice -- once in the card and once as the display headline,
+        because the presentation builder sets the headline from the same
+        stop reason. The terminal state is part of the report now, inside
+        the same reading column as the question, the context line and the
+        chart, and `reportModel` decides what it says.
+      */}
       {/*
         One report for both payload shapes. An uploaded file comes back with
         a `presentation`; the demo warehouse does not, because it is
@@ -95,6 +103,8 @@ export function ReportWorkspace({
             charts: run.charts,
             results: run.results,
             queryContract: run.query_contract ?? null,
+            state,
+            run,
           })}
           publishedCount={run.findings.length}
           withheldCount={run.rejected.length}

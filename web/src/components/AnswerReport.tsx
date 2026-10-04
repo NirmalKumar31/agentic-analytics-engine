@@ -58,7 +58,15 @@ export function AnswerReport({
 }) {
   return (
     <article
-      className={`report${compact ? " report--compact" : ""}`}
+      // Keyed on the tone, not on the eyebrow. The eyebrow is suppressed
+      // when the headline already states the outcome ("No findings" above
+      // "No findings to publish"), and gating the rule bar on it left a
+      // terminal state with no severity mark at all.
+      className={`report${compact ? " report--compact" : ""}${
+        model.terminalTone ? " report--terminal" : ""
+      }`}
+      data-tone={model.terminalTone}
+      data-state={model.terminalState}
       data-testid={compact ? "compare-report" : "report-panel"}
     >
       {!compact && (
@@ -70,7 +78,15 @@ export function AnswerReport({
       {/* Only when the shape is not an answer. A "Verified answer" label
           above every answer is a badge the reader learns to skip, and it
           delays the sentence they came for by one line. */}
-      {model.eyebrow && <p className="report-eyebrow">{model.eyebrow}</p>}
+      {model.eyebrow && (
+        <p
+          className="report-eyebrow"
+          data-testid="terminal-state"
+          data-tone={model.terminalTone ?? "warn"}
+        >
+          {model.eyebrow}
+        </p>
+      )}
 
       {compact ? (
         <p className="compare-answer" data-testid="direct-answer">

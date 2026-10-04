@@ -470,3 +470,39 @@
   margin: 0;
   color: var(--ink-secondary);
 }
+
+/* --------------------------------------------------------- terminal state
+ *
+ * A run that did not end in a verified answer says so at the top of the
+ * report, inside the same reading column as the question and the chart --
+ * not as a banner above the dataset strip, which is where an `order: -2`
+ * rule used to put it.
+ *
+ * Severity is carried by the rule bar and by the words. It is never carried
+ * by the primary action: a recovery control drawn in the warning colour
+ * reads as the hazard rather than the exit from it.
+ */
+.report--terminal {
+  border-inline-start: 3px solid var(--rule-strong);
+  padding-inline-start: var(--space-5);
+}
+
+.report--terminal[data-tone="warn"] {
+  border-inline-start-color: var(--warning);
+}
+
+.report--terminal[data-tone="error"] {
+  border-inline-start-color: var(--failure);
+}
+
+.report--terminal[data-tone="neutral"] {
+  border-inline-start-color: var(--ink-muted);
+}
+
+.report-eyebrow[data-tone="neutral"] {
+  color: var(--ink-muted);
+}
+
+.report-eyebrow[data-tone="error"] {
+  color: var(--failure);
+}

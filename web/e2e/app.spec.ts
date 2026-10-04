@@ -210,22 +210,45 @@ test.describe("uploading a file", () => {
     // or a completed report with nothing in it.
     await expect(page.locator("body")).toHaveAttribute("data-phase", "refused");
     // The activity log keeps the engine's own reason verbatim.
-    await expect(page.getByText(/could not be mapped/i).first()).toBeVisible();
+    // The actionable part, not the engine's framing of its own difficulty.
+    // The raw reason -- "the question could not be mapped safely: ..." --
+    // is in the evidence drawer, verbatim.
+    await expect(
+      page.getByTestId("report-panel"),
+    ).toHaveAttribute("data-state", "refused");
+    // This question is refused for a different reason than the column one:
+    // it asks for no calculation at all. Either way the headline is the
+    // engine's actionable sentence, not its "could not be mapped safely"
+    // framing, and it reads as a sentence.
+    const headline = (
+      (await page.getByTestId("direct-answer").textContent()) ?? ""
+    ).trim();
+    expect(headline).not.toMatch(/^the question could not be mapped safely/i);
+    expect(headline.charAt(0)).toBe(headline.charAt(0).toUpperCase());
     // The report records it too, in a sentence written for a reader. This
     // used to be the same raw string repeated in three phrasings; it is
     // now said once, so the assertion is on the reader-facing wording and
     // on there being exactly one of it.
-    const refusals = page.locator("[data-testid='direct-answer']", {
-      hasText: /could not be mapped|could not be answered safely/i,
-    });
+    // The engine's framing -- "could not be mapped safely" -- is no longer
+    // the headline: it is the raw record, kept verbatim in the evidence
+    // drawer. What the canvas records is that this was a refusal, said
+    // once, in the engine's actionable words.
     await expect(
-      refusals.first(),
+      page.getByTestId("report-panel"),
       "the report must record the refusal, not only the activity log",
-    ).toBeVisible();
+    ).toHaveAttribute("data-state", "refused");
+
+    const headlines = page.locator("[data-testid='direct-answer']");
     expect(
-      await refusals.count(),
+      await headlines.count(),
       "a refusal is stated once, not repeated in several phrasings",
     ).toBe(1);
+
+    await page.getByTestId("show-work").click();
+    await expect(page.getByTestId("raw-stop-reason")).toContainText(
+      /could not be mapped safely/i,
+    );
+    await page.keyboard.press("Escape");
   });
 
   test("refuses an invalid file with a readable message", async ({ page }) => {

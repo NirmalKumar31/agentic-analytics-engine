@@ -101,10 +101,43 @@ export async function uploadFile(
   }
 }
 
-/** Start an analysis from the Ask panel. */
+/**
+ * Start an analysis from the composer.
+ *
+ * The run button is disabled while the app is busy or the field is empty,
+ * so a plain `click()` waits the full test timeout and then reports only
+ * "element is not enabled" -- which says nothing about *why*.
+ *
+ * This has happened twice on Firefox, deep in a full suite run, in the
+ * role-confirmation describe, and it does not reproduce in isolation (six
+ * consecutive clean attempts against the same server). Rather than leave a
+ * 120-second timeout with no evidence, this fails in ten seconds and
+ * reports the state that would explain it: what the field actually holds,
+ * whether a modal sheet is still open over the page, and which phase the
+ * app thinks it is in.
+ */
 export async function ask(page: Page, question: string): Promise<void> {
-  await page.getByLabel('Business question').fill(question)
-  await page.getByRole('button', { name: 'Run analysis' }).click()
+  const field = page.getByLabel('Business question')
+  await field.fill(question)
+
+  const run = page.getByRole('button', { name: /^(Run analysis|Run with AI)/ })
+  try {
+    await expect(run).toBeEnabled({ timeout: 10_000 })
+  } catch {
+    const state = await page.evaluate(() => ({
+      field: (document.querySelector('#composer-field') as HTMLTextAreaElement | null)?.value ?? null,
+      phase: document.body.dataset.phase ?? null,
+      sheetOpen: Boolean(
+        document.querySelector('[data-testid="schema-sheet"], [data-testid="evidence-drawer"], [data-testid="compare-evidence-drawer"]'),
+      ),
+      notice: document.querySelector('.notice.error')?.textContent?.trim() ?? null,
+    }))
+    throw new Error(
+      `the run button stayed disabled: ${JSON.stringify(state)}`,
+    )
+  }
+
+  await run.click()
 }
 
 /** Everything a page could be storing client-side, as one string. */
