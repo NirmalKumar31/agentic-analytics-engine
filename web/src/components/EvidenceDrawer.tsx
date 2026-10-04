@@ -111,7 +111,19 @@ export function EvidenceBody({
   // Which result cells the published findings actually cite. This is the
   // link between a sentence and the number under it, and it was previously
   // reachable only per-finding through a separate drawer.
-  const citedCells = run.findings.flatMap((finding) =>
+  /*
+   * Every collection is read defensively, and that is not belt-and-braces.
+   *
+   * A run payload that is still `running` carries no `findings`, no
+   * `rejected` and no `events` -- the API answers with the run's identity
+   * and its status and nothing else. `run.findings.flatMap(...)` threw on
+   * exactly that payload, React unmounted the subtree, and the evidence
+   * drawer *vanished* the moment a reader switched to a strategy that had
+   * not finished. It looked like the drawer closing itself.
+   */
+  const findings = run.findings ?? [];
+  const rejected = run.rejected ?? [];
+  const citedCells = findings.flatMap((finding) =>
     (finding.evidence_cells ?? []).map(
       (cell) => `${cell.result_id}[${cell.row}].${cell.column}`,
     ),
@@ -154,6 +166,56 @@ export function EvidenceBody({
               schema revision {run.schema_revision}
             </span>
           )}
+          {/*
+            What was actually executed: the operation, the measure, the
+            grouping and the row restrictions.
+
+            This was a resident `applied-analysis` panel under every report.
+            Moving the panel without moving its content would have been a
+            deletion dressed as a disclosure -- a reader could no longer
+            find out what "average revenue by region" had been turned into.
+          */}
+          {contract && (
+            <dl className="evidence-contract" data-testid="applied-analysis">
+              <div>
+                <dt>calculation</dt>
+                <dd>{contract.operation}</dd>
+              </div>
+              {contract.measure && (
+                <div>
+                  <dt>measure</dt>
+                  <dd>{contract.measure.replaceAll("_", " ")}</dd>
+                </div>
+              )}
+              {(contract.dimensions ?? []).length > 0 && (
+                <div>
+                  <dt>grouped by</dt>
+                  <dd>
+                    {(contract.dimensions ?? [])
+                      .map((d) => d.replaceAll("_", " "))
+                      .join(" then ")}
+                  </dd>
+                </div>
+              )}
+              {contract.time_grain && (
+                <div>
+                  <dt>time grain</dt>
+                  <dd>{contract.time_grain}</dd>
+                </div>
+              )}
+              {(contract.filters ?? []).map((filter, index) => (
+                <div key={`${filter.column}-${filter.operator}-${index}`}>
+                  <dt>filter</dt>
+                  <dd>
+                    {filter.column.replaceAll("_", " ")} {filter.operator}{" "}
+                    {filter.value === null || filter.value === undefined
+                      ? ""
+                      : String(filter.value)}
+                  </dd>
+                </div>
+              ))}
+            </dl>
+          )}
         </Row>
 
         <Row term="Coverage">
@@ -182,8 +244,8 @@ export function EvidenceBody({
         </Row>
 
         <Row term="Verification">
-          {run.findings.length} published · {run.rejected.length} withheld
-          {run.rejected.map((verdict) => (
+          {findings.length} published · {rejected.length} withheld
+          {rejected.map((verdict) => (
             <span className="evidence-note" key={verdict.finding_id}>
               {/* `status`, not a rule identifier. The backend's `Verdict`
                   carries `verdict_rule` -- `no_evidence`,
@@ -263,7 +325,7 @@ export function EvidenceBody({
       */}
       <section className="evidence-timeline" aria-label="Run progress">
         <h3 className="section-heading">Run progress</h3>
-        <RunTimeline events={run.events} />
+        <RunTimeline events={run.events ?? []} />
       </section>
 
       {/* The full typed-plan record. The brief places it inside this sheet
@@ -277,7 +339,7 @@ export function EvidenceBody({
       <section className="evidence-trace" aria-label="Activity trace">
         <h3 className="section-heading">Activity trace</h3>
         <ActivityLog
-          events={run.events}
+          events={run.events ?? []}
           trace={run.mcp_trace ?? []}
           showTrace={traceShown}
           onToggleTrace={toggleTrace}

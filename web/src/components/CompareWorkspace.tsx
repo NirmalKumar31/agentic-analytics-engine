@@ -70,6 +70,12 @@ function calls(usage: RunUsage | undefined): string {
   return usage ? String(usage.provider_attempts) : "—";
 }
 
+function tokens(usage: RunUsage | undefined, side: "input" | "output"): string {
+  if (!usage) return "—";
+  const value = side === "input" ? usage.input_tokens : usage.output_tokens;
+  return value.toLocaleString();
+}
+
 function runtime(run: RunPayload | null): string {
   const seconds = run?.metrics?.runtime_seconds;
   return seconds == null ? "—" : `${seconds} s`;
@@ -130,17 +136,45 @@ export function CompareWorkspace({
   return (
     <div className="compare" data-testid="compare-workspace">
       <p className="report-question">{question}</p>
-      <h1 className="display" data-testid="compare-verdict-headline">
-        {comparison.headline}
-      </h1>
-      <p className="context-line">{comparison.detail}</p>
+
+      {/*
+        The verdict block.
+
+        `contract-comparison` names the whole thing -- the headline, the
+        sentence under it and the four facts -- rather than a notice box,
+        because the comparison *is* all of that. `data-verdict` stays on it
+        as the stable machine-readable signal: the prose is written for a
+        reader and may change, the verdict may not.
+      */}
+      <section
+        className="compare-verdict"
+        data-testid="contract-comparison"
+        data-verdict={comparison.verdict}
+      >
+        <h1 className="display" data-testid="compare-verdict-headline">
+          {comparison.headline}
+        </h1>
+        <p className="context-line">{comparison.detail}</p>
+
+      {/*
+        The substantive claim, and the reason there is no winner badge.
+        Both strategies run the same engine over the same dataset with the
+        same coverage checks, the same verification and the same publication
+        checks; only the *planning* differs, and the model never calculates
+        a result. Without this a reader can only guess what "AI Analytics"
+        did, and the obvious guess -- that a model produced the numbers --
+        is the one thing that is not true.
+      */}
+      <p className="compare-scope-note">
+        Both strategies run the same analytics engine over the same dataset,
+        with the same coverage checks, the same verification and the same
+        publication checks. Only the planning differs: rule-based planning on
+        one side, a cloud model on the other. The model never calculates a
+        result. The two are shown independently and are not ranked.
+      </p>
 
       {comparable && (
-        <dl
-          className="compare-facts"
-          data-testid="compare-facts"
-          data-verdict={comparison.verdict}
-        >
+        <dl className="compare-facts">
           {facts.map((fact) => (
             <div key={fact.term} className="compare-fact">
               <dt>{fact.term}</dt>
@@ -152,6 +186,10 @@ export function CompareWorkspace({
           <div className="compare-fact">
             <dt>recorded route</dt>
             <dd>
+              {/* A policy decision, not a third execution lane. Automatic
+                  routing chooses *which* of the two strategies runs; it is
+                  not a strategy of its own, and presenting it as a third
+                  column would invent a run that never happened. */}
               <PlanningRouteNote
                 deterministic={deterministic.run}
                 ai={ai.run}
@@ -160,6 +198,7 @@ export function CompareWorkspace({
           </div>
         </dl>
       )}
+      </section>
 
       {/* How each strategy got there: one table, not two stage stacks. */}
       <section className="compare-routes" aria-label="How each strategy got there">
@@ -170,6 +209,8 @@ export function CompareWorkspace({
               <tr>
                 <th scope="col">strategy</th>
                 <th scope="col">calls</th>
+                <th scope="col">input</th>
+                <th scope="col">output</th>
                 <th scope="col">cost</th>
                 <th scope="col">runtime</th>
                 <th scope="col">contract</th>
@@ -178,27 +219,44 @@ export function CompareWorkspace({
             </thead>
             <tbody>
               {[
-                { side: deterministic, state: left },
-                { side: ai, state: right },
-              ].map(({ side, state }) => (
-                <tr key={side.title}>
+                { side: deterministic, state: left, role: "deterministic" },
+                { side: ai, state: right, role: "ai" },
+              ].map(({ side, state, role }) => (
+                <tr key={role}>
                   <th scope="row">{side.title}</th>
                   <td className="numeric">{calls(side.usage)}</td>
+                  {/* Token counts in their own cells. A deterministic run
+                      has no usage at all, and printing a zero would invent
+                      one -- an em dash says "there was none", which is a
+                      different statement. */}
+                  <td className="numeric">{tokens(side.usage, "input")}</td>
+                  <td className="numeric">{tokens(side.usage, "output")}</td>
                   <td className="numeric">{money(side.usage)}</td>
                   <td className="numeric">{runtime(side.run)}</td>
                   <td className="mono">{contractHash(side.run)}</td>
-                  <td>{state.label}</td>
+                  {/* Each side's own terminal state, machine-readable.
+                      Compare must never collapse two outcomes into one: a
+                      run that refused and a run that completed are not "the
+                      comparison". The id is the one the suite has always
+                      used; it moved from a pane header to the row of the
+                      table that compares the two. */}
+                  <td
+                    data-testid="pane-status"
+                    data-state={state.state}
+                    // Polite, per side. A reader using a screen reader has
+                    // to learn that *this* strategy finished, not that
+                    // "the comparison" changed: the two sides reach their
+                    // terminal states independently and at different times.
+                    aria-live="polite"
+                  >
+                    {state.label}
+                  </td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
       </section>
-
-      {/* A side that did not produce a report says why, before anything
-          claims the two can be compared. */}
-      {!left.showsReport && <RunStateCard state={left} />}
-      {!right.showsReport && <RunStateCard state={right} />}
 
       {comparison.shareOneResult ? (
         <section className="compare-shared" data-testid="shared-result">
@@ -233,24 +291,49 @@ export function CompareWorkspace({
                   the contract.
                 </dd>
               </div>
-              <div className="evidence-row">
-                <dt>cost</dt>
-                <dd>
-                  {deterministic.title} {money(deterministic.usage)} ·{" "}
-                  {ai.title} {money(ai.usage)}
-                </dd>
-              </div>
+              {/*
+                Cost and tokens stay visible even when the result is shared:
+                when two strategies produce the same numbers, what they
+                spent getting there is the substantive difference between
+                them, and it is the only thing a reader can act on.
+              */}
+              {[
+                { side: deterministic, role: "deterministic" },
+                { side: ai, role: "ai" },
+              ].map(({ side, role }) => (
+                <div className="evidence-row" key={role}>
+                  <dt>{side.title}</dt>
+                  <dd>
+                    {/* A deterministic run has no usage record at all.
+                        "— · — calls · — in · — out" is four dashes where
+                        one fact belongs; "no provider call" says the thing
+                        a reader wants to know, which is that this side
+                        cost nothing and contacted nothing. */}
+                    {side.usage
+                      ? `${money(side.usage)} · ${calls(side.usage)} calls · ${tokens(
+                          side.usage,
+                          "input",
+                        )} in · ${tokens(side.usage, "output")} out`
+                      : "no provider call, no cost"}
+                  </dd>
+                </div>
+              ))}
             </dl>
           </section>
         </section>
-      ) : comparable ? (
+      ) : (
         <section className="compare-diff-section" data-testid="divergence">
-          <h2 className="section-heading">The strategies did not agree</h2>
-          <p className="compare-diff-note">
-            Neither result is presented as the answer. The difference is shown
-            field by field rather than summarised, because a summary would be
-            one more interpretation on top of the two already in question.
-          </p>
+          {comparable && (
+            <>
+              <h2 className="section-heading">The strategies did not agree</h2>
+              <p className="compare-diff-note">
+                Neither result is presented as the answer. The difference is
+                shown field by field rather than summarised, because a
+                summary would be one more interpretation on top of the two
+                already in question.
+              </p>
+            </>
+          )}
 
           {differences.length > 0 ? (
             <div className="scroll-x">
@@ -273,27 +356,60 @@ export function CompareWorkspace({
                 </tbody>
               </table>
             </div>
-          ) : (
+          ) : comparable ? (
             <p className="compare-diff-note">
               The differing part of the interpretation is not one this report
               breaks out. Both traces are in the evidence drawer.
             </p>
-          )}
+          ) : null}
 
           {/* Both results, below the difference rather than beside it: the
               difference is what a reader opened Compare for. */}
+          {/*
+            Both sides, below the difference rather than beside it: the
+            difference is what a reader opened Compare for.
+
+            Rendered whenever there is not one shared answer -- including
+            while the two are *not yet comparable*. An earlier version gated
+            this on `comparable`, so a run that had finished was hidden
+            because the other side was still going or had failed. A result
+            on hand is not withheld because its counterpart is missing.
+          */}
           <div className="compare-grid">
-            <article className="compare-pane">
-              <h3 className="section-heading">{deterministic.title}</h3>
-              {deterministic.children}
-            </article>
-            <article className="compare-pane">
-              <h3 className="section-heading">{ai.title}</h3>
-              {ai.children}
-            </article>
+            {[
+              { side: deterministic, role: "deterministic" },
+              { side: ai, role: "ai" },
+            ].map(({ side, role }) => (
+              <article
+                key={role}
+                className="compare-pane"
+                // A labelled region: each side is independently identifiable
+                // to a screen reader, which is what stops two panes of
+                // similar numbers becoming one undifferentiated block.
+                role="region"
+                aria-label={side.title}
+              >
+                <h3 className="section-heading">{side.title}</h3>
+                <p className="compare-pane-sub">{side.subtitle}</p>
+                {/*
+                  Inside the side's own block, not above both of them.
+                  A refusal, a quota stop or a failed start belongs to one
+                  strategy, and a reader has to be able to attribute it
+                  without counting which card came first. `RunStateCard`
+                  renders nothing for a verified answer, so a clean side
+                  carries no card at all.
+                */}
+                <RunStateCard state={stateOf(side)} />
+                {side.children ?? (
+                  <p className="compare-pane-empty" aria-live="polite">
+                    {stateOf(side).reason || stateOf(side).label}
+                  </p>
+                )}
+              </article>
+            ))}
           </div>
         </section>
-      ) : null}
+      )}
 
       <div className="report-actions">
         <button

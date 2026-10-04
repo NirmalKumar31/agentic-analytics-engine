@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-import { ask, openApp, sampleCsv, suggestedQuestions, uploadFile, waitForReport } from "./helpers";
+import { ask, openApp, sampleCsv, suggestedQuestions, uploadFile, waitForCompare, waitForReport } from "./helpers";
 
 /**
  * That the chart actually draws.
@@ -258,18 +258,24 @@ test.describe("Compare Both, in a browser", () => {
       "What is the total revenue by region?",
     );
     await page.getByRole("button", { name: /Compare strategies/ }).click();
-    await waitForReport(page);
+    // The comparison's anchor, not the single-run report's: Compare renders
+    // compact panes and, under agreement, one shared result.
+    await waitForCompare(page);
 
     // One shared result, not two copies of it.
     await expect(page.getByTestId("shared-result")).toBeVisible({
       timeout: 60_000,
     });
-    await expect(page.locator('[data-testid="pane-status"]')).toHaveCount(0);
     // One report, not the same report twice.
-    await expect(page.getByTestId("report-panel")).toHaveCount(1);
+    await expect(page.getByTestId("compare-report")).toHaveCount(1);
+    await expect(page.locator(".compare-pane")).toHaveCount(0);
 
-    // The two planning lanes stay: that is what actually differed.
-    await expect(page.locator(".lane")).toHaveCount(2);
+    // The planning comparison stays: that is what actually differed. It was
+    // two `.lane` stage stacks restating the same five steps twice; it is
+    // one table with a row per strategy, and each row carries that
+    // strategy's own status.
+    await expect(page.getByTestId("compare-routes")).toBeVisible();
+    await expect(page.locator('[data-testid="pane-status"]')).toHaveCount(2);
 
     // And the one chart it shows is drawn, not described.
     await expectDrawnChart(page);

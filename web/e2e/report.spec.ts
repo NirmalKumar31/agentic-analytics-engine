@@ -116,6 +116,65 @@ test.describe("the chart draws in the measured palette", () => {
   }
 });
 
+/** Two dimensions, so the chart carries a colour encoding. */
+function twoDimensionCsv(rows = 240): string {
+  const regions = ["North", "South", "East", "West"];
+  const channels = ["web", "retail", "partner"];
+  const lines = ["order_id,order_date,region,channel,revenue"];
+  for (let i = 0; i < rows; i += 1) {
+    const month = String((i % 12) + 1).padStart(2, "0");
+    lines.push(
+      `${i},2025-${month}-15,${regions[i % 4]},${channels[i % 3]},${(10 + ((i * 7) % 490)).toFixed(2)}`,
+    );
+  }
+  return lines.join("\n");
+}
+
+test.describe("a multi-series chart draws in the measured palette", () => {
+  for (const theme of ["light", "dark"] as const) {
+    test(`every series comes from the ramp in ${theme}`, async ({ page }) => {
+      /*
+       * A single-series chart exercises `config.mark.color`; this exercises
+       * `config.range.category`, which is a different code path and the only
+       * one the original token work covered. Both had to be checked: the
+       * first was broken precisely because the second looked right.
+       */
+      await openApp(page);
+      await uploadFile(page, "multi.csv", twoDimensionCsv());
+      await ask(page, "What is the total revenue by region and channel?");
+      await waitForReport(page);
+      await page.evaluate(
+        (value) => document.documentElement.setAttribute("data-theme", value),
+        theme,
+      );
+      await waitForPlot(page);
+
+      const fills = await page.evaluate(() =>
+        [...document.querySelectorAll(".chart-host svg path")]
+          .map((node) => getComputedStyle(node).fill)
+          .filter((fill) => fill && fill !== "none" && !fill.includes("0, 0, 0, 0")),
+      );
+      const used = [...new Set(fills.map(toHex))];
+      expect(
+        used.length,
+        "this is not a multi-series chart; the test asserts nothing",
+      ).toBeGreaterThan(1);
+
+      const ramp = await seriesRamp(page);
+      for (const fill of used) {
+        expect(
+          ramp,
+          `${fill} is not in the measured series ramp (${ramp.join(", ")})`,
+        ).toContain(fill);
+      }
+      // Distinct series must be distinct colours: the ramp climbs a
+      // contrast ladder so a reader who cannot separate the hues still has
+      // lightness, and reusing one entry twice throws that away.
+      expect(new Set(used).size).toBe(used.length);
+    });
+  }
+});
+
 test.describe("the report keeps the properties the old suite proved", () => {
   test("the table scrolls inside its own frame, not the page", async ({
     page,

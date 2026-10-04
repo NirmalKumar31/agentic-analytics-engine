@@ -2,8 +2,9 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import { EvidenceBody } from "../components/EvidenceDrawer";
 import { ReportUnderTest } from "./renderReport";
-import type { AnalysisPresentation, QueryContract, ResultSnapshot } from "../lib/types";
+import type { AnalysisPresentation, QueryContract, ResultSnapshot, RunPayload } from "../lib/types";
 
 const contract: QueryContract = {
   operation: "average",
@@ -74,7 +75,25 @@ describe("ReportView", () => {
   });
 
   it("shows the operation, population filters and grouping actually executed", () => {
-    report();
+    // In the evidence drawer, under "Accepted contract". It was a resident
+    // `applied-analysis` panel under every report; moving the panel without
+    // moving its content would have been a deletion dressed as a
+    // disclosure, so the content moved with it and this test followed.
+    render(
+      <EvidenceBody
+        run={
+          {
+            query_contract: contract,
+            findings: [],
+            rejected: [],
+            events: [],
+            mcp_trace: [],
+            report: null,
+            metrics: {},
+          } as unknown as RunPayload
+        }
+      />,
+    );
     const applied = screen.getByTestId("applied-analysis");
     expect(applied).toHaveTextContent("average");
     expect(applied).toHaveTextContent("annual revenue");

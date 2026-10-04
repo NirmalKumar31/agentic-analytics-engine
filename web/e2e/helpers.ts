@@ -25,6 +25,20 @@ export async function waitForReport(page: Page): Promise<void> {
 }
 
 /**
+ * Wait for a comparison to render.
+ *
+ * Compare has no `report-panel`: the two strategies' reports are compact
+ * panes, and under agreement there is one shared result rather than a
+ * single-run report. The workspace is the anchor, and waiting on the
+ * wrong one timed out for 90 seconds on a page that had already rendered.
+ */
+export async function waitForCompare(page: Page): Promise<void> {
+  await expect(page.getByTestId('compare-workspace')).toBeVisible({
+    timeout: 90_000,
+  })
+}
+
+/**
  * The recorded-run buttons, in the landing's prepared-data list.
  *
  * Scoped by test id rather than by a heading. The old selector reached for

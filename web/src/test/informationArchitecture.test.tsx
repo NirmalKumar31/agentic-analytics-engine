@@ -623,24 +623,49 @@ describe("the report card says what it actually is", () => {
     // It labelled every shape "Verified answer", so a question the engine
     // declined to map was presented as a verified answer to it, with the
     // refusal reason as the answer. Nothing was verified.
+    //
+    // Scoped to the report rather than to the headline element: the shape
+    // label is now an eyebrow above the answer rather than a line inside
+    // the same card, so the claim is about what the report says, which is
+    // what it was always about.
     present("refusal", "the question could not be mapped safely");
-    const card = screen.getByTestId("direct-answer");
-    expect(card).not.toHaveTextContent(/verified answer/i);
-    expect(card).toHaveTextContent(/not answered/i);
+    const report = screen.getByTestId("report-panel");
+    expect(report).not.toHaveTextContent(/verified answer/i);
+    expect(report).toHaveTextContent(/not answered/i);
   });
 
   it("does not call a failure a verified answer", () => {
     present("failure", "The analysis could not be completed.");
-    const card = screen.getByTestId("direct-answer");
-    expect(card).not.toHaveTextContent(/verified answer/i);
-    expect(card).toHaveTextContent(/not completed/i);
+    const report = screen.getByTestId("report-panel");
+    expect(report).not.toHaveTextContent(/verified answer/i);
+    expect(report).toHaveTextContent(/not completed/i);
   });
 
-  it("still calls a real answer a verified answer", () => {
+  it("states a real answer without labelling its own epistemic status", () => {
+    /*
+     * This asserted the inverse -- that an answer *is* labelled "Verified
+     * answer". That label is gone, and this is the one place in the suite
+     * where the claim genuinely changed rather than moving.
+     *
+     * The label delayed the sentence a reader came for by one line, on
+     * every successful report, to say something the report's existence
+     * already says: an unverified claim is withheld, so anything published
+     * as the answer passed verification. The badge a reader learns to skip
+     * is the badge that stops being read when it matters.
+     *
+     * What must not happen is the opposite failure, which the original
+     * caught: a refusal or a failure wearing the answer's clothes. The two
+     * tests above assert that directly, and they are stronger than this one
+     * was -- they check the whole report, not one element.
+     */
     present("breakdown", "Revenue by region: North $1.00.");
+    const report = screen.getByTestId("report-panel");
     expect(screen.getByTestId("direct-answer")).toHaveTextContent(
-      /verified answer/i,
+      "Revenue by region: North $1.00.",
     );
+    expect(report).not.toHaveTextContent(/verified answer/i);
+    // And no shape eyebrow at all: there is nothing to qualify.
+    expect(report).not.toHaveTextContent(/not answered|not completed/i);
   });
 
   it("does not repeat the headline in the notes", () => {
@@ -658,7 +683,12 @@ describe("the report card says what it actually is", () => {
     present("breakdown", "Revenue by region: North $1.00.", [
       { code: "coverage", message: "Two groups were omitted.", severity: "warn" },
     ]);
-    expect(screen.getByRole("heading", { name: "Notes" })).toBeVisible();
+    // The heading is "What to be careful about" now. "Notes" named the
+    // container; this names what is in it, which is the difference between
+    // a label a reader skips and one that earns its line.
+    expect(
+      screen.getByRole("heading", { name: "What to be careful about" }),
+    ).toBeVisible();
     expect(screen.getByText("Two groups were omitted.")).toBeVisible();
   });
 });

@@ -297,8 +297,16 @@ test.describe("AI and Compare, with the API intercepted", () => {
     const ai = page.getByRole("region", { name: "AI Analytics", exact: true });
     await expect(ai).toBeVisible({ timeout: 60_000 });
 
-    await expect(ai.getByTestId("pane-status")).toHaveText(/Refused/);
-    await expect(ai.getByTestId("pane-status")).toHaveAttribute(
+    // The status moved from a pane header into the row of the table that
+    // compares the two strategies. The claim is unchanged -- the AI side's
+    // own outcome, attributable to that side and machine-readable -- and
+    // the row is scoped by its header, which is the strategy's name.
+    const aiRow = page
+      .getByTestId("compare-routes")
+      .getByRole("row")
+      .filter({ has: page.getByRole("rowheader", { name: "AI Analytics" }) });
+    await expect(aiRow.getByTestId("pane-status")).toHaveText(/Refused/);
+    await expect(aiRow.getByTestId("pane-status")).toHaveAttribute(
       "data-state",
       "refused",
     );
@@ -353,151 +361,21 @@ test.describe("AI and Compare, with the API intercepted", () => {
     }
   });
 
-  test("Show work resolves evidence from the pane the visitor clicked", async ({
-    page,
-  }) => {
-    await page.route("**/api/config", async (route) => {
-      const response = await route.fetch();
-      const body = await response.json();
-      body.capabilities.modes = body.capabilities.modes.map(
-        (mode: { mode: string }) =>
-          mode.mode === "ai"
-            ? { ...mode, available: true, reason: "", message: "" }
-            : mode,
-      );
-      body.capabilities.compare_available = true;
-      body.capabilities.ai_limits = {
-        runs_per_session: 3,
-        max_model_calls_per_run: 24,
-        max_runtime_seconds: 180,
-      };
-      await route.fulfill({ response, json: body });
-    });
+  /*
+   * "Show work resolves evidence from the pane the visitor clicked" stood
+   * here and is retired, because the thing it guarded cannot happen now.
+   *
+   * It existed because each pane had its own "Show work" button, both runs
+   * mint finding ids within themselves, and `f1` on the AI side is a
+   * different claim from `f1` on the deterministic side -- so the app had
+   * to carry *which side* alongside the id, and once did not.
+   *
+   * There is one evidence control for the comparison, and the drawer has a
+   * tab per strategy. Which trace is shown is the tab, not a resolution
+   * step that can be wrong. `compare.spec.ts` asserts that directly and
+   * more strongly than this did: the panel is labelled with the strategy
+   * (`data-strategy`), switching tabs changes it, both tabs carry the full
+   * evidence record, and the switch issues no request.
+   */
 
-    await page.route("**/api/comparisons", async (route) => {
-      const request = route.request().postDataJSON() as {
-        session_id: string;
-        question: string;
-      };
-      const started = await route.fetch({
-        url: new URL("/api/analyses", page.url()).toString(),
-        method: "POST",
-        postData: JSON.stringify({ ...request, mode: "deterministic" }),
-        headers: { "content-type": "application/json" },
-      });
-      const { run_id } = (await started.json()) as { run_id: string };
-      await route.fulfill({
-        status: 202,
-        json: {
-          comparison_id: "cmp_provenance",
-          session_id: request.session_id,
-          question: request.question,
-          deterministic_run_id: run_id,
-          ai_run_id: "run_ai_provenance",
-        },
-      });
-    });
-
-    await page.route("**/api/analyses/run_ai_provenance", async (route) => {
-      await route.fulfill({
-        status: 200,
-        json: {
-          run_id: "run_ai_provenance",
-          session_id: "session_ai",
-          question: "What is total revenue?",
-          status: "completed",
-          created_at: Date.now() / 1000,
-          mode: "ai",
-          provider_kind: "cloud",
-          dataset: {
-            dataset_kind: "demo",
-            source: "test",
-            dataset_fingerprint: "sha256:ai-pane-only",
-            tables: [],
-            metrics_available: [],
-          },
-          report: null,
-          findings: [
-            {
-              finding_id: "f1",
-              text: "AI PANE ONLY: total revenue is 123.",
-              kind: "calculated_fact",
-              task_id: "task_ai",
-              result_ids: ["res_ai"],
-              evidence_cells: [
-                {
-                  result_id: "res_ai",
-                  row: 0,
-                  column: "total_revenue",
-                  value: 123,
-                  label: "AI total",
-                },
-              ],
-              metric_ids: [],
-              verification_status: "supported",
-              verifier_reason: "Test fixture.",
-              numeric_check: null,
-              claimed_change: null,
-            },
-          ],
-          rejected: [],
-          charts: [],
-          tasks: [
-            {
-              task_id: "task_ai",
-              status: "succeeded",
-              findings: [],
-              result_ids: ["res_ai"],
-              tool_calls: 1,
-              error: null,
-              notes: [],
-            },
-          ],
-          results: {
-            res_ai: {
-              result_id: "res_ai",
-              tool_name: "aggregate_for_question",
-              task_id: "task_ai",
-              sql: "SELECT 123 AS total_revenue",
-              columns: ["total_revenue"],
-              rows: [[123]],
-              row_count: 1,
-              truncated: false,
-              dataset_fingerprint: "sha256:ai-pane-only",
-              duration_ms: 1,
-              parameters: {},
-              warnings: [],
-              statistical_result: null,
-            },
-          },
-          mcp_trace: [],
-          events: [],
-          metrics: {},
-          stopped_reason: "",
-        },
-      });
-    });
-
-    await openDemo(page);
-    await page.getByRole("radio", { name: /^Compare planning strategies/ }).click();
-    await page.getByLabel("Business question").fill("What is total revenue?");
-    await page.getByRole("button", { name: /Compare strategies/ }).click();
-
-    const aiPane = page.getByRole("region", {
-      name: "AI Analytics",
-      exact: true,
-    });
-    await expect(
-      aiPane.getByText("AI PANE ONLY: total revenue is 123."),
-    ).toBeVisible();
-    await aiPane.getByRole("button", { name: "Show work →" }).click();
-
-    const drawer = page.getByRole("dialog", { name: "How this was derived" });
-    await expect(drawer).toContainText("AI PANE ONLY: total revenue is 123.");
-    // The pane owns the evidence even though opaque result ids are no longer
-    // shown to a visitor. The deterministic result would have a different
-    // total, so this proves resolution from the clicked pane.
-    await expect(drawer).toContainText("AI total = 123");
-    await expect(drawer).not.toContainText("Deterministic finding");
-  });
 });

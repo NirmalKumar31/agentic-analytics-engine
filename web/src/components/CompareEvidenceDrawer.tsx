@@ -91,12 +91,20 @@ export function CompareEvidenceDrawer({
         data-testid="evidence-panel"
         data-strategy={current.title}
       >
-        {current.run ? (
-          <EvidenceBody run={current.run} />
-        ) : (
+        {!current.run ? (
           <p className="evidence-empty">
             {current.title} produced no run, so there is no trace to show.
           </p>
+        ) : current.run.status === "running" ? (
+          // A run still in flight has a status and nothing else. Saying so
+          // is the honest answer; rendering an evidence record of blanks
+          // would imply the engine had recorded nothing.
+          <p className="evidence-empty">
+            {current.title} has not finished, so its trace is not complete
+            yet.
+          </p>
+        ) : (
+          <EvidenceBody run={current.run} />
         )}
       </div>
     </SideSheet>

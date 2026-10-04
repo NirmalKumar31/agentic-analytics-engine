@@ -329,18 +329,25 @@ describe("CompareWorkspace", () => {
       />,
     );
     expect(screen.getByTestId("shared-result")).toBeInTheDocument();
-    expect(screen.queryAllByTestId("pane-status")).toHaveLength(0);
     expect(screen.getAllByText("the result")).toHaveLength(1);
-    // The two planning lanes stay, because that is what differed.
+
+    // No side-by-side panes: that is what "shown once" means, and it is
+    // the claim `pane-status.length === 0` used to stand for. The status
+    // itself has not gone anywhere -- it is a column in the table that
+    // compares the two strategies, where both sides now read "Complete",
+    // which is more informative than two panes that are not rendered.
+    expect(document.querySelectorAll(".compare-pane")).toHaveLength(0);
+    expect(screen.getAllByTestId("pane-status")).toHaveLength(2);
+
+    // The planning comparison stays, because that is what differed. It was
+    // two `ExecutionLane` regions restating the same five stages twice;
+    // it is one table with a row per strategy.
+    const routes = screen.getByTestId("compare-routes");
     expect(
-      // testing-library matches a string `name` against the whole
-      // accessible name, so this cannot collide with the pane labels.
-      screen.getByRole("region", {
-        name: "Deterministic Analytics execution",
-      }),
+      within(routes).getByRole("rowheader", { name: "Deterministic Analytics" }),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("region", { name: "AI Analytics execution" }),
+      within(routes).getByRole("rowheader", { name: "AI Analytics" }),
     ).toBeInTheDocument();
   });
 

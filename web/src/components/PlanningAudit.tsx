@@ -20,7 +20,12 @@ function readable(role: string): string {
  * group's interface.
  */
 export function PlanningAudit({ run }: { run: RunPayload }) {
-  const event = run.events.find((item) => item.type === "contract_resolved");
+  // Optional: a run that is still in flight has no `events` at all, and
+  // the drawer renders this component for whichever strategy a reader
+  // selects -- finished or not.
+  const event = (run.events ?? []).find(
+    (item) => item.type === "contract_resolved",
+  );
   const data = event?.data ?? {};
   const contract = run.query_contract;
   const coverage = run.question_coverage;

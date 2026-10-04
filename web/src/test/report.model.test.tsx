@@ -22,6 +22,7 @@ import { render, screen, within } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
 import { ActivityLog } from "../components/ActivityLog";
+import { EvidenceBody } from "../components/EvidenceDrawer";
 import { AnswerReport } from "../components/AnswerReport";
 import { reportModel } from "../lib/reportModel";
 import type { RunPayload } from "../lib/types";
@@ -253,3 +254,30 @@ describe("the activity trace reads the fields the engine emits", () => {
     expect(log).toHaveTextContent(String(data.rule));
   });
 });
+
+describe("the evidence drawer survives an unfinished payload", () => {
+  /*
+   * A run that is still `running` carries its identity and its status and
+   * nothing else -- no `findings`, no `rejected`, no `events`.
+   *
+   * `run.findings.flatMap(...)` threw on exactly that payload. React
+   * unmounted the subtree, so the Compare evidence drawer *vanished* the
+   * moment a reader switched to a strategy that had not finished, and it
+   * looked like the drawer closing itself rather than like a crash.
+   */
+  const unfinished = {
+    run_id: "run_in_flight",
+    status: "running",
+  } as unknown as RunPayload;
+
+  it("renders without throwing when the collections are absent", () => {
+    expect(() =>
+      render(<EvidenceBody run={unfinished} />),
+    ).not.toThrow();
+  });
+
+  it("reports nothing published rather than crashing", () => {
+    render(<EvidenceBody run={unfinished} />);
+    expect(screen.getByText(/0 published/)).toBeInTheDocument();
+  });
+})
