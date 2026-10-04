@@ -28,7 +28,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import { ComparisonView } from "../components/ComparisonView";
 import { QuestionComposer } from "../components/QuestionComposer";
-import { DatasetIdentity } from "../components/DatasetIdentity";
+import { DatasetContextBar } from "../components/DatasetContextBar";
 import { ModeBadge, badgeMode } from "../components/ModeBadge";
 import { PresentationReportView } from "../components/PresentationReportView";
 import { ReportWorkspace } from "../components/ReportWorkspace";
@@ -425,31 +425,40 @@ describe("dataset identity", () => {
   });
 
   it("says which dataset the answer is about", () => {
-    render(<DatasetIdentity catalog={catalog("upload")} />);
-    const strip = screen.getByTestId("dataset-identity");
+    render(<DatasetContextBar catalog={catalog("upload")} summary={null} />);
+    const strip = screen.getByTestId("dataset-context");
     expect(strip).toHaveTextContent("Your file");
     expect(strip).toHaveTextContent("quarterly-sales.csv");
     expect(strip).toHaveTextContent("200 rows");
   });
 
   it("does not put an unexplained hash in front of a reader", () => {
-    render(<DatasetIdentity catalog={catalog("upload")} />);
-    const strip = screen.getByTestId("dataset-identity");
+    render(<DatasetContextBar catalog={catalog("upload")} summary={null} />);
+    const strip = screen.getByTestId("dataset-context");
     expect(strip).not.toHaveTextContent(/sha256|abcdef0123456789/);
   });
 
   it("distinguishes the demo warehouse from an uploaded file", () => {
-    const { rerender } = render(<DatasetIdentity catalog={catalog("demo")} />);
-    expect(screen.getByTestId("dataset-identity")).toHaveTextContent(
+    const { rerender } = render(
+      <DatasetContextBar catalog={catalog("demo")} summary={null} />,
+    );
+    expect(screen.getByTestId("dataset-context")).toHaveTextContent(
       "Demo warehouse",
     );
-    rerender(<DatasetIdentity catalog={catalog("upload")} />);
-    expect(screen.getByTestId("dataset-identity")).toHaveTextContent("Your file");
+    rerender(<DatasetContextBar catalog={catalog("upload")} summary={null} />);
+    expect(screen.getByTestId("dataset-context")).toHaveTextContent("Your file");
   });
 
   it("renders nothing when there is no dataset", () => {
-    render(<DatasetIdentity catalog={null} />);
-    expect(screen.queryByTestId("dataset-identity")).toBeNull();
+    render(<DatasetContextBar catalog={null} summary={null} />);
+    expect(screen.queryByTestId("dataset-context")).toBeNull();
+  });
+
+  it("offers no schema control when there is no schema to inspect", () => {
+    // A replayed recording has a catalog and no summary. A control that
+    // opened an empty sheet would be worse than no control.
+    render(<DatasetContextBar catalog={catalog("demo")} summary={null} />);
+    expect(screen.queryByTestId("inspect-schema")).toBeNull();
   });
 });
 

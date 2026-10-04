@@ -154,7 +154,7 @@ test.describe("the stage lane", () => {
     await page.getByRole("button", { name: /Commerce demo warehouse/ }).click();
     // The demo warehouse has no upload profile panel; its questions are
     // offered directly in the Ask panel.
-    await expect(page.getByRole("heading", { name: "Ask" })).toBeVisible();
+    await expect(page.getByTestId("composer")).toBeVisible();
     await suggestedQuestions(page).first().click();
     await page.getByRole("button", { name: "Run analysis" }).click();
     await waitForReport(page);

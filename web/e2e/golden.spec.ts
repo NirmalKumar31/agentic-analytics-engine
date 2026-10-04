@@ -168,7 +168,7 @@ test.describe("chart width is independent of cardinality", () => {
       await page
         .getByRole("button", { name: /Commerce demo warehouse/ })
         .click();
-      await expect(page.getByRole("heading", { name: "Ask" })).toBeVisible();
+      await expect(page.getByTestId("composer")).toBeVisible();
       await ask(page, shape.question);
       await waitForReport(page);
 
@@ -216,7 +216,7 @@ test.describe("touch targets on a phone", () => {
     await page.setViewportSize({ width: 390, height: 844 });
     await openApp(page);
     await page.getByRole("button", { name: /Commerce demo warehouse/ }).click();
-    await expect(page.getByRole("heading", { name: "Ask" })).toBeVisible();
+    await expect(page.getByTestId("composer")).toBeVisible();
     await ask(page, "What is the total revenue by region?");
     await waitForReport(page);
 

@@ -291,68 +291,10 @@ table.data .tag {
   padding: 1px 6px;
 }
 
-/* ---------------------------------------------------- mode selection */
-
-.mode-selector {
-  border: 1px solid var(--rule-hairline);
-  border-radius: 10px;
-  padding: 12px 14px;
-  margin: 0;
-}
-
-.mode-selector legend {
-  padding: 0 6px;
-}
-
-.mode-options {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 10px;
-}
-
-.mode-option {
-  display: flex;
-  gap: 10px;
-  align-items: flex-start;
-  border: 1px solid var(--rule-hairline);
-  border-radius: 8px;
-  padding: 10px 12px;
-}
-
-.mode-option.selected {
-  border-color: var(--signal);
-}
-
-/* Availability is carried by the disabled control and its text, not by
-   colour alone. */
-.mode-option.unavailable {
-  opacity: 0.65;
-}
-
-.mode-option label {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-  cursor: pointer;
-}
-
-.mode-option input[disabled] + label {
-  cursor: not-allowed;
-}
-
-.mode-option-label {
-  font-weight: 600;
-}
-
-.mode-option input:focus-visible,
-.mode-selector input:focus-visible {
-  outline: 2px solid var(--signal);
-  outline-offset: 2px;
-}
-
-.mode-note {
-  margin: 10px 0 0;
-}
+/* Mode selection moved to composer.css, which owns the composer and the
+   controls that qualify it. It was four bordered cards in a bordered
+   fieldset, occupying more of the screen than the question field it
+   modifies. */
 
 /* ------------------------------------------------------- comparison */
 

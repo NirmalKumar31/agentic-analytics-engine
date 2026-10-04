@@ -98,21 +98,28 @@ test.describe("the schema inspector tells the truth about ambiguity", () => {
   });
 
   test.beforeEach(async () => {
-    // Each test starts from the collapsed state, whatever the last one did.
-    const inspector = page.getByTestId("schema-inspector");
-    if (await inspector.evaluate((el) => (el as HTMLDetailsElement).open)) {
-      await inspector.locator("summary").click();
+    // Each test starts with the schema out of the way, whatever the last
+    // one did. The inspector lives in a side sheet now, so "collapsed"
+    // means "the sheet is closed" rather than "the disclosure is shut".
+    if (await page.getByTestId("schema-sheet").count()) {
+      await page.keyboard.press("Escape");
+      await expect(page.getByTestId("schema-sheet")).toHaveCount(0);
     }
   });
 
   test("marks a role the data cannot settle", async () => {
-    const inspector = page.getByTestId("schema-inspector");
-    // Collapsed, with the count of unsettled roles legible without opening.
-    await expect(inspector).not.toHaveAttribute("open", "");
-    await expect(inspector).toContainText(/role the data cannot settle/);
+    // The count of unsettled roles is legible without opening anything.
+    // It used to be on the collapsed disclosure; it is on the dataset
+    // context strip, which is the first line under the header.
+    await expect(page.getByTestId("context-ambiguity")).toContainText(
+      /ambiguous field/i,
+    );
+    await expect(page.getByTestId("schema-inspector")).toHaveCount(0);
 
-    await inspector.locator("summary").click();
+    await page.getByTestId("inspect-schema").click();
+    const inspector = page.getByTestId("schema-inspector");
     await expect(inspector).toHaveAttribute("open", "");
+    await expect(inspector).toContainText(/role the data cannot settle/);
 
     const marks = inspector.getByTestId("ambiguous-field");
     expect(await marks.count()).toBeGreaterThan(0);
@@ -134,12 +141,17 @@ test.describe("the schema inspector tells the truth about ambiguity", () => {
   });
 
   test("is operable from the keyboard", async () => {
-    const inspector = page.getByTestId("schema-inspector");
-    await inspector.locator("summary").focus();
+    // The gate moved from a `<details>` summary to the strip's control, so
+    // what has to be keyboard-operable moved with it.
+    const trigger = page.getByTestId("inspect-schema");
+    await trigger.focus();
     await page.keyboard.press("Enter");
-    await expect(inspector).toHaveAttribute("open", "");
-    await page.keyboard.press("Enter");
-    await expect(inspector).not.toHaveAttribute("open", "");
+    await expect(page.getByTestId("schema-sheet")).toBeVisible();
+    await page.keyboard.press("Escape");
+    await expect(page.getByTestId("schema-sheet")).toHaveCount(0);
+    // And focus comes back to where it started, so a keyboard user is not
+    // dropped at the top of the document.
+    await expect(trigger).toBeFocused();
   });
 });
 
@@ -160,12 +172,16 @@ test.describe("a dataset with nothing ambiguous in it", () => {
   });
 
   test("says nothing about close calls when every role is settled", async () => {
+    // Nothing on the strip either: a dataset with no close calls must not
+    // carry an ambiguity warning that happens to say zero.
+    await expect(page.getByTestId("context-ambiguity")).toHaveCount(0);
+
+    await page.getByTestId("inspect-schema").click();
     const inspector = page.getByTestId("schema-inspector");
     await expect(inspector).not.toContainText(/cannot settle/);
-    await inspector.locator("summary").click();
     await expect(inspector.getByTestId("ambiguous-field")).toHaveCount(0);
     await expect(inspector.getByTestId("ambiguity-note")).toHaveCount(0);
-    await inspector.locator("summary").click();
+    await page.keyboard.press("Escape");
   });
 
   test("never gets demo-warehouse questions", async () => {
@@ -183,7 +199,7 @@ test.describe("a dataset with nothing ambiguous in it", () => {
     await expect(examples).toBeVisible();
     await expect(examples).toHaveAttribute("data-source", "schema");
 
-    const offered = await examples.locator("button.example").allInnerTexts();
+    const offered = await examples.locator("button.suggestion").allInnerTexts();
     expect(offered.length).toBeGreaterThan(0);
     for (const question of demo) {
       expect(
@@ -425,7 +441,9 @@ test.describe("layout holds at every width", () => {
       expect(overflow, `${label} scrolls sideways by ${overflow}px`).toBeLessThanOrEqual(1);
 
       // And the dataset strip has to fit the viewport it is in.
-      const strip = page.getByTestId("dataset-identity");
+      // `dataset-identity` was the header strip; the context bar replaced
+      // it, and carries more: shape, clocks and the ambiguity count.
+      const strip = page.getByTestId("dataset-context");
       await expect(strip).toBeVisible();
       const box = await strip.boundingBox();
       expect(box).not.toBeNull();

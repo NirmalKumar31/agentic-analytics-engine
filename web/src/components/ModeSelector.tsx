@@ -77,19 +77,36 @@ export function ModeSelector({
     },
   ];
 
+  const choices = [primary, ...auditChoices];
+  const selected = choices.find((choice) => choice.mode === value) ?? primary;
+
+  /*
+   * A compact control, not four cards.
+   *
+   * Every choice used to be a bordered card carrying its full description,
+   * in a bordered fieldset, below the composer: four paragraphs of
+   * explanatory prose, occupying more of the screen than the question field
+   * they modify. The strategy is a *qualifier* on the run button -- most
+   * readers will never change it from Governed -- so it is sized like one,
+   * and only the chosen strategy explains itself.
+   *
+   * The radiogroup, the per-option `aria-describedby`, the capability
+   * gating and the disabled-with-reason behaviour are unchanged: what a
+   * screen reader is told is the same, and an unavailable mode is still
+   * unselectable with its reason attached rather than silently missing.
+   */
   return (
-    <fieldset className="mode-selector" disabled={disabled}>
-      <legend className="small dim">Planning method</legend>
+    <div className="mode-selector" data-testid="mode-selector">
       <div
         className="mode-options"
         role="radiogroup"
         aria-label="Analysis mode"
       >
-        {[primary, ...auditChoices].map((choice) => {
+        {choices.map((choice) => {
           const id = `mode-${choice.mode}`;
           const describedBy = `${id}-description`;
           return (
-            <div
+            <span
               key={choice.mode}
               className={`mode-option${value === choice.mode ? " selected" : ""}${
                 choice.available ? "" : " unavailable"
@@ -107,27 +124,27 @@ export function ModeSelector({
               />
               <label htmlFor={id}>
                 <span className="mode-option-label">{choice.label}</span>
-                <span className="small dim" id={describedBy}>
+                {/* Visually hidden, not removed: the description is what
+                    tells a screen-reader user what they are choosing, and
+                    it must not depend on which option happens to be
+                    selected. */}
+                <span className="sr-only" id={describedBy}>
                   {choice.available
                     ? choice.description
                     : choice.unavailableMessage}
                 </span>
               </label>
-            </div>
+            </span>
           );
         })}
       </div>
 
-      <details className="disclosure planning-audit">
-        <summary>Planning audit</summary>
-        <p className="small dim">
-          Rules only, AI-assisted planning, and comparing the two are diagnostic
-          paths. Governed Analysis is the default product path.
-        </p>
-      </details>
+      <p className="mode-description" data-testid="mode-description">
+        {selected.available ? selected.description : selected.unavailableMessage}
+      </p>
 
       {value === "ai" || value === "compare" ? (
-        <p className="small dim mode-note">
+        <p className="mode-note">
           AI Analytics uses a limited public quota and can fail if the provider
           is unavailable. Only governed analytics context — schema, profiles and
           aggregates — is sent. Findings that the publication checks do not
@@ -137,6 +154,14 @@ export function ModeSelector({
             : ""}
         </p>
       ) : null}
-    </fieldset>
+
+      <details className="disclosure planning-audit">
+        <summary>Planning audit</summary>
+        <p className="small dim">
+          Rules only, AI-assisted planning, and comparing the two are diagnostic
+          paths. Governed Analysis is the default product path.
+        </p>
+      </details>
+    </div>
   );
 }

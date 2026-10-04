@@ -44,11 +44,12 @@ export function recordingButtons(page: Page) {
     .filter({ hasNotText: 'Commerce demo warehouse' })
 }
 
-/** The suggested-question buttons, in the Ask panel. */
+/** The suggested-question buttons, in the composer. */
 export function suggestedQuestions(page: Page) {
-  return page
-    .locator('section.panel', { has: page.getByRole('heading', { name: 'Ask' }) })
-    .locator('.example-list button.example')
+  // Scoped by test id. The old selector reached for `section.panel`
+  // containing a heading named "Ask"; the composer is not a panel and has
+  // no such heading, because it is no longer one box among several.
+  return page.getByTestId('question-examples').locator('button.suggestion')
 }
 
 /**
@@ -69,15 +70,17 @@ export async function uploadFile(
     mimeType: 'text/csv',
     buffer: Buffer.from(contents),
   })
-  // The schema inspector is the signal that profiling finished. It used to
-  // be a panel with a "Dataset understanding" heading and is now a closed
-  // `<details>`, so the heading no longer exists -- waiting for it timed out
-  // on every upload test. The test id is a stronger target than the heading
-  // was: it identifies the inspector itself rather than a string that two
-  // panels could both contain.
-  const understanding = page.getByTestId('schema-inspector')
+  // The composer is the signal that profiling finished.
+  //
+  // This waited for the schema inspector, which was resident on the canvas.
+  // The inspector now lives inside a side sheet that opens on request, so
+  // it is not in the document until a reader asks for it -- and every
+  // upload test timed out waiting for something that was never going to
+  // appear. The composer is the better signal anyway: it is what the
+  // profiling was *for*, and it is what the reader is waiting to use.
+  const ready = page.getByTestId('composer')
   const notice = page.locator('.notice.error')
-  await expect(understanding.or(notice).first()).toBeVisible({ timeout: 30_000 })
+  await expect(ready.or(notice).first()).toBeVisible({ timeout: 30_000 })
   if (await notice.isVisible()) {
     const text = (await notice.textContent()) ?? ''
     throw new Error(`upload was rejected: ${text.trim()}`)

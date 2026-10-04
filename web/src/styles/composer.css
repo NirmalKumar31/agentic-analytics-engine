@@ -1,0 +1,412 @@
+/**
+ * The dataset context strip, the composer, and the side sheet.
+ *
+ * The composer is the focal interaction on its screen, so it gets the
+ * weight: full width, a field set at reading scale, and no border around
+ * the whole thing. The old version was a panel containing six stacked
+ * controls of equal weight, which made the reader decide what to look at.
+ */
+
+/* ----------------------------------------------------------- context bar
+ *
+ * One line, quiet, directly under the header. It is context, not content:
+ * legible at a glance, and never competing with the composer below it.
+ */
+.context-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-2) var(--space-4);
+  padding-block: var(--space-3);
+  border-block-end: 1px solid var(--rule-hairline);
+  font-size: var(--text-sm);
+  color: var(--ink-muted);
+}
+
+.context-bar-kind {
+  color: var(--ink-secondary);
+  font-weight: var(--weight-medium);
+}
+
+.context-bar-source {
+  color: var(--ink-secondary);
+  font-weight: var(--weight-medium);
+  /* A long filename truncates rather than widening the row and taking the
+     page sideways. */
+  min-width: 0;
+  max-width: 28ch;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.context-bar-facts,
+.context-bar-clock {
+  font-variant-numeric: var(--numeric);
+}
+
+.context-bar-inferred {
+  font-size: var(--text-xs);
+  color: var(--ink-muted);
+  background: var(--surface-inset);
+  border-radius: var(--radius-sm);
+  padding: 1px var(--space-2);
+}
+
+/* The one thing on this strip that changes how a question should be
+   phrased, so it is the one thing on it that carries colour. */
+.context-bar-warn {
+  color: var(--warning-text);
+  font-weight: var(--weight-medium);
+}
+
+.context-bar-inspect {
+  margin-inline-start: auto;
+  border: 0;
+  background: none;
+  padding: 0;
+  font: inherit;
+  color: var(--signal);
+  font-weight: var(--weight-medium);
+  cursor: pointer;
+}
+
+.context-bar-inspect:hover {
+  text-decoration: underline;
+}
+
+/* ------------------------------------------------------------- composer */
+
+.composer {
+  padding-block: var(--space-6) var(--space-5);
+}
+
+.composer-label {
+  display: block;
+  font-size: var(--text-md);
+  font-weight: var(--weight-semibold);
+  color: var(--ink-primary);
+  margin-block-end: var(--space-3);
+}
+
+/* Command-bar scale. The field is the thing you came to use, so it is set
+   at reading size rather than at form-control size, and it is as wide as
+   the column rather than sitting inside a card that is inside a column. */
+.composer-field {
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+  padding: var(--space-4);
+  font-family: var(--font-sans);
+  font-size: var(--text-md);
+  line-height: var(--leading-normal);
+  color: var(--ink-primary);
+  background: var(--surface-paper);
+  border: 1px solid var(--rule-strong);
+  border-radius: var(--radius-md);
+  resize: vertical;
+}
+
+.composer-field::placeholder {
+  color: var(--ink-muted);
+}
+
+.composer-field:focus-visible {
+  border-color: var(--signal);
+}
+
+/* ---------------------------------------------------------------- chips
+ *
+ * What the engine will do with the question, stated before it runs. A chip
+ * is a statement of fact, not a control: none of them is clickable, and
+ * none is styled as though it were.
+ */
+.composer-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-block-start: var(--space-3);
+}
+
+/* `composer-chip`, not `chip`. `drawer.css` already owns `.chip`, loads
+   after this module, and sets `font-family: var(--font-mono)` -- correct
+   there, where a chip is an identifier, and wrong here, where it is a
+   sentence. The collision rendered every composer chip in mono and no test
+   saw it. A name that is already taken is taken. */
+.composer-chip {
+  font-family: var(--font-sans);
+  font-size: var(--text-xs);
+  color: var(--ink-secondary);
+  background: var(--surface-inset);
+  border-radius: var(--radius-sm);
+  padding: 2px var(--space-2);
+}
+
+.composer-chip--quiet {
+  background: none;
+  color: var(--ink-muted);
+  padding-inline: 0;
+  font-variant-numeric: var(--numeric);
+}
+
+/* Two date columns is the difference between an answered question and a
+   refused one. It is the only chip that carries colour. */
+.composer-chip--warn {
+  background: var(--warning-weak);
+  color: var(--warning-text);
+  font-weight: var(--weight-medium);
+}
+
+/* -------------------------------------------------------------- actions */
+
+/* The disclosure is a sentence, not an alert. `.notice.info` paints a grey
+   panel, which next to a warning chip reads as a second warning; here it
+   says what is real and what is scripted in this public demo, which is
+   information a reader should be able to take in without being stopped. */
+.composer-disclosure .notice {
+  background: none;
+  border: 0;
+  padding: 0;
+  font-size: var(--text-sm);
+  color: var(--ink-muted);
+  line-height: var(--leading-normal);
+  max-width: 68ch;
+}
+
+.composer-disclosure {
+  margin-block-start: var(--space-3);
+}
+
+.composer-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-4);
+  margin-block-start: var(--space-4);
+}
+
+/* ---------------------------------------------------------- suggestions */
+
+.suggestions {
+  margin-block-start: var(--space-6);
+  padding-block-start: var(--space-5);
+  border-block-start: 1px solid var(--rule-hairline);
+}
+
+.suggestions-heading {
+  margin: 0 0 var(--space-3);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+  color: var(--ink-secondary);
+  text-transform: none;
+  letter-spacing: normal;
+}
+
+.suggestion-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--space-2);
+}
+
+@media (min-width: 768px) {
+  .suggestion-list {
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  }
+}
+
+.suggestion {
+  display: grid;
+  gap: 2px;
+  width: 100%;
+  height: 100%;
+  text-align: start;
+  padding: var(--space-3);
+  border: 1px solid var(--rule-hairline);
+  border-radius: var(--radius-md);
+  background: var(--surface-paper);
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+
+.suggestion:hover {
+  border-color: var(--signal);
+}
+
+/* What the question asks for. A reader picks a suggestion by the shape of
+   the answer they want, so the shape is the label and the sentence is the
+   detail. */
+.suggestion-intent {
+  font-size: var(--text-xs);
+  font-weight: var(--weight-semibold);
+  color: var(--signal);
+}
+
+.suggestion-text {
+  font-size: var(--text-sm);
+  color: var(--ink-primary);
+  line-height: var(--leading-normal);
+}
+
+@media (max-width: 640px) {
+  .suggestion {
+    min-height: 44px;
+  }
+}
+
+/* ------------------------------------------------------- mode selection
+ *
+ * A segmented control, sized as the qualifier on the run button that it is.
+ * Only the selected strategy explains itself: four descriptions on screen
+ * at once asked the reader to compare four paragraphs before asking their
+ * first question, and most readers never change this from Governed.
+ */
+.mode-selector {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-width: 0;
+  margin-block-start: var(--space-4);
+}
+
+.mode-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  padding: 2px;
+  border: 1px solid var(--rule-hairline);
+  border-radius: var(--radius-md);
+  background: var(--surface-inset);
+}
+
+.mode-option {
+  display: inline-flex;
+}
+
+/* The radio itself is the control; the label is its visible surface. It is
+   not `display: none`, which removes it from the accessibility tree and
+   from the tab order -- it is positioned under the label it labels. */
+.mode-option input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+}
+
+.mode-option label {
+  display: block;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-sm);
+  font-size: var(--text-sm);
+  color: var(--ink-secondary);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.mode-option.selected label {
+  background: var(--surface-raised);
+  color: var(--ink-primary);
+  font-weight: var(--weight-medium);
+  box-shadow: var(--shadow-raised);
+}
+
+/* Availability is carried by the disabled control and by the description
+   below, not by colour alone. */
+.mode-option.unavailable label {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.mode-option input:focus-visible + label {
+  outline: 2px solid var(--signal);
+  outline-offset: 2px;
+}
+
+.mode-option-label {
+  display: inline;
+}
+
+/* The one description on screen: whichever strategy is selected. */
+.mode-description,
+.mode-note {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--ink-muted);
+  line-height: var(--leading-normal);
+  max-width: 68ch;
+}
+
+.mode-note {
+  color: var(--warning-text);
+}
+
+@media (max-width: 640px) {
+  .mode-option label {
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+  }
+}
+
+/* ------------------------------------------------------------ side sheet
+ *
+ * The schema inspector, and anything else that is a disclosure over the
+ * page rather than a place to go. The page behind stays rendered and is
+ * not re-laid-out: a sheet that reflowed the document would move the thing
+ * it is explaining.
+ */
+.side-sheet {
+  position: fixed;
+  inset-block: 0;
+  inset-inline-end: 0;
+  width: min(560px, 100%);
+  display: flex;
+  flex-direction: column;
+  background: var(--surface-paper);
+  border-inline-start: 1px solid var(--rule-hairline);
+  box-shadow: var(--shadow-overlay);
+  z-index: var(--z-overlay);
+}
+
+.side-sheet-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  padding: var(--space-4) var(--space-5);
+  border-block-end: 1px solid var(--rule-hairline);
+}
+
+.side-sheet-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--space-5);
+  min-width: 0;
+}
+
+/* On a phone it is a bottom sheet: an edge sheet 560px wide on a 390px
+   screen is the whole screen with a seam down one side. */
+@media (max-width: 640px) {
+  .side-sheet {
+    inset-block-start: auto;
+    inset-inline: 0;
+    max-height: 88vh;
+    border-inline-start: 0;
+    border-block-start: 1px solid var(--rule-hairline);
+    border-start-start-radius: var(--radius-lg);
+    border-start-end-radius: var(--radius-lg);
+  }
+}
+
+@media print {
+  /* A sheet is a screen affordance. Its contents belong in the appendix,
+     which step H builds; printing the overlay itself would print a panel
+     floating over the report. */
+  .side-sheet,
+  .context-bar-inspect,
+  .composer {
+    display: none;
+  }
+}

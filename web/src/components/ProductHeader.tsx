@@ -1,12 +1,10 @@
-import { DatasetIdentity } from "./DatasetIdentity";
 import { badgeMode, ModeBadge } from "./ModeBadge";
 import { SessionControls } from "./SessionControls";
 import { ThemeToggle, type Theme } from "./ThemeToggle";
-import type { DatasetCatalog, ServerConfig, UiMode } from "../lib/types";
+import type { ServerConfig, UiMode } from "../lib/types";
 
 export function ProductHeader({
   config,
-  catalog,
   hasRun,
   hasSession,
   replaying,
@@ -17,7 +15,6 @@ export function ProductHeader({
   onReset,
 }: {
   config: ServerConfig | null;
-  catalog: DatasetCatalog | null;
   hasRun: boolean;
   hasSession: boolean;
   replaying: boolean;
@@ -33,11 +30,12 @@ export function ProductHeader({
         <BrandMark />
         <span className="brand-name">Agentic Analytics</span>
       </div>
-      {/* Which dataset is open, in the centre of the header rather than as a
-          strip below it. It is the one piece of context that must survive
-          every scroll position: a reader deep in a report needs to be able to
-          confirm which data produced it without scrolling back. */}
-      <DatasetIdentity catalog={catalog} />
+      {/* Dataset identity lives in `DatasetContextBar`, immediately below
+          this header, and only there. It was briefly in both places and the
+          screen then read "Your file · Uploaded file: sales.csv · 240 rows"
+          above "Uploaded file: sales.csv · 240 rows · 5 fields" -- the same
+          fact twice, in two type treatments, which is how a reader learns to
+          stop reading chrome. */}
       {/* The tagline that used to sit here -- "bounded analysis · MCP tools ·
           provenance on every number" -- is gone. It described the product to
           someone deciding whether to use it, and it was on screen for every

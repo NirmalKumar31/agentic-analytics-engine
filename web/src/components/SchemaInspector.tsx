@@ -29,8 +29,15 @@ import type {
 export function SchemaInspector({
   summary,
   onConfirmRoles,
+  open,
 }: {
   summary: DatasetSummaryPayload;
+  /**
+   * Start expanded. True inside the schema side sheet: a reader who pressed
+   * "Inspect schema" has already asked the question, and meeting a
+   * collapsed disclosure there is being asked it twice.
+   */
+  open?: boolean;
   /**
    * Applies a batch and resolves once the server has accepted it. Absent
    * for a dataset whose roles are not confirmable -- a demo warehouse, or a
@@ -48,7 +55,7 @@ export function SchemaInspector({
       .length;
 
   return (
-    <details className="technical-audit" data-testid="schema-inspector">
+    <details className="technical-audit" data-testid="schema-inspector" open={open}>
       <summary>
         Dataset understanding
         {/*

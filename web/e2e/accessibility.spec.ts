@@ -103,17 +103,18 @@ test.describe("accessibility", () => {
   test("an uploaded dataset after profiling", async ({ page }) => {
     await openApp(page);
     await uploadFile(page, "a11y-profile.csv", sampleCsv());
-    // The inspector is a closed disclosure now, so assert on the disclosure
-    // rather than a heading that no longer exists -- and scan it both
-    // closed and open, because a `<details>` hides its body from axe while
-    // collapsed and the table inside it is the part most likely to have a
-    // contrast or header-association problem.
-    const inspector = page.getByTestId("schema-inspector");
-    await expect(inspector).toBeVisible();
-    await scan(page, "profiled upload, inspector collapsed");
-    await inspector.locator("summary").click();
-    await expect(inspector).toHaveAttribute("open", "");
-    await scan(page, "profiled upload, inspector open");
+    // Scanned twice: the composer with the schema out of the way, and the
+    // schema sheet open over it. The sheet is where the field table lives,
+    // which is the part most likely to have a contrast or
+    // header-association problem, and it is not in the document at all
+    // until a reader asks for it -- so a single scan of the default screen
+    // would never see it.
+    await expect(page.getByTestId("composer")).toBeVisible();
+    await scan(page, "profiled upload, schema closed");
+
+    await page.getByTestId("inspect-schema").click();
+    await expect(page.getByTestId("schema-inspector")).toBeVisible();
+    await scan(page, "profiled upload, schema sheet open");
   });
 
   test("a completed deterministic report", async ({ page }) => {
@@ -298,7 +299,7 @@ test.describe("keyboard operation", () => {
   test("focus is always visible as it moves", async ({ page }) => {
     await openApp(page);
     await page.getByRole("button", { name: /Commerce demo warehouse/ }).click();
-    await expect(page.getByRole("heading", { name: "Ask" })).toBeVisible();
+    await expect(page.getByTestId("composer")).toBeVisible();
 
     const invisible: string[] = [];
     for (let i = 0; i < 15; i += 1) {
@@ -333,7 +334,7 @@ test.describe("keyboard operation", () => {
     // the focus test above.
     await openApp(page);
     await page.getByRole("button", { name: /Commerce demo warehouse/ }).click();
-    await expect(page.getByRole("heading", { name: "Ask" })).toBeVisible();
+    await expect(page.getByTestId("composer")).toBeVisible();
 
     const seen: string[] = [];
     for (let i = 0; i < 25; i += 1) {
@@ -378,7 +379,7 @@ test.describe("keyboard operation", () => {
   test("every control has an accessible name", async ({ page }) => {
     await openApp(page);
     await page.getByRole("button", { name: /Commerce demo warehouse/ }).click();
-    await expect(page.getByRole("heading", { name: "Ask" })).toBeVisible();
+    await expect(page.getByTestId("composer")).toBeVisible();
 
     const unnamed = await page.evaluate(() => {
       const out: string[] = [];

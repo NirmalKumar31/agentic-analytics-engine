@@ -14,7 +14,7 @@ const sourceRoot = join(__dirname, "..");
 const namedComponents = [
   "AppShell",
   "ProductHeader",
-  "DatasetIdentity",
+  "DatasetContextBar",
   "LandingView",
   "SchemaInspector",
   "QuestionComposer",
@@ -86,13 +86,19 @@ describe("frontend component architecture", () => {
             rejected: [],
           } as unknown as RunPayload)}
         />
-        <PlanningMethodDisclosure mode="auto" />
+        <PlanningMethodDisclosure mode="deterministic" />
       </>,
     );
     expect(screen.getByText("The analysis failed safely.")).toBeVisible();
     expect(screen.getByText(/quota reached/)).toBeVisible();
     expect(screen.getByTestId("run-state-card")).toHaveTextContent(/quota/i);
-    expect(screen.getByText(/resolved by rules/)).toBeVisible();
+    // Deterministic, not auto. The `auto` notice is gone: it restated the
+    // server's own description of Governed Analysis in different words,
+    // directly underneath it. The deterministic one stays because it makes
+    // a claim nothing else on the screen makes -- that the *interpretation*
+    // is scripted in this public demo while the SQL, statistics, tool
+    // execution, verification and provenance are real.
+    expect(screen.getByText(/interpretation is rule-based/)).toBeVisible();
   });
 
   it("does not say the stop reason twice", () => {

@@ -108,7 +108,7 @@ test.describe("the demo warehouse", () => {
   }) => {
     await openApp(page);
     await page.getByRole("button", { name: /Commerce demo warehouse/ }).click();
-    await expect(page.getByRole("heading", { name: "Ask" })).toBeVisible();
+    await expect(page.getByTestId("composer")).toBeVisible();
 
     // Deterministic mode must say that interpretation is rule-based. Read
     // from the selector rather than the badge: before a run the selector is
@@ -159,22 +159,22 @@ test.describe("uploading a file", () => {
 
     // The dataset understanding step, marked inferred rather than governed.
     //
-    // The inspector is a closed disclosure now, so the caveat has to be
-    // legible without opening it: a reader who never expands it must still
-    // know these roles were inferred from types and cardinality rather than
-    // defined by anyone. Asserted collapsed *and* expanded, because hiding
-    // the caveat behind a click would be the regression.
+    // The inspector is behind a control now, so the caveat has to be
+    // legible without pressing it: a reader who never opens the schema must
+    // still know these roles were inferred from types and cardinality
+    // rather than defined by anyone. Asserted on the strip *and* inside the
+    // sheet, because hiding the caveat behind a click would be the
+    // regression this guards.
+    await expect(page.getByTestId('roles-inferred')).toBeVisible();
+
+    await page.getByTestId('inspect-schema').click();
     const inspector = page.getByTestId('schema-inspector');
     await expect(inspector).toBeVisible();
-    await expect(inspector).not.toHaveAttribute('open', '');
-    // Scoped to the summary: "inferred" also appears in the body sentence,
-    // and an unscoped match resolves to two elements.
-    await expect(inspector.locator('summary .tag')).toHaveText('inferred');
-    await inspector.locator('summary').click();
     await expect(
       page.getByText('Roles are inferred from column types'),
     ).toBeVisible();
-    await inspector.locator('summary').click();
+    await page.keyboard.press('Escape');
+    await expect(page.getByTestId('schema-sheet')).toHaveCount(0);
 
     await ask(page, "What is the total revenue by region?");
     await waitForReport(page);
@@ -316,7 +316,7 @@ test.describe("what the browser can see", () => {
   }) => {
     await openApp(page);
     await page.getByRole("button", { name: /Commerce demo warehouse/ }).click();
-    await expect(page.getByRole("heading", { name: "Ask" })).toBeVisible();
+    await expect(page.getByTestId("composer")).toBeVisible();
 
     const secret = await capability(page);
     expect(secret.length).toBeGreaterThan(20);
@@ -332,7 +332,7 @@ test.describe("what the browser can see", () => {
   }) => {
     await openApp(page);
     await page.getByRole("button", { name: /Commerce demo warehouse/ }).click();
-    await expect(page.getByRole("heading", { name: "Ask" })).toBeVisible();
+    await expect(page.getByTestId("composer")).toBeVisible();
 
     const cookie = (await page.context().cookies()).find(
       (c) => c.name === "aae_session",

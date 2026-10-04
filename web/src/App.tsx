@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { AppShell } from "./components/AppShell";
+import { DatasetContextBar } from "./components/DatasetContextBar";
 import { LandingView } from "./components/LandingView";
 import { ProductHeader } from "./components/ProductHeader";
 import { ProvenanceDrawer } from "./components/ProvenanceDrawer";
@@ -8,6 +9,7 @@ import { QuestionComposer } from "./components/QuestionComposer";
 import { ReportWorkspace, type ProvenanceSide } from "./components/ReportWorkspace";
 import { RunProgress } from "./components/RunProgress";
 import { SchemaInspector } from "./components/SchemaInspector";
+import { SideSheet } from "./components/SideSheet";
 import { TerminalState } from "./components/TerminalState";
 import { useTheme } from "./components/ThemeToggle";
 import { ApiError, api } from "./lib/api";
@@ -192,6 +194,12 @@ export function App() {
     }
   }, [session]);
 
+  // The schema inspector is a sheet now, not a resident table. Closed by
+  // default and closed again whenever the dataset changes: a sheet left
+  // open across an upload would be describing the previous file.
+  const [schemaOpen, setSchemaOpen] = useState(false);
+  useEffect(() => { setSchemaOpen(false); }, [session?.session_id]);
+
   const provenanceRun = target ? (target.side === "ai" ? aiRun : run) : null;
   const finding = provenanceRun?.findings.find((candidate) => candidate.finding_id === target?.findingId) ?? null;
   const catalog = run?.dataset ?? session?.catalog ?? null;
@@ -201,15 +209,26 @@ export function App() {
     <AppShell
       sessionId={session?.session_id}
       hasRun={hasRun}
-      header={<ProductHeader config={config} catalog={catalog} hasRun={hasRun} hasSession={Boolean(session)} replaying={Boolean(replay)} uiMode={uiMode} theme={theme} onToggleTheme={toggleTheme} onEndSession={() => void endSession()} onReset={reset} />}
+      header={<ProductHeader config={config} hasRun={hasRun} hasSession={Boolean(session)} replaying={Boolean(replay)} uiMode={uiMode} theme={theme} onToggleTheme={toggleTheme} onEndSession={() => void endSession()} onReset={reset} />}
     >
       <div className="column">
+        <DatasetContextBar
+          catalog={catalog}
+          summary={session?.summary ?? null}
+          onInspect={session?.summary ? () => setSchemaOpen(true) : undefined}
+        />
         <TerminalState configError={configError} error={error} />
-        {!run && !runId && config && (
+        {/* The landing and the composer are different states of the screen,
+            not two things stacked on it. The old Dataset panel stayed
+            mounted under the Ask panel for the whole session, so after an
+            upload a reader saw their file's composer above a drop zone
+            still inviting them to choose one. With the landing being a
+            full-page hero that is not merely redundant, it is two products
+            on one page. */}
+        {!session && !run && !runId && config && (
           <LandingView config={config} session={session} replay={replay} busy={busy} onDemo={() => void openDemo()} onUploadClick={() => fileInput.current?.click()} onFile={(file) => void upload(file)} onRecording={(recording) => void openRecording(recording)} />
         )}
         <input ref={fileInput} type="file" accept=".csv,.parquet" className="sr-only" aria-label="Upload a CSV or Parquet file" onChange={(event) => { const file = event.target.files?.[0]; if (file) void upload(file); event.target.value = ""; }} />
-        {session?.summary && session.catalog.dataset_kind === "upload" && !hasRun && <SchemaInspector summary={session.summary} onConfirmRoles={confirmRoles} />}
         {session && !hasRun && <QuestionComposer config={config} summary={
                   // Only an uploaded file gets schema-derived examples. The
                   // demo session also carries a summary, so gating on its
@@ -223,6 +242,21 @@ export function App() {
         {hasRun && <RunProgress run={run} events={recordedEvents} replay={replay} uiMode={uiMode} showTrace={showTrace} onToggleTrace={() => setShowTrace((value) => !value)} running={Boolean(runId) && !finished} />}
         <ReportWorkspace comparison={comparison} run={run} aiRun={aiRun} aiError={aiError} config={config} deterministicPending={Boolean(runId) && !finished} onShowWork={(side, findingId) => setTarget({ side, findingId })} />
       </div>
+      {schemaOpen && session?.summary && (
+        <SideSheet
+          title="Dataset schema"
+          testId="schema-sheet"
+          onClose={() => setSchemaOpen(false)}
+        >
+          <SchemaInspector
+            open
+            summary={session.summary}
+            onConfirmRoles={
+              session.catalog.dataset_kind === "upload" ? confirmRoles : undefined
+            }
+          />
+        </SideSheet>
+      )}
       {finding && provenanceRun && <ProvenanceDrawer finding={finding} results={provenanceRun.results} tasks={provenanceRun.tasks} trace={provenanceRun.mcp_trace} onClose={() => setTarget(null)} />}
       {target && !finding && (
         <div className="drawer" role="dialog" aria-label="Provenance unavailable">

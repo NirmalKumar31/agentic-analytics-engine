@@ -183,7 +183,7 @@ test.describe("motion restraint", () => {
     const openDemo = page.getByRole("button", { name: /Commerce demo warehouse/ });
     await expect(openDemo).toBeEnabled();
     await openDemo.click();
-    await expect(page.getByRole("heading", { name: "Ask" })).toBeVisible();
+    await expect(page.getByTestId("composer")).toBeVisible();
 
     const seen: { tag: string; style: string; width: number }[] = [];
     for (let i = 0; i < 12; i += 1) {

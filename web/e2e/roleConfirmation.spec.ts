@@ -60,16 +60,43 @@ function watchRequests(page: Page): { offOrigin: string[]; provider: string[] } 
   return seen;
 }
 
-/** Open the schema inspector, asserting it began closed. */
+/**
+ * Open the schema side sheet, asserting the schema was not already in the
+ * reader's way.
+ *
+ * The inspector used to be a `<details>` resident on the canvas and this
+ * helper opened the disclosure. It is a side sheet now, reached from the
+ * dataset context strip, so the gate moved up a level: what is asserted is
+ * the same claim -- a reader is told the ambiguity *count* without opening
+ * anything, and the field-by-field detail is behind one control.
+ *
+ * Idempotent, because the sheet persists across the tests in a serial
+ * describe that share a page.
+ */
 async function openInspector(page: Page) {
   const inspector = page.getByTestId("schema-inspector");
+  if ((await inspector.count()) === 0) {
+    await page.getByTestId("inspect-schema").click();
+  }
   await expect(inspector).toBeVisible();
-  // A reader is told the count without opening anything; the detail is
-  // behind a disclosure rather than in their way.
-  await expect(inspector).not.toHaveAttribute("open", "");
-  await inspector.locator("summary").first().click();
+  // Opened expanded: the reader already asked by pressing the control.
   await expect(inspector).toHaveAttribute("open", "");
   return inspector;
+}
+
+/**
+ * Close it again.
+ *
+ * The sheet is modal -- it has a scrim, and focus is contained -- so the
+ * page behind it cannot be used until it is closed. That is the real
+ * sequence a reader follows: settle the column, close the schema, ask the
+ * question. Idempotent, so a test can declare what it needs without
+ * tracking what the previous one left behind.
+ */
+async function closeInspector(page: Page) {
+  if ((await page.getByTestId("schema-sheet").count()) === 0) return;
+  await page.keyboard.press("Escape");
+  await expect(page.getByTestId("schema-sheet")).toHaveCount(0);
 }
 
 async function confirmButton(page: Page) {
@@ -96,7 +123,7 @@ test.describe("settling a close call", () => {
     await page.close();
   });
 
-  test("the inspector starts collapsed and marks the close call", async () => {
+  test("the schema stays out of the way until it is asked for", async () => {
     const inspector = await openInspector(page);
     await expect(inspector).toContainText(/role the data cannot settle/);
 
@@ -111,6 +138,7 @@ test.describe("settling a close call", () => {
   });
 
   test("what it offers to ask does not mention the unsettled column", async () => {
+    await closeInspector(page);
     // Recorded before any confirmation, so the next test can prove the
     // confirmation is what changed it.
     const offered = await suggestedQuestions(page).allInnerTexts();
@@ -118,6 +146,7 @@ test.describe("settling a close call", () => {
   });
 
   test("selecting a reading does not submit it", async () => {
+    await openInspector(page);
     const control = page.getByTestId("role-confirmation");
     const category = control.getByRole("radio", { name: /Category/ });
 
@@ -134,6 +163,7 @@ test.describe("settling a close call", () => {
   });
 
   test("confirming calls the backend, and the request says what it means", async () => {
+    await openInspector(page);
     const control = page.getByTestId("role-confirmation");
     const button = await confirmButton(page);
 
@@ -183,6 +213,7 @@ test.describe("settling a close call", () => {
   });
 
   test("the row now reads as a category, settled rather than open", async () => {
+    await openInspector(page);
     // The row is where the effective role is published. What the page
     // offers to ask is asserted separately, below.
     const row = page.locator("tr", { has: page.getByText("reading", { exact: true }) });
@@ -194,6 +225,7 @@ test.describe("settling a close call", () => {
   });
 
   test("a suggested question now names the confirmed category", async () => {
+    await closeInspector(page);
     // The defect this covers: `dimensions.find(usable)` took the first
     // dimension the schema listed, so `site` won and the column the reader
     // had just settled went unmentioned everywhere they were looking.
@@ -207,13 +239,18 @@ test.describe("settling a close call", () => {
   });
 
   test("clicking it puts the question in the composer", async () => {
+    await closeInspector(page);
     const button = suggestedQuestions(page).filter({ hasText: /reading/ }).first();
-    const text = (await button.innerText()).trim();
+    // The question, not the whole button: a suggestion now carries an
+    // intent label above its sentence ("Count" / "How many rows by
+    // reading?"), and `innerText` would include it.
+    const text = (await button.locator(".suggestion-text").innerText()).trim();
     await button.click();
     await expect(page.getByLabel("Business question")).toHaveValue(text);
   });
 
   test("a reset restores the engine's own reading", async () => {
+    await openInspector(page);
     const settled = page.getByTestId("role-confirmed");
     await settled.getByRole("button", { name: /Reset to inferred/ }).click();
 
@@ -239,18 +276,23 @@ test.describe("settling a close call", () => {
 
   test("confirming again brings the question back, and running it groups by the column", async () => {
     // Ordered last in this group deliberately. Running an analysis replaces
-    // the dataset panel with the report workspace, so the inspector -- and
-    // the control inside it -- is no longer on the page: a reset asserted
-    // after a run has nothing to click. This is also the only place the
+    // the composer with the report workspace, so the inspector -- and the
+    // control inside it -- is no longer reachable: a reset asserted after a
+    // run has nothing to click. This is also the only place the
     // reset-then-confirm-again path is exercised, which is why the run is
     // reached through it rather than from a second upload.
+    //
+    // The sheet has to be open to settle the column and closed to use the
+    // composer, which is the sequence a reader actually follows.
+    await openInspector(page);
     const control = page.getByTestId("role-confirmation");
     await control.getByRole("radio", { name: /Category/ }).check();
     await control.getByRole("button", { name: /Confirm for this session/ }).click();
     await expect(page.getByTestId("role-confirmed")).toBeVisible();
+    await closeInspector(page);
 
     const button = suggestedQuestions(page).filter({ hasText: /reading/ }).first();
-    const text = (await button.innerText()).trim();
+    const text = (await button.locator(".suggestion-text").innerText()).trim();
     await button.click();
     await expect(page.getByLabel("Business question")).toHaveValue(text);
 
@@ -291,6 +333,8 @@ test.describe("what the engine then does with it", () => {
     await page.getByTestId("role-confirmation").getByRole("radio", { name: /Category/ }).check();
     await (await confirmButton(page)).click();
     await expect(page.getByTestId("role-confirmed")).toBeVisible();
+    // The composer is behind the sheet's scrim until it is closed.
+    await closeInspector(page);
     await ask(page, "What is total dose by reading?");
     await waitForReport(page);
   });
@@ -380,6 +424,7 @@ test.describe("confirming the reading the engine already had", () => {
   });
 
   test("offers an average of it, and never a total", async () => {
+    await closeInspector(page);
     // The control said "can be averaged or totalled". Averaging is what
     // was asserted; additivity is a separate property nobody established,
     // so a sum would be a claim the reader did not make.
