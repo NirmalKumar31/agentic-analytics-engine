@@ -282,3 +282,95 @@ test.describe("Compare Both, in a browser", () => {
     await expectNoChartFailure(page);
   });
 });
+
+test.describe("every colour in a chart comes from the palette", () => {
+  /*
+   * Vega's defaults are greys and blues chosen for a white page, and they
+   * are written *inline* on the SVG, where no stylesheet can reach them.
+   * Two have already shipped: `#4c78a8` for a single-series mark, which was
+   * a blue from neither palette and identical in both themes; and `#ddd`
+   * for `view.stroke`, which rendered as a near-white rectangle outlining
+   * the plot on a #0e1113 dark canvas and was invisible in light, which is
+   * why it survived.
+   *
+   * Both were found by looking at a screenshot. This is the general form:
+   * resolve every token the palette defines to the colour the browser
+   * computes for it, then assert that the chart uses nothing else. A third
+   * unthemed default cannot ship without failing here, whichever property
+   * carries it.
+   */
+  const PALETTE = [
+    "--series-1",
+    "--series-2",
+    "--series-3",
+    "--series-4",
+    "--series-5",
+    "--ink-primary",
+    "--ink-secondary",
+    "--ink-muted",
+    "--ink-inverse",
+    "--rule-hairline",
+    "--rule-strong",
+    "--surface-canvas",
+    "--surface-paper",
+    "--surface-raised",
+    "--surface-inset",
+    "--signal",
+    "--signal-strong",
+    "--warning",
+  ];
+
+  for (const theme of ["light", "dark"] as const) {
+    test(`in ${theme}`, async ({ page }) => {
+      await page.addInitScript((value) => {
+        try {
+          localStorage.setItem("aae-theme", value);
+        } catch {
+          /* private browsing; the attribute check below catches it */
+        }
+      }, theme);
+      await page.setViewportSize({ width: 1440, height: 900 });
+      await openApp(page);
+      await uploadFile(page, `palette-${theme}.csv`, sampleCsv());
+      await ask(page, "What is the total revenue by region?");
+      await waitForReport(page);
+      await expect(page.locator("html")).toHaveAttribute("data-theme", theme);
+      await expectDrawnChart(page);
+
+      const foreign = await page.evaluate((tokens) => {
+        // Resolve each token the way the browser will, so the comparison
+        // is between computed colours rather than between a hex and an
+        // `rgb()` string that mean the same thing.
+        const probe = document.createElement("span");
+        probe.style.display = "none";
+        document.body.append(probe);
+        const allowed = new Set(["none", "rgba(0, 0, 0, 0)", "rgb(0, 0, 0)"]);
+        for (const name of tokens) {
+          probe.style.color = `var(${name})`;
+          const resolved = getComputedStyle(probe).color;
+          if (resolved) allowed.add(resolved);
+        }
+        probe.remove();
+
+        const svg = document.querySelector(".chart-host svg");
+        if (!svg) return ["no chart"];
+        const seen = new Map<string, string>();
+        for (const node of Array.from(svg.querySelectorAll("*"))) {
+          const style = getComputedStyle(node);
+          for (const property of ["fill", "stroke"] as const) {
+            const value = style[property];
+            if (!value || allowed.has(value)) continue;
+            const where = `${node.tagName}.${node.getAttribute("class") ?? ""}`;
+            seen.set(`${property}=${value}`, where);
+          }
+        }
+        return [...seen].map(([colour, where]) => `${colour} on ${where}`);
+      }, PALETTE);
+
+      expect(
+        foreign,
+        `${theme}: colours from outside the palette: ${foreign.join(" | ")}`,
+      ).toEqual([]);
+    });
+  }
+});

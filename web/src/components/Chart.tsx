@@ -130,10 +130,30 @@ export function Chart({ chart, snapshot, onOpenProvenance }: Props) {
             renderer: "svg",
             config: {
               background: "transparent",
+              /*
+               * The frame Vega draws around the plot.
+               *
+               * `view.stroke` defaults to `#ddd`, a light grey chosen for a
+               * white page and never revisited. In dark mode it rendered as
+               * a near-white rectangle on a #0e1113 canvas -- the brightest
+               * thing on the report, outlining the chart like a selection
+               * box, in a colour from neither palette. In light mode the
+               * same value is almost invisible against #f2f4f1, which is
+               * why it survived: the defect only existed in the theme
+               * nobody screenshotted.
+               *
+               * Found by looking at a dark-mode screenshot, confirmed by
+               * reading `stroke` off the rendered `path.background`.
+               */
+              view: { stroke: token("--rule-hairline", "#d9d2c7") },
               axis: {
                 labelColor: token("--ink-secondary", "#5d544b"),
                 titleColor: token("--ink-secondary", "#5d544b"),
                 gridColor: token("--rule-hairline", "#d9d2c7"),
+                // Same argument as `view.stroke`: Vega's defaults for these
+                // are greys picked for a white page.
+                domainColor: token("--rule-hairline", "#d9d2c7"),
+                tickColor: token("--rule-hairline", "#d9d2c7"),
               },
               legend: {
                 labelColor: token("--ink-secondary", "#5d544b"),

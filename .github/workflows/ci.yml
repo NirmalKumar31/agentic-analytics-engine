@@ -220,6 +220,11 @@ jobs:
         run: npm run test
       - name: Production build
         run: npm run build
+      - name: Bundle guard
+        # After the build, because it reads dist/. Vega stays lazy and the
+        # initial payload stays under its ceiling; the measured baseline is
+        # in the script's header.
+        run: npm run check:bundle
       - name: Audit runtime dependencies
         run: npm audit --omit=dev --audit-level=high
 
@@ -356,26 +361,36 @@ jobs:
       # change break WebKit" went unanswered for the whole cycle. The job
       # still fails, because a failed step fails it.
       #
-      # Firefox skips the same browser-PDF test as WebKit.
+      # Firefox skips the same five PDF tests as WebKit.
       - name: Firefox end to end
         if: always()
         working-directory: web
         env:
           AAE_E2E_BASE_URL: http://127.0.0.1:8000
           AAE_E2E_BROWSERS: firefox
-          AAE_E2E_ALLOWED_SKIPS: "1"
+          AAE_E2E_ALLOWED_SKIPS: "5"
         run: npm run test:e2e
 
-      # WebKit skips the browser-PDF test, which uses `page.pdf()` -- a
-      # Chromium-only Playwright API, gated in the spec rather than
-      # failing. The guard is told to expect exactly that one.
+      # Five skips, all of them `page.pdf()` -- a Chromium-only Playwright
+      # API. They are `print.spec.ts`'s four state PDFs (successful,
+      # Compare, refusal, no findings) plus the dark-theme one, each gated
+      # with an explicit `test.skip` in the spec rather than filtered out
+      # of the file, so the guard counts them and a silent zero-test run
+      # cannot pass for a clean one.
+      #
+      # Was "1", for the single browser-PDF test `app.spec.ts` used to
+      # carry. That test asserted `%PDF` and a file size over 1kB, which a
+      # PDF of a blank page passes; `print.spec.ts` renders the pages and
+      # inspects them instead. Everything else print-related runs on all
+      # three engines through `emulateMedia({ media: "print" })`, which is
+      # not Chromium-only.
       - name: WebKit end to end
         if: always()
         working-directory: web
         env:
           AAE_E2E_BASE_URL: http://127.0.0.1:8000
           AAE_E2E_BROWSERS: webkit
-          AAE_E2E_ALLOWED_SKIPS: "1"
+          AAE_E2E_ALLOWED_SKIPS: "5"
         run: npm run test:e2e
 
       # Traces and screenshots, not only the HTML report. A flaky Firefox

@@ -77,8 +77,10 @@ export function terminalPresentation(
         // The ask, not the engine's framing of its own failure. A reader
         // needs to know what to change about the question.
         headline: reason || "This question could not be mapped to your data",
+        // "the full stop reason" read as a sentence about punctuation on a
+        // rendered screen -- `stop_reason` is the field's name, not a phrase.
         explanation: reason
-          ? "Nothing was published. The full stop reason is in the evidence."
+          ? "Nothing was published. The engine's unedited reason is in the evidence."
           : null,
         tone: "warn",
       };
@@ -125,16 +127,40 @@ export function terminalPresentation(
         tone: "warn",
       };
 
-    case "execution_failed":
+    case "execution_failed": {
+      /*
+       * "Nothing partial has been kept" is a claim about the payload, and
+       * it was stated unconditionally. A run that failed after publishing
+       * something would have carried it over a visible chart and result
+       * table -- the page contradicting itself in the one state where a
+       * reader most needs to trust what it says.
+       *
+       * So it is said only when it is true, and the alternative says what
+       * is actually on the page rather than going quiet about it.
+       */
+      // What the canvas will actually draw, not just `findings`: an
+      // uploaded run carries its result in `presentation`, and the derived
+      // `failed` fixture has an empty `findings` array *and* a chart, two
+      // highlights and a four-row table.
+      const presentation = run?.presentation ?? null;
+      const published =
+        (run?.findings ?? []).length > 0 ||
+        (presentation?.highlights ?? []).length > 0 ||
+        Boolean(presentation?.table) ||
+        Boolean(presentation?.chart);
+
       return {
         eyebrow: "Failed",
         headline: "The analysis did not complete",
         explanation:
           (reason ? `${reason}. ` : "") +
           "This is not a statement about your data and not a refusal. " +
-          "Nothing partial has been kept.",
+          (published
+            ? "What is shown below is what had been published before the run stopped, not a complete answer."
+            : "Nothing partial has been kept."),
         tone: "error",
       };
+    }
 
     case "cancelled":
       return {

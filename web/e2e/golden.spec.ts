@@ -126,8 +126,17 @@ test.describe("the report at every supported width", () => {
         }
       }
 
-      // The chart fills the width available to it. This is the defect the
-      // redesign exists to fix: cardinality must not decide width.
+      /*
+       * The chart fills the width available to it. This is the defect the
+       * redesign exists to fix: cardinality must not decide width.
+       *
+       * The threshold was `> 0.8`, which was the loose form written before
+       * the redesign landed; the brief asks for >= 90% at each of the six
+       * widths. Measured on this branch it is 90% at phone-small and 98%
+       * at the rest, in all three engines, so the assertion is tightened
+       * to the number the brief actually states rather than left at a
+       * value the product clears by eight points.
+       */
       await expect
         .poll(() => fractionOfContainer(page), { timeout: 10_000 })
         .not.toBeNull();
@@ -135,7 +144,7 @@ test.describe("the report at every supported width", () => {
       expect(
         fraction!,
         `${viewport.label}: chart used ${((fraction ?? 0) * 100).toFixed(0)}% of its container`,
-      ).toBeGreaterThan(0.8);
+      ).toBeGreaterThanOrEqual(0.9);
       expect(
         fraction!,
         `${viewport.label}: chart overflows its container`,
@@ -183,7 +192,7 @@ test.describe("chart width is independent of cardinality", () => {
       expect(
         fraction!,
         `${shape.name}: chart used ${((fraction ?? 0) * 100).toFixed(0)}% of its container`,
-      ).toBeGreaterThan(0.8);
+      ).toBeGreaterThanOrEqual(0.9);
     });
   }
 
@@ -203,7 +212,7 @@ test.describe("chart width is independent of cardinality", () => {
     ).toBeVisible({ timeout: 20_000 });
     const fraction = await fractionOfContainer(page);
     expect(fraction, "no chart was rendered on the upload path").not.toBeNull();
-    expect(fraction!).toBeGreaterThan(0.8);
+    expect(fraction!).toBeGreaterThanOrEqual(0.9);
     expect(await hasHorizontalOverflow(page)).toBe(false);
   });
 });

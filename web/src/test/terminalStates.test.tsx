@@ -251,6 +251,97 @@ describe("the engine's internal framing stays out of the canvas", () => {
   });
 });
 
+describe("a completed run never wears failure language", () => {
+  /*
+   * The brief names four words that must not appear on a `completed`
+   * state: `failed`, `error`, `went wrong`, `problem`. Each is a word a
+   * reader takes as "something broke, your result may be wrong", and two
+   * of the six states -- `completed` with findings, and `no_findings` --
+   * are runs where nothing broke at all.
+   *
+   * This existed only as a single `/failed/i` check in one browser test.
+   * The whole vocabulary is pinned here, on the canvas rather than on the
+   * document: the print appendix carries the engine's own `Outcome` row,
+   * where the literal word is the record and belongs.
+   */
+  // No `\b` on the trailing edge: this matches against concatenated
+  // `textContent`, where "Failed" is immediately followed by the next
+  // element's first letter and a word boundary never occurs.
+  const FAILURE_WORDS = [/failed/i, /error/i, /went wrong/i, /problem/i];
+
+  it.each([["completed"], ["no-findings"]])(
+    "%s says nothing broke",
+    (name) => {
+      show(name);
+      const canvas = canvasText(screen.getByTestId("report-panel"));
+      for (const word of FAILURE_WORDS) {
+        expect(canvas, `${name} uses "${word}"`).not.toMatch(word);
+      }
+    },
+  );
+
+  it("and the states that did break still say so", () => {
+    // The control. If the words were simply absent from every string in
+    // the application, the assertion above would be proving nothing.
+    show("failed");
+    const canvas = canvasText(screen.getByTestId("report-panel"));
+    expect(
+      FAILURE_WORDS.some((word) => word.test(canvas)),
+      "an execution failure does not name itself",
+    ).toBe(true);
+  });
+});
+
+describe("a failure does not contradict what is on the page", () => {
+  /*
+   * The copy said "Nothing partial has been kept" unconditionally, and the
+   * derived `failed` fixture -- a real completed payload with exactly the
+   * fields the API sets for that outcome -- renders a chart, two findings
+   * and a full result table underneath it. A reader is told nothing was
+   * kept while looking at what was kept.
+   */
+  it("says nothing was kept only when nothing was", () => {
+    // The signal is what the canvas draws, not `findings`: an uploaded run
+    // carries its result in `presentation`, and this fixture has an empty
+    // `findings` array alongside a chart, two highlights and a table.
+    const run = load("failed");
+    expect((run.findings ?? []).length).toBe(0);
+    expect(
+      (run.presentation?.highlights ?? []).length,
+      "the fixture draws nothing, so there is no contradiction to catch",
+    ).toBeGreaterThan(0);
+
+    show("failed");
+    const canvas = canvasText(screen.getByTestId("report-panel"));
+    expect(canvas, "a visible result is described as not kept").not.toMatch(
+      /nothing partial has been kept/i,
+    );
+    expect(canvas).toMatch(/what had been published before the run stopped/i);
+  });
+
+  it("and says it when the run really kept nothing", () => {
+    const run: RunPayload = {
+      ...load("failed"),
+      findings: [],
+      presentation: undefined,
+      results: {},
+    };
+    render(
+      <ReportWorkspace
+        comparison={null}
+        run={run}
+        aiRun={null}
+        aiError={null}
+        config={null}
+        deterministicPending={false}
+      />,
+    );
+    expect(canvasText(screen.getByTestId("report-panel"))).toMatch(
+      /nothing partial has been kept/i,
+    );
+  });
+});
+
 describe("severity is carried by the state, not by a control", () => {
   it.each(STATES)("%s marks its own tone", (name) => {
     show(name);

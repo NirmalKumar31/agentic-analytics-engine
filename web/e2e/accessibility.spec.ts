@@ -140,6 +140,58 @@ test.describe("accessibility", () => {
     await scan(page, "refused report");
   });
 
+  test("a run in flight", async ({ page }) => {
+    /*
+     * The brief lists the active run as a state to scan, and it is the one
+     * state that is *only* reachable mid-interaction: the timeline, the
+     * live region that narrates it and the disabled controls all exist for
+     * a few seconds and then are replaced by the report.
+     *
+     * In fake mode a run finishes in well under a second, so the window is
+     * held open by delaying the status poll rather than by racing it. The
+     * responses are the server's own -- nothing is fabricated; they simply
+     * arrive late, which is what a slow run looks like to the page.
+     *
+     * `onCanvas`, because the print appendix holds a hidden copy of the
+     * timeline: the assertion is that the reader is shown one.
+     */
+    let held = 0;
+    await page.route("**/api/analyses/*", async (route) => {
+      if (held < 3) {
+        held += 1;
+        await new Promise((resolve) => setTimeout(resolve, 1_200));
+      }
+      await route.fallback();
+    });
+
+    await openApp(page);
+    await uploadFile(page, "a11y-active.csv", sampleCsv());
+    await page.getByLabel("Business question").fill(
+      "What is the total revenue by region?",
+    );
+    await page.getByRole("button", { name: "Run analysis" }).click();
+    await expect(onCanvas(page, '[data-testid="run-timeline"]')).toBeVisible();
+    await scan(page, "run in flight");
+  });
+
+  test("a completed run that published nothing", async ({ page }) => {
+    // Distinct from a refusal in wording and in tone, and therefore in
+    // which colours carry the distinction. The brief lists it separately
+    // for that reason.
+    await openApp(page);
+    await uploadFile(page, "a11y-empty.csv", sampleCsv());
+    await ask(
+      page,
+      "What is total revenue by region where region is Atlantis?",
+    );
+    await waitForReport(page);
+    await expect(page.getByTestId("report-panel")).toHaveAttribute(
+      "data-state",
+      "no_findings",
+    );
+    await scan(page, "no findings");
+  });
+
   test("the planning audit, expanded", async ({ page }) => {
     await openApp(page);
     await uploadFile(page, "a11y-audit.csv", sampleCsv());

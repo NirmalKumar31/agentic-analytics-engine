@@ -11,7 +11,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "playwright test && node scripts/check-playwright-skips.mjs",
-    "test:e2e:install": "playwright install --with-deps chromium"
+    "test:e2e:install": "playwright install --with-deps chromium",
+    "check:bundle": "node scripts/check-bundle.mjs"
   },
   "dependencies": {
     "react": "^19.2.0",
