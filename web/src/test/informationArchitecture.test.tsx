@@ -33,7 +33,6 @@ import { ModeBadge, badgeMode } from "../components/ModeBadge";
 import { PresentationReportView } from "../components/PresentationReportView";
 import { ReportWorkspace } from "../components/ReportWorkspace";
 import { SchemaInspector } from "../components/SchemaInspector";
-import { WorkflowIndex } from "../components/WorkflowIndex";
 import { runState } from "../lib/runState";
 import type {
   DatasetCatalog,
@@ -245,13 +244,9 @@ describe("every terminal state is distinguishable", () => {
     expect(screen.queryByTestId("run-state-card")).toBeNull();
   });
 
-  it("marks the workflow stage a stopped run stopped at", () => {
-    render(<WorkflowIndex phase="refused" />);
-    expect(screen.getByText("Analyse").closest(".step")).toHaveAttribute(
-      "data-state",
-      "stopped",
-    );
-  });
+  // The stepper assertion that stood here went with the stepper. Its claim
+  // -- a stopped run is shown stopped at the stage it stopped at -- is owed
+  // by the step D timeline, from backend events.
 });
 
 // ----------------------------------------------------------------- 3. auto

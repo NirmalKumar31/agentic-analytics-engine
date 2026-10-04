@@ -25,19 +25,23 @@ export async function waitForReport(page: Page): Promise<void> {
 }
 
 /**
- * The recorded-run buttons, in the Dataset panel.
+ * The recorded-run buttons, in the landing's prepared-data list.
  *
- * Both panels render `.example-list`, so an unscoped selector picks the
- * wrong one once a dataset is open -- and silently opens a recording
- * instead of asking a question.
+ * Scoped by test id rather than by a heading. The old selector reached for
+ * `section.panel` containing a heading named exactly "Dataset" -- which
+ * worked, and was three assumptions deep: that the surface is a panel, that
+ * it is headed, and that the heading says that word. All three were true
+ * only because the landing had not been designed yet.
+ *
+ * The demo warehouse is deliberately excluded: it is the first row of the
+ * same list and is not a recording, and a helper that returned it would
+ * make `recordingButtons().first()` open the demo.
  */
 export function recordingButtons(page: Page) {
   return page
-    .locator('section.panel', {
-      // Exact: "Dataset" is a prefix of "Dataset understanding".
-      has: page.getByRole('heading', { name: 'Dataset', exact: true }),
-    })
-    .locator('.example-list button.example')
+    .getByTestId('prepared-data')
+    .locator('button.prepared-item')
+    .filter({ hasNotText: 'Commerce demo warehouse' })
 }
 
 /** The suggested-question buttons, in the Ask panel. */

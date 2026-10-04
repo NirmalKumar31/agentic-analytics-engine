@@ -48,6 +48,7 @@ const EXPECTED_ORDER = [
   "styles/reset.css",
   "styles/foundation.css",
   "styles/shell.css",
+  "styles/landing.css",
   "styles/controls.css",
   "styles/workflow.css",
   "styles/findings.css",
@@ -187,17 +188,21 @@ describe("rules stay in the module that owns their place in the cascade", () => 
     );
   });
 
-  it("keeps all three print blocks, the last one at the end of states.css", () => {
-    // Three, in cascade order:
+  it("keeps every print block, the last one at the end of states.css", () => {
+    // Four, in cascade order:
     //   foundation.css  the printed *page* -- size, margins, colour-adjust,
     //                   and the white palette the other two assume.
+    //   landing.css     the landing's own controls, which paper cannot use.
     //   print.css       how the report's own blocks print.
     //   states.css      last, so no state rule can override print treatment.
     //
     // foundation's block must come first: it resets the palette to ink on
     // white, and a later block restating a colour has to win over that, not
     // be undone by it.
-    expect(countAtRule(css, "@media print")).toBe(3);
+    expect(countAtRule(css, "@media print")).toBe(4);
+    expect(
+      countAtRule(withoutComments(moduleSource("styles/landing.css")), "@media print"),
+    ).toBe(1);
     expect(
       countAtRule(withoutComments(moduleSource("styles/foundation.css")), "@media print"),
     ).toBe(1);
@@ -279,9 +284,16 @@ describe("rules stay in the module that owns their place in the cascade", () => 
 
   it("keeps narrow-viewport containment in responsive.css", () => {
     const responsive = withoutComments(moduleSource("styles/responsive.css"));
-    // `min-width: 0` on the three elements that declare overflow-x. Without
-    // it they expand to fit their content and take the page sideways.
-    expect(responsive).toMatch(/\.steps,\s*\.flow,\s*\.table-wrap\s*\{\s*min-width:\s*0/);
+    // `min-width: 0` on the elements that declare overflow-x. Without it
+    // they expand to fit their content and take the page sideways.
+    //
+    // `.steps` was one of three and is gone with the stepper. `.scroll-x` in
+    // foundation.css carries both declarations together for everything
+    // added from here on, which is the arrangement that cannot drift apart.
+    expect(responsive).toMatch(/\.flow,\s*\.table-wrap\s*\{\s*min-width:\s*0/);
+    expect(withoutComments(moduleSource("styles/foundation.css"))).toMatch(
+      /\.scroll-x\s*\{[^}]*overflow-x:\s*auto;[^}]*min-width:\s*0/,
+    );
   });
 
   it("wraps the topbar in responsive.css", () => {
@@ -291,11 +303,12 @@ describe("rules stay in the module that owns their place in the cascade", () => 
   });
 
   it("keeps the scrollable regions scrollable", () => {
-    // `.flow` and `.steps` scroll horizontally; both are focusable in the
-    // markup so a keyboard user can reach the scroll. The CSS half of that
-    // is the overflow declaration.
-    expect(css).toMatch(/\.steps\s*\{[^}]*overflow-x:\s*auto/);
+    // `.flow` scrolls horizontally and is focusable in the markup, so a
+    // keyboard user can reach the scroll. The CSS half of that is the
+    // overflow declaration. `.steps` was the other one and went with the
+    // stepper; `.scroll-x` is the general case.
     expect(css).toMatch(/\.flow\s*\{[^}]*overflow-x:\s*auto/);
+    expect(css).toMatch(/\.scroll-x\s*\{[^}]*overflow-x:\s*auto/);
   });
 
   it("keeps the WCAG 2.5.8 inline-disclosure exception", () => {
@@ -349,8 +362,10 @@ describe("rules stay in the module that owns their place in the cascade", () => 
     // Not forbidden outright: all thirteen predate this change and each has
     // a reason that `!important` is the correct tool for.
     //
-    //   motion.css x5  -- the `prefers-reduced-motion` idiom, which has to
-    //                     beat every animation declared anywhere.
+    //   motion.css x4  -- the `prefers-reduced-motion` idiom, which has to
+    //                     beat every animation declared anywhere. Was five:
+    //                     the fifth stopped the plotting grid drifting at
+    //                     phone widths, and went with the grid.
     //   print.css  x8  -- overriding Vega's *inline* SVG fills, which carry
     //                     higher precedence than any stylesheet rule.
     //
@@ -361,7 +376,7 @@ describe("rules stay in the module that owns their place in the cascade", () => 
       const hits = withoutComments(src).match(/!\s*important/g);
       if (hits) counts[name] = hits.length;
     }
-    expect(counts).toEqual({ "styles/print.css": 8, "styles/motion.css": 5 });
+    expect(counts).toEqual({ "styles/print.css": 8, "styles/motion.css": 4 });
   });
 });
 
@@ -381,6 +396,7 @@ describe("the split preserved the stylesheet", () => {
       "styles/reset.css": 50,
       "styles/foundation.css": 150,
       "styles/shell.css": 150,
+      "styles/landing.css": 150,
       "styles/controls.css": 120,
       "styles/workflow.css": 120,
       "styles/findings.css": 120,
@@ -388,7 +404,12 @@ describe("the split preserved the stylesheet", () => {
       "styles/audit.css": 150,
       "styles/report.css": 300,
       "styles/print.css": 200,
-      "styles/motion.css": 250,
+      // Lowered from 250 when the `body::before` plotting grid, its
+      // drift keyframes and its three guards were deleted: the landing
+      // field replaced that texture. A floor exists to catch a module
+      // emptied by a bad merge, not to freeze a module against
+      // deliberate removal.
+      "styles/motion.css": 200,
       "styles/states.css": 250,
       "styles/responsive.css": 60,
     };
@@ -405,6 +426,20 @@ describe("the split preserved the stylesheet", () => {
       (m) => m !== "styles/tokens.css" && !covered.has(m),
     );
     expect(uncovered).toEqual([]);
+  });
+
+  it("leaves every module brace-balanced", () => {
+    // A stray `}` from a bad edit is only a *warning* from esbuild: the
+    // build still succeeds, emits the sheet, and silently drops every rule
+    // after the error. One slipped through exactly that way while the
+    // landing was being built, and the production build said `built in
+    // 2.30s` with a warning nobody had to read.
+    for (const [name, src] of modules()) {
+      const css = withoutComments(src);
+      const open = (css.match(/\{/g) ?? []).length;
+      const close = (css.match(/\}/g) ?? []).length;
+      expect(close - open, `${name} has unbalanced braces`).toBe(0);
+    }
   });
 
   it("leaves no module empty", () => {

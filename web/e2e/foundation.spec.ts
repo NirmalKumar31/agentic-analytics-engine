@@ -55,55 +55,47 @@ test.describe("the application phase", () => {
 });
 
 test.describe("motion restraint", () => {
-  test("the ambient grid holds still once a report is on screen", async ({
-    page,
-  }) => {
+  test("the landing's ambient field is inert", async ({ page }) => {
     await openApp(page);
-    // The phase is published by an effect once the config fetch resolves,
-    // so the ambient rule does not apply on the first frame. Waiting for
-    // the attribute is waiting for the state the rule selects on.
     await expect(page.locator("body")).toHaveAttribute(
       "data-phase",
       "choose_dataset",
     );
-    const idle = await page.evaluate(
-      () => getComputedStyle(document.body, "::before").animationName,
-    );
-    expect(idle).toBe("grid-drift");
 
+    // This replaces "the ambient grid holds still once a report is on
+    // screen". That test watched `body::before`, a 46px plotting grid that
+    // drifted while idle and faded to 12% once a report existed. The grid
+    // is gone: the landing now carries the ambient analytical field, which
+    // is scoped to the one surface that wants it, and every other surface
+    // has a plain canvas. Stacking contours over graph paper would have
+    // been two textures behind the same content.
+    //
+    // The claim is stronger than the one it replaces -- the field does not
+    // animate at all, in any phase -- so there is no "holds still once a
+    // report arrives" case to test. When the storyboard's 48s drift is
+    // implemented, this becomes a reduced-motion assertion.
+    const field = page.getByTestId("analytical-field");
+    await expect(field).toBeVisible();
+    expect(
+      await field.evaluate((el) => getComputedStyle(el).animationName),
+    ).toBe("none");
+
+    // And the texture it replaced is not merely hidden.
+    expect(
+      await page.evaluate(
+        () => getComputedStyle(document.body, "::before").content,
+      ),
+    ).toBe("none");
+  });
+
+  test("no panel moves under the pointer", async ({ page }) => {
+    // Opened on a report rather than on the landing: the landing has no
+    // `.panel` any more, because it is no longer built out of panels.
+    await openApp(page);
     await page.getByRole("button", { name: /Commerce demo warehouse/ }).click();
     await ask(page, "What is the total revenue by region?");
     await waitForReport(page);
 
-    // A report exists. The texture stops and recedes, because the most
-    // useful background behind something being read is one that is not
-    // competing with it.
-    await expect(page.locator("body")).toHaveAttribute(
-      "data-phase",
-      "completed",
-    );
-    expect(
-      await page.evaluate(
-        () => getComputedStyle(document.body, "::before").animationName,
-      ),
-    ).toBe("none");
-
-    // Polled, because the opacity is transitioned over a panel duration:
-    // reading it on the frame the report arrives catches the start of the
-    // fade rather than its end.
-    await expect
-      .poll(
-        () =>
-          page.evaluate(() =>
-            Number(getComputedStyle(document.body, "::before").opacity),
-          ),
-        { timeout: 5_000 },
-      )
-      .toBeLessThan(0.2);
-  });
-
-  test("no panel moves under the pointer", async ({ page }) => {
-    await openApp(page);
     const panel = page.locator("section.panel").first();
     await expect(panel).toBeVisible();
 

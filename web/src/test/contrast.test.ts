@@ -280,6 +280,46 @@ describe("interface colours clear 3:1 on every surface", () => {
   }
 });
 
+/**
+ * Foreground-on-fill pairs, which the surface matrix cannot see.
+ *
+ * Every test above measures a text colour against one of the four
+ * *surfaces*. A filled control is neither: `.btn.primary` paints
+ * `--signal` and sets a foreground on top of it, and that pair appears in
+ * no surface combination.
+ *
+ * It went wrong exactly there. `.btn.primary` carried `color: #1a1000`, a
+ * near-black left from the palette where `--signal` was a light orange.
+ * Against the mineral green it fell below 3:1, and axe failed three
+ * browser states on it, while all 87 assertions here passed -- because
+ * none of them was looking at that pair.
+ *
+ * Each entry is (foreground token, fill token). Adding a filled control
+ * means adding its pair here.
+ */
+const FILL_PAIRS: Array<[string, string]> = [
+  ["ink-inverse", "signal"],
+  ["ink-inverse", "signal-strong"],
+  ["ink-inverse", "warning"],
+  ["signal", "signal-weak"],
+  ["warning-text", "warning-weak"],
+  ["ink-primary", "surface-inset"],
+];
+
+describe("text on a filled control clears 4.5:1", () => {
+  for (const [theme, palette] of THEMES) {
+    for (const [fg, fill] of FILL_PAIRS) {
+      it(`${theme}: --${fg} on --${fill}`, () => {
+        const ratio = contrast(palette[fg]!, palette[fill]!);
+        expect(
+          Number(ratio.toFixed(2)),
+          `--${fg} (${palette[fg]}) on --${fill} (${palette[fill]})`,
+        ).toBeGreaterThanOrEqual(4.5);
+      });
+    }
+  }
+});
+
 describe("the measurement itself", () => {
   it("computes the ratios WCAG defines", () => {
     // Anchors, so a broken luminance function cannot quietly pass the suite

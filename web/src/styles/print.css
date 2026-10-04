@@ -20,10 +20,8 @@
     color: #111;
     font-size: 10pt;
   }
-  body::before,
   body::after,
   .topbar,
-  .steps,
   .rail,
   .no-print,
   .activity,

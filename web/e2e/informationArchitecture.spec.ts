@@ -247,14 +247,15 @@ test.describe("terminal states, produced by the engine", () => {
     // Never the word that would send a reader looking for an answer.
     await expect(card).not.toContainText(/\bComplete\b/);
 
-    // The workflow index must say where it stopped, and must not claim a
-    // stage that never ran.
-    const analyse = page.locator(".step", { hasText: "Analyse" });
-    await expect(analyse).toHaveAttribute("data-state", "stopped");
-    const verify = page.locator(".step", { hasText: "Verify" });
-    await expect(verify).toHaveAttribute("data-state", "idle");
-    const report = page.locator(".step", { hasText: "Report" });
-    await expect(report).toHaveAttribute("data-state", "idle");
+    // The three `.step` assertions that stood here -- Analyse stopped,
+    // Verify idle, Report idle -- went with the five-step pipeline index.
+    //
+    // Their claim is the important half of this test and is **owed by step
+    // D**: a run that stopped must show *where* it stopped, and must not
+    // show later stages as idle in a way that reads as still in progress.
+    // The timeline must assert it against real backend events rather than
+    // against a derived phase string, which is what the index used.
+    expect(await page.locator(".step").count()).toBe(0);
   });
 
   test("a filter matching no rows is reported, and not as a verified answer", async () => {
@@ -296,11 +297,12 @@ test.describe("terminal states, produced by the engine", () => {
     await expect(report).not.toContainText(/not answered/i);
     // A real figure from the demo warehouse, not a sentence about failing.
     await expect(report).toContainText(/\$[\d,]+\.\d{2}/);
-    // And the workflow index reaches Report.
-    await expect(page.locator(".step", { hasText: "Report" })).toHaveAttribute(
-      "data-state",
-      "active",
-    );
+    // "And the workflow index reaches Report" went with the index. The
+    // claim it added over the assertions above was only that the chrome
+    // agreed with the content, and the chrome is gone. Step D's timeline
+    // owes the positive half of this: a completed run shows its last stage
+    // as completed, from backend events.
+    expect(await page.locator(".step").count()).toBe(0);
   });
 });
 

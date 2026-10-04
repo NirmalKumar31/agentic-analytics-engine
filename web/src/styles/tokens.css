@@ -93,6 +93,12 @@
      Worst-case contrast, both themes: signal 5.03, warning 5.29. */
   --signal: #0e6e66;
   --signal-weak: #dcedea;
+  /* The pressed/hovered state of a signal-filled control. A separate token
+     rather than a filter: `brightness()` on a dark fill in light mode and a
+     light fill in dark mode moves in opposite directions, so one
+     declaration would lighten the button in one theme and darken it in the
+     other. */
+  --signal-strong: #0b574f;
   --warning: #a63b24;
   --warning-weak: #f7e4df;
 
@@ -190,7 +196,7 @@
      page**. That single rule is what makes a report recognisable at a
      glance, and it only works while nothing else competes at this size --
      which is why this token has one legitimate call site. */
-  --text-display: 2.125rem;
+  --text-display: clamp(1.625rem, 1.1rem + 2.2vw, 2.125rem);
 
   --weight-regular: 400;
   --weight-medium: 500;
@@ -251,6 +257,9 @@
   /* ------------------------------------------------------------ z-index
      A named ladder. Numbers invented at the call site are how a drawer
      ends up behind the thing it is explaining. */
+  /* Behind the content of its own stacking context. The one user is the
+     landing's ambient field, inside `.landing`, which isolates. */
+  --z-behind: -1;
   --z-base: 0;
   --z-raised: 10;
   --z-sticky: 100;
@@ -292,6 +301,7 @@
      Worst case here: signal 7.67, warning 5.63 -- both well clear. */
   --signal: #45c3b2;
   --signal-weak: #10322e;
+  --signal-strong: #63d4c4;
   --warning: #e8755a;
   --warning-weak: #391a12;
 

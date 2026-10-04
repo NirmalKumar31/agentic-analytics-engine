@@ -27,7 +27,13 @@ test.describe("the page a visitor lands on", () => {
     await openApp(page);
     const recordings = recordingButtons(page);
     await expect(recordings).toHaveCount(3);
-    await expect(page.getByText(/not a language model/i)).toBeVisible();
+    // The provenance sentence must stay with the recordings: published and
+    // withheld counts beside a run that a reader might take for model
+    // output is the one claim this product most needs to get right. The
+    // first draft of the redesigned landing dropped it, and this caught it.
+    await expect(
+      page.getByTestId("prepared-data").getByText(/not a language model/i),
+    ).toBeVisible();
   });
 });
 

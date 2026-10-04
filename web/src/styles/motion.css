@@ -7,82 +7,23 @@
    is actually in. The whole section is switched off at the bottom for
    anyone who has asked for less motion. */
 
-/* The field the instrument sits on.
+/* The plotting grid that used to sit on `body::before` is gone.
  *
- * A plotting grid, and nothing else. What was here also drifted the grid
- * continuously and breathed two coloured ellipses over it, for as long as
- * the page was open -- underneath a report someone was trying to read.
+ * It was a 46px graph-paper lattice behind every surface, drifting while
+ * idle and fading to 12% once a report existed. The landing now has the
+ * ambient analytical field, which is the texture the approved design
+ * specifies and is scoped to the one surface that wants it; everywhere else
+ * the canvas is plain.
  *
- * Three changes. The grid is static by default and drifts only while the
- * page is in the idle state, which is when there is nothing to read and
- * the texture is doing its job of giving the panels somewhere to be. The
- * colour fields are gone: a wash of the accent hue behind a verdict
- * colour is a wash that changes what the verdict looks like. And the
- * whole thing fades to a quarter once a report exists, because at that
- * point the most useful background is one that is not competing.
+ * Keeping both would have stacked two textures behind the same content --
+ * contours over graph paper -- which is the half-migrated look this
+ * redesign exists to remove. The `grid-drift` keyframes went with it.
  */
-body::before {
-  content: "";
-  position: fixed;
-  inset: -40px;
-  z-index: var(--z-base);
-  pointer-events: none;
-  background-image:
-    linear-gradient(to right, currentColor 1px, transparent 1px),
-    linear-gradient(to bottom, currentColor 1px, transparent 1px);
-  background-size: 46px 46px;
-  color: var(--rule-hairline);
-  opacity: 0.4;
-  /* Fades out over a panel transition, so arriving at a report does not
-     look like the background being switched off. */
-  transition: opacity var(--motion-panel) var(--ease-out);
-  mask-image: radial-gradient(
-    ellipse 120% 85% at 50% 0%,
-    #000 35%,
-    transparent 78%
-  );
-}
 
-/* Idle: nothing to read, so the texture may move. One animation, slow
-   enough that it reads as texture rather than as progress. */
-body[data-phase="choose_dataset"]::before,
-body[data-phase="ready_to_ask"]::before {
-  animation: grid-drift var(--motion-ambient) linear infinite;
-}
-
-/* A report is on screen. The grid holds still and recedes. */
-body[data-phase="presenting"]::before,
-body[data-phase="completed"]::before,
-body[data-phase="refused"]::before,
-body[data-phase="failed"]::before {
-  animation: none;
-  opacity: 0.12;
-}
-
-@keyframes grid-drift {
-  from {
-    transform: translate3d(0, 0, 0);
-  }
-  to {
-    transform: translate3d(46px, 46px, 0);
-  }
-}
-
-/* A hidden tab animates nothing: it costs a reader's battery to render a
-   drifting grid nobody is looking at. `data-hidden` is set from the
-   visibility change, because CSS cannot see document visibility. */
-body[data-hidden="true"]::before {
-  animation: none;
-}
-
-/* A phone gets the texture without the motion. The grid is 46px, so on a
-   360px screen it is most of what is on the page. */
-@media (max-width: 600px) {
-  body::before {
-    animation: none !important;
-    opacity: 0.2;
-  }
-}
+/* The `data-hidden` and phone-width guards that stood here governed the
+   drifting grid and went with it. `data-hidden` is still set on the body by
+   the visibility change and is still the right hook for any ambient effect
+   added later -- the landing field is static, so nothing reads it today. */
 
 .shell {
   position: relative;
@@ -252,9 +193,6 @@ table.data td.cited {
     animation-iteration-count: 1 !important;
     transition-duration: 1ms !important;
     scroll-behavior: auto !important;
-  }
-  body::before {
-    display: none;
   }
 }
 

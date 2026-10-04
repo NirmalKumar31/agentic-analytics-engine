@@ -1,0 +1,310 @@
+/**
+ * The landing surface.
+ *
+ * One stacking context: the ambient field at the back, everything else
+ * above it. No panel, no card, no rail -- the old landing was a bordered
+ * `.panel` inside a grid that also reserved 330px for a right rail, and the
+ * rail is gone rather than emptied.
+ */
+
+.landing {
+  position: relative;
+  isolation: isolate;
+  padding-block: var(--space-7) var(--space-8);
+}
+
+/* ------------------------------------------------------- ambient field
+ *
+ * Behind everything, clipped to the surface, and never interactive.
+ *
+ * It is deliberately **static**. The motion storyboard specifies a 48s
+ * ambient drift here; that is not implemented yet because motion arrives
+ * with its reduced-motion tests in step I, and an unguarded ambient
+ * animation is exactly the kind of thing that ships and then cannot be
+ * turned off. Tracked as a known deviation from the storyboard, not from
+ * the mockups -- the approved compositions are static.
+ */
+.analytical-field {
+  position: absolute;
+  /* Bounded to the headline band, not to the whole surface.
+     A mask alone was not enough: the section is as tall as its content, so
+     "fade out by 62%" still landed inside the prepared-data list once the
+     list had four rows in it. Tying the field's height to the content below
+     it is the bug. It occupies a fixed band at the top -- the clear space
+     the composition puts it in -- and the mask softens its lower edge. */
+  inset-block-start: 0;
+  inset-inline: 0;
+  /* `width: 100%` is load-bearing, not redundant with `inset-inline: 0`.
+     An <svg> is a replaced element with an intrinsic size from its viewBox,
+     so `width: auto` resolves to that intrinsic width and the box becomes
+     over-constrained -- the browser then ignores `right` and leaves it at
+     its natural 837px. Inside a 358px phone column that is 463px of
+     horizontal page overflow, and a screenshot cannot show it because the
+     viewport clips exactly the thing that is wrong. */
+  width: 100%;
+  height: clamp(280px, 46%, 440px);
+  pointer-events: none;
+  z-index: var(--z-behind);
+
+  /* Two things keep it off the type, and the first attempt had neither.
+     At 0.5 opacity across the whole surface the contours ran straight
+     through the sub-headline, through the prepared-data rows, and through
+     the recording counts -- legible lines crossing legible words, which is
+     the one thing the approved composition forbids.
+
+     The mask is the real fix: the field is solid through the headline band,
+     where the canvas is empty, and gone by the time the two columns of
+     content begin. Opacity alone would only have made the crossings
+     fainter, and a faint line through a sentence is still a line through a
+     sentence. */
+  opacity: 0.4;
+  mask-image: linear-gradient(
+    to bottom,
+    #000 0%,
+    #000 55%,
+    transparent 100%
+  );
+}
+
+.analytical-field g {
+  fill: none;
+  stroke: var(--signal);
+}
+
+.field-wide {
+  opacity: 0.45;
+  stroke-width: 0.6;
+}
+
+.field-dense {
+  opacity: 0.8;
+  stroke-width: 0.7;
+}
+
+.field-ticks {
+  opacity: 0.9;
+  stroke-width: 0.9;
+}
+
+.field-ticks text {
+  fill: var(--signal);
+  stroke: none;
+  font-family: var(--font-mono);
+  font-size: 8.5px;
+  opacity: 0.55;
+}
+
+/* At phone widths the field is lighter and carries no tick labels: there is
+   not enough clear space for it to stay out of the way of type, and a
+   contour crossing a sentence is noise wearing the costume of restraint. */
+@media (max-width: 767px) {
+  .analytical-field {
+    opacity: 0.22;
+  }
+
+  .field-ticks {
+    display: none;
+  }
+}
+
+/* ---------------------------------------------------------------- lede */
+
+.landing-lede {
+  max-width: 24ch;
+}
+
+.landing-sub {
+  margin: var(--space-3) 0 0;
+  font-size: var(--text-md);
+  color: var(--ink-secondary);
+  max-width: 54ch;
+}
+
+/* The headline is allowed its own measure so it breaks into two lines at
+   desktop widths rather than running the full column. */
+@media (min-width: 768px) {
+  /* Wide enough that "What would you like to understand?" sets on one line,
+     which is how the approved composition draws it. At 34ch it broke after
+     "you", turning the signature headline into two short lines. */
+  .landing-lede {
+    max-width: none;
+  }
+}
+
+/* ---------------------------------------------------------------- body
+ *
+ * Two regions, not two cards. The drop zone is the primary affordance and
+ * takes the wider column; the prepared data is a list beside it.
+ */
+.landing-body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-6);
+  margin-block-start: var(--space-7);
+}
+
+@media (min-width: 900px) {
+  .landing-body {
+    grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr);
+    gap: var(--space-7);
+    align-items: start;
+  }
+}
+
+/* ------------------------------------------------------------ dropzone
+ *
+ * A dashed rule, because a dashed edge means "put something here" and a
+ * solid one means "this is a box". It is the only dashed border in the
+ * product.
+ */
+.dropzone {
+  border: 1px dashed var(--signal);
+  border-radius: var(--radius-lg);
+  background: var(--surface-paper);
+  padding: var(--space-5);
+}
+
+.dropzone--active {
+  background: var(--signal-weak);
+  border-style: solid;
+}
+
+.dropzone-title {
+  margin: 0;
+  font-size: var(--text-lg);
+  font-weight: var(--weight-semibold);
+  color: var(--ink-primary);
+  line-height: var(--leading-tight);
+}
+
+.dropzone-limits {
+  margin: var(--space-2) 0 var(--space-4);
+  font-size: var(--text-sm);
+  color: var(--ink-muted);
+  font-variant-numeric: var(--numeric);
+}
+
+/* Body weight, body colour. These two sentences are the product's position
+   on a reader's data, and they were previously `.small .dim`. */
+.dropzone-terms {
+  margin: 0 0 var(--space-2);
+  font-size: var(--text-base);
+  color: var(--ink-secondary);
+  line-height: var(--leading-normal);
+}
+
+.dropzone .btn.primary {
+  margin-block-start: var(--space-4);
+}
+
+.dropzone-caution {
+  margin: var(--space-4) 0 0;
+  font-size: var(--text-sm);
+  color: var(--ink-muted);
+  line-height: var(--leading-normal);
+}
+
+/* ------------------------------------------------------------ prepared
+ *
+ * A list separated by hairlines. Each row is a target spanning the full
+ * width, so the whole row is clickable rather than only its title.
+ */
+.prepared-list {
+  list-style: none;
+  margin: var(--space-4) 0 0;
+  padding: 0;
+  border-block-start: 1px solid var(--rule-hairline);
+}
+
+.prepared-list > li {
+  border-block-end: 1px solid var(--rule-hairline);
+}
+
+.prepared-note {
+  margin: var(--space-2) 0 0;
+  font-size: var(--text-sm);
+  color: var(--warning-text);
+}
+
+/* Provenance, not a warning: it states where the recordings came from. */
+.prepared-provenance {
+  color: var(--ink-secondary);
+  line-height: var(--leading-normal);
+  max-width: 54ch;
+}
+
+.prepared-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas:
+    "title go"
+    "meta  go"
+    "counts go";
+  align-items: center;
+  gap: 2px var(--space-4);
+  width: 100%;
+  padding: var(--space-4) 0;
+  border: 0;
+  background: none;
+  text-align: start;
+  cursor: pointer;
+  color: inherit;
+  font: inherit;
+}
+
+.prepared-item:hover:not(:disabled) .prepared-title {
+  color: var(--signal);
+}
+
+.prepared-item:disabled {
+  cursor: default;
+  opacity: 0.55;
+}
+
+.prepared-title {
+  grid-area: title;
+  font-size: var(--text-base);
+  font-weight: var(--weight-medium);
+  color: var(--ink-primary);
+}
+
+/* Set in sans, not mono. The mockup's placeholder here was a technique
+   list -- "parallel time-series · discount and mix" -- and mono was right
+   for that. The real `demonstrates` field is a sentence, and a sentence in
+   mono is slower to read and claims to be an identifier. */
+.prepared-meta {
+  grid-area: meta;
+  font-size: var(--text-sm);
+  color: var(--ink-secondary);
+  line-height: var(--leading-normal);
+}
+
+.prepared-counts {
+  grid-area: counts;
+  font-size: var(--text-xs);
+  color: var(--ink-muted);
+  font-variant-numeric: var(--numeric);
+}
+
+.prepared-go {
+  grid-area: go;
+  color: var(--signal);
+  font-size: var(--text-md);
+}
+
+/* A row is a thumb target on a phone. */
+@media (max-width: 640px) {
+  .prepared-item {
+    min-height: 44px;
+  }
+}
+
+@media print {
+  /* The landing is not a document. If it is printed at all, the field and
+     the controls have nothing to say on paper. */
+  .analytical-field,
+  .dropzone .btn,
+  .prepared-go {
+    display: none;
+  }
+}

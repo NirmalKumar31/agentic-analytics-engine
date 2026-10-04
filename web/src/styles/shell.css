@@ -111,53 +111,11 @@
   font-variant-numeric: tabular-nums;
 }
 
-.steps {
-  display: flex;
-  gap: 4px;
-  padding: 10px 22px;
-  border-bottom: 1px solid var(--rule-hairline);
-  background: var(--surface-canvas);
-  overflow-x: auto;
-}
-
-.step {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 5px 12px;
-  border-radius: 999px;
-  font-size: 12.5px;
-  color: var(--ink-muted);
-  white-space: nowrap;
-  border: 1px solid transparent;
-  transition:
-    color 160ms ease,
-    border-color 160ms ease,
-    background 160ms ease;
-}
-.step[data-state="active"] {
-  color: var(--ink-primary);
-  border-color: var(--signal-weak);
-  background: rgb(var(--signal-rgb) / 9%);
-}
-.step[data-state="done"] {
-  color: var(--ink-secondary);
-}
-.step-index {
-  width: 18px;
-  height: 18px;
-  border-radius: 50%;
-  display: grid;
-  place-items: center;
-  font-size: 11px;
-  font-variant-numeric: tabular-nums;
-  border: 1px solid currentColor;
-}
-.step[data-state="done"] .step-index {
-  background: var(--supported);
-  border-color: var(--supported);
-  color: #04231a;
-}
+/* The five-step `.steps` / `.step` pipeline index used to sit here,
+   between the header and the content, on every screen. It is removed
+   rather than hidden: a resident diagram of the engine's stages is
+   exactly the pipeline-first hierarchy this redesign replaces, and the
+   run's progress belongs to the active-run timeline. */
 
 /* ------------------------------------------------------------------ layout */
 

@@ -81,32 +81,10 @@
   }
 }
 
-/* The active step is marked by weight and by its rule. A completed one is
-   marked by being complete. Neither needs to pulse. */
-.step {
-  transition:
-    color var(--motion-control) var(--ease-out),
-    border-color var(--motion-control) var(--ease-out);
-}
-.step[data-state="active"] {
-  border-color: var(--signal);
-  color: var(--ink-primary);
-  font-weight: var(--weight-medium);
-}
-.step[data-state="done"] {
-  color: var(--supported);
-}
-/* A run that stopped marks the stage it stopped at. Showing the earlier
-   stages as done and the rest as idle read as a run still in progress,
-   which is the opposite of what happened. Ochre rather than the failure
-   red: a refusal and a quota stop are not breakages, and the stage index
-   carries the same meaning as a glyph for a reader who cannot separate
-   the hues. */
-.step[data-state="stopped"] {
-  color: var(--warning-text);
-  border-color: rgb(var(--warning-rgb) / 45%);
-  font-weight: var(--weight-medium);
-}
+/* The `.step` state overrides that stood here went with the stepper.
+   The claim they encoded -- a stopped run marks the stage it stopped at,
+   in ochre rather than failure red, because a refusal is not a breakage
+   -- is owed by the step D timeline. */
 
 /* A withheld finding is stated as withheld; the dimming is a second,
    quieter signal rather than the only one. */
@@ -306,7 +284,6 @@
   .panel[data-busy="true"]::after,
   .skeleton,
   .chart-card,
-  body::before,
   body::after {
     animation: none;
   }
