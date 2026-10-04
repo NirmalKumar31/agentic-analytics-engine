@@ -1,7 +1,7 @@
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test, type Page } from "@playwright/test";
 
-import { ask, openApp, sampleCsv, uploadFile, waitForReport } from "./helpers";
+import { ask, inDrawer, onCanvas, openApp, sampleCsv, uploadFile, waitForReport } from "./helpers";
 
 /**
  * Automated accessibility checks, on the states a visitor actually reaches.
@@ -157,7 +157,7 @@ test.describe("accessibility", () => {
     await expect(page.getByTestId("evidence-drawer")).toBeVisible();
     await scan(page, "evidence drawer open");
 
-    const audit = page.getByTestId('planning-audit');
+    const audit = inDrawer(page, 'planning-audit');
     await expect(audit).toBeVisible();
     await audit.locator('summary').first().click();
     await expect(audit).toHaveAttribute('open', '');
@@ -422,7 +422,11 @@ test.describe("keyboard operation", () => {
     await ask(page, "What is the total revenue by region?");
     await waitForReport(page);
 
-    const details = page.locator("details").first();
+    // On the canvas. The first `details` in the *document* is the planning
+    // audit inside the print appendix, which is `hidden` and therefore not
+    // focusable -- the test would be asserting that a keyboard user can
+    // operate a control no keyboard user can reach.
+    const details = onCanvas(page, "details").first();
     if ((await details.count()) === 0) return;
     const summary = details.locator("summary").first();
     await summary.focus();

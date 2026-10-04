@@ -1,6 +1,13 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test } from "@playwright/test";
 
 import { openApp, sampleCsv, uploadFile } from "./helpers";
+import {
+  advertiseAi,
+  compareWith,
+  openDemo,
+  settle,
+  startCompare,
+} from "./compareHelpers";
 
 /**
  * Compare, over real runs.
@@ -22,145 +29,6 @@ import { openApp, sampleCsv, uploadFile } from "./helpers";
  * Nothing here contacts a provider: the suite refuses to start unless
  * `/api/health` reports `provider_mode=fake`.
  */
-
-/** Advertise AI and Compare so the selector offers them. */
-async function advertiseAi(page: Page) {
-  await page.route("**/api/config", async (route) => {
-    const response = await route.fetch();
-    const body = await response.json();
-    body.capabilities.modes = body.capabilities.modes.map(
-      (mode: { mode: string }) =>
-        mode.mode === "ai"
-          ? { ...mode, available: true, reason: "", message: "" }
-          : mode,
-    );
-    body.capabilities.compare_available = true;
-    body.capabilities.ai_limits = {
-      runs_per_session: 3,
-      max_model_calls_per_run: 24,
-      max_runtime_seconds: 180,
-    };
-    await route.fulfill({ response, json: body });
-  });
-}
-
-const AI_RUN_ID = "run_compare_ai";
-
-/**
- * Route Compare so the right-hand side mirrors a real deterministic run.
- *
- * `mutate` receives the finished deterministic payload and returns what the
- * AI side should report. The default is the identity, which is the
- * agreement case.
- */
-async function compareWith(
-  page: Page,
-  mutate: (payload: Record<string, unknown>) => Record<string, unknown> = (p) => p,
-) {
-  let deterministicId = "";
-  let finished: Record<string, unknown> | null = null;
-
-  await page.route("**/api/comparisons", async (route) => {
-    const request = route.request().postDataJSON() as {
-      session_id: string;
-      question: string;
-    };
-    const started = await route.fetch({
-      url: new URL("/api/analyses", page.url()).toString(),
-      method: "POST",
-      postData: JSON.stringify({ ...request, mode: "deterministic" }),
-      headers: { "content-type": "application/json" },
-    });
-    const { run_id } = (await started.json()) as { run_id: string };
-    deterministicId = run_id;
-    await route.fulfill({
-      status: 202,
-      json: {
-        comparison_id: "cmp_compare_spec",
-        session_id: request.session_id,
-        question: request.question,
-        deterministic_run_id: run_id,
-        ai_run_id: AI_RUN_ID,
-      },
-    });
-  });
-
-  await page.route(`**/api/analyses/${AI_RUN_ID}`, async (route) => {
-    // The AI side can be polled before `/api/comparisons` has resolved, so
-    // there may be no real run to mirror yet. Reporting "running" is the
-    // truthful answer; fetching `/api/analyses/` with an empty id is a 404
-    // that reads as a failed AI run.
-    if (!deterministicId) {
-      await route.fulfill({
-        status: 200,
-        json: { run_id: AI_RUN_ID, status: "running" },
-      });
-      return;
-    }
-    // Cached once the real run finishes.
-    //
-    // This handler runs on every poll, and a response read through the
-    // request context is disposed when its route is fulfilled -- so
-    // re-reading it on the next poll failed with "Response has been
-    // disposed", which surfaced as the AI side never finishing. Fetching
-    // once and reusing the parsed payload is also closer to what the
-    // scenario is about: one finished run, mirrored.
-    if (!finished) {
-      const real = await page.request.get(
-        new URL(`/api/analyses/${deterministicId}`, page.url()).toString(),
-      );
-      const payload = (await real.json()) as Record<string, unknown>;
-      if (payload.status === "running") {
-        await route.fulfill({ status: 200, json: payload });
-        return;
-      }
-      finished = mutate(payload);
-    }
-    await route.fulfill({ status: 200, json: finished });
-  });
-}
-
-async function startCompare(page: Page, question: string) {
-  await page.getByLabel("Business question").fill(question);
-  await page.getByRole("radio", { name: /Compare planning strategies/ }).check();
-  await page.getByRole("button", { name: /Compare strategies/ }).click();
-  await expect(page.getByTestId("compare-workspace")).toBeVisible({
-    timeout: 90_000,
-  });
-}
-
-/**
- * Wait until neither side is still going.
- *
- * The application polls a run while it is running. A test that counts
- * requests has to start from a settled page, or a background poll lands in
- * the middle of the measurement and is read as something the interaction
- * caused.
- */
-async function settle(page: Page) {
-  await expect
-    .poll(
-      async () =>
-        page
-          .getByTestId("pane-status")
-          .evaluateAll((nodes) =>
-            nodes.every(
-              (node) =>
-                node.getAttribute("data-state") !== "running" &&
-                node.getAttribute("data-state") !== "not_started",
-            ),
-          ),
-      { timeout: 90_000 },
-    )
-    .toBe(true);
-  // One more poll interval, so an in-flight request has landed.
-  await page.waitForTimeout(1_500);
-}
-
-async function openDemo(page: Page) {
-  await page.getByRole("button", { name: /Commerce demo warehouse/ }).click();
-  await expect(page.getByTestId("composer")).toBeVisible();
-}
 
 test.describe("Compare over the demo warehouse", () => {
   test("converges on one shared answer when the strategies agree", async ({
@@ -297,6 +165,11 @@ test.describe("Compare over an uploaded dataset", () => {
       };
     });
     await startCompare(page, "What is the total revenue by region?");
+    // Settled first. The claim is about two *finished* runs that disagree,
+    // and both assertions below are also true of a run still in flight --
+    // so without this the test could pass before the AI side had answered,
+    // and ended while a poll was still being served.
+    await settle(page);
 
     await expect(page.getByTestId("shared-result")).toHaveCount(0);
     expect(await page.locator(".compare-pane").count()).toBe(2);

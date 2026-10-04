@@ -87,14 +87,6 @@
   color: var(--ink-muted);
 }
 
-/* ---------------------------------------------------------------- dataset */
-
-.dataset-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-  gap: 12px;
-}
-
 .choice {
   text-align: left;
   padding: 14px;

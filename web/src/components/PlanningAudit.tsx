@@ -19,7 +19,14 @@ function readable(role: string): string {
  * route, coverage and timings. Neither group should have to parse the other
  * group's interface.
  */
-export function PlanningAudit({ run }: { run: RunPayload }) {
+export function PlanningAudit({
+  run,
+  open = false,
+}: {
+  run: RunPayload;
+  /** Open from the start, for the print appendix. See `EvidenceBody`. */
+  open?: boolean;
+}) {
   // Optional: a run that is still in flight has no `events` at all, and
   // the drawer renders this component for whichever strategy a reader
   // selects -- finished or not.
@@ -40,7 +47,7 @@ export function PlanningAudit({ run }: { run: RunPayload }) {
 
   if (!contract && !coverage && !event && roleEvidence.length === 0) return null;
   return (
-    <details className="technical-audit" data-testid="planning-audit">
+    <details className="technical-audit" data-testid="planning-audit" open={open}>
       <summary>Planning audit</summary>
       <div className="technical-audit-body">
         <p className="small dim">

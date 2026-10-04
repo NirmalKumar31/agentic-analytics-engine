@@ -41,6 +41,7 @@ import type {
   Verdict,
 } from "../lib/types";
 import { event, finding, snapshot } from "./fixtures";
+import { expectOffCanvas, onCanvas } from "./canvas";
 
 function run(overrides: Partial<RunPayload> = {}): RunPayload {
   return {
@@ -395,7 +396,7 @@ describe("the report workspace", () => {
     // stronger: it is not on the canvas at all, and lives in the evidence
     // drawer with everything else the canvas gave up.
     workspace(audited);
-    expect(screen.queryByTestId("planning-audit")).toBeNull();
+    expectOffCanvas(document.body, '[data-testid="planning-audit"]');
   });
 
   it("states the outcome at the top of the report when a run did not answer", () => {
@@ -606,8 +607,13 @@ describe("a query that matched nothing", () => {
 
   it("shows the reason the engine gave, naming the restriction", () => {
     workspace(emptyResult);
-    expect(screen.getByText(/No rows matched the requested filters/)).toBeVisible();
-    expect(screen.getByText(/region = Atlantis/)).toBeVisible();
+    // `getAllByText` + `onCanvas`, because the hidden print appendix holds
+    // a second copy of everything the evidence drawer shows.
+    for (const pattern of [/No rows matched the requested filters/, /region = Atlantis/]) {
+      const [shown] = screen.getAllByText(pattern).filter(onCanvas);
+      expect(shown, `${pattern} is not shown on the canvas`).toBeDefined();
+      expect(shown!).toBeVisible();
+    }
   });
 
   it("does not blame verification for withholding something", () => {

@@ -29,6 +29,7 @@ import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
 import { EvidenceBody } from "../components/EvidenceDrawer";
+import { canvasText, expectOffCanvas } from "./canvas";
 import { ReportWorkspace } from "../components/ReportWorkspace";
 import { runState } from "../lib/runState";
 import type { RunPayload } from "../lib/types";
@@ -87,10 +88,13 @@ describe("each state is rendered once, inside the report", () => {
     expect(answers).toHaveLength(1);
     expect(report.contains(answers[0]!)).toBe(true);
 
-    // And the headline is said once.
+    // And the headline is said once -- on the canvas. The print appendix
+    // is a second, hidden copy of the evidence drawer, and for a state whose
+    // headline is derived from the stop reason the same words legitimately
+    // appear there too.
     const text = (answers[0]!.textContent ?? "").trim();
     expect(text.length).toBeGreaterThan(0);
-    const said = (report.textContent ?? "").split(text).length - 1;
+    const said = canvasText(report).split(text).length - 1;
     expect(said, `the headline appears ${said} times`).toBe(1);
   });
 });
@@ -196,7 +200,9 @@ describe("the engine's internal framing stays out of the canvas", () => {
 
   it.each(STATES)("%s shows no internal framing", (name) => {
     show(name);
-    const canvas = screen.getByTestId("report-panel").textContent ?? "";
+    // The canvas, not the DOM: the unedited reason is *required* to be in
+    // the evidence appendix, which is the next test but one.
+    const canvas = canvasText(screen.getByTestId("report-panel"));
     for (const pattern of INTERNAL) {
       expect(canvas, `${name} carries internal framing`).not.toMatch(pattern);
     }
@@ -234,11 +240,11 @@ describe("the engine's internal framing stays out of the canvas", () => {
           deterministicPending={false}
         />,
       );
+      // Not resident on the canvas. A copy inside the `hidden` print
+      // appendix is the point of step H and is checked for separately; what
+      // must not happen is the reader being shown one.
       for (const testId of ["planning-audit", "activity", "run-timeline"]) {
-        expect(
-          screen.queryByTestId(testId),
-          `${testId} is resident on ${name}`,
-        ).toBeNull();
+        expectOffCanvas(document.body, `[data-testid="${testId}"]`);
       }
       unmount();
     }

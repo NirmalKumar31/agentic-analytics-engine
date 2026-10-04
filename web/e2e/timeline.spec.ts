@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-import { ask, openApp, sampleCsv, uploadFile, waitForReport } from "./helpers";
+import { ask, inDrawer, openApp, sampleCsv, uploadFile, waitForReport } from "./helpers";
 
 /** Open the demo warehouse from the landing. */
 async function openDemo(page: import("@playwright/test").Page) {
@@ -43,16 +43,18 @@ test.describe("the run timeline", () => {
     // In the evidence drawer: once the report exists the answer is the
     // thing on screen, so the timeline moves behind "Show work".
     await page.getByTestId("show-work").click();
-    const timeline = page.getByTestId("run-timeline");
+    const timeline = inDrawer(page, "run-timeline");
     await expect(timeline).toBeVisible();
 
     for (const stage of ["understand", "plan", "compute", "verify", "publish"]) {
-      await expect(page.getByTestId(`stage-${stage}`)).toBeVisible();
+      await expect(timeline.getByTestId(`stage-${stage}`)).toBeVisible();
     }
 
     // The claim this product most needs to get right: nothing was sent to a
     // model, so nothing on screen may say a model interpreted the question.
     await expect(page.getByTestId("stage-interpret")).toHaveCount(0);
+    // Including in the print appendix: a stage that never happened must not
+    // reach paper either.
   });
 
   test("every stage reached is marked from the engine's own events", async ({
@@ -67,8 +69,9 @@ test.describe("the run timeline", () => {
     // A finished run has finished stages. Read from `data-state`, which is
     // what the stylesheet colours from, so a stage cannot look complete
     // while reporting something else.
+    const timeline = inDrawer(page, "run-timeline");
     for (const stage of ["understand", "plan", "compute", "publish"]) {
-      await expect(page.getByTestId(`stage-${stage}`)).toHaveAttribute(
+      await expect(timeline.getByTestId(`stage-${stage}`)).toHaveAttribute(
         "data-state",
         "complete",
       );
@@ -76,7 +79,7 @@ test.describe("the run timeline", () => {
 
     // Verification either published something or withheld it; both are
     // finished states and neither is `stopped`.
-    const verify = page.getByTestId("stage-verify");
+    const verify = timeline.getByTestId("stage-verify");
     const state = await verify.getAttribute("data-state");
     expect(["complete", "withheld"]).toContain(state);
   });
@@ -101,8 +104,8 @@ test.describe("the run timeline", () => {
     });
     await page.getByTestId("show-work").click();
 
-    const stopped = page.locator('[data-state="stopped"]');
-    await expect(stopped).toHaveCount(1);
+    const drawerTimeline = inDrawer(page, "run-timeline");
+    await expect(drawerTimeline.locator('[data-state="stopped"]')).toHaveCount(1);
 
     // And no stage still claims to be running.
     expect(

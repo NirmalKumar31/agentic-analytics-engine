@@ -35,20 +35,6 @@
   min-width: 0;
 }
 
-/* A frame that may run to the full working width -- the compare workspace
-   and the result table use it, because a difference shown field by field is
-   wider than prose and stays readable when it is. */
-.frame--wide {
-  max-width: var(--measure-wide);
-}
-
-/* Prose has its own narrower measure. Set wider than about 80 characters, a
-   line loses the reader on the return sweep, and that is true no matter how
-   much horizontal room the viewport has. */
-.frame--prose {
-  max-width: var(--measure-prose);
-}
-
 /* The gutter opens in two steps. Phone widths get 16px -- the floor the
    responsive tests assert -- and nothing narrower is ever applied. */
 @media (min-width: 768px) {
@@ -78,14 +64,6 @@
 
 .stack > * + * {
   margin-block-start: var(--space-5);
-}
-
-.stack--tight > * + * {
-  margin-block-start: var(--space-3);
-}
-
-.stack--loose > * + * {
-  margin-block-start: var(--space-7);
 }
 
 /* ------------------------------------------------------------- division
@@ -145,15 +123,6 @@
   font-feature-settings: "tnum" 1;
 }
 
-/* Identifiers the engine emits -- a contract id, a canonical hash, a build
-   SHA, a column name. Mono, because these are read character by character
-   and compared, not read as words. */
-.token-text {
-  font-family: var(--font-mono);
-  font-size: var(--text-xs);
-  color: var(--ink-muted);
-}
-
 /* A section heading. Sentence case at body-ish scale with weight doing the
    work -- there are no ALL-CAPS headings in this design, because capitals
    are slower to read and were being used to signal importance that the
@@ -210,7 +179,22 @@
 }
 
 @media print {
-  :root {
+  /*
+   * `[data-theme]` as well as `:root`, and this is the whole rule.
+   *
+   * `ThemeToggle` always writes `data-theme` on the document element, so
+   * the dark palette is stated as `:root[data-theme="dark"]` -- one
+   * attribute selector more specific than a bare `:root`. A print reset
+   * written as `:root` alone *loses to it*, and the page prints on
+   * #0e1113: either a solid black sheet or, on a printer that drops
+   * backgrounds, near-white text on nothing.
+   *
+   * Specificity, not order, decides this: the print block comes later in
+   * the cascade and still loses. Matching the attribute is what makes the
+   * reset win, whichever theme is on screen.
+   */
+  :root,
+  :root[data-theme] {
     /* Print on white regardless of the theme on screen. A dark-mode page
        sent to a printer is either an empty sheet or a solid black one. */
     --surface-canvas: #ffffff;
@@ -232,9 +216,7 @@
     print-color-adjust: exact;
   }
 
-  .frame,
-  .frame--wide,
-  .frame--prose {
+  .frame {
     max-width: none;
     padding-inline: 0;
   }

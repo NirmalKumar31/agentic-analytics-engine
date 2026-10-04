@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-import { ask, capability, clientSideState, openApp, recordingButtons, sampleCsv, suggestedQuestions, uploadFile, waitForReport } from "./helpers";
+import { ask, canvasTestId, capability, clientSideState, inDrawer, openApp, recordingButtons, sampleCsv, suggestedQuestions, uploadFile, waitForReport } from "./helpers";
 
 /**
  * The flows a visitor actually performs, in a real browser, against a real
@@ -70,35 +70,18 @@ test.describe("a recorded run", () => {
     await expect(drawer).toHaveCount(0);
   });
 
-  test("prints a complete report as a browser PDF", async ({
-    page,
-    browserName,
-  }) => {
-    test.skip(
-      browserName !== "chromium",
-      "Playwright PDF generation is Chromium-only.",
-    );
-    await openApp(page);
-    await recordingButtons(page).first().click();
-    await waitForReport(page);
-
-    await page.emulateMedia({ media: "print" });
-    await expect(
-      page.getByRole("button", { name: /Print \/ Save PDF/ }),
-    ).toBeHidden();
-    // A recorded run carries its own payload and may have no canonical
-    // answer block, so this asserts the report and a published finding --
-    // which is what the test is about.
-    await expect(page.getByTestId("report-panel")).toBeVisible();
-    expect(await page.locator(".finding-item").count()).toBeGreaterThan(0);
-    const pdf = await page.pdf({
-      format: "A4",
-      landscape: true,
-      printBackground: true,
-    });
-    expect(pdf.subarray(0, 4).toString()).toBe("%PDF");
-    expect(pdf.byteLength).toBeGreaterThan(1_000);
-  });
+  /*
+   * "prints a complete report as a browser PDF" was here. It asserted the
+   * first four bytes were `%PDF` and the file was over 1kB -- a PDF of a
+   * blank page passes both -- and it rendered landscape, which is not the
+   * page `foundation.css` specifies.
+   *
+   * `print.spec.ts` carries the claim now, for four states rather than one,
+   * with the page actually inspected: the appendix revealed, every
+   * disclosure expanded, no control surviving as a grey rectangle, the
+   * chart bounded by the printable width, and the pages rendered and
+   * looked at rather than measured by their byte count.
+   */
 });
 
 test.describe("the demo warehouse", () => {
@@ -126,7 +109,7 @@ test.describe("the demo warehouse", () => {
 
     // Progress is visible while it runs. The ANALYSIS panel heading is
     // gone; the run timeline is what narrates a run in flight.
-    await expect(page.getByTestId("run-timeline")).toBeVisible();
+    await expect(canvasTestId(page, "run-timeline")).toBeVisible();
     await waitForReport(page);
 
     // Now that something has run, the badge names what produced it. The
@@ -194,7 +177,7 @@ test.describe("uploading a file", () => {
     // report. It records the governed contract and coverage, not a provider
     // prompt or hidden reasoning.
     await page.getByTestId("show-work").click();
-    const audit = page.getByTestId("planning-audit");
+    const audit = inDrawer(page, "planning-audit");
     await expect(audit).toBeVisible();
     await audit.locator("summary").click();
     await expect(audit).toContainText(/accepted contract/i);
@@ -245,7 +228,7 @@ test.describe("uploading a file", () => {
     ).toBe(1);
 
     await page.getByTestId("show-work").click();
-    await expect(page.getByTestId("raw-stop-reason")).toContainText(
+    await expect(inDrawer(page, "raw-stop-reason")).toContainText(
       /could not be mapped safely/i,
     );
     await page.keyboard.press("Escape");

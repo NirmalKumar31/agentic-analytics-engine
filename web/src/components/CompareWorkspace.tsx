@@ -36,6 +36,7 @@ import { compareRuns } from "../lib/comparison";
 import { runState } from "../lib/runState";
 import { opensSheet } from "./SideSheet";
 import { CompareEvidenceDrawer } from "./CompareEvidenceDrawer";
+import { EvidenceBody } from "./EvidenceDrawer";
 import { PlanningRouteNote } from "./PlanningRouteNote";
 import { RunStateCard } from "./RunStateCard";
 import type { ReactNode } from "react";
@@ -424,6 +425,35 @@ export function CompareWorkspace({
           opens one drawer with a tab per strategy
         </span>
       </div>
+
+      {/*
+        The same appendix `AnswerReport` renders, with one section per
+        strategy. Compare's evidence is behind a tabbed drawer, and a tab is
+        a screen device: on paper there is nothing to switch, so both traces
+        are laid out one after the other. Without this, printing a Compare
+        reaches the reader as two answers and no record of how either was
+        produced -- which is the one thing a comparison is for.
+      */}
+      <section
+        className="print-appendix"
+        data-print-appendix=""
+        data-testid="compare-print-appendix"
+        hidden
+      >
+        <h2 className="section-heading">Appendix: evidence</h2>
+        {[deterministic, ai].map((side) =>
+          side.run ? (
+            <section
+              key={side.title}
+              className="print-appendix-side"
+              data-strategy={side.title}
+            >
+              <h3 className="section-heading">{side.title}</h3>
+              <EvidenceBody run={side.run} expanded />
+            </section>
+          ) : null,
+        )}
+      </section>
 
       {evidenceOpen && (
         <CompareEvidenceDrawer

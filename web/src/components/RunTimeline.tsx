@@ -16,7 +16,14 @@
 import { timelineOf } from "../lib/timeline";
 import type { RunEvent } from "../lib/types";
 
-export function RunTimeline({ events }: { events: RunEvent[] }) {
+export function RunTimeline({
+  events,
+  titled = true,
+}: {
+  events: RunEvent[];
+  /** False where the caller already names this region. */
+  titled?: boolean;
+}) {
   const stages = timelineOf(events);
   if (stages.length === 0) return null;
 
@@ -25,7 +32,16 @@ export function RunTimeline({ events }: { events: RunEvent[] }) {
 
   return (
     <section className="timeline" data-testid="run-timeline">
-      <h2 className="sr-only">Run progress</h2>
+      {/* Only when nothing else names it.
+
+          On the report canvas the timeline stands alone and needs its own
+          heading. Inside the evidence drawer it sits in a section that is
+          already labelled "Run progress" and carries a visible heading
+          saying the same thing, so rendering this made a screen reader
+          announce the name three times -- and, once the print appendix
+          rendered the drawer's body unconditionally, put two identical
+          headings in the document for every report. */}
+      {titled && <h2 className="sr-only">Run progress</h2>}
 
       {/* One live region for the whole timeline. Announcing every stage
           separately would narrate five changes for one step forward. */}

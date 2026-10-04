@@ -109,6 +109,7 @@ export function ReportWorkspace({
           publishedCount={run.findings.length}
           withheldCount={run.rejected.length}
           onShowEvidence={onShowEvidence ?? (() => undefined)}
+          run={run}
         />
       )}
       {/*

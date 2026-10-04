@@ -34,7 +34,7 @@
 
 import { expect, test, type Page } from "@playwright/test";
 
-import { ask, openApp, uploadFile, waitForReport } from "./helpers";
+import { ask, onCanvas, openApp, uploadFile, waitForReport } from "./helpers";
 
 /**
  * Open the demo warehouse.
@@ -294,8 +294,14 @@ test.describe("terminal states, produced by the engine", () => {
     // A completed run must never wear refusal language.
     await expect(report).not.toContainText(/not answered/i);
     // And the reason names the restriction that emptied it.
+    // `and`, not a bare `getByText`: the reason is on the canvas *and* in
+    // the print appendix, which is a hidden second copy of the evidence
+    // drawer, so the bare locator matches two elements and fails strict
+    // mode. The canvas copy is the one a reader is shown.
     await expect(
-      page.getByText(/No rows matched the requested filters/),
+      page
+        .getByText(/No rows matched the requested filters/)
+        .and(onCanvas(page, "*")),
     ).toBeVisible();
   });
 

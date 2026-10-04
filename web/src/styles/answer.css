@@ -338,17 +338,6 @@
   font-weight: var(--weight-semibold);
 }
 
-.compare-state {
-  margin-block-start: var(--space-5);
-}
-
-.compare-state-for {
-  margin: 0 0 var(--space-2);
-  font-size: var(--text-xs);
-  font-weight: var(--weight-semibold);
-  color: var(--ink-muted);
-}
-
 .compare-agreement {
   margin-block-start: var(--space-6);
   padding-block-start: var(--space-5);

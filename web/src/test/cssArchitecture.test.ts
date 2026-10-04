@@ -1,8 +1,8 @@
 /**
  * What holds the CSS architecture together.
  *
- * `styles.css` was one file of 2,234 lines. It is now twelve modules, cut
- * at boundaries that already existed in it. The cut was mechanical:
+ * `styles.css` was one file of 2,234 lines. It is now seventeen modules,
+ * cut at boundaries that already existed in it. The cut was mechanical:
  * concatenating the modules in `main.tsx`'s import order reproduced the
  * original file byte for byte, and the only subsequent change was renaming
  * 199 legacy palette aliases to the tokens they were already defined as.
@@ -17,10 +17,11 @@
  *      so `var(--text)` now resolves to nothing and the declaration is
  *      dropped. That reads as a missing style, not as a typo.
  *   3. Moving a rule to the module where it "belongs" by topic rather than
- *      where it sits in the cascade. The clearest trap is print: there are
- *      two `@media print` blocks, and the second is last in `states.css`
- *      on purpose. Merging them into `print.css` would let state rules
- *      override print treatment.
+ *      where it sits in the cascade. The clearest trap is print: six
+ *      modules declare an `@media print` block, and `print.css` has to be
+ *      the last of them. A print rule added to `motion.css`, `states.css`
+ *      or `responsive.css` -- all of which load after it -- would override
+ *      the report's print treatment with no error anywhere.
  *
  * These tests fail on each of those. They deliberately do not test that
  * files exist -- that is what the imports already do, and a build error is
@@ -30,7 +31,6 @@
 import { describe, expect, it } from "vitest";
 
 import {
-  atRuleBlock,
   countAtRule,
   importOrder,
   moduleSource,
@@ -55,7 +55,6 @@ const EXPECTED_ORDER = [
   "styles/controls.css",
   "styles/workflow.css",
   "styles/findings.css",
-  "styles/drawer.css",
   "styles/audit.css",
   "styles/report.css",
   "styles/print.css",
@@ -122,8 +121,8 @@ describe("stylesheet module order", () => {
   });
 
   it("imports no stylesheet that the order does not account for", () => {
-    // A thirteenth module added to main.tsx without being added here would
-    // otherwise sit in the cascade untested.
+    // A module added to main.tsx without being added here would otherwise
+    // sit in the cascade untested.
     expect(importOrder().length).toBe(EXPECTED_ORDER.length);
   });
 });
@@ -194,57 +193,70 @@ describe("rules stay in the module that owns their place in the cascade", () => 
     );
   });
 
-  it("keeps every print block, the last one at the end of states.css", () => {
-    // Seven, in cascade order:
-    //   foundation.css  the printed *page* -- size, margins, colour-adjust,
-    //                   and the white palette the other two assume.
-    //   landing.css     the landing's own controls, which paper cannot use.
-    //   composer.css    the composer and the side sheet, both screen-only.
-    //   timeline.css    the run timeline, which is a record of a run in
-    //                   progress and has nothing to say on paper.
-    //   print.css       how the report's own blocks print.
-    //   states.css      last, so no state rule can override print treatment.
-    //
-    // foundation's block must come first: it resets the palette to ink on
-    // white, and a later block restating a colour has to win over that, not
+  it("keeps every print block, with print.css last in the cascade", () => {
+    /*
+     * Six, in cascade order:
+     *   foundation.css  the printed *page* -- size, margins, colour-adjust,
+     *                   and the white palette every later block assumes.
+     *   landing.css     the landing's own controls, which paper cannot use.
+     *   composer.css    the composer and the side sheet, both screen-only.
+     *   timeline.css    the run timeline, which is a record of a run in
+     *                   progress and has nothing to say on paper.
+     *   answer.css      the answer block's own screen-only affordances.
+     *   print.css       how the report's blocks print -- and last, so that
+     *                   nothing overrides it.
+     *
+     * This used to be seven, with the last one at the end of `states.css`,
+     * and the claim was the same: no later rule may override print
+     * treatment. That block's only remaining rules named
+     * `.presentation-report .answer-card`, a component deleted in step E,
+     * so it was removed rather than refilled. The guarantee is now carried
+     * structurally instead -- `print.css` is the last module that declares
+     * a print block at all -- which is stronger than ordering within one
+     * file, because it cannot be undone by appending to `states.css`.
+     */
+    const PRINTS = [
+      "styles/foundation.css",
+      "styles/landing.css",
+      "styles/composer.css",
+      "styles/timeline.css",
+      "styles/answer.css",
+      "styles/print.css",
+    ];
+    expect(countAtRule(css, "@media print")).toBe(PRINTS.length);
+    for (const mod of PRINTS) {
+      expect(
+        countAtRule(withoutComments(moduleSource(mod)), "@media print"),
+        `${mod} lost its print block`,
+      ).toBe(1);
+    }
+
+    // foundation's must come first: it resets the palette to ink on white,
+    // and a later block restating a colour has to win over that rather than
     // be undone by it.
-    expect(countAtRule(css, "@media print")).toBe(7);
+    const order = importOrder();
     expect(
-      countAtRule(withoutComments(moduleSource("styles/composer.css")), "@media print"),
-    ).toBe(1);
-    expect(
-      countAtRule(withoutComments(moduleSource("styles/landing.css")), "@media print"),
-    ).toBe(1);
-    expect(
-      countAtRule(withoutComments(moduleSource("styles/foundation.css")), "@media print"),
-    ).toBe(1);
-    expect(
-      importOrder().indexOf("styles/foundation.css"),
+      order.indexOf("styles/foundation.css"),
       "foundation.css must print-reset before print.css restates colours",
-    ).toBeLessThan(importOrder().indexOf("styles/print.css"));
-    expect(countAtRule(withoutComments(moduleSource("styles/print.css")), "@media print")).toBe(1);
+    ).toBeLessThan(order.indexOf("styles/print.css"));
 
-    const states = withoutComments(moduleSource("styles/states.css"));
-    expect(countAtRule(states, "@media print")).toBe(1);
-
-    // What matters is that no ordinary state rule follows it, which would
-    // override print treatment. Only the reduced-motion block may.
-    const block = atRuleBlock(states, "@media print");
-    expect(block).not.toBeNull();
-    const tail = states.slice(states.indexOf(block!) + block!.length);
-    const followingRules = [...tail.matchAll(/(^|\})\s*([^@{}]+)\{/g)].map((m) =>
-      m[2]!.trim(),
-    );
-    expect(followingRules, "a plain rule follows @media print in states.css").toEqual(
-      [],
-    );
-    expect(tail).toContain("@media (prefers-reduced-motion: reduce)");
+    // And print.css is the last word: every module loaded after it declares
+    // no print rules at all.
+    const after = order.slice(order.indexOf("styles/print.css") + 1);
+    expect(after.length, "print.css is the last module in the cascade").toBeGreaterThan(0);
+    for (const mod of after) {
+      expect(
+        countAtRule(withoutComments(moduleSource(mod)), "@media print"),
+        `${mod} loads after print.css and overrides print treatment`,
+      ).toBe(0);
+    }
   });
 
-  it("keeps every reduced-motion block, in all four modules that animate", () => {
+  it("keeps every reduced-motion block, in all three modules that animate", () => {
+    // Was four. `drawer.css` was the fourth; it is deleted, and so is the
+    // drawer whose entrance animation its block withdrew.
     for (const mod of [
       "styles/workflow.css",
-      "styles/drawer.css",
       "styles/motion.css",
       "styles/states.css",
     ]) {
@@ -299,10 +311,11 @@ describe("rules stay in the module that owns their place in the cascade", () => 
     // `min-width: 0` on the elements that declare overflow-x. Without it
     // they expand to fit their content and take the page sideways.
     //
-    // `.steps` was one of three and is gone with the stepper. `.scroll-x` in
+    // `.steps` was one of three and is gone with the stepper; `.flow` was
+    // another and went with the branch diagram. `.scroll-x` in
     // foundation.css carries both declarations together for everything
     // added from here on, which is the arrangement that cannot drift apart.
-    expect(responsive).toMatch(/\.flow,\s*\.table-wrap\s*\{\s*min-width:\s*0/);
+    expect(responsive).toMatch(/\.table-wrap\s*\{\s*min-width:\s*0/);
     expect(withoutComments(moduleSource("styles/foundation.css"))).toMatch(
       /\.scroll-x\s*\{[^}]*overflow-x:\s*auto;[^}]*min-width:\s*0/,
     );
@@ -315,11 +328,11 @@ describe("rules stay in the module that owns their place in the cascade", () => 
   });
 
   it("keeps the scrollable regions scrollable", () => {
-    // `.flow` scrolls horizontally and is focusable in the markup, so a
-    // keyboard user can reach the scroll. The CSS half of that is the
-    // overflow declaration. `.steps` was the other one and went with the
-    // stepper; `.scroll-x` is the general case.
-    expect(css).toMatch(/\.flow\s*\{[^}]*overflow-x:\s*auto/);
+    // A wide result table scrolls inside its own frame rather than taking
+    // the document sideways. `.flow` and `.steps` were the other two and
+    // went with the branch diagram and the stepper; `.scroll-x` is the
+    // general case every surface added since uses.
+    expect(css).toMatch(/\.table-wrap\s*\{[^}]*overflow:\s*auto/);
     expect(css).toMatch(/\.scroll-x\s*\{[^}]*overflow-x:\s*auto/);
   });
 
@@ -331,14 +344,24 @@ describe("rules stay in the module that owns their place in the cascade", () => 
     expect(responsive).toMatch(/details:not\(\.disclosure\)\s*>\s*summary/);
   });
 
-  it("adds no z-index beyond the five this stylesheet already had", () => {
-    // The `--z-*` ladder in tokens.css is declared and, as of this change,
-    // entirely unused: every stacking context sets a raw number instead.
-    // Adopting the ladder would alter computed values (1,1,40,60,61 ->
-    // 10,10,100,200,300), which preserves all five stacking relationships
-    // but is a behaviour change, and PR H's contract is that the rendered
-    // output does not change. So the five are pinned here rather than
-    // migrated, and a sixth cannot be added without a decision.
+  it("stacks through the token ladder, with three raw numbers left", () => {
+    /*
+     * The `--z-*` ladder in tokens.css was declared and entirely unused:
+     * every stacking context set a raw number. The surfaces rebuilt in this
+     * redesign adopted it -- the landing field sits on `--z-behind`, the
+     * scrim on `--z-drawer`, the side sheet on `--z-overlay` -- and the two
+     * raw 60/61 in `drawer.css` went with that module.
+     *
+     * Three raw numbers remain, each a local stacking decision inside one
+     * component rather than a page-level layer:
+     *
+     *   findings.css: 1  a sticky table header above its own rows
+     *   motion.css:   1  the cite highlight above the cell it marks
+     *   shell.css:   40  the sticky top bar
+     *
+     * They are pinned so that a fourth cannot appear without a decision
+     * about whether it belongs on the ladder.
+     */
     const raw: string[] = [];
     for (const [name, src] of modules()) {
       if (name === "styles/tokens.css") continue;
@@ -347,13 +370,10 @@ describe("rules stay in the module that owns their place in the cascade", () => 
       }
     }
     expect(raw.sort()).toEqual([
-      "styles/drawer.css: 60",
-      "styles/drawer.css: 61",
       "styles/findings.css: 1",
       "styles/motion.css: 1",
       "styles/shell.css: 40",
     ]);
-    // The ladder itself stays, because PR I needs somewhere to put these.
     expect(withoutComments(moduleSource("styles/tokens.css"))).toMatch(/--z-[\w-]+\s*:/);
   });
 
@@ -376,25 +396,47 @@ describe("rules stay in the module that owns their place in the cascade", () => 
     expect(states).not.toMatch(/\.column\s*>[^{]*\{[^}]*order:/);
   });
 
-  it("adds no !important beyond the thirteen already justified", () => {
-    // Not forbidden outright: all thirteen predate this change and each has
-    // a reason that `!important` is the correct tool for.
-    //
-    //   motion.css x4  -- the `prefers-reduced-motion` idiom, which has to
-    //                     beat every animation declared anywhere. Was five:
-    //                     the fifth stopped the plotting grid drifting at
-    //                     phone widths, and went with the grid.
-    //   print.css  x8  -- overriding Vega's *inline* SVG fills, which carry
-    //                     higher precedence than any stylesheet rule.
-    //
-    // What this pins is that `!important` was not used as a shortcut to
-    // make the token rename or the module split appear to work.
+  it("adds no !important beyond the twenty-one that need one", () => {
+    /*
+     * Not forbidden outright. Each of these is a case where `!important` is
+     * the correct tool, and the two modules are the only two that may use
+     * it at all.
+     *
+     *   motion.css x4   the `prefers-reduced-motion` idiom, which has to
+     *                   beat every animation declared anywhere.
+     *
+     *   print.css x17   four kinds, all of them overriding something this
+     *                   stylesheet does not control:
+     *                     - every animation and transition in the
+     *                       stylesheet, because Chromium restarts them when
+     *                       it lays the page out to print and an entrance
+     *                       that begins at `opacity: 0` then paints
+     *                       nothing at all (x2);
+     *                     - Vega writes its fills and strokes *inline* on
+     *                       the SVG it renders, which outranks any rule
+     *                       here, so the ink axis text, the white plot
+     *                       background and the grey gridlines each need one
+     *                       (x4, plus x4 sizing the SVG to the page);
+     *                     - `[hidden]` and `details:not([open])` are UA
+     *                       sheet rules, and the evidence appendix exists
+     *                       precisely to be shown on paper when it is
+     *                       hidden on screen (x4);
+     *                     - the screen chrome and the appendix's controls
+     *                       are hidden against later, more specific screen
+     *                       rules (x3).
+     *
+     * Was thirteen, of which eight were print. Step H rebuilt print.css
+     * from the new hierarchy, and two things grew the count: the appendix
+     * has to defeat the UA stylesheet, which nothing else here has to do,
+     * and the motion reset has to beat every animation declared anywhere,
+     * which is the same argument `motion.css` makes for its four.
+     */
     const counts: Record<string, number> = {};
     for (const [name, src] of modules()) {
       const hits = withoutComments(src).match(/!\s*important/g);
       if (hits) counts[name] = hits.length;
     }
-    expect(counts).toEqual({ "styles/print.css": 8, "styles/motion.css": 4 });
+    expect(counts).toEqual({ "styles/print.css": 17, "styles/motion.css": 4 });
   });
 });
 
@@ -410,6 +452,14 @@ describe("the split preserved the stylesheet", () => {
     // protects nothing. A per-module floor still catches the failure the
     // count was there for -- a module emptied or half-written by a bad merge
     // -- without pretending the stylesheet is frozen.
+    //
+    // Step H lowered six of them. Every component deleted in B-G left its
+    // selectors behind, and the print suite's "not styled anywhere else
+    // either" assertions surfaced fifty rules that matched nothing: the
+    // execution lanes, the branch diagram, the stepper, the right rail,
+    // the provenance drawer's key/value list and cost block, the metric
+    // tiles, the skeletons. Removing them is the point of the step, so the
+    // floors move with them rather than holding the dead weight in place.
     const floors: Record<string, number> = {
       "styles/reset.css": 50,
       "styles/foundation.css": 150,
@@ -419,11 +469,14 @@ describe("the split preserved the stylesheet", () => {
       "styles/timeline.css": 100,
       "styles/answer.css": 150,
       "styles/controls.css": 120,
-      "styles/workflow.css": 120,
+      // 120 -> 80: the branch diagram's nodes, edges and travelling dash.
+      "styles/workflow.css": 80,
       "styles/findings.css": 120,
-      "styles/drawer.css": 150,
-      "styles/audit.css": 150,
-      "styles/report.css": 300,
+      // 150 -> 50: the execution lanes. What is left is the notice block
+      // and the contract diff, both of which the Compare view still uses.
+      "styles/audit.css": 50,
+      // 300 -> 210: the metric tiles and the shared-usage grid.
+      "styles/report.css": 210,
       "styles/print.css": 200,
       // Lowered from 250 when the `body::before` plotting grid, its
       // drift keyframes and its three guards were deleted: the landing
@@ -431,8 +484,11 @@ describe("the split preserved the stylesheet", () => {
       // emptied by a bad merge, not to freeze a module against
       // deliberate removal.
       "styles/motion.css": 200,
-      "styles/states.css": 250,
-      "styles/responsive.css": 60,
+      // 250 -> 190: the cell chips, the caveat list, the skeletons and the
+      // presentation report's print block.
+      "styles/states.css": 190,
+      // 60 -> 45: the flow diagram's containment and overflow rules.
+      "styles/responsive.css": 45,
     };
     for (const [name, floor] of Object.entries(floors)) {
       const lines = moduleSource(name).split("\n").length;

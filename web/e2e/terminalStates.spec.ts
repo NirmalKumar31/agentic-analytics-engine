@@ -4,7 +4,7 @@ import { fileURLToPath } from "node:url";
 
 import { expect, test, type Page } from "@playwright/test";
 
-import { openApp, sampleCsv, uploadFile } from "./helpers";
+import { inDrawer, onCanvas, openApp, sampleCsv, uploadFile } from "./helpers";
 
 /**
  * The six terminal states, in a browser, at both widths.
@@ -111,7 +111,16 @@ test.describe("each terminal state, at desktop and phone widths", () => {
           (await page.getByTestId("direct-answer").textContent()) ?? ""
         ).trim();
         expect(headline.length).toBeGreaterThan(0);
-        const canvas = (await report.textContent()) ?? "";
+        // The canvas, not the whole report element. For a state whose
+        // headline is derived from the stop reason -- quota-stopped is one
+        // -- the same words legitimately appear again in the print
+        // appendix, which is the unedited record.
+        const canvas = await page.evaluate(() => {
+          const panel = document.querySelector('[data-testid="report-panel"]')!;
+          const copy = panel.cloneNode(true) as HTMLElement;
+          copy.querySelector("[data-print-appendix]")?.remove();
+          return copy.textContent ?? "";
+        });
         expect(
           canvas.split(headline).length - 1,
           "the headline is stated more than once",
@@ -125,8 +134,10 @@ test.describe("each terminal state, at desktop and phone widths", () => {
           ".lane",
           ".flow",
         ]) {
+          // On the canvas. The first three are also in the hidden print
+          // appendix, which is what step H put there deliberately.
           expect(
-            await page.locator(selector).count(),
+            await onCanvas(page, selector).count(),
             `${selector} is resident on ${name}`,
           ).toBe(0);
         }
@@ -186,13 +197,18 @@ test.describe("a refusal leads with what to do about it", () => {
     const raw = String(fixture("refused").stopped_reason ?? "");
     expect(raw.length).toBeGreaterThan(0);
 
-    // Not on the canvas.
-    const canvas =
-      (await page.getByTestId("report-panel").textContent()) ?? "";
+    // Not on the canvas -- the appendix is excluded, because the unedited
+    // reason is required to be in it.
+    const canvas = await page.evaluate(() => {
+      const panel = document.querySelector('[data-testid="report-panel"]')!;
+      const copy = panel.cloneNode(true) as HTMLElement;
+      copy.querySelector("[data-print-appendix]")?.remove();
+      return copy.textContent ?? "";
+    });
     expect(canvas.includes(raw)).toBe(false);
 
     // In the drawer, verbatim.
     await page.getByTestId("show-work").click();
-    await expect(page.getByTestId("raw-stop-reason")).toContainText(raw);
+    await expect(inDrawer(page, "raw-stop-reason")).toContainText(raw);
   });
 });

@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-import { ask, openApp, sampleCsv, uploadFile, waitForReport } from "./helpers";
+import { ask, onCanvas, openApp, sampleCsv, uploadFile, waitForReport } from "./helpers";
 
 /**
  * The evidence drawer holds everything the report canvas gave up.
@@ -174,8 +174,11 @@ test.describe("the report canvas keeps nothing technical", () => {
       ".activity",
       '[data-testid="planning-audit"]',
     ]) {
+      // `onCanvas`, not a bare locator: the activity trace and the planning
+      // audit are both in the print appendix, where they are required to
+      // be. The claim is that the reader is not shown them.
       expect(
-        await page.locator(selector).count(),
+        await onCanvas(page, selector).count(),
         `${selector} is resident on the report canvas`,
       ).toBe(0);
     }
@@ -185,8 +188,13 @@ test.describe("the report canvas keeps nothing technical", () => {
     // The old report rendered ANALYSIS twice: once for the finding chips
     // and once for the agent diagram.
     await openReport(page);
+    // Excluding the print appendix, which is a second copy of the evidence
+    // drawer and repeats its headings on purpose: on paper the reader has
+    // no control to open, so the record is laid out in full. `innerText`
+    // on a `display: none` element returns its `textContent`, so the
+    // appendix's headings would otherwise collide with the drawer's.
     const headings = await page
-      .locator("main h1, main h2, main h3")
+      .locator("main :is(h1, h2, h3):not([data-print-appendix] *)")
       .allInnerTexts();
     const normalised = headings.map((text) => text.trim().toLowerCase());
     expect(new Set(normalised).size, normalised.join(" | ")).toBe(

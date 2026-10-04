@@ -1,38 +1,32 @@
 /**
- * A block added to the report has to be added to the print rules too.
+ * What the printed report has to contain, read from the stylesheet.
  *
- * The screen palette is tuned for a dark background: `--supported` is pale
- * and the `.notice` variants are paler, which on paper is white on white.
- * The report offers "Print / Save PDF" as a first-class path, so a block
- * that renders blank in a PDF is a silent loss of the thing a reader was
- * trying to keep.
+ * jsdom does not apply print media, so nothing else in this suite can see
+ * these rules. The browser suite renders real PDFs and inspects the pages;
+ * this is the cheap half that catches a rule deleted by accident.
  *
- * Read from the stylesheet rather than from a rendered page: jsdom does not
- * apply print media, so nothing else in this suite can see these rules.
+ * The suite this replaces asserted the old selectors -- `.direct-answer`,
+ * `.answer-text`, `.applied-analysis`, `.contract-diff` and the notice
+ * variants -- because the screen palette was tuned for a dark background
+ * and those blocks printed white on white. None of those blocks exists now,
+ * so restating them would be testing a stylesheet against a page that is
+ * gone. The claims are rewritten against the hierarchy that replaced it.
  */
 
 import { describe, expect, it } from "vitest";
 
-import { atRuleBlock, stylesheet } from "./stylesheet";
+import { atRuleBlock, modules, stylesheet, withoutComments } from "./stylesheet";
 
-// The twelve modules concatenated in `main.tsx`'s import order, which is
-// what the bundler emits. Reading one module would miss the second
-// `@media print` block, which lives at the end of `states.css` so that no
-// earlier state rule can override print treatment.
 const css = stylesheet();
 
 /**
  * Every `@media print` block, concatenated in cascade order.
  *
- * There are three: the page foundations, the report's own rules, and the
- * state overrides last. Reading only the first was fine while the first was
- * `print.css`, and became wrong the moment a page-level block was added
- * ahead of it -- every assertion below then searched a block that was never
- * going to contain a report selector.
- *
- * The claim these tests make is about the print cascade as a whole: a block
- * added to the report has to be restated somewhere in print. Which module
- * states it is `cssArchitecture.test.ts`'s business, not this file's.
+ * There are several: the page foundations, the landing's and the
+ * composer's screen-only controls, the timeline, the report's own rules and
+ * the state overrides last. The claim made here is about the print cascade
+ * as a whole; which module states a rule is `cssArchitecture.test.ts`'s
+ * business.
  */
 function printBlock(): string {
   const blocks: string[] = [];
@@ -45,78 +39,267 @@ function printBlock(): string {
   return blocks.join("\n");
 }
 
-describe("print stylesheet", () => {
+describe("the printed page", () => {
   const block = printBlock();
 
-  it.each([
-    [".direct-answer", "the answer a reader came for"],
-    [".answer-text", "the answer sentence"],
-    [".answer-scope", "the population and row count"],
-    [".contract-diff", "where two interpretations differ"],
-    [".applied-analysis", "the governed contract"],
-    [".notice", "withheld findings"],
-    ['[data-testid="partial-answer"]', "the partial-breakdown warning"],
-    ['[data-testid="run-state-card"]', "a refusal or failure reason"],
-  ])("restates %s in ink (%s)", (selector) => {
-    // Matched to a selector boundary, not as a substring.
-    //
-    // `toContain(".answer-text")` passed after the rule was renamed to
-    // `.answer-text-DISABLED`, because the old name is a prefix of the new
-    // one. A mutation that deleted the print treatment for the answer
-    // sentence therefore survived. The selector has to be followed by
-    // something that cannot continue an identifier -- `,` `{` whitespace
-    // or a combinator -- for the match to mean the rule is still there.
-    const escaped = selector.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-    expect(block, `${selector} is no longer a selector in @media print`).toMatch(
-      new RegExp(`${escaped}(?![-\\w])`),
+  it("prints on white, in ink, whatever theme the screen was in", () => {
+    // A dark-mode page sent to a printer is either an empty sheet or a
+    // solid black one.
+    expect(block).toMatch(/--surface-canvas:\s*#fff/i);
+    expect(block).toMatch(/--ink-primary:\s*#121619/i);
+  });
+
+  it("wins against the dark palette, which is an attribute selector", () => {
+    /*
+     * `ThemeToggle` always writes `data-theme` on the document element, so
+     * the dark palette is `:root[data-theme="dark"]` -- one attribute more
+     * specific than a bare `:root`. A print reset written as `:root` alone
+     * loses to it and the page prints on #0e1113, however late in the
+     * cascade it sits.
+     *
+     * Asserted against the stylesheet because nothing else can see it: the
+     * declarations are identical either way, and only the selector differs.
+     */
+    const reset = block.slice(block.indexOf("--surface-canvas"));
+    expect(reset.length).toBeGreaterThan(0);
+    const selector = block.slice(0, block.indexOf("--surface-canvas"));
+    expect(selector, "the print palette reset is not attribute-qualified").toMatch(
+      /:root\[data-theme\]/,
     );
+    // And the dark palette really is written that way, so this stays the
+    // right fix rather than a defence against a selector nobody uses.
+    expect(withoutComments(stylesheet())).toMatch(/:root\[data-theme="dark"\]\s*\{/);
   });
 
-  it("lets a large answer card and its table split across pages", () => {
-    // The opposite of what this asserted before, and the cause of the
-    // nearly blank pages in the saved PDFs: a card taller than a page that
-    // may not be divided is pushed whole to the next one, leaving the
-    // first mostly empty. Rows stay intact; the containers do not.
-    expect(block).toMatch(/\.direct-answer \{[^}]*break-inside: auto/);
-    expect(block).toMatch(/table\.data \{[^}]*break-inside: auto/);
-    expect(block).toMatch(/table\.data tr \{[^}]*break-inside: avoid/);
+  it("preserves the colours that carry meaning", () => {
+    // Chrome and Safari drop backgrounds and desaturate without this, and a
+    // withheld verdict then prints identical to a verified one.
+    expect(block).toMatch(/print-color-adjust:\s*exact/);
   });
 
-  it("repeats table headers on every printed page", () => {
+  it("gives the page a size and real margins", () => {
+    const page = atRuleBlock(css, "@page", 0);
+    expect(page).not.toBeNull();
+    expect(page!).toMatch(/size:\s*A4/i);
+    expect(page!).toMatch(/margin:/);
+  });
+});
+
+describe("the reading order survives", () => {
+  const block = printBlock();
+
+  it("keeps the answer at display scale", () => {
+    // The one thing on the page that must not be shrunk to fit.
+    expect(block).toMatch(/\.report \.display\s*\{[^}]*font-size:\s*20pt/);
+  });
+
+  it("keeps the answer and its context line on the same page", () => {
+    expect(block).toMatch(/\.report \.display\s*\{[^}]*break-after:\s*avoid/);
+    expect(block).toMatch(/\.report \.context-line\s*\{[^}]*break-before:\s*avoid/);
+  });
+
+  it("lets a long report flow while keeping each finding whole", () => {
+    expect(block).toMatch(/\.finding-item\s*\{[^}]*break-inside:\s*avoid/);
+  });
+});
+
+describe("the chart", () => {
+  const block = printBlock();
+
+  it("fills the printable width", () => {
+    expect(block).toMatch(/\.chart-host svg\s*\{[\s\S]*?max-width:\s*100%/);
+  });
+
+  it("is bounded in height, so it cannot take a page of its own", () => {
+    expect(block).toMatch(/\.chart-host svg\s*\{[\s\S]*?max-height:\s*\d+mm/);
+  });
+
+  it("restates the axis text in ink, over Vega's inline colours", () => {
+    // Vega writes its colours inline, which outranks any rule here.
+    expect(block).toMatch(/\.chart-host svg text\s*\{[^}]*fill:\s*#[0-9a-f]+\s*!important/i);
+  });
+
+  it("does not break across a page", () => {
+    expect(block).toMatch(/\.report-visual\s*\{[^}]*break-inside:\s*avoid/);
+  });
+});
+
+describe("nothing animates on paper", () => {
+  const block = printBlock();
+
+  it("cancels every animation and transition", () => {
+    /*
+     * Not tidiness. `.activity-row` enters with `animation: stream ... both`
+     * whose `from` state is `opacity: 0`, and Chromium restarts animations
+     * when it lays the page out to print -- so the activity trace printed
+     * as an empty bordered box. `animation-fill-mode: both` then holds it
+     * at zero opacity rather than letting it finish.
+     */
+    expect(block).toMatch(/\*,[\s\S]{0,60}\{[^}]*animation:\s*none\s*!important/);
+    expect(block).toMatch(/\*,[\s\S]{0,60}\{[^}]*transition:\s*none\s*!important/);
+  });
+});
+
+describe("the result table", () => {
+  const block = printBlock();
+
+  it("repeats its header on every page", () => {
+    expect(block).toMatch(/table\.data thead\s*\{[^}]*display:\s*table-header-group/);
+  });
+
+  it("stops scrolling, so every row prints", () => {
+    // A scroll frame prints one screenful and silently drops the rest.
+    expect(block).toMatch(/\.table-wrap,\s*\.scroll-x\s*\{[^}]*overflow:\s*visible\s*!important/);
+  });
+
+  it("does not split a row across a page break", () => {
+    expect(block).toMatch(/table\.data tr\s*\{[^}]*break-inside:\s*avoid/);
+  });
+
+  it("unwraps the sort button, or the repeated header loses its names", () => {
+    // Chromium does not paint a form control inside a repeated header
+    // group. Each column name is a `<button>` because the columns sort, so
+    // every continuation page printed the header row with only `#` in it.
+    expect(block).toMatch(/\.th-sort\s*\{[^}]*display:\s*contents/);
+  });
+
+  it("unsticks the header, or it repeats as an empty row", () => {
+    // A `position: sticky` header is painted once, at the scroll position
+    // it was stuck to. Every later page then gets the row's box with
+    // nothing in it, which reads as a column that lost its name.
+    expect(block).toMatch(/table\.data th\s*\{[^}]*position:\s*static/);
+  });
+});
+
+describe("the evidence appendix", () => {
+  const block = printBlock();
+
+  it("makes the hidden appendix visible on paper", () => {
+    // `[hidden]` sets `display: none` in the UA sheet, so the override has
+    // to name the attribute or it loses on specificity.
     expect(block).toMatch(
-      /table\.data thead \{[^}]*display: table-header-group/,
+      /\[data-print-appendix\]\[hidden\][\s\S]*?display:\s*block\s*!important/,
     );
   });
 
-  it("does not leave a heading as the last thing on a page", () => {
-    expect(block).toMatch(/break-after: avoid/);
+  it("starts it on its own page", () => {
+    expect(block).toMatch(
+      /\[data-print-appendix\]\[hidden\][\s\S]*?break-before:\s*page/,
+    );
   });
 
-  it("hides controls that cannot be used on paper", () => {
-    expect(block).toMatch(/\.result-foot \.btn[^}]*display: none/);
+  it("expands every disclosure, because paper has none", () => {
+    expect(block).toMatch(/details,[\s\S]*?display:\s*block\s*!important/);
   });
 
-  it("does not print a control that cannot be used on paper", () => {
-    expect(block).toMatch(/\.direct-answer \.btn[^}]*display: none/);
+  it("drops the summary that repeats the heading above it", () => {
+    // The planning audit's `<summary>` reads "Planning audit", directly
+    // under the appendix's own "Planning audit" heading.
+    expect(block).toMatch(
+      /\.print-appendix \.evidence-plan details > summary\s*\{[^}]*display:\s*none/,
+    );
+    // And the rule that expands a disclosure's body exempts the summary,
+    // or its `!important` outranks the line above and the repeat comes
+    // back with nothing to say it had been decided against.
+    expect(block).toMatch(/details > \*:not\(summary\)/);
   });
 
-  it("leaves no screen-only colour variable inside the print block", () => {
-    // `--supported` and friends resolve against the dark theme.
-    expect(block).not.toMatch(/var\(--(supported|warning|rejected)/);
+  it("prints no controls inside it", () => {
+    expect(block).toMatch(/\.print-appendix button\s*\{[^}]*display:\s*none\s*!important/);
   });
 
-  it("restates the chart's screen palette in ink", () => {
-    // The chart is drawn for a dark background: axis labels at #9aa5b8 are
-    // close to invisible on white paper, and the chart was the whole point
-    // of printing the page.
-    const block = printBlock();
-    expect(block).toMatch(/\.chart-host svg text/);
-    expect(block).toMatch(/fill: #222 !important/);
+  it("lets the activity trace run to its full length", () => {
+    // It scrolls to 340px on screen. A scroll frame on paper prints one
+    // screenful and drops the rest of the trace with nothing to say so.
+    expect(block).toMatch(
+      /\.print-appendix \.activity\s*\{[\s\S]*?max-height:\s*none/,
+    );
+    expect(block).toMatch(
+      /\.print-appendix \.activity\s*\{[\s\S]*?overflow:\s*visible/,
+    );
   });
 
-  it("keeps the chart within the page rather than clipping it", () => {
-    const block = printBlock();
-    expect(block).toMatch(/\.chart-host svg[\s\S]*max-height: 230px !important/);
-    expect(block).toMatch(/\.chart-card[\s\S]*break-inside: avoid/);
+  it("drops the panel head that repeats the section heading", () => {
+    // "Activity trace", then "Activity", over a control that does not
+    // print.
+    expect(block).toMatch(/\.print-appendix \.panel-head\s*\{[^}]*display:\s*none/);
+  });
+
+  it("gives each Compare strategy its own page", () => {
+    expect(block).toMatch(/\.print-appendix-side\s*\{[^}]*break-before:\s*page/);
+    expect(block).toMatch(
+      /\.print-appendix-side:first-of-type\s*\{[^}]*break-before:\s*auto/,
+    );
+  });
+});
+
+describe("screen-only chrome does not print", () => {
+  const block = printBlock();
+
+  /*
+   * A control printed as a grey rounded rectangle is an artefact: it looks
+   * like part of the document and does nothing. Each of these is a surface
+   * that exists to be operated.
+   */
+  it.each([
+    [".topbar", "the header"],
+    [".composer", "the question composer"],
+    [".landing", "the landing"],
+    [".analytical-field", "the ambient field"],
+    [".timeline", "the run timeline"],
+    [".side-sheet", "a side sheet"],
+    [".scrim", "the scrim behind a sheet"],
+    [".report-actions", "the report's own buttons"],
+    [".evidence-tabs", "the evidence drawer's tabs"],
+    [".suggestions", "the suggested questions"],
+  ])("%s is hidden (%s)", (selector) => {
+    const escaped = selector.replace(".", "\\.");
+    expect(
+      block,
+      `${selector} is not hidden in print`,
+    ).toMatch(new RegExp(`${escaped}[^{]*\\{[^}]*display:\\s*none`, "s"));
+  });
+
+  it("hides them with one rule rather than ten", () => {
+    // They are a single selector list; a per-element rule is how one gets
+    // forgotten.
+    expect(block).toMatch(/\.topbar,[\s\S]{0,400}?\.suggestions\s*\{\s*display:\s*none\s*!important/);
+  });
+});
+
+describe("no rule in the print cascade names a block that no longer exists", () => {
+  /*
+   * The old stylesheet restated `.direct-answer`, `.answer-text`,
+   * `.answer-scope`, `.applied-analysis` and `[data-testid="run-state-card"]`
+   * in ink. Every one of those is gone from the application, and a print
+   * rule for a selector that never matches is dead weight that reads as
+   * coverage.
+   */
+  const RETIRED = [
+    ".direct-answer",
+    ".answer-text",
+    ".answer-scope",
+    ".applied-analysis",
+    '[data-testid="run-state-card"]',
+    ".lane",
+    ".flow",
+    ".steps",
+  ];
+
+  const block = withoutComments(printBlock());
+  const sources = modules()
+    .map(([, source]) => withoutComments(source))
+    .join("\n");
+
+  it.each(RETIRED)("%s is not restated in print", (selector) => {
+    const escaped = selector.replace(/[.[\]"=]/g, (c) => `\\${c}`);
+    expect(block).not.toMatch(new RegExp(`${escaped}(?![-\\w])`));
+  });
+
+  it.each(RETIRED)("%s is not styled anywhere else either", (selector) => {
+    // If the selector were still in use on screen, removing its print rule
+    // would be a regression rather than a cleanup. It is not in use.
+    const escaped = selector.replace(/[.[\]"=]/g, (c) => `\\${c}`);
+    expect(sources).not.toMatch(new RegExp(`${escaped}(?![-\\w])\\s*[,{]`));
   });
 });

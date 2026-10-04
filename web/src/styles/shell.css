@@ -72,45 +72,6 @@
   background: var(--signal);
 }
 
-/* ------------------------------------------------------------------ steps */
-
-/* Which dataset the answer on screen is about.
- *
- * Context rather than content: one line, quiet, and never competing with
- * the answer below it. It stays on screen through a run, because the
- * moment a report exists is the moment a reader most needs to know which
- * data produced it.
- *
- * `min-width: 0` on the source so a long filename truncates instead of
- * widening the column and taking the page sideways -- the same failure the
- * narrow-viewport work fixed elsewhere.
- */
-.dataset-strip {
-  display: flex;
-  align-items: baseline;
-  flex-wrap: wrap;
-  gap: 4px 10px;
-  padding: 7px 0 9px;
-  border-bottom: 1px solid var(--rule-hairline);
-  font-size: 13px;
-}
-.dataset-strip-kind {
-  color: var(--ink-secondary);
-  font-weight: var(--weight-medium);
-}
-.dataset-strip-source {
-  color: var(--ink-primary);
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  max-width: min(42ch, 100%);
-}
-.dataset-strip-shape {
-  margin-inline-start: auto;
-  font-variant-numeric: tabular-nums;
-}
-
 /* The five-step `.steps` / `.step` pipeline index used to sit here,
    between the header and the content, on every screen. It is removed
    rather than hidden: a resident diagram of the engine's stages is
@@ -178,12 +139,18 @@
   padding: 14px 18px;
   border-bottom: 1px solid var(--rule-hairline);
 }
+/* Sentence case at body-ish scale, like every other heading in this
+   design. It was 12.5px/700/0.07em uppercase -- the panel chrome's
+   signature, from the layout this redesign replaced. The one `.panel` left
+   is the activity log inside the evidence drawer, where it rendered as
+   "ACTIVITY" directly under the drawer's own "Activity trace", which is
+   both a shout and a repetition. */
 .panel-head h2 {
   margin: 0;
-  font-size: 12.5px;
-  font-weight: 700;
-  letter-spacing: 0.07em;
-  text-transform: uppercase;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+  letter-spacing: normal;
+  text-transform: none;
   color: var(--ink-secondary);
 }
 .panel-head .spacer {

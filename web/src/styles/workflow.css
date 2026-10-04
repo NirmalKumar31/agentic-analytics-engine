@@ -1,69 +1,15 @@
-
-/* ------------------------------------------------------------------ flow */
-
-.flow {
-  padding: 6px 4px 14px;
-  overflow-x: auto;
-}
-.flow svg {
-  display: block;
-  min-width: 620px;
-  width: 100%;
-  height: auto;
-}
-
-.flow-node rect {
-  fill: var(--surface-inset);
-  stroke: var(--rule-strong);
-  stroke-width: 1;
-}
-.flow-node text {
-  fill: var(--ink-secondary);
-  font-size: 11px;
-  font-family: var(--font-sans);
-}
-.flow-node.active rect {
-  stroke: var(--signal);
-  fill: rgb(var(--signal-rgb) / 11%);
-}
-.flow-node.active text {
-  fill: var(--ink-primary);
-}
-.flow-node.done rect {
-  stroke: var(--supported);
-}
-.flow-node.done text {
-  fill: var(--ink-primary);
-}
-.flow-node.failed rect {
-  stroke: var(--failure);
-}
-.flow-edge {
-  stroke: var(--rule-strong);
-  stroke-width: 1.2;
-  fill: none;
-}
-.flow-edge.lit {
-  stroke: var(--signal);
-}
-
-/* The dash travels along a lit edge while its task is running. No timer
-   drives this; the class is present only while a real task is in flight. */
-.flow-edge.running {
-  stroke: var(--signal);
-  stroke-dasharray: 5 7;
-  animation: flow-dash 900ms linear infinite;
-}
-@keyframes flow-dash {
-  to {
-    stroke-dashoffset: -24;
-  }
-}
+/*
+ * What is left of the workflow module: the activity log, and the two
+ * animations that still have a call site.
+ *
+ * The branch diagram (`.flow-node`, `.flow-edge`, the travelling dash)
+ * was styled here. `ExecutionFlow` was deleted when the event-derived
+ * timeline replaced it, so every one of those selectors stopped
+ * matching anything; they are removed rather than kept as a record of a
+ * component that no longer exists.
+ */
 
 @media (prefers-reduced-motion: reduce) {
-  .flow-edge.running {
-    animation: none;
-  }
   .choice:hover:not(:disabled) {
     transform: none;
   }

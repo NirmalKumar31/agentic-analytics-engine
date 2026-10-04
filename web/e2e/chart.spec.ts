@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-import { ask, openApp, sampleCsv, suggestedQuestions, uploadFile, waitForCompare, waitForReport } from "./helpers";
+import { ask, inDrawer, openApp, sampleCsv, suggestedQuestions, uploadFile, waitForCompare, waitForReport } from "./helpers";
 
 /**
  * That the chart actually draws.
@@ -166,7 +166,7 @@ test.describe("the run timeline, on real runs", () => {
     await waitForReport(page);
 
     await page.getByTestId("show-work").click();
-    const timeline = page.getByTestId("run-timeline");
+    const timeline = inDrawer(page, "run-timeline");
     await expect(timeline).toBeVisible();
     expect(await timeline.locator('[data-state="stopped"]').count()).toBe(0);
     expect(await timeline.locator('[data-state="skipped"]').count()).toBe(0);
@@ -180,11 +180,11 @@ test.describe("the run timeline, on real runs", () => {
     await waitForReport(page);
 
     await page.getByTestId("show-work").click();
-    const timeline = page.getByTestId("run-timeline");
+    const timeline = inDrawer(page, "run-timeline");
     await expect(timeline).toBeVisible();
     // Five stages for a deterministic run, every one of them reached.
     await expect(timeline.locator(".timeline-stage")).toHaveCount(5);
-    await expect(page.getByTestId("stage-publish")).toHaveAttribute(
+    await expect(timeline.getByTestId("stage-publish")).toHaveAttribute(
       "data-state",
       "complete",
     );

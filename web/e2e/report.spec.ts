@@ -1,6 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 
-import { ask, openApp, uploadFile, waitForReport } from "./helpers";
+import { ask, canvasTestId, openApp, uploadFile, waitForReport } from "./helpers";
 
 /**
  * The answer-first report, measured.
@@ -255,7 +255,7 @@ test.describe("the report canvas is only what the brief allows", () => {
     await wideReport(page);
     // It narrates a run in flight. Once the report exists the answer is the
     // thing on screen, and the timeline is in the evidence drawer.
-    await expect(page.getByTestId("run-timeline")).toHaveCount(0);
+    await expect(canvasTestId(page, "run-timeline")).toHaveCount(0);
 
     await page.getByTestId("show-work").click();
     await expect(

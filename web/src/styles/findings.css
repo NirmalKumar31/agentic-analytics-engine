@@ -17,15 +17,6 @@
 .finding.interpretation {
   border-left-color: var(--signal);
 }
-.finding-text {
-  margin: 0;
-}
-.finding-foot {
-  display: flex;
-  align-items: center;
-  gap: 9px;
-  flex-wrap: wrap;
-}
 
 .tag {
   display: inline-flex;

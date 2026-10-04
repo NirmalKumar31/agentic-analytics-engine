@@ -1,7 +1,7 @@
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test, type Page, type Request } from "@playwright/test";
 
-import { ask, openApp, suggestedQuestions, uploadFile, waitForReport } from "./helpers";
+import { ask, inDrawer, openApp, suggestedQuestions, uploadFile, waitForReport } from "./helpers";
 
 /**
  * Settling a role in a real browser.
@@ -348,11 +348,14 @@ test.describe("what the engine then does with it", () => {
     // `<details>` inside it: its body is hidden from the accessibility tree
     // and from `toBeVisible` until a reader opens it.
     await page.getByTestId("show-work").click();
-    const audit = page.getByTestId("planning-audit");
+    const audit = inDrawer(page, "planning-audit");
     await expect(audit).toBeVisible();
     await audit.locator("summary").first().click();
 
-    const evidence = page.getByTestId("role-evidence");
+    // In the drawer. The print appendix holds a second copy of the whole
+    // evidence body, which is what step H put there; the reader's copy is
+    // the one that has to say this.
+    const evidence = inDrawer(page, "role-evidence");
     await expect(evidence).toBeVisible();
 
     // Scoped to the column's own entry. Asserting against the whole block
@@ -368,7 +371,7 @@ test.describe("what the engine then does with it", () => {
   });
 
   test("the audit does not claim more than one person's statement", async () => {
-    const evidence = page.getByTestId("role-evidence");
+    const evidence = inDrawer(page, "role-evidence");
     for (const overclaim of [/governed/i, /verified/i, /saved preference/i]) {
       await expect(evidence).not.toContainText(overclaim);
     }

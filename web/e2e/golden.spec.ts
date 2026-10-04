@@ -1,6 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 
-import { ask, openApp, sampleCsv, uploadFile, waitForReport } from "./helpers";
+import { ask, onCanvas, openApp, sampleCsv, uploadFile, waitForReport } from "./helpers";
 
 /**
  * Golden layout tests: the report at every width it has to survive.
@@ -112,7 +112,10 @@ test.describe("the report at every supported width", () => {
       const answerBox = await answer.boundingBox();
       expect(answerBox, `${viewport.label}: answer has no box`).not.toBeNull();
 
-      const technical = page.locator("details").first();
+      // On the canvas: a `details` inside the hidden print appendix has no
+      // bounding box, and the ordering assertion below would have stopped
+      // running without saying so.
+      const technical = onCanvas(page, "details").first();
       if ((await technical.count()) > 0) {
         const technicalBox = await technical.boundingBox();
         if (technicalBox) {

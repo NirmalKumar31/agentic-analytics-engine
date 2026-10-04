@@ -27,9 +27,11 @@
  */
 
 import { Chart } from "./Chart";
+import { EvidenceBody } from "./EvidenceDrawer";
 import { opensSheet } from "./SideSheet";
 import { ResultPanel } from "./ResultPanel";
 import type { ReportModel } from "../lib/reportModel";
+import type { RunPayload } from "../lib/types";
 
 export function AnswerReport({
   question,
@@ -38,11 +40,14 @@ export function AnswerReport({
   withheldCount,
   onShowEvidence,
   compact,
+  run,
 }: {
   question: string;
   model: ReportModel;
   publishedCount: number;
   withheldCount: number;
+  /** The run, for the print appendix. Absent in a Compare pane. */
+  run?: RunPayload | null;
   /** Opens the evidence drawer. One trigger, for the whole report. */
   onShowEvidence?: () => void;
   /**
@@ -192,6 +197,31 @@ export function AnswerReport({
           Print / Save PDF
         </button>
       </div>
+      )}
+
+      {/*
+        The evidence appendix.
+
+        Hidden on screen -- the drawer is where a reader opens it -- and
+        visible in print, because technical truth cannot vanish from a
+        document merely because the screen hid it behind a control. The
+        `hidden` attribute rather than a class: it keeps the appendix out of
+        the accessibility tree and out of the tab order on screen, and a
+        print rule overrides it. Rendering it only while printing was the
+        alternative and it is not reliable -- `page.pdf()` does not fire
+        `beforeprint`, so the appendix would be missing from exactly the
+        artefact it exists for.
+      */}
+      {!compact && run && (
+        <section
+          className="print-appendix"
+          data-print-appendix=""
+          data-testid="print-appendix"
+          hidden
+        >
+          <h2 className="section-heading">Appendix: evidence</h2>
+          <EvidenceBody run={run} expanded />
+        </section>
       )}
 
       {model.compatibilityDerived && (

@@ -93,14 +93,27 @@ export function EvidenceBody({
   run,
   showTrace,
   onToggleTrace,
+  expanded = false,
 }: {
   run: RunPayload;
   /** Optional: the compare drawer renders traces collapsed by default. */
   showTrace?: boolean;
   onToggleTrace?: () => void;
+  /**
+   * Every disclosure open, for the print appendix.
+   *
+   * Paper has no disclosure, and a `<details>` printed closed is a
+   * paragraph the reader cannot reach. CSS alone is not enough to open
+   * one: Chromium lays a closed `<details>` out but skips painting it, so
+   * the planning audit printed as a heading over an empty block while
+   * `getComputedStyle` reported `display: block` on its body -- a defect
+   * that only looking at the rendered page could find. Opening it in the
+   * markup is engine-independent.
+   */
+  expanded?: boolean;
 }) {
   const [localTrace, setLocalTrace] = useState(false);
-  const traceShown = showTrace ?? localTrace;
+  const traceShown = showTrace ?? (expanded || localTrace);
   const toggleTrace = onToggleTrace ?? (() => setLocalTrace((v) => !v));
 
   const resolution = resolutionOf(run);
@@ -346,7 +359,7 @@ export function EvidenceBody({
       */}
       <section className="evidence-timeline" aria-label="Run progress">
         <h3 className="section-heading">Run progress</h3>
-        <RunTimeline events={run.events ?? []} />
+        <RunTimeline events={run.events ?? []} titled={false} />
       </section>
 
       {/* The full typed-plan record. The brief places it inside this sheet
@@ -354,7 +367,7 @@ export function EvidenceBody({
           disclosure resident under every report. */}
       <section className="evidence-plan" aria-label="Planning audit">
         <h3 className="section-heading">Planning audit</h3>
-        <PlanningAudit run={run} />
+        <PlanningAudit run={run} open={expanded} />
       </section>
 
       <section className="evidence-trace" aria-label="Activity trace">

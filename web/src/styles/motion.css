@@ -69,32 +69,6 @@
   box-shadow: inset 0 0 0 1px rgb(var(--signal-rgb) / 35%);
 }
 
-/* The flow diagram. An active node is emitting; a run in progress sends a
-   signal along the edges rather than spinning a generic spinner, because
-   the edge that is lit is the dependency that is actually being waited on. */
-.flow-node rect {
-  transition:
-    stroke var(--motion-panel) var(--ease-out),
-    fill var(--motion-panel) var(--ease-out);
-}
-.flow-node.active rect {
-  /* No pulse. An active node is marked by its rule and its fill;
-     breathing it added a second, slower signal saying the same
-     thing, and it kept breathing after the stage had finished. */
-}
-.flow-node.done rect {
-  fill: rgb(var(--supported-rgb) / 7%);
-}
-.flow-node.failed rect {
-  fill: rgb(var(--failure-rgb) / 8%);
-}
-.flow-edge {
-  transition: stroke var(--motion-panel) var(--ease-out);
-}
-.flow-edge.running {
-  filter: drop-shadow(0 0 4px rgb(var(--signal-rgb) / 40%));
-}
-
 /* The live badge breathes only while a run is live. */
 .mode-pill.live .dot {
   /* The panel's own reading rule already says a run is live; a
@@ -142,9 +116,7 @@
   border-color: var(--rule-strong);
 }
 /* Numbers are measurements: tabular, so they do not jitter as they update. */
-.metric-value,
 .activity-meta,
-.rail-row .mono,
 table.data td {
   font-variant-numeric: tabular-nums;
 }

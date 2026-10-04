@@ -3,7 +3,7 @@
  *
  * What was here: a lift on every panel hover, a sweep across any busy
  * panel, a ripple under every button press, a glow on the active step, a
- * self-drawing brand mark, a shimmer on skeletons, and a lit mode option.
+ * self-drawing brand mark, and a lit mode option.
  * Seven simultaneous animations, none of which told the reader anything,
  * all of which competed with the figure they surrounded.
  *
@@ -24,16 +24,14 @@
 }
 
 .btn,
-.mode-option,
-.cell-chip {
+.mode-option {
   transition:
     background-color var(--motion-feedback) var(--ease-out),
     border-color var(--motion-feedback) var(--ease-out),
     color var(--motion-feedback) var(--ease-out);
 }
 
-.btn:hover:not(:disabled),
-.cell-chip:hover {
+.btn:hover:not(:disabled) {
   border-color: var(--rule-strong);
 }
 
@@ -105,13 +103,6 @@
     opacity: 1;
   }
 }
-
-/* Waiting, without implying progress that is not being measured. */
-.skeleton {
-  background: var(--surface-inset);
-  border-radius: var(--radius-sm);
-  animation: waiting 1.8s var(--ease-in-out) infinite;
-}
 @keyframes waiting {
   0%,
   100% {
@@ -127,70 +118,12 @@
   border-color: var(--signal);
   background: var(--signal-weak);
 }
-
-/* Backend-owned answer workspace.  The answer is a document, not a dashboard:
-   the visual and table follow it instead of competing with it. */
-.presentation-report .question-label,
-.presentation-report .eyebrow {
-  margin: 0;
-  color: var(--ink-muted);
-  font-size: var(--text-xs);
-  font-weight: var(--weight-medium);
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-.presentation-report .question-text {
-  margin: 0;
-  font-size: var(--text-md);
-}
-.answer-card {
-  display: grid;
-  gap: var(--space-3);
-  padding: var(--space-5);
-  border-inline-start: 3px solid var(--signal);
-  background: var(--surface-inset);
-}
-.answer-card h3 {
-  margin: 0;
-  font-size: var(--text-xl);
-  max-width: var(--measure-prose);
-}
-.answer-card p {
-  margin: 0;
-  max-width: var(--measure-prose);
-}
-.highlight-grid {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-3);
-  margin: 0;
-}
-.highlight-grid > div {
-  min-width: min(15rem, 100%);
-  padding-inline-end: var(--space-5);
-}
-.highlight-grid dt {
-  color: var(--ink-muted);
-  font-size: var(--text-xs);
-}
-.highlight-grid dd {
-  margin: var(--space-1) 0 0;
-  font-family: var(--font-mono);
-  font-variant-numeric: var(--numeric);
-  font-size: var(--text-lg);
-}
-.answer-scope {
-  color: var(--ink-secondary);
-  font-size: var(--text-sm);
-}
 .report-visual,
-.report-table,
-.caveat-list {
+.report-table {
   display: grid;
   gap: var(--space-3);
 }
-.report-table h3,
-.caveat-list h3 {
+.report-table h3 {
   margin: 0;
   font-size: var(--text-md);
 }
@@ -266,21 +199,11 @@
   gap: var(--space-1);
 }
 
-@media print {
-  .presentation-report .answer-card {
-    break-inside: avoid;
-  }
-  .presentation-report .chart-host {
-    min-height: 0;
-  }
-}
-
 /* Reduced motion removes every animation here. The token overrides in
    `tokens.css` already collapse the durations; these are the infinite
    ones, which a duration cannot stop. */
 @media (prefers-reduced-motion: reduce) {
   .panel[data-busy="true"]::after,
-  .skeleton,
   .chart-card,
   body::after {
     animation: none;

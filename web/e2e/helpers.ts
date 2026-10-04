@@ -236,3 +236,35 @@ export async function openApp(page: Page): Promise<void> {
   const shell = page.getByTestId('app-shell');
   await expect(shell).toBeVisible({ timeout: 20_000 });
 }
+
+/**
+ * A locator for everything matching `selector` *on screen*.
+ *
+ * Step H gave the report a print appendix: `AnswerReport` renders the
+ * evidence drawer's contents a second time inside a `hidden` section that
+ * only `@media print` reveals, so that a reader who prints a report is not
+ * given less than a reader who clicks through it.
+ *
+ * The consequence is that the run timeline, the planning audit, the
+ * activity trace and the accepted contract each exist twice in the
+ * document. A bare `getByTestId` for one of them now matches two elements
+ * and fails Playwright's strict mode -- correctly, because the question
+ * "is this on the canvas?" has stopped being the same question as "is this
+ * in the DOM?".
+ *
+ * This is the first one. Where the drawer is the subject, scope to
+ * `evidence-drawer` instead; the appendix is outside it.
+ */
+export function onCanvas(page: Page, selector: string) {
+  return page.locator(`${selector}:not([data-print-appendix] *)`);
+}
+
+/** The same, by test id. */
+export function canvasTestId(page: Page, testId: string) {
+  return onCanvas(page, `[data-testid="${testId}"]`);
+}
+
+/** Inside the open evidence drawer, which the print appendix is not. */
+export function inDrawer(page: Page, testId: string) {
+  return page.getByTestId("evidence-drawer").getByTestId(testId);
+}

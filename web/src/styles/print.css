@@ -1,231 +1,487 @@
-
-/* --------------------------------------------------------------- print */
+/**
+ * The printed report.
+ *
+ * Rebuilt, not patched. The stylesheet this replaces encoded the seven-panel
+ * screen: it restated `.direct-answer`, `.answer-text`, `.answer-scope`,
+ * `.applied-analysis`, `.contract-diff` and the notice variants in ink,
+ * because the screen palette was tuned for a dark background and those
+ * blocks printed white on white. None of those selectors exists now.
+ *
+ * The printed report is not a screenshot of the screen. It is the same
+ * argument in a fixed medium, and the order is the reading order:
+ *
+ *   question
+ *   ANSWER                  display scale, unchanged
+ *   context line            population · observations · period · coverage
+ *   CHART                   vector, full page width, annotation retained
+ *   findings                all of them, expanded -- print has no disclosure
+ *   result table            every row, header repeating across pages
+ *   ───────────── page break
+ *   APPENDIX: evidence      outcome, route, contract, coverage,
+ *                           verification, cited cells, timings, build,
+ *                           limitations, the run timeline, the planning
+ *                           audit and the activity trace
+ *
+ * **Any disclosure that is collapsed on screen is expanded here.** That is
+ * the rule the appendix exists to keep: a reader who prints a report must
+ * not get less than a reader who clicks through it.
+ *
+ * Page-level setup -- size, margins, the ink-on-white palette and
+ * `print-color-adjust` -- lives in `foundation.css`, which comes first in
+ * the cascade. This module is about the report.
+ *
+ * ---------------------------------------------------------------------
+ * Known deviation: a chart rendered while the screen was dark keeps the
+ * dark series ramp on paper.
+ *
+ * Vega resolves `--series-*` at embed time and writes the result *inline*
+ * on the SVG, so the print palette reset cannot reach it. Printed from the
+ * dark theme, a single-series bar is `#54becc` on white -- about 2:1,
+ * which does not meet WCAG 1.4.11 for a graphical object.
+ *
+ * It is not fixed here because the only fixes are worse than the defect:
+ * restating the fill in CSS would collapse a multi-series chart to one
+ * colour, since no selector can tell the two cases apart; and re-embedding
+ * the chart on `beforeprint` is asynchronous -- a dynamic `import()` plus a
+ * promise -- so it is not guaranteed to finish before the page is
+ * snapshotted, and `page.pdf()` does not fire `beforeprint` at all, which
+ * means the fix could not be tested in this suite.
+ *
+ * Recorded rather than worked around. The chart's palette is step I's
+ * subject: it is the step that proves light and dark against real
+ * payloads, and the right fix is for the chart to resolve its ramp for the
+ * medium it is drawn in rather than for the theme that happened to be on
+ * screen.
+ * ---------------------------------------------------------------------
+ */
 
 @media print {
-  @page {
-    size: landscape;
-    margin: 12mm;
+  /* --------------------------------------------------------- chrome off
+   *
+   * Everything that exists to be operated. A control printed as a grey
+   * rounded rectangle is an artefact: it looks like part of the document
+   * and does nothing.
+   */
+  .topbar,
+  .no-print,
+  .context-bar-inspect,
+  .report-actions,
+  .composer,
+  .landing,
+  .analytical-field,
+  .timeline,
+  .timeline-provenance,
+  .side-sheet,
+  .scrim,
+  .drawer,
+  .evidence-tabs,
+  .result-foot .btn,
+  .suggestions {
+    display: none !important;
   }
 
-  :root {
-    color-scheme: light;
+  /* ------------------------------------------------------- no motion
+   *
+   * Nothing on paper animates, and that is not a nicety.
+   *
+   * `.activity-row` carries `animation: stream ... both`, whose `from`
+   * state is `opacity: 0`. Chromium lays the page out afresh when it
+   * prints, so the animation starts again at t=0 and the row is painted at
+   * zero opacity: the activity trace printed as an **empty bordered box**,
+   * while `getComputedStyle` in the live page reported five rows, each
+   * 184px tall and `display: block`. Only looking at the rendered page
+   * found it.
+   */
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
   }
+
+  /* The page is one column at full width. */
   html,
   body,
   #root {
     height: auto;
   }
-  body {
-    background: #fff;
-    color: #111;
-    font-size: 10pt;
-  }
-  body::after,
-  .topbar,
-  .rail,
-  .no-print,
-  .activity,
-  .flow,
-  .drawer,
-  .drawer-backdrop {
-    display: none !important;
-  }
+
+  .shell,
   .main,
-  .main[data-rail="false"] {
+  .main[data-rail="false"],
+  .column,
+  .frame {
     display: block;
     max-width: none;
+    width: auto;
     padding: 0;
+    margin: 0;
+    gap: 0;
   }
-  .column {
-    gap: 8mm;
+
+  /* ------------------------------------------------------------ report */
+
+  .report {
+    padding: 0;
+    /* The terminal rule bar is a screen device: on paper the eyebrow and
+       the headline carry the outcome, and a coloured bar down the left of
+       a printed page is a smudge. */
+    border-inline-start: 0;
+    padding-inline-start: 0;
   }
-  .panel,
-  .compare-pane,
-  .finding,
-  .chart-card {
+
+  .report-question {
+    font-size: 10pt;
+    color: #444;
+    margin-bottom: 4mm;
+  }
+
+  .report-eyebrow {
+    font-size: 9pt;
+    font-weight: 700;
+    color: #8a2f1c;
+    margin-bottom: 1mm;
+  }
+
+  /* The answer keeps its display scale. It is the one thing on the page
+     that must not be shrunk to fit. */
+  .report .display {
+    font-size: 20pt;
+    line-height: 1.15;
+    max-width: none;
+    color: #111;
+    break-after: avoid;
+  }
+
+  .report .context-line {
+    font-size: 9.5pt;
+    color: #333;
+    max-width: none;
+    break-before: avoid;
+    margin-bottom: 5mm;
+  }
+
+  .report-summary {
+    font-size: 10pt;
+    color: #222;
+    max-width: none;
+  }
+
+  /* ------------------------------------------------------------- chart
+   *
+   * Vector, full width, and bounded in height so it cannot push the
+   * findings onto a page of their own or run off the sheet.
+   */
+  .report-visual {
     break-inside: avoid;
-    box-shadow: none;
-    animation: none;
+    margin: 5mm 0;
+  }
+
+  .chart-card {
     background: #fff;
-    border-color: #bbb;
+    border: 0;
+    padding: 0;
+    break-inside: avoid;
   }
-  .panel:hover {
-    transform: none;
-    box-shadow: none;
-  }
-  .compare-grid {
-    grid-template-columns: 1fr 1fr;
-    gap: 7mm;
-  }
-  .chart-host {
-    min-height: 180px;
-    max-height: 240px;
-    overflow: hidden;
-  }
-  .chart-host svg,
-  .chart-host canvas {
+
+  .chart-host,
+  .chart-host > div,
+  .chart-host svg {
+    width: 100% !important;
     max-width: 100% !important;
-    max-height: 230px !important;
   }
-  /* The chart's screen colours are chosen for a dark background. Axis
-     labels at #9aa5b8 on white paper are close to invisible, so the text
-     and the gridlines are restated in ink. These override Vega's inline
-     fills, which is why each one is !important. */
+
+  .chart-host svg {
+    max-height: 95mm !important;
+    height: auto !important;
+  }
+
+  /* Vega writes its colours inline, which outranks any rule here, so the
+     axis text and gridlines have to be restated with `!important` or they
+     print as the pale greys chosen for a screen. */
   .chart-host svg text {
     fill: #222 !important;
   }
-  .chart-host svg .mark-group .background,
-  .chart-host svg path.background {
+
+  .chart-host svg .background,
+  .chart-host svg rect.background {
     fill: #fff !important;
   }
+
   .chart-host svg line,
-  .chart-host svg .mark-rule line {
+  /* `.gridline` is Vega's own class, written into the SVG it
+     renders -- it is not declared anywhere in this application. */
+  .chart-host svg .gridline line,
+  .chart-host svg path.domain {
     stroke: #999 !important;
   }
+
+  /* ---------------------------------------------------------- findings
+   *
+   * All of them, expanded. Print has no disclosure: a `<details>` that
+   * prints closed is a paragraph the reader cannot reach.
+   */
+  .findings,
+  .report-notes,
+  .report-table {
+    border-top: 0.5pt solid #bbb;
+    padding-top: 4mm;
+    margin-top: 5mm;
+  }
+
+  .finding-item {
+    break-inside: avoid;
+  }
+
+  .finding-rank {
+    background: #eee;
+    color: #111;
+  }
+
+  .finding-label,
+  .finding-value {
+    color: #111;
+  }
+
+  details,
+  .disclosure,
+  .technical-audit {
+    display: block !important;
+  }
+
+  /* `:not(summary)` because the summary needs no reverting -- it is
+     displayed already -- and this rule's `!important` would otherwise
+     outrank the appendix's decision to drop a summary that repeats the
+     heading above it. */
+  details > *:not(summary),
+  .technical-audit > *:not(summary) {
+    display: revert !important;
+  }
+
+  details > summary {
+    font-weight: 700;
+    color: #111;
+    list-style: none;
+  }
+
+  /* ------------------------------------------------------------- table
+   *
+   * Every row, with the header repeating on each page. `display:
+   * table-header-group` is what makes a browser repeat `<thead>`, and a
+   * scroll frame has to stop scrolling or it prints one screenful and
+   * silently drops the rest.
+   */
   .table-wrap,
-  pre.sql {
+  .scroll-x {
+    overflow: visible !important;
+    max-height: none !important;
+  }
+
+  table.data {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 9pt;
+  }
+
+  table.data thead {
+    display: table-header-group;
+  }
+
+  /* A sticky header repeats as an *empty row*. The header cells are
+     painted once, at the scroll position they were stuck to, and every
+     later page gets the row's box with nothing in it -- which looks like a
+     column that lost its name rather than like a bug. */
+  table.data th {
+    position: static;
+  }
+
+  /*
+   * Each column name is a `<button>`, because the column headers sort.
+   *
+   * Chromium does not paint a form control inside a *repeated* header
+   * group: the first `<thead>` printed its four column names, and every
+   * continuation page printed the row's box with only `#` in it -- the one
+   * cell whose content is plain text. The table looked like it had lost
+   * three columns, which is worse than losing the header altogether,
+   * because it reads as data rather than as a rendering fault.
+   *
+   * `display: contents` removes the button's own box and lets the label lay
+   * out directly in the cell, which paints. Confirmed by rendering the PDF
+   * and reading page two, not by any computed style: the DOM reported the
+   * cells `visible`, `opacity: 1`, in ink, at their full width, on every
+   * page.
+   */
+  .th-sort {
+    display: contents;
+  }
+
+  table.data tr {
+    break-inside: avoid;
+  }
+
+  table.data th,
+  table.data td {
+    color: #111;
+    border-bottom: 0.5pt solid #ccc;
+    padding: 1.5mm 2mm;
+  }
+
+  /* A notice carries a verdict, and a verdict rendered in grey is a verdict
+     the reader cannot act on. */
+  .notice {
+    background: #fff;
+    border: 0.5pt solid #777;
+    color: #111;
+    padding: 2mm 3mm;
+    break-inside: avoid;
+  }
+
+  .notice.warn {
+    border-color: #8a2f1c;
+  }
+
+  /* ----------------------------------------------------------- compare */
+
+  .compare-grid {
+    display: block;
+  }
+
+  .compare-pane {
+    break-inside: auto;
+    margin-bottom: 6mm;
+  }
+
+  .compare-facts {
+    display: block;
+    background: #fff;
+    border: 0.5pt solid #bbb;
+    padding: 3mm;
+    break-inside: avoid;
+  }
+
+  .compare-fact {
+    display: inline-block;
+    margin-right: 8mm;
+  }
+
+  .contract-diff {
+    break-inside: auto;
+  }
+
+  /* ---------------------------------------------------------- appendix
+   *
+   * The drawer's contents, as a visible appendix on its own page.
+   *
+   * `[hidden]` has to be overridden explicitly: the attribute sets
+   * `display: none` in the UA sheet, and a bare `display: block` on the
+   * class would lose to it on specificity grounds in some engines.
+   */
+  .print-appendix[hidden],
+  [data-print-appendix][hidden] {
+    display: block !important;
+    break-before: page;
+    border-top: 1pt solid #111;
+    padding-top: 5mm;
+  }
+
+  .print-appendix .section-heading {
+    font-size: 12pt;
+    color: #111;
+  }
+
+  .print-appendix .evidence-row > dt {
+    color: #444;
+    font-size: 8.5pt;
+  }
+
+  .print-appendix .evidence-row > dd,
+  .print-appendix .evidence-note {
+    color: #111;
+    font-size: 9pt;
+  }
+
+  .print-appendix .evidence-row {
+    break-inside: avoid;
+  }
+
+  /* The planning audit's `<summary>` reads "Planning audit", directly under
+     the appendix's own "Planning audit" heading. On screen it is the
+     control that opens the disclosure and has to name it; on paper the
+     disclosure is open and the name has already been given. */
+  .print-appendix .evidence-plan details > summary {
+    display: none;
+  }
+
+  /* Headings inside the audit are `<h3>` in a block whose own heading is
+     also an `<h3>`, so "Accepted contract" printed larger and heavier than
+     the section it belongs to. The hierarchy on paper has to follow the
+     nesting, not the tag. */
+  .print-appendix .technical-audit h3 {
+    font-size: 9.5pt;
+    font-weight: 600;
+    color: #333;
+    margin-bottom: 1mm;
+  }
+
+  /* The appendix's own timeline is a record of what happened, not an
+     animation, so it prints -- but flat, with no connecting rules that a
+     printer would render as smears. */
+  .print-appendix .timeline {
+    display: block !important;
+    padding: 0;
+  }
+
+  .print-appendix .timeline-stage::after {
+    display: none;
+  }
+
+  .print-appendix .activity {
+    border: 0;
+    padding: 0;
+    /* It scrolls to 340px on screen. On paper it has to run to its full
+       length or the trace stops mid-run with nothing to say it did. */
     max-height: none;
     overflow: visible;
   }
 
-  /* Blocks added for the answer-first report. Their screen colours are
-     tuned for a dark background: `--supported` and the `.notice` variants
-     are pale, which is invisible on paper. Each is restated in ink, and
-     each is kept off a page boundary -- an answer split across two pages
-     is the one thing in this report that must not happen. */
-  .direct-answer {
-    break-inside: avoid;
-    background: #fff;
-    border: 1.5pt solid #222;
-    padding: 4mm;
-  }
-  .direct-answer h3 {
-    color: #444;
-  }
-  .answer-text {
-    font-size: 13pt;
-    color: #111;
-  }
-  .answer-scope dt {
-    color: #555;
-  }
-  .answer-scope dd,
-  .answer-result {
-    color: #111;
+  /* The activity log is a `.panel`, and its head repeats the heading the
+     appendix already gave the section ("Activity trace", then "Activity")
+     above a control that does not print. */
+  .print-appendix .panel-head {
+    display: none;
   }
 
-  .notice,
-  .notice.warn,
-  .notice.success,
-  .notice.error,
-  .notice.info {
-    color: #111;
-    background: #fff;
-    border-color: #888;
+  .print-appendix .panel {
+    border: 0;
+    box-shadow: none;
   }
 
-  .contract-diff {
-    break-inside: avoid;
-    color: #111;
-  }
-  .contract-diff caption {
-    color: #444;
-  }
-  .contract-diff thead th,
-  .contract-diff tbody th {
-    color: #333;
-  }
-  .contract-diff th,
-  .contract-diff td {
-    border-top: 0.5pt solid #bbb;
+  .print-appendix .panel-body {
+    padding: 0;
   }
 
-  /* A button in a PDF is a dead control. The provenance it opens is not
-     reachable on paper, so the prompt to open it is noise. */
-  .finding-foot .btn,
-  .direct-answer .btn {
-    display: none !important;
+  /* Compare prints one appendix with a section per strategy, because a tab
+     is a screen device and there is nothing to switch on paper. The second
+     strategy starts a page of its own, so the two records are never read as
+     one continuous trace. */
+  .print-appendix-side {
+    break-before: page;
   }
 
-  /* Coverage and terminal state must survive onto paper: a saved PDF that
-     drops "25 of 45 groups" or a refusal reason is the same falsehood the
-     screen used to tell. */
-  .answer-scope dd,
-  .contract-summary dd {
-    color: #111;
-  }
-  [data-testid="partial-answer"],
-  [data-testid="run-state-card"] {
-    break-inside: avoid;
-    color: #111;
-    background: #fff;
-    border: 1pt solid #555;
-  }
-  [data-testid="pane-status"] {
-    color: #111;
-    border: 0.5pt solid #777;
+  .print-appendix-side:first-of-type {
+    break-before: auto;
   }
 
-  /* Tables paginate rather than being held together. A card kept
-     indivisible and taller than a page is pushed whole to the next one,
-     which is what produced the nearly blank pages in the saved PDFs. */
-  .direct-answer {
-    break-inside: auto;
-  }
-  .answer-result,
-  .result-panel,
-  .table-wrap {
-    break-inside: auto;
-    overflow: visible;
-  }
-  table.data {
-    break-inside: auto;
-    width: 100%;
-  }
-  table.data thead {
-    display: table-header-group;
-  }
-  table.data tr {
-    break-inside: avoid;
-  }
-  table.data th,
-  table.data td {
-    color: #111;
-  }
-  /* A heading must not be the last thing on a page. */
-  .panel-head,
-  .lane-title,
-  .direct-answer h3 {
+  .print-appendix-side > .section-heading {
+    font-size: 11pt;
+    border-bottom: 0.5pt solid #bbb;
+    padding-bottom: 2mm;
+    margin-bottom: 3mm;
     break-after: avoid;
   }
-  .result-foot {
-    color: #333;
-  }
-  .result-foot .btn {
-    display: none !important;
-  }
-  .lane-stage {
-    break-inside: avoid;
-    background: #fff;
-    border-left: 2pt solid #555;
-    color: #111;
-  }
-  .lane-stage-detail,
-  .lane-note,
-  .lane-title {
-    color: #333;
-  }
-  .lane-grid {
-    grid-template-columns: 1fr;
-  }
 
-  .applied-analysis {
-    break-inside: avoid;
-    background: #fff;
-    border-color: #bbb;
-  }
-  .applied-analysis h3,
-  .contract-summary dt {
-    color: #555;
+  /* Nothing in the appendix is a control. */
+  .print-appendix button {
+    display: none !important;
   }
 }
