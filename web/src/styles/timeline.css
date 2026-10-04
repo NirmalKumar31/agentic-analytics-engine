@@ -1,0 +1,185 @@
+/**
+ * The active-run timeline.
+ *
+ * A sequence of marks on a rule. Horizontal where there is room, vertical
+ * on a phone, and the same five-or-six stages either way.
+ */
+
+.timeline {
+  padding-block: var(--space-5);
+}
+
+.timeline-track {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--space-4);
+}
+
+.timeline-stage {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-areas:
+    "mark label"
+    "mark detail";
+  align-items: center;
+  column-gap: var(--space-3);
+}
+
+/* The mark, and the rule that joins it to the next one. Drawn with a
+   pseudo-element rather than a border on the list item, so the final stage
+   has no trailing rule running off the end of the sequence. */
+.timeline-mark {
+  grid-area: mark;
+  position: relative;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 2px solid var(--rule-strong);
+  background: var(--surface-canvas);
+}
+
+.timeline-label {
+  grid-area: label;
+  font-size: var(--text-sm);
+  color: var(--ink-muted);
+}
+
+.timeline-detail {
+  grid-area: detail;
+  font-size: var(--text-xs);
+  color: var(--ink-muted);
+}
+
+/* ------------------------------------------------------------- states
+ *
+ * State is carried by fill, by weight and by the label's own words -- never
+ * by colour alone, because a reader who cannot separate the hues still has
+ * to be able to tell a finished stage from a stopped one.
+ */
+.timeline-stage[data-state="active"] .timeline-mark {
+  border-color: var(--signal);
+  background: var(--signal);
+}
+
+.timeline-stage[data-state="active"] .timeline-label {
+  color: var(--ink-primary);
+  font-weight: var(--weight-medium);
+}
+
+.timeline-stage[data-state="complete"] .timeline-mark {
+  border-color: var(--signal);
+  background: var(--signal);
+}
+
+.timeline-stage[data-state="complete"] .timeline-label {
+  color: var(--ink-secondary);
+}
+
+/* Withheld is not failure. It is a run that did its work and honestly
+   published nothing, so it is marked as finished-but-empty: a filled mark
+   in the muted ink rather than the warning colour. */
+.timeline-stage[data-state="withheld"] .timeline-mark {
+  border-color: var(--ink-muted);
+  background: var(--ink-muted);
+}
+
+.timeline-stage[data-state="withheld"] .timeline-label {
+  color: var(--ink-secondary);
+}
+
+/* Not reached. A hollow mark in the muted ink: it did not run, and it is
+   not pending either. */
+.timeline-stage[data-state="skipped"] .timeline-mark {
+  border-color: var(--rule-hairline);
+  background: var(--surface-canvas);
+}
+
+/* No `opacity` here, and that is the whole point.
+   `--ink-muted` is the lightest text the palette allows and it clears 4.5:1
+   with nothing to spare -- 4.82 on the darkest surface. Multiplying it by
+   0.75 dropped it under the threshold and axe failed the refused report and
+   the phone report on it. Opacity is invisible to the token system, which
+   is exactly why a measured palette must not be dimmed at the call site.
+   A skipped stage is distinguished by its hollow mark and by the words
+   "not reached". */
+.timeline-stage[data-state="skipped"] .timeline-label,
+.timeline-stage[data-state="skipped"] .timeline-detail {
+  color: var(--ink-muted);
+}
+
+.timeline-stage[data-state="stopped"] .timeline-mark {
+  border-color: var(--warning);
+  background: var(--warning);
+}
+
+.timeline-stage[data-state="stopped"] .timeline-label,
+.timeline-stage[data-state="stopped"] .timeline-detail {
+  color: var(--warning-text);
+  font-weight: var(--weight-medium);
+}
+
+/* --------------------------------------------------------- horizontal */
+
+@media (min-width: 768px) {
+  .timeline-track {
+    grid-auto-flow: column;
+    grid-auto-columns: minmax(0, 1fr);
+    gap: 0;
+  }
+
+  .timeline-stage {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas:
+      "mark"
+      "label"
+      "detail";
+    justify-items: start;
+    row-gap: var(--space-2);
+    padding-inline-end: var(--space-4);
+  }
+
+  /* The rule joining one mark to the next.
+     On the stage, not on the mark: `max-width: 100%` inside a 14px mark
+     resolves against the mark, so the connector rendered as a 14px stub
+     instead of reaching the next stage. */
+  .timeline-stage {
+    position: relative;
+  }
+
+  .timeline-stage::after {
+    content: "";
+    position: absolute;
+    inset-block-start: 6px;
+    inset-inline-start: 20px;
+    inset-inline-end: 0;
+    height: 2px;
+    background: var(--rule-hairline);
+  }
+
+  /* The last mark joins nothing. */
+  .timeline-stage:last-child::after {
+    display: none;
+  }
+
+  .timeline-stage[data-state="complete"]::after {
+    background: var(--signal);
+  }
+}
+
+@media print {
+  /* The timeline is a record of a run in progress. On paper the run is
+     over, and what it produced is the document. Its content belongs in the
+     evidence appendix, which step H builds. */
+  .timeline {
+    display: none;
+  }
+}
+
+/* Which recording this is, when the run is a replay rather than live. */
+.timeline-provenance {
+  margin: 0 0 var(--space-4);
+  font-size: var(--text-xs);
+  color: var(--ink-muted);
+}

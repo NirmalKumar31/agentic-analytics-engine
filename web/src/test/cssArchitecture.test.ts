@@ -50,6 +50,7 @@ const EXPECTED_ORDER = [
   "styles/shell.css",
   "styles/landing.css",
   "styles/composer.css",
+  "styles/timeline.css",
   "styles/controls.css",
   "styles/workflow.css",
   "styles/findings.css",
@@ -153,9 +154,12 @@ describe("the compatibility bridge is gone", () => {
   });
 
   it("references none of them from component source either", () => {
-    // ProductHeader and ExecutionFlow set inline custom properties.
+    // Components that set inline custom properties. `ExecutionFlow.tsx` was
+    // one and went with the agent DAG; the run timeline that replaced it
+    // sets no inline properties at all, so its state comes from
+    // `data-state` and the stylesheet rather than from JavaScript.
     const offenders: string[] = [];
-    for (const file of ["components/ProductHeader.tsx", "components/ExecutionFlow.tsx", "App.tsx"]) {
+    for (const file of ["components/ProductHeader.tsx", "components/RunTimeline.tsx", "App.tsx"]) {
       const src = moduleSource(file);
       for (const alias of RETIRED_ALIASES) {
         if (new RegExp(`var\\(\\s*--${alias}\\s*[,)]`).test(src)) {
@@ -190,18 +194,20 @@ describe("rules stay in the module that owns their place in the cascade", () => 
   });
 
   it("keeps every print block, the last one at the end of states.css", () => {
-    // Five, in cascade order:
+    // Six, in cascade order:
     //   foundation.css  the printed *page* -- size, margins, colour-adjust,
     //                   and the white palette the other two assume.
     //   landing.css     the landing's own controls, which paper cannot use.
     //   composer.css    the composer and the side sheet, both screen-only.
+    //   timeline.css    the run timeline, which is a record of a run in
+    //                   progress and has nothing to say on paper.
     //   print.css       how the report's own blocks print.
     //   states.css      last, so no state rule can override print treatment.
     //
     // foundation's block must come first: it resets the palette to ink on
     // white, and a later block restating a colour has to win over that, not
     // be undone by it.
-    expect(countAtRule(css, "@media print")).toBe(5);
+    expect(countAtRule(css, "@media print")).toBe(6);
     expect(
       countAtRule(withoutComments(moduleSource("styles/composer.css")), "@media print"),
     ).toBe(1);
@@ -403,6 +409,7 @@ describe("the split preserved the stylesheet", () => {
       "styles/shell.css": 150,
       "styles/landing.css": 150,
       "styles/composer.css": 180,
+      "styles/timeline.css": 100,
       "styles/controls.css": 120,
       "styles/workflow.css": 120,
       "styles/findings.css": 120,

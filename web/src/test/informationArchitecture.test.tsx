@@ -439,14 +439,22 @@ describe("dataset identity", () => {
   });
 
   it("distinguishes the demo warehouse from an uploaded file", () => {
+    // The demo names itself in its source, so the strip does not also
+    // print the kind; an upload does not, so it keeps "Your file".
+    const demo = {
+      ...catalog("demo"),
+      source: "Commerce demo warehouse",
+    };
     const { rerender } = render(
-      <DatasetContextBar catalog={catalog("demo")} summary={null} />,
+      <DatasetContextBar catalog={demo} summary={null} />,
     );
-    expect(screen.getByTestId("dataset-context")).toHaveTextContent(
-      "Demo warehouse",
-    );
+    const strip = () => screen.getByTestId("dataset-context");
+    expect(strip()).toHaveTextContent(/demo warehouse/i);
+    expect(strip().textContent?.match(/demo warehouse/gi)).toHaveLength(1);
+
     rerender(<DatasetContextBar catalog={catalog("upload")} summary={null} />);
-    expect(screen.getByTestId("dataset-context")).toHaveTextContent("Your file");
+    expect(strip()).toHaveTextContent("Your file");
+    expect(strip()).toHaveTextContent("quarterly-sales.csv");
   });
 
   it("renders nothing when there is no dataset", () => {

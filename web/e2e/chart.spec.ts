@@ -141,54 +141,52 @@ test.describe("a chart on an uploaded dataset", () => {
   });
 });
 
-test.describe("the stage lane", () => {
-  test("does not report the demo dataset's stages as not reached", async ({
+test.describe("the run timeline, on real runs", () => {
+  /*
+   * These two tests were "the stage lane" and asserted `ExecutionLane`, the
+   * STAGES card panel. The panel is gone; its claims are not, and they are
+   * the timeline's now.
+   *
+   * The claim worth keeping is the one that caught a real defect: the lane
+   * described every run with the *upload contract* path's stages, so a
+   * working demo run reported "Rule resolver: not reached" and "Contract
+   * validation: not accepted" -- two false statements about a run that
+   * succeeded. The timeline derives from the events a run actually emitted,
+   * so the equivalent assertion is that a successful run has no stage
+   * reading as stopped or not-reached.
+   */
+  test("a successful demo run shows no stage as stopped or unreached", async ({
     page,
   }) => {
-    // The demo warehouse is answered from the metric registry by planning
-    // agents, which never build an upload contract. The lane described
-    // every run with the contract path's stages, so a working demo run
-    // reported "Rule resolver: not reached" and "Contract validation: not
-    // accepted" -- two false statements about a run that succeeded.
     await openApp(page);
     await page.getByRole("button", { name: /Commerce demo warehouse/ }).click();
-    // The demo warehouse has no upload profile panel; its questions are
-    // offered directly in the Ask panel.
     await expect(page.getByTestId("composer")).toBeVisible();
     await suggestedQuestions(page).first().click();
     await page.getByRole("button", { name: "Run analysis" }).click();
     await waitForReport(page);
 
-    const lane = page.locator(".lane").first();
-    await expect(lane).toBeVisible();
-    const stages = lane.locator(".lane-stage");
-    await expect(stages).toHaveCount(5);
-
-    // The first two stages are the ones that used to read as failures.
-    for (const index of [0, 1]) {
-      const text = (await stages.nth(index).textContent()) ?? "";
-      expect(text, `stage ${index + 1} reads as not reached`).not.toMatch(
-        /not reached|not accepted/i,
-      );
-      await expect(stages.nth(index)).not.toHaveClass(/state-idle/);
-    }
+    const timeline = page.getByTestId("run-timeline");
+    await expect(timeline).toBeVisible();
+    expect(await timeline.locator('[data-state="stopped"]').count()).toBe(0);
+    expect(await timeline.locator('[data-state="skipped"]').count()).toBe(0);
+    await expect(timeline).not.toContainText(/not reached/i);
   });
 
-  test("shows an uploaded run its governed stages", async ({ page }) => {
-    // The branch diagram draws one branch for a one-query fast path, which
-    // made the more governed path look like it did less. The lane names the
-    // contract stages the diagram has no nodes for.
+  test("a successful uploaded run reaches publish", async ({ page }) => {
     await openApp(page);
     await uploadFile(page, "staged.csv", sampleCsv());
     await ask(page, "What is the total revenue by region?");
     await waitForReport(page);
 
-    const lane = page.locator(".lane").first();
-    await expect(lane).toBeVisible();
-    await expect(lane.locator(".lane-stage")).toHaveCount(5);
-    await expect(lane).toContainText(/contract validation/i);
-    await expect(lane).toContainText(/DuckDB via MCP/i);
-    await expect(lane).not.toContainText(/not reached|not accepted/i);
+    const timeline = page.getByTestId("run-timeline");
+    await expect(timeline).toBeVisible();
+    // Five stages for a deterministic run, every one of them reached.
+    await expect(timeline.locator(".timeline-stage")).toHaveCount(5);
+    await expect(page.getByTestId("stage-publish")).toHaveAttribute(
+      "data-state",
+      "complete",
+    );
+    await expect(timeline).not.toContainText(/not reached/i);
   });
 });
 

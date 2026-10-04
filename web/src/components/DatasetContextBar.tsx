@@ -61,6 +61,11 @@ export function DatasetContextBar({
 
   const clocks = summary?.time_fields ?? [];
 
+  const kind = kindLabel(catalog.dataset_kind);
+  const sourceSaysKind = (catalog.source ?? "")
+    .toLowerCase()
+    .includes(kind.toLowerCase());
+
   const facts: string[] = [];
   if (tables.length > 1) facts.push(`${tables.length} tables`);
   if (rows > 0) facts.push(`${rows.toLocaleString()} rows`);
@@ -68,7 +73,15 @@ export function DatasetContextBar({
 
   return (
     <div className="context-bar" data-testid="dataset-context">
-      <span className="context-bar-kind">{kindLabel(catalog.dataset_kind)}</span>
+      {/* Suppressed when the source already says it. The demo warehouse's
+          source is "Commerce demo warehouse", so printing the kind beside
+          it read "Demo warehouse  Commerce demo warehouse" -- the same fact
+          twice, which is what this strip was built to stop doing in the
+          header. An upload keeps it, because "Your file" says something the
+          filename does not. */}
+      {!sourceSaysKind && (
+        <span className="context-bar-kind">{kind}</span>
+      )}
       {catalog.source && (
         <span className="context-bar-source mono" title={catalog.source}>
           {catalog.source}

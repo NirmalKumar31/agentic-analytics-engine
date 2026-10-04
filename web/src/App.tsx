@@ -239,7 +239,7 @@ export function App() {
                     ? session.summary
                     : null
                 } question={question} onQuestionChange={setQuestion} onAsk={() => void ask()} busy={busy} uiMode={uiMode} onModeChange={setUiMode} />}
-        {hasRun && <RunProgress run={run} events={recordedEvents} replay={replay} uiMode={uiMode} showTrace={showTrace} onToggleTrace={() => setShowTrace((value) => !value)} running={Boolean(runId) && !finished} />}
+        {hasRun && <RunProgress run={run} events={recordedEvents} replay={replay} showTrace={showTrace} onToggleTrace={() => setShowTrace((value) => !value)} running={Boolean(runId) && !finished} />}
         <ReportWorkspace comparison={comparison} run={run} aiRun={aiRun} aiError={aiError} config={config} deterministicPending={Boolean(runId) && !finished} onShowWork={(side, findingId) => setTarget({ side, findingId })} />
       </div>
       {schemaOpen && session?.summary && (

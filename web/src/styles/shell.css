@@ -119,10 +119,17 @@
 
 /* ------------------------------------------------------------------ layout */
 
+/* One column.
+ *
+ * This was `minmax(0, 1fr) 330px` -- a reserved column for the right rail.
+ * The rail is deleted, so from the moment a run existed the layout held
+ * 330px of empty canvas down the right of every report, and the content
+ * sat off-centre in the remainder. `data-rail` is still set on the element
+ * for the phase it describes, but nothing lays out from it any more. */
 .main {
   flex: 1;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 330px;
+  grid-template-columns: minmax(0, 1fr);
   gap: var(--space-5);
   padding-block: var(--space-6) var(--space-8);
   padding-inline: var(--gutter);
@@ -136,11 +143,9 @@
   margin: 0 auto;
 }
 
-/* No rail on this screen, so no column for one. Reserving 330px for an
-   empty aside is what left a dead strip down the right of the landing
-   page; the content is centred at a readable measure instead. */
+/* Before a run, the content is held to the reading column rather than
+   running to the full working width. */
 .main[data-rail="false"] {
-  grid-template-columns: minmax(0, 1fr);
   max-width: var(--measure-content);
 }
 

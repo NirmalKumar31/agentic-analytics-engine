@@ -3,10 +3,9 @@ import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 
 import { ActivityLog } from '../components/ActivityLog'
-import { ExecutionFlow } from '../components/ExecutionFlow'
 import { ProvenanceDrawer } from '../components/ProvenanceDrawer'
 import { ResultTable } from '../components/ResultTable'
-import { event, finding, hostileSnapshot, planEvents, snapshot, task, trace } from './fixtures'
+import { event, finding, hostileSnapshot, snapshot, task, trace } from './fixtures'
 
 describe('ResultTable', () => {
   it('marks the cells a finding cites', () => {
@@ -89,32 +88,15 @@ describe('ProvenanceDrawer', () => {
   })
 })
 
-describe('ExecutionFlow', () => {
-  it('draws one branch per planned task', () => {
-    const { container } = render(<ExecutionFlow events={planEvents} />)
-    // PLAN + 2 tasks + 2 MCP nodes + VERIFY + REPORT
-    expect(container.querySelectorAll('.flow-node')).toHaveLength(7)
-  })
-
-  it('marks a completed task done and a started task active', () => {
-    const { container } = render(<ExecutionFlow events={planEvents} />)
-    expect(container.querySelectorAll('.flow-node.done').length).toBeGreaterThan(0)
-    expect(container.querySelectorAll('.flow-node.active').length).toBeGreaterThan(0)
-  })
-
-  it('draws no branches before a plan exists', () => {
-    const { container } = render(<ExecutionFlow events={[event('run_started', {}, 1)]} />)
-    expect(container.querySelectorAll('.flow-node')).toHaveLength(3)
-  })
-
-  it('animates only the edges of tasks that are actually running', () => {
-    const { container } = render(<ExecutionFlow events={planEvents} />)
-    const running = container.querySelectorAll('.flow-edge.running')
-    // task_02 started and has not completed; task_01 has.
-    expect(running.length).toBeGreaterThan(0)
-    expect(running.length).toBeLessThan(container.querySelectorAll('.flow-edge').length)
-  })
-})
+/*
+ * The `ExecutionFlow` suite that stood here went with the agent DAG.
+ *
+ * It asserted node counts and which edges animated -- true things about a
+ * diagram that drew the same boxes and arrows for every run, before
+ * anything had happened. The timeline that replaces it is tested in
+ * `timeline.test.ts`, against event sequences, which is what it actually
+ * derives from.
+ */
 
 describe('ActivityLog', () => {
   const events = [
