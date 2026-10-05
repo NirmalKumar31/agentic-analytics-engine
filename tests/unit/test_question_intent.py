@@ -42,9 +42,7 @@ DIMENSIONS = [
 METRICS = ["return_rate", "refund_amount", "revenue", "gross_margin_pct"]
 
 #: The question as it was asked in the run preserved as evidence.
-AMBIGUOUS_DRIVER_QUESTION = (
-    "Which customer segments are driving the increase in return rate?"
-)
+AMBIGUOUS_DRIVER_QUESTION = "Which customer segments are driving the increase in return rate?"
 
 
 def analyse(question: str) -> dict[str, object]:
@@ -143,9 +141,9 @@ def test_a_metric_named_contribution_is_not_a_driver_question() -> None:
     """
     notes = " ".join(
         str(note)
-        for note in analyse(
-            "Which acquisition channel has the weakest contribution margin?"
-        )["ambiguities"]
+        for note in analyse("Which acquisition channel has the weakest contribution margin?")[
+            "ambiguities"
+        ]
     )
     assert "two readings" not in notes
 
