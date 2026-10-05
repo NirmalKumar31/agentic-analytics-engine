@@ -1,13 +1,6 @@
 import { expect, type Page } from "@playwright/test";
 
-import {
-  CAPTURE_HEADER,
-  SOURCE_HEADER,
-  ledgerHarnessRequest,
-  routeConfig,
-  payloadSha,
-  registerPayload,
-} from "./helpers";
+import { CAPTURE_HEADER, ledgerHarnessRequest, payloadSha, registerPayload, routeConfig, selectMode, SOURCE_HEADER } from "./helpers";
 
 /**
  * Reaching a Compare state in a browser, without a provider.
@@ -34,7 +27,10 @@ import {
  * Kept so a test can assert the order rather than infer it from a timeout
  * ninety seconds later.
  */
-const seen = new WeakMap<Page, { routed: number; requested: number | null }>();
+const seen = new WeakMap<
+  Page,
+  { routed: number; requested: number | null; intercepted: number }
+>();
 
 /**
  * Did the configuration route exist before the application asked for it?
@@ -47,6 +43,23 @@ export function configBeforeMount(page: Page): boolean | null {
   const record = seen.get(page);
   if (!record || record.requested === null) return null;
   return record.routed <= record.requested;
+}
+
+/**
+ * How many times the override actually answered `/api/config`.
+ *
+ * Ordering alone is not enough to prove this fixture works. A deployment
+ * that already advertises AI -- which the local strict server does, and
+ * the CI container does not -- offers Compare whether or not the override
+ * applied, so a test that only asserts "Compare is visible" passes over a
+ * route that silently did nothing. Forcing the handler to fail locally
+ * left all three `compareSetup` tests green, which is how that was found.
+ *
+ * `null` when `advertiseAi` was never called for this page, so a test
+ * cannot pass by forgetting to set it up.
+ */
+export function configInterceptions(page: Page): number | null {
+  return seen.get(page)?.intercepted ?? null;
 }
 
 /**
@@ -64,13 +77,15 @@ export function configBeforeMount(page: Page): boolean | null {
  * `compareHelpers.spec.ts` pins the ordering so it cannot come back.
  */
 export async function advertiseAi(page: Page) {
-  seen.set(page, { routed: Date.now(), requested: null });
+  seen.set(page, { routed: Date.now(), requested: null, intercepted: 0 });
   page.on("request", (request) => {
     if (!request.url().includes("/api/config")) return;
     const record = seen.get(page);
     if (record && record.requested === null) record.requested = Date.now();
   });
   await routeConfig(page, (body) => {
+    const record = seen.get(page);
+    if (record) record.intercepted += 1;
     body.capabilities.modes = body.capabilities.modes.map(
       (mode: { mode: string }) =>
         mode.mode === "ai"
@@ -334,7 +349,7 @@ export async function startCompare(page: Page, question: string) {
    * written. Counting at the call site reported ten analyses for one.
    */
   await page.getByLabel("Business question").fill(question);
-  await page.getByRole("radio", { name: /Compare planning strategies/ }).check();
+  await selectMode(page, "compare");
   await page.getByRole("button", { name: /Compare strategies/ }).click();
   await expect(page.getByTestId("compare-workspace")).toBeVisible({
     timeout: 90_000,

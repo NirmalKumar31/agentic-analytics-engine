@@ -401,6 +401,40 @@ export const CAPTURE_HEADER = 'x-aae-e2e-capture'
 export type FixtureSource = 'capture' | 'committed' | 'harness'
 
 /**
+ * Choose an analysis mode the way a reader does: by its label.
+ *
+ * The radio input is covered by its own `<label>`, which is how the
+ * control is built -- the label carries the visible name and the
+ * screen-reader description, and clicking it is what selects the mode.
+ * Playwright's `.check()` clicks the *input*, and Firefox's hit-testing
+ * reports the label as intercepting those pointer events, so the click is
+ * retried until the test times out. In CI that took out twenty Firefox
+ * tests in one run: every one of them went through `resetToComposer`,
+ * which put the mode back to Deterministic, and the call log read
+ * `<label for="mode-deterministic">…</label> intercepts pointer events`
+ * over and over for two minutes.
+ *
+ * It did not reproduce locally, because the local server advertises AI and
+ * the container does not: with AI and Compare unavailable both options
+ * carry the `.unavailable` class, and the label's box sits differently.
+ * That is a configuration difference exposing a wrong interaction, not a
+ * product defect -- a reader clicking the label has always worked.
+ *
+ * The selection is asserted rather than assumed, which `.check()` only did
+ * implicitly.
+ */
+export async function selectMode(
+  page: Page,
+  mode: 'auto' | 'deterministic' | 'ai' | 'compare',
+): Promise<void> {
+  const input = page.locator(`#mode-${mode}`)
+  if ((await input.count()) === 0) return
+  if (await input.isChecked()) return
+  await page.locator(`label[for="mode-${mode}"]`).click()
+  await expect(input, `the ${mode} mode did not become selected`).toBeChecked()
+}
+
+/**
  * Answer `/api/config` with the server's own response, modified.
  *
  * Three specs had their own copy of this, and all three were fragile in

@@ -1,5 +1,7 @@
 import { TWO_CLOCKS_FILE, expect, freshComposer, test } from "./fixtures";
 
+import { selectMode } from "./helpers";
+
 
 
 
@@ -87,7 +89,7 @@ test.describe("the composer, on a dataset with two clocks", () => {
      * tested is that the description follows the selection, so it is
      * asserted as a change rather than as an initial value.
      */
-    await page.getByRole("radio", { name: /^Deterministic Analytics/ }).check();
+    await selectMode(page, "deterministic");
     await expect(description).toContainText(/scripted provider/i);
 
     const other = page.getByRole("radio", { name: /Compare planning strategies/ });
@@ -103,9 +105,29 @@ test.describe("the composer, on a dataset with two clocks", () => {
   }) => {
     // Collapsing to one *visible* description must not collapse what a
     // screen reader is told: each radio still names what choosing it means.
+    /*
+     * Anchored to the start of the accessible name.
+     *
+     * A radio's accessible name is its label: the visible mode name
+     * followed by the screen-reader description. When AI is unavailable --
+     * which is every deployment without a provider key, including CI --
+     * Compare's unavailable message *is* the AI mode's message, so the
+     * Compare radio's name also contains "AI Analytics" and an unanchored
+     * `/AI Analytics/` matches two radios. Playwright's strict mode
+     * refused it, and this test was the only Chromium and WebKit failure
+     * in the container.
+     *
+     * Anchoring is the right fix rather than a wider net: each mode's
+     * visible label begins its accessible name, so `^` identifies exactly
+     * one radio and says so.
+     */
     const names = ["Governed Analysis", "Deterministic Analytics", "AI Analytics"];
     for (const name of names) {
-      const radio = page.getByRole("radio", { name: new RegExp(name) });
+      const radio = page.getByRole("radio", { name: new RegExp(`^${name}`) });
+      await expect(
+        radio,
+        `"${name}" does not identify exactly one mode radio`,
+      ).toHaveCount(1);
       const describedBy = await radio.getAttribute("aria-describedby");
       expect(describedBy, `${name} has no description`).toBeTruthy();
       const text = await page.locator(`#${describedBy}`).textContent();

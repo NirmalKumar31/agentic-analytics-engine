@@ -4,6 +4,7 @@ import {
   advertiseAi,
   compareWith,
   configBeforeMount,
+  configInterceptions,
   openDemo,
   settle,
   startCompare,
@@ -48,6 +49,24 @@ test.describe("Compare's configuration route", () => {
         message: "the app requested /api/config before advertiseAi routed it",
       })
       .toBe(true);
+
+    /*
+     * And the override actually answered it.
+     *
+     * Ordering on its own does not prove this fixture does anything. The
+     * local strict server already advertises AI, so Compare is offered
+     * whether or not the route applied -- forcing the handler to fail left
+     * all three tests in this file green. The CI container, which has no
+     * provider key, is the only place the difference showed. Counting the
+     * interceptions is what makes the claim independent of what the server
+     * happens to say.
+     */
+    await expect
+      .poll(() => configInterceptions(page), {
+        timeout: 10_000,
+        message: "the configuration override never answered /api/config",
+      })
+      .toBeGreaterThan(0);
   });
 
   test("and the Compare strategy is therefore offered", async ({ page }) => {

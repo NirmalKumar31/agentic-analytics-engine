@@ -4,8 +4,9 @@
  * CI runs three engines against one container, and that container holds
  * three ceilings this suite can exhaust:
  *
- *   max_active_upload_sessions   24, and the workflow never set it, so 24
- *                                is what CI had
+ *   max_active_upload_sessions   24, which the workflow now sets
+ *                                explicitly -- it did not, and this was
+ *                                the ceiling nothing named
  *   uploads_per_ip_per_hour      200, shared by all three engines because
  *                                they run from one address inside one hour
  *   analyses_per_ip_per_hour     200, shared the same way

@@ -3,7 +3,7 @@ import { expect, reportFor, test } from "./fixtures";
 
 /** One question for every comparison here, so the job admits it once. */
 const COMPARE_QUESTION = "What is the total revenue by region?";
-import { fixtureHeaders, openApp, routeConfig } from "./helpers";
+import { fixtureHeaders, openApp, routeConfig, selectMode } from "./helpers";
 
 /**
  * Dual-mode behaviour in a real browser.
@@ -28,6 +28,77 @@ test.describe("choosing a mode", () => {
       page.getByRole("radio", { name: /^Governed Analysis/ }),
     ).toBeChecked();
     await expect(page.getByRole("radio", { name: /^Deterministic Analytics/ })).toBeEnabled();
+  });
+
+  test("every mode is uniquely addressable and selectable when AI is off", async ({
+    page,
+  }) => {
+    /*
+     * The configuration CI runs and a developer's machine usually does
+     * not: no provider key, so AI and Compare are unavailable. Two defects
+     * hid behind that difference until the container found them, and this
+     * is the regression test for both.
+     *
+     * 1. A radio's accessible name is its label -- the visible mode name
+     *    plus the screen-reader description -- and when AI is unavailable
+     *    Compare's unavailable message *is* the AI mode's message. So the
+     *    Compare radio's name also contains "AI Analytics", and an
+     *    unanchored match resolved to two radios. Playwright's strict mode
+     *    refused it, and it was the only Chromium and WebKit failure in
+     *    the container.
+     *
+     * 2. The radio input is covered by its own label. `.check()` clicks
+     *    the input, and Firefox's hit-testing reports the label as
+     *    intercepting those pointer events, so the click retries until the
+     *    test timeout. Twenty Firefox tests died that way in one CI run,
+     *    every one of them through the shared composer reset.
+     *
+     * Asserted together because they are the same surface: how a test
+     * addresses a mode, and how it selects one.
+     */
+    await routeConfig(page, (body) => {
+      body.capabilities.modes = body.capabilities.modes.map(
+        (mode: { mode: string }) =>
+          mode.mode === "ai"
+            ? {
+                ...mode,
+                available: false,
+                reason: "ai_disabled",
+                message: "AI Analytics is turned off for this deployment.",
+              }
+            : mode,
+      );
+      body.capabilities.compare_available = false;
+    });
+    await openDemo(page);
+
+    // Every mode's label identifies exactly one radio, anchored.
+    for (const label of [
+      "Governed Analysis",
+      "Deterministic Analytics",
+      "AI Analytics",
+      "Compare planning strategies",
+    ]) {
+      await expect(
+        page.getByRole("radio", { name: new RegExp(`^${label}`) }),
+        `"${label}" does not identify exactly one mode radio`,
+      ).toHaveCount(1);
+    }
+
+    // And "AI Analytics" unanchored really does match two of them here,
+    // which is what made the anchoring necessary rather than tidy.
+    expect(
+      await page.getByRole("radio", { name: /AI Analytics/ }).count(),
+      "the ambiguity this guards against has gone, so the guard is stale",
+    ).toBeGreaterThan(1);
+
+    // The two available modes are selectable through their labels, which
+    // is the interaction a reader performs and the one `.check()` could
+    // not complete on Firefox.
+    await selectMode(page, "deterministic");
+    await expect(page.locator("#mode-deterministic")).toBeChecked();
+    await selectMode(page, "auto");
+    await expect(page.locator("#mode-auto")).toBeChecked();
   });
 
   test("AI and Compare are disabled, with a stated reason, when AI is off", async ({
@@ -238,7 +309,7 @@ test.describe("AI and Compare, with the API intercepted", () => {
     });
 
     await openDemo(page);
-    await page.getByRole("radio", { name: /^AI Analytics/ }).click();
+    await selectMode(page, "ai");
     await page.getByLabel("Business question").fill("What is total revenue?");
     await page.getByRole("button", { name: /Run with AI/ }).click();
 

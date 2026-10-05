@@ -21,6 +21,7 @@ import {
   uploadFile,
   waitForReport,
   registerPayload,
+  selectMode,
   watchTraffic,
   wideCsv,
 } from "./helpers";
@@ -130,10 +131,10 @@ async function resetToComposer(page: Page): Promise<void> {
    * did not exist. Mode is the one piece of composer state that survives a
    * reset, so it is reset explicitly.
    */
-  const deterministic = page.getByRole("radio", { name: /^Deterministic Analytics/ });
-  if ((await deterministic.count()) > 0 && !(await deterministic.isChecked())) {
-    await deterministic.check();
-  }
+  // Through the label, which is the control a reader clicks: `.check()`
+  // clicks the covered input, and Firefox reports the label as
+  // intercepting those pointer events and retries until the test timeout.
+  await selectMode(page, "deterministic");
 
   // And the theme, which a visual test may have toggled.
   await setTheme(page, "light");
