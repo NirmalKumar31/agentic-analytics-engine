@@ -1,9 +1,11 @@
-import { expect, test } from "@playwright/test";
+import { type Page } from "@playwright/test";
 
-import { ask, inDrawer, openApp, sampleCsv, uploadFile, waitForReport } from "./helpers";
+import { expect, freshComposer, reportFor, test } from "./fixtures";
+
+import { ask, inDrawer, openApp } from "./helpers";
 
 /** Open the demo warehouse from the landing. */
-async function openDemo(page: import("@playwright/test").Page) {
+async function openDemo(page: Page) {
   await page.getByRole("button", { name: /Commerce demo warehouse/ }).click();
   await page.getByTestId("composer").waitFor();
 }
@@ -19,12 +21,39 @@ async function openDemo(page: import("@playwright/test").Page) {
  */
 
 test.describe("the run timeline", () => {
-  test("replaces the agent DAG and the stage-card panel", async ({ page }) => {
-    await openApp(page);
-    await openDemo(page);
-    await ask(page, "What is the total revenue by region?");
-    await waitForReport(page);
+  /*
+   * One real run, three tests.
+   *
+   * All three assert on the timeline of the same finished deterministic
+   * run -- that the DAG is gone, that five stages are shown and no AI
+   * stage is, and that each stage's state comes from the engine's own
+   * events. Running it three times admitted three analyses to look at one
+   * thing three ways. Serial, with the run in `beforeAll`, so each remains
+   * its own reported test: a failure in the first still leaves the other
+   * two to run and name themselves.
+   *
+   * On its own page rather than the shared upload, because the claim is
+   * about a *demo warehouse* run reaching publish.
+   */
+  test.describe.configure({ mode: "serial" });
 
+  test.beforeEach(async ({ demo: page }) => {
+    /*
+     * The shared warehouse page, with the report replayed onto it.
+     *
+     * All three tests assert on the timeline of the same finished
+     * deterministic run. Each used to perform its own, so one thing was
+     * looked at three ways at three times the price -- and the warehouse's
+     * answer to this question is the same one five other specs are looking
+     * at, so the job admits it once in total. The payload is a real run's,
+     * events included, which is what these assertions read.
+     */
+    await reportFor(page, "What is the total revenue by region?");
+  });
+
+  test("replaces the agent DAG and the stage-card panel", async ({
+    demo: page,
+  }) => {
     // Removed, not hidden. The DAG drew the same boxes and arrows for every
     // run, and the stage cards restated the same five steps a third time.
     expect(await page.locator(".flow").count()).toBe(0);
@@ -33,13 +62,8 @@ test.describe("the run timeline", () => {
   });
 
   test("shows five stages for a deterministic run and no AI stage", async ({
-    page,
+    demo: page,
   }) => {
-    await openApp(page);
-    await openDemo(page);
-    await ask(page, "What is the total revenue by region?");
-    await waitForReport(page);
-
     // In the evidence drawer: once the report exists the answer is the
     // thing on screen, so the timeline moves behind "Show work".
     await page.getByTestId("show-work").click();
@@ -58,13 +82,8 @@ test.describe("the run timeline", () => {
   });
 
   test("every stage reached is marked from the engine's own events", async ({
-    page,
+    demo: page,
   }) => {
-    await openApp(page);
-    await openDemo(page);
-    await ask(page, "What is the total revenue by region?");
-    await waitForReport(page);
-
     await page.getByTestId("show-work").click();
     // A finished run has finished stages. Read from `data-state`, which is
     // what the stylesheet colours from, so a stage cannot look complete
@@ -85,7 +104,7 @@ test.describe("the run timeline", () => {
   });
 
   test("a refused run marks where it stopped, and nothing later", async ({
-    page,
+    profiled: page,
   }) => {
     // The claim the deleted five-step stepper used to carry, now asserted
     // against a real refusal from the engine rather than a phase string.
@@ -95,8 +114,7 @@ test.describe("the run timeline", () => {
     // produced a completed run and the test waited 90s for a state card
     // that was never going to appear. The uploaded file has no such column,
     // which is a refusal the engine really makes.
-    await openApp(page);
-    await uploadFile(page, "timeline-refusal.csv", sampleCsv());
+    await freshComposer(page);
     await ask(page, "What is the total gross margin by region?");
 
     await expect(page.getByTestId("report-panel")).toBeVisible({

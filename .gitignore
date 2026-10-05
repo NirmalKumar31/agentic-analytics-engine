@@ -20,7 +20,10 @@ var/
 
 # Playwright
 web/test-results/
+web/playwright-ledger/
 web/playwright-report/
+# One report per engine: the three used to overwrite one another.
+web/playwright-results-*.json
 web/playwright-results.json
 web/blob-report/
 web/.playwright/

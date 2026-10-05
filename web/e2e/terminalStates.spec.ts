@@ -2,9 +2,10 @@ import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { expect, test, type Page } from "@playwright/test";
+import { type Page } from "@playwright/test";
 
-import { inDrawer, onCanvas, openApp, sampleCsv, uploadFile } from "./helpers";
+import { answerRunWith, ask, inDrawer, onCanvas } from "./helpers";
+import { expect, freshComposer, test } from "./fixtures";
 
 /**
  * The six terminal states, in a browser, at both widths.
@@ -53,28 +54,62 @@ function fixture(name: StateName): Record<string, unknown> {
   return JSON.parse(readFileSync(join(DIR, `${name}.json`), "utf8"));
 }
 
-/** Answer the finished run with a captured payload. */
+/**
+ * Answer the run with a captured payload, without asking the engine.
+ *
+ * This used to let a real analysis run and substitute its result, which
+ * cost one of the container's 200 analyses per IP per hour for each of the
+ * sixteen tests here. The state is a fixture either way; what these tests
+ * assert is how it *renders*. The tests that are about reaching a state --
+ * `app.spec.ts`'s refusal, `timeline.spec.ts`'s stopped stage -- still
+ * drive the real engine.
+ */
+let release: (() => Promise<void>) | null = null;
+
 async function withState(page: Page, name: StateName) {
-  const payload = fixture(name);
-  await page.route("**/api/analyses/*", async (route) => {
-    const response = await route.fetch();
-    const real = await response.json();
-    if (real?.status && real.status !== "running") {
-      await route.fulfill({ response, json: { ...payload, run_id: real.run_id } });
-      return;
-    }
-    await route.fulfill({ response, json: real });
-  });
+  release = await answerRunWith(page, fixture(name));
+  return release;
 }
 
+/**
+ * Drive the shared session to `name`, and give it back afterwards.
+ *
+ * This uploaded `states.csv` for every one of the sixteen tests in this
+ * file -- sixteen datasets per engine for a set of outcomes produced by
+ * answering the finished run with a committed payload, not by the file.
+ * The upload is the `profiled` fixture's, made once per engine; the route
+ * is installed per test and removed in `finally`, because one left behind
+ * would answer the next test's run with this test's payload.
+ */
 async function runWith(page: Page, name: StateName) {
+  await freshComposer(page);
   await withState(page, name);
-  await openApp(page);
-  await uploadFile(page, "states.csv", sampleCsv());
-  await page.getByLabel("Business question").fill("What is the total revenue by region?");
-  await page.getByRole("button", { name: "Run analysis" }).click();
+  await ask(page, "What is the total revenue by region?");
   await expect(page.getByTestId("report-panel")).toBeVisible({ timeout: 90_000 });
 }
+
+/*
+ * The route comes off after every test. On a shared session a route is not
+ * discarded with the context, so one left installed would answer the next
+ * test's run with this test's payload -- a terminal-state fixture quietly
+ * standing in for a real run.
+ */
+test.afterEach(async () => {
+  /*
+   * Through the `release()` the route handler handed back, not by
+   * unrouting the pattern.
+   *
+   * Unrouting by pattern removed the route and left everything else the
+   * installer had set up -- which, while the accounting lived in a
+   * client-side marker, meant every later real analysis in the worker was
+   * recorded as a free replay. Accounting no longer depends on this (it is
+   * taken at the network boundary now), but one cleanup path is still
+   * better than two, and the second one was wrong for a fortnight without
+   * anything noticing.
+   */
+  await release?.();
+  release = null;
+});
 
 test.describe("each terminal state, at desktop and phone widths", () => {
   for (const name of STATES) {
@@ -82,7 +117,7 @@ test.describe("each terminal state, at desktop and phone widths", () => {
       ["desktop", 1440, 900],
       ["phone", 390, 844],
     ] as const) {
-      test(`${name} at ${label}`, async ({ page }) => {
+      test(`${name} at ${label}`, async ({ profiled: page }) => {
         await page.setViewportSize({ width, height });
         await runWith(page, name);
 
@@ -156,7 +191,7 @@ test.describe("each terminal state, at desktop and phone widths", () => {
 
 test.describe("a completed run that published nothing is not a refusal", () => {
   test("no findings says the execution completed, never 'not answered'", async ({
-    page,
+    profiled: page,
   }) => {
     await runWith(page, "no-findings");
     const report = page.getByTestId("report-panel");
@@ -169,7 +204,7 @@ test.describe("a completed run that published nothing is not a refusal", () => {
   });
 
   test("verification withheld is distinguishable from no findings", async ({
-    page,
+    profiled: page,
   }) => {
     await runWith(page, "verification-withheld");
     const report = page.getByTestId("report-panel");
@@ -180,7 +215,7 @@ test.describe("a completed run that published nothing is not a refusal", () => {
 });
 
 test.describe("a refusal leads with what to do about it", () => {
-  test("not with the engine's own framing", async ({ page }) => {
+  test("not with the engine's own framing", async ({ profiled: page }) => {
     await runWith(page, "refused");
     const headline = (
       (await page.getByTestId("direct-answer").textContent()) ?? ""
@@ -192,7 +227,7 @@ test.describe("a refusal leads with what to do about it", () => {
     );
   });
 
-  test("and the unedited reason is in the evidence drawer", async ({ page }) => {
+  test("and the unedited reason is in the evidence drawer", async ({ profiled: page }) => {
     await runWith(page, "refused");
     const raw = String(fixture("refused").stopped_reason ?? "");
     expect(raw.length).toBeGreaterThan(0);

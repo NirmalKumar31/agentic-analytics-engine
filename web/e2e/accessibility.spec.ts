@@ -1,7 +1,10 @@
 import AxeBuilder from "@axe-core/playwright";
-import { expect, test, type Page } from "@playwright/test";
+import { type Page, type Route } from "@playwright/test";
 
-import { ask, inDrawer, onCanvas, openApp, sampleCsv, uploadFile, waitForReport } from "./helpers";
+import { advertiseAi, compareWith, openDemo, startCompare } from "./compareHelpers";
+import { expect, freshComposer, reportFor, test } from "./fixtures";
+
+import { ask, inDrawer, onCanvas, openApp, waitForReport } from "./helpers";
 
 /**
  * Automated accessibility checks, on the states a visitor actually reaches.
@@ -100,9 +103,8 @@ test.describe("accessibility", () => {
     await scan(page, "landing");
   });
 
-  test("an uploaded dataset after profiling", async ({ page }) => {
-    await openApp(page);
-    await uploadFile(page, "a11y-profile.csv", sampleCsv());
+  test("an uploaded dataset after profiling", async ({ profiled: page }) => {
+    await freshComposer(page);
     // Scanned twice: the composer with the schema out of the way, and the
     // schema sheet open over it. The sheet is where the field table lives,
     // which is the part most likely to have a contrast or
@@ -117,21 +119,24 @@ test.describe("accessibility", () => {
     await scan(page, "profiled upload, schema sheet open");
   });
 
-  test("a completed deterministic report", async ({ page }) => {
-    await openApp(page);
-    await uploadFile(page, "a11y-report.csv", sampleCsv());
-    await ask(page, "What is the total revenue by region?");
-    await waitForReport(page);
+  test("a completed deterministic report", async ({ profiled: page }) => {
+    await reportFor(page, "What is the total revenue by region?");
     await scan(page, "completed report");
   });
 
-  test("a refused report", async ({ page }) => {
+  test("a refused report", async ({ profiled: page }) => {
     // A refusal is a state a visitor reaches, so it is a state that has to
     // be navigable. An unreadable explanation of why nothing was answered
     // is worse than an unreadable answer.
-    await openApp(page);
-    await uploadFile(page, "a11y-refusal.csv", sampleCsv());
-    await ask(page, "What is the average gross_margin by region?");
+    /*
+     * Through `reportFor`, which admits it once and remembers the payload.
+     *
+     * A refusal is as real a result as an answer -- the engine classified
+     * it -- and the dark-mode scan below needs the same refused DOM in the
+     * other palette. Captured here, replayed there, one admission between
+     * them.
+     */
+    await reportFor(page, "What is the average gross_margin by region?");
     await expect(page.locator("body")).toHaveAttribute(
       "data-phase",
       "refused",
@@ -140,7 +145,7 @@ test.describe("accessibility", () => {
     await scan(page, "refused report");
   });
 
-  test("a run in flight", async ({ page }) => {
+  test("a run in flight", async ({ profiled: page }) => {
     /*
      * The brief lists the active run as a state to scan, and it is the one
      * state that is *only* reachable mid-interaction: the timeline, the
@@ -156,30 +161,73 @@ test.describe("accessibility", () => {
      * timeline: the assertion is that the reader is shown one.
      */
     let held = 0;
-    await page.route("**/api/analyses/*", async (route) => {
+    const slowPoll = async (route: Route) => {
       if (held < 3) {
         held += 1;
         await new Promise((resolve) => setTimeout(resolve, 1_200));
       }
       await route.fallback();
-    });
+    };
+    await page.route("**/api/analyses/*", slowPoll);
 
-    await openApp(page);
-    await uploadFile(page, "a11y-active.csv", sampleCsv());
-    await page.getByLabel("Business question").fill(
-      "What is the total revenue by region?",
-    );
-    await page.getByRole("button", { name: "Run analysis" }).click();
-    await expect(onCanvas(page, '[data-testid="run-timeline"]')).toBeVisible();
-    await scan(page, "run in flight");
+    /*
+     * The route and the run belong to this test. The session does not.
+     *
+     * Both were left behind on the shared page: the delay stayed
+     * installed for every later test in the worker, and the run was still
+     * in flight when the test ended, so the next test found a composer
+     * that was *visible and disabled*. `fill()` waits for actionability,
+     * so it waited out the whole two-minute test timeout and then
+     * reported "Target page, context or browser has been closed" -- which
+     * is the teardown, not the cause. The failure was in this test and
+     * was reported against the one after it.
+     */
+    try {
+      await freshComposer(page);
+      await ask(page, "What is the total revenue by region?");
+      await expect(onCanvas(page, '[data-testid="run-timeline"]')).toBeVisible();
+
+      /*
+       * And while it runs there is no composer at all -- which is the
+       * mechanism behind the failure this test used to cause in the test
+       * after it.
+       *
+       * The question field is not disabled during a run; it is removed
+       * from the document. So a run left in flight hands the next test a
+       * page where `getByLabel("Business question")` never resolves, and
+       * `fill()` waits for it until the *test* timeout rather than its
+       * own. That is the two-minute hang: Playwright then tears the
+       * context down and reports "Target page, context or browser has
+       * been closed", which reads as though a sibling test had closed the
+       * shared page. It had not -- every test after the failure kept
+       * using the same session and passed in a few seconds each.
+       *
+       * The window is small (the previous run's last poll, arriving after
+       * this test's reset had already succeeded), which is why it
+       * surfaced once in six full gates. Asserted here so the first link
+       * in that chain is a standing claim rather than something that was
+       * worked out once from a trace.
+       */
+      await expect(
+        page.getByLabel("Business question"),
+        "the composer is still in the document during a run, so a run left " +
+          "in flight would not be able to strand the next test's fill()",
+      ).toHaveCount(0);
+
+      await scan(page, "run in flight");
+    } finally {
+      await page.unroute("**/api/analyses/*", slowPoll);
+      // And the run is left to finish, because a session handed back
+      // mid-run is a session the next test cannot type into.
+      await waitForReport(page).catch(() => {});
+    }
   });
 
-  test("a completed run that published nothing", async ({ page }) => {
+  test("a completed run that published nothing", async ({ profiled: page }) => {
     // Distinct from a refusal in wording and in tone, and therefore in
     // which colours carry the distinction. The brief lists it separately
     // for that reason.
-    await openApp(page);
-    await uploadFile(page, "a11y-empty.csv", sampleCsv());
+    await freshComposer(page);
     await ask(
       page,
       "What is total revenue by region where region is Atlantis?",
@@ -192,11 +240,8 @@ test.describe("accessibility", () => {
     await scan(page, "no findings");
   });
 
-  test("the planning audit, expanded", async ({ page }) => {
-    await openApp(page);
-    await uploadFile(page, "a11y-audit.csv", sampleCsv());
-    await ask(page, "What is the total revenue by region?");
-    await waitForReport(page);
+  test("the planning audit, expanded", async ({ profiled: page }) => {
+    await reportFor(page, "What is the total revenue by region?");
 
     // In the evidence drawer, which is also the more demanding scan: the
     // drawer is a modal over a scrim, so its surfaces, its dense key/value
@@ -219,78 +264,35 @@ test.describe("accessibility", () => {
   test("the Compare view, with the automatic-route disclosure", async ({
     page,
   }) => {
-    // AI mode is usually unavailable on a local or CI deployment, so the
-    // capability is enabled and the right-hand run is stubbed. The left pane
-    // is a real deterministic run, and the route disclosure derives from its
-    // real event stream.
-    await page.route("**/api/config", async (route) => {
-      const response = await route.fetch();
-      const body = await response.json();
-      body.capabilities.modes = body.capabilities.modes.map(
-        (mode: { mode: string }) =>
-          mode.mode === "ai"
-            ? { ...mode, available: true, reason: "", message: "" }
-            : mode,
-      );
-      body.capabilities.compare_available = true;
-      await route.fulfill({ response, json: body });
-    });
-    await page.route("**/api/comparisons", async (route) => {
-      const request = route.request().postDataJSON() as {
-        session_id: string;
-        question: string;
-      };
-      const started = await route.fetch({
-        url: new URL("/api/analyses", page.url()).toString(),
-        method: "POST",
-        postData: JSON.stringify({ ...request, mode: "deterministic" }),
-        headers: { "content-type": "application/json" },
-      });
-      const { run_id } = (await started.json()) as { run_id: string };
-      await route.fulfill({
-        status: 202,
-        json: {
-          comparison_id: "cmp_a11y",
-          session_id: request.session_id,
-          question: request.question,
-          deterministic_run_id: run_id,
-          ai_run_id: "run_a11y_ai",
-        },
-      });
-    });
-    await page.route("**/api/analyses/run_a11y_ai", async (route) => {
-      await route.fulfill({
-        status: 200,
-        json: {
-          run_id: "run_a11y_ai",
-          session_id: "x",
-          question: "What is total revenue by region?",
-          status: "refused",
-          outcome: "refused",
-          created_at: Date.now() / 1000,
-          mode: "ai",
-          provider_kind: "cloud",
-          stopped_reason: "the question could not be mapped safely",
-          findings: [],
-          rejected: [],
-          charts: [],
-          results: {},
-          tasks: [],
-          events: [],
-          mcp_trace: [],
-        },
-      });
-    });
-
+    /*
+     * Through `compareHelpers`, not a copy of it.
+     *
+     * This file used to install its own `/api/config` override and its own
+     * `/api/comparisons` handler, the second of which issued the real
+     * deterministic run with `route.fetch` -- a request the traffic
+     * recorder cannot see, because `route.fetch` produces no page event.
+     * The comparison it answered was counted instead, which happened to
+     * give the right total and the wrong reason, and the duplicated setup
+     * drifted from the real one twice.
+     *
+     * `compareWith` owns that handler: it records the admission where the
+     * request is actually made, and it remembers the settled payload, so
+     * the first comparison of a question in the job is real and this one
+     * replays it. The AI side is mutated into a refusal, which is the
+     * surface this scan exists for -- a state card for a refused lane,
+     * beside a finished one.
+     */
+    await advertiseAi(page);
+    await compareWith(page, (payload) => ({
+      ...payload,
+      status: "refused",
+      outcome: "refused",
+      stopped_reason: "the question could not be mapped safely",
+      findings: [],
+    }));
     await openApp(page);
-    await page.getByRole("button", { name: /Commerce demo warehouse/ }).click();
-    await page
-      .getByRole("radio", { name: /^Compare planning strategies/ })
-      .click();
-    await page
-      .getByLabel("Business question")
-      .fill("What is total revenue by region?");
-    await page.getByRole("button", { name: /Compare strategies/ }).click();
+    await openDemo(page);
+    await startCompare(page, "What is the total revenue by region?");
 
     await expect(
       page.getByRole("region", { name: "Deterministic Analytics", exact: true }),
@@ -305,7 +307,7 @@ test.describe("accessibility", () => {
   });
 
   test("dark mode, on the states that carry a verdict colour", async ({
-    page,
+    profiled: page,
   }) => {
     // Every scan above runs in the default colour scheme, which on CI is
     // light. So the dark palette was never scanned, and a token left
@@ -326,14 +328,25 @@ test.describe("accessibility", () => {
     // passed while the dark-mode defect it was written for was still
     // present -- confirmed by removing the fix and watching this test stay
     // green.
-    await openApp(page);
-    await page.getByRole("button", { name: /Switch to dark theme/i }).click();
-    await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
-    await uploadFile(page, "a11y-dark.csv", sampleCsv());
-
+    // Reset first: the previous scan leaves the evidence drawer open, and a
+    // side sheet puts a scrim over the header -- the theme toggle is then
+    // visible, enabled and un-clickable, which Playwright reports as a
+    // timeout pointing at a button that is plainly there.
+    /*
+     * Both states replayed, in the dark palette.
+     *
+     * axe reads the live accessibility tree and composites the real
+     * colours, so what it needs is a rendered page -- not a run the engine
+     * performed for the second time. The refusal and the report were both
+     * already admitted by the two tests above; this asserts the same two
+     * DOMs under the other palette, which is a presentation difference and
+     * costs nothing.
+     */
     // A warning-coloured surface has to be on screen for this to mean
-    // anything, so drive a refusal and assert its card is there.
-    await ask(page, "What is the average gross_margin by region?");
+    // anything, so replay the refusal and assert its card is there.
+    await reportFor(page, "What is the average gross_margin by region?", {
+      theme: "dark",
+    });
     await expect(page.locator("body")).toHaveAttribute("data-phase", "refused", {
       timeout: 60_000,
     });
@@ -341,18 +354,13 @@ test.describe("accessibility", () => {
     await scan(page, "dark mode, refused report");
 
     // And the ordinary report, where the muted ink does most of the work.
-    await page.getByRole("button", { name: "Start over" }).click();
-    await ask(page, "What is the total revenue by region?");
-    await waitForReport(page);
+    await reportFor(page, "What is the total revenue by region?", { theme: "dark" });
     await scan(page, "dark mode, completed report");
   });
 
-  test("a narrow-phone report", async ({ page }) => {
+  test("a narrow-phone report", async ({ profiled: page }) => {
     await page.setViewportSize({ width: 360, height: 740 });
-    await openApp(page);
-    await uploadFile(page, "a11y-phone.csv", sampleCsv());
-    await ask(page, "What is the total revenue by region?");
-    await waitForReport(page);
+    await reportFor(page, "What is the total revenue by region?");
     await scan(page, "phone report");
   });
 });
@@ -468,11 +476,8 @@ test.describe("keyboard operation", () => {
     ).toEqual([]);
   });
 
-  test("a disclosure is operable from the keyboard", async ({ page }) => {
-    await openApp(page);
-    await uploadFile(page, "a11y-kbd.csv", sampleCsv());
-    await ask(page, "What is the total revenue by region?");
-    await waitForReport(page);
+  test("a disclosure is operable from the keyboard", async ({ profiled: page }) => {
+    await reportFor(page, "What is the total revenue by region?");
 
     // On the canvas. The first `details` in the *document* is the planning
     // audit inside the print appendix, which is `hidden` and therefore not
@@ -490,12 +495,9 @@ test.describe("keyboard operation", () => {
   });
 
   test("the provenance drawer restores focus and closes on Escape", async ({
-    page,
+    profiled: page,
   }) => {
-    await openApp(page);
-    await uploadFile(page, "a11y-drawer.csv", sampleCsv());
-    await ask(page, "What is the total revenue by region?");
-    await waitForReport(page);
+    await reportFor(page, "What is the total revenue by region?");
 
     // Unconditional: a `return` here would have turned a missing control
     // into a silent pass, which is how a drawer that stopped opening would

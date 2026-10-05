@@ -1,6 +1,8 @@
-import { expect, test, type Page } from "@playwright/test";
+import { type Page } from "@playwright/test";
 
-import { ask, onCanvas, openApp, sampleCsv, uploadFile, waitForReport } from "./helpers";
+import { expect, reportFor, test } from "./fixtures";
+
+import { onCanvas, openApp } from "./helpers";
 
 /**
  * Golden layout tests: the report at every width it has to survive.
@@ -72,7 +74,7 @@ async function hasHorizontalOverflow(page: Page): Promise<boolean> {
 
 test.describe("the report at every supported width", () => {
   test("answer first, chart fills, nothing overflows, at all six widths", async ({
-    page,
+    profiled: page,
   }) => {
     // One session, six measurements, rather than one session per width.
     //
@@ -90,10 +92,7 @@ test.describe("the report at every supported width", () => {
     // and the ranking question renders a chart and no `direct-answer`.
     // Testing layout needs a report with both in it.
     await page.setViewportSize({ width: 1440, height: 900 });
-    await openApp(page);
-    await uploadFile(page, "layout.csv", sampleCsv());
-    await ask(page, "What is the total revenue by region?");
-    await waitForReport(page);
+    await reportFor(page, "What is the total revenue by region?");
     await expect(
       page.locator(".chart-card .chart-host svg").first(),
     ).toBeVisible({ timeout: 20_000 });
@@ -171,18 +170,17 @@ test.describe("the report at every supported width", () => {
 
 test.describe("chart width is independent of cardinality", () => {
   for (const shape of SHAPES) {
-    test(`${shape.name} fills the container at 1440px`, async ({ page }) => {
+    test(`${shape.name} fills the container at 1440px`, async ({ demo: page }) => {
       // The whole point: a two-group chart and a forty-five-group chart
       // must both use the width they are given. A fixed step per band
       // meant the first drew a strip and the second did not.
+      //
+      // The two cardinalities are two distinct chart specifications, so
+      // each is admitted once; the shared warehouse page is what stops
+      // them being admitted again by every other spec that asks the same
+      // thing.
       await page.setViewportSize({ width: 1440, height: 900 });
-      await openApp(page);
-      await page
-        .getByRole("button", { name: /Commerce demo warehouse/ })
-        .click();
-      await expect(page.getByTestId("composer")).toBeVisible();
-      await ask(page, shape.question);
-      await waitForReport(page);
+      await reportFor(page, shape.question);
 
       await expect(
         page.locator(".chart-card .chart-host svg").first(),
@@ -197,15 +195,12 @@ test.describe("chart width is independent of cardinality", () => {
   }
 
   test("a high-cardinality upload still fills the container", async ({
-    page,
+    profiled: page,
   }) => {
     // 48 distinct groups: the case that rendered widest before, and so
     // the one that hid the defect.
     await page.setViewportSize({ width: 1440, height: 900 });
-    await openApp(page);
-    await uploadFile(page, "cardinality.csv", sampleCsv());
-    await ask(page, "What is the total revenue by region?");
-    await waitForReport(page);
+    await reportFor(page, "What is the total revenue by region?");
 
     await expect(
       page.locator(".chart-card .chart-host svg").first(),
@@ -218,19 +213,20 @@ test.describe("chart width is independent of cardinality", () => {
 });
 
 test.describe("touch targets on a phone", () => {
-  test("a standalone disclosure is a thumb-sized target", async ({ page }) => {
+  test("a standalone disclosure is a thumb-sized target", async ({
+    profiled: page,
+  }) => {
     // The Planning Audit disclosure, which is a control in its own right
     // rather than a link inside a sentence. The inline privacy disclosure
     // is exempt under WCAG 2.2 SC 2.5.8; this one is not.
     //
     // It is inside the evidence drawer now, which is where a phone meets it
     // -- and a drawer is exactly where a cramped target hurts most.
+    // On the shared upload rather than the demo warehouse, and replayed:
+    // the size of a hit area does not depend on which dataset produced the
+    // report behind it, so this does not need an admission of its own.
     await page.setViewportSize({ width: 390, height: 844 });
-    await openApp(page);
-    await page.getByRole("button", { name: /Commerce demo warehouse/ }).click();
-    await expect(page.getByTestId("composer")).toBeVisible();
-    await ask(page, "What is the total revenue by region?");
-    await waitForReport(page);
+    await reportFor(page, "What is the total revenue by region?");
     await page.getByTestId("show-work").click();
     await expect(page.getByTestId("evidence-drawer")).toBeVisible();
 

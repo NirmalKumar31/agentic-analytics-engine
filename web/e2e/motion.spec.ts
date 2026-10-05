@@ -1,7 +1,9 @@
-import { expect, test, type Page } from "@playwright/test";
+import { type Page } from "@playwright/test";
+
+import { expect, freshComposer, reportFor, test } from "./fixtures";
 
 import { advertiseAi, compareWith, openDemo, settle, startCompare } from "./compareHelpers";
-import { ask, openApp, sampleCsv, uploadFile, waitForReport } from "./helpers";
+import { openApp } from "./helpers";
 
 /**
  * `prefers-reduced-motion`, honoured by every effect in the storyboard.
@@ -54,15 +56,15 @@ async function running(page: Page) {
 }
 
 /** A dataset open, a question asked, a report on screen. */
-async function report(page: Page, name: string) {
-  await openApp(page);
-  await uploadFile(page, `${name}.csv`, sampleCsv());
-  await ask(page, "What is the total revenue by region?");
-  await waitForReport(page);
+/** The one question this file asks, so its report can be replayed. */
+const REPORT_QUESTION = "What is the total revenue by region?";
+
+async function report(page: Page) {
+  await reportFor(page, REPORT_QUESTION);
 }
 
 test.describe("motion exists before it is withdrawn", () => {
-  test("the report animates something on arrival", async ({ page }) => {
+  test("the report animates something on arrival", async ({ profiled: page }) => {
     /*
      * The control for everything below. `motion.css` gives findings an
      * entrance and cited cells a confirming flash; if a refactor removed
@@ -73,7 +75,7 @@ test.describe("motion exists before it is withdrawn", () => {
      * own durations rather than by catching one mid-flight: a 260ms
      * entrance is reliably over before a Playwright round trip.
      */
-    await report(page, "motion-control");
+    await report(page);
     const budgets = await page.evaluate(() => {
       const root = getComputedStyle(document.documentElement);
       return {
@@ -102,9 +104,26 @@ test.describe("motion exists before it is withdrawn", () => {
 });
 
 test.describe("with reduced motion asked for", () => {
-  test.use({ reducedMotion: "reduce" });
+  /*
+   * `emulateMedia`, not `test.use({ reducedMotion })`.
+   *
+   * The option is a *context* option, and the shared `profiled` session
+   * lives in a worker-scoped context that was created before any test
+   * declared it. Emulating the preference on the live page reaches the
+   * same `prefers-reduced-motion` query, works on a session that is being
+   * reused, and is put back afterwards so the next spec is not silently
+   * running under a preference it never asked for.
+   */
+  test.afterEach(async ({ page, profiled }) => {
+    for (const target of [page, profiled]) {
+      if (!target.isClosed()) {
+        await target.emulateMedia({ reducedMotion: "no-preference" });
+      }
+    }
+  });
 
   test("the motion budgets collapse", async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: "reduce" });
     await openApp(page);
     const budgets = await page.evaluate(() => {
       const root = getComputedStyle(document.documentElement);
@@ -123,28 +142,62 @@ test.describe("with reduced motion asked for", () => {
     }
   });
 
-  for (const [label, reach] of [
-    ["the landing", async (page: Page) => {
-      await openApp(page);
-      await expect(page.getByTestId("analytical-field")).toBeVisible();
-    }],
-    ["an open dataset", async (page: Page) => {
-      await openApp(page);
-      await uploadFile(page, "motion-dataset.csv", sampleCsv());
-      await expect(page.getByTestId("composer")).toBeVisible();
-    }],
-    ["a finished report", async (page: Page) => {
-      await report(page, "motion-report");
-    }],
-    ["the evidence drawer", async (page: Page) => {
-      await report(page, "motion-drawer");
-      await page.getByTestId("show-work").click();
-      await expect(page.getByTestId("evidence-drawer")).toBeVisible();
-    }],
-  ] as const) {
-    test(`${label} runs nothing that loops`, async ({ page }) => {
-      await reach(page);
-      const animations = await running(page);
+  /*
+   * `shared` says whether the surface needs the uploaded session. The
+   * landing is the one that must not have one -- it is the screen before a
+   * dataset exists -- so it takes a page of its own, which costs nothing.
+   *
+   * Each `reach` sets the preference itself, at the one moment that works:
+   * after any reset -- which puts media emulation back, so that one spec
+   * cannot leave the shared session under a preference the next never
+   * asked for -- and before the action that animates. Setting it earlier
+   * is undone by the reset; setting it afterwards is too late, because an
+   * entrance that has already started keeps its original duration.
+   */
+  const reduce = (page: Page) => page.emulateMedia({ reducedMotion: "reduce" });
+
+  const SURFACES = [
+    {
+      label: "the landing",
+      shared: false,
+      reach: async (page: Page) => {
+        await reduce(page);
+        await openApp(page);
+        await expect(page.getByTestId("analytical-field")).toBeVisible();
+      },
+    },
+    {
+      label: "an open dataset",
+      shared: true,
+      reach: async (page: Page) => {
+        await freshComposer(page);
+        await reduce(page);
+        await expect(page.getByTestId("composer")).toBeVisible();
+      },
+    },
+    {
+      label: "a finished report",
+      shared: true,
+      reach: async (page: Page) => {
+        await reportFor(page, REPORT_QUESTION, { media: { reducedMotion: "reduce" } });
+      },
+    },
+    {
+      label: "the evidence drawer",
+      shared: true,
+      reach: async (page: Page) => {
+        await reportFor(page, REPORT_QUESTION, { media: { reducedMotion: "reduce" } });
+        await page.getByTestId("show-work").click();
+        await expect(page.getByTestId("evidence-drawer")).toBeVisible();
+      },
+    },
+  ] as const;
+
+  for (const surface of SURFACES) {
+    test(`${surface.label} runs nothing that loops`, async ({ page, profiled }) => {
+      const target = surface.shared ? profiled : page;
+      await surface.reach(target);
+      const animations = await running(target);
       const looping = animations.filter((a) => !Number.isFinite(a.iterations));
       expect(
         looping,
@@ -152,9 +205,10 @@ test.describe("with reduced motion asked for", () => {
       ).toEqual([]);
     });
 
-    test(`${label} runs nothing perceptible`, async ({ page }) => {
-      await reach(page);
-      const animations = await running(page);
+    test(`${surface.label} runs nothing perceptible`, async ({ page, profiled }) => {
+      const target = surface.shared ? profiled : page;
+      await surface.reach(target);
+      const animations = await running(target);
       // 1ms budgets, so anything over a frame is an effect that escaped
       // the reduced-motion block -- an inline duration, a Web Animations
       // call, or a rule with its own `!important`.
@@ -173,6 +227,7 @@ test.describe("with reduced motion asked for", () => {
     // reduced-motion row says "renders static" rather than "swaps
     // instantly". It is still drawn -- stillness loses nothing, because it
     // is a texture and not information.
+    await page.emulateMedia({ reducedMotion: "reduce" });
     await openApp(page);
     const field = page.getByTestId("analytical-field");
     await expect(field).toBeVisible();
@@ -185,6 +240,7 @@ test.describe("with reduced motion asked for", () => {
   });
 
   test("Compare settles without anything still moving", async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: "reduce" });
     await advertiseAi(page);
     await compareWith(page);
     await openApp(page);

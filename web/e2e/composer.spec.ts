@@ -1,36 +1,15 @@
-import { expect, test } from "@playwright/test";
+import { TWO_CLOCKS_FILE, expect, freshComposer, test } from "./fixtures";
 
-import { openApp, uploadFile } from "./helpers";
 
-/**
- * The composer, the dataset context strip, and the schema side sheet.
- *
- * Two date columns, so the ambiguity signals have something real to report.
- * Every assertion here is about a property of the composed screen rather
- * than about an element existing -- "the composer is the largest control",
- * "the landing is not also on screen" -- because element-existence is what
- * the previous suite checked and it is what let a panel-in-a-panel layout
- * pass review.
- */
-function twoClockCsv(rows = 240): string {
-  const regions = ["North", "South", "East", "West"];
-  const lines = ["order_id,order_date,signup_date,region,revenue"];
-  for (let i = 0; i < rows; i += 1) {
-    const month = String((i % 12) + 1).padStart(2, "0");
-    lines.push(
-      `${i},2025-${month}-15,2024-${month}-02,${regions[i % 4]},${(10 + ((i * 7) % 490)).toFixed(2)}`,
-    );
-  }
-  return lines.join("\n");
-}
+
+
 
 test.describe("the composer, on a dataset with two clocks", () => {
-  test.beforeEach(async ({ page }) => {
-    await openApp(page);
-    await uploadFile(page, "sales.csv", twoClockCsv());
+  test.beforeEach(async ({ twoClocks: page }) => {
+    await freshComposer(page);
   });
 
-  test("the landing is replaced, not stacked under it", async ({ page }) => {
+  test("the landing is replaced, not stacked under it", async ({ twoClocks: page }) => {
     // The old Dataset panel stayed mounted below the Ask panel for the
     // whole session, so after an upload a reader saw their file's composer
     // above a drop zone still inviting them to choose one. With a
@@ -41,17 +20,19 @@ test.describe("the composer, on a dataset with two clocks", () => {
   });
 
   test("the context strip names the file, its shape and both clocks", async ({
-    page,
+    twoClocks: page,
   }) => {
     const strip = page.getByTestId("dataset-context");
-    await expect(strip).toContainText("sales.csv");
+    // The name the shared `twoClocks` session was uploaded under. The strip
+    // echoes the reader's own filename, so this is the thing being tested.
+    await expect(strip).toContainText(TWO_CLOCKS_FILE);
     await expect(strip).toContainText("240 rows");
     await expect(strip).toContainText("order_date");
     await expect(strip).toContainText("signup_date");
   });
 
   test("the composer warns about two clocks before the question is run", async ({
-    page,
+    twoClocks: page,
   }) => {
     // A reader who learns "this table has two date columns" from the
     // refusal has learned it too late to have phrased the question better.
@@ -62,7 +43,7 @@ test.describe("the composer, on a dataset with two clocks", () => {
   });
 
   test("the question field is the focal control on the screen", async ({
-    page,
+    twoClocks: page,
   }) => {
     // Measured, not asserted. The strategy selector used to be four
     // bordered cards carrying four paragraphs, occupying more of the screen
@@ -91,21 +72,34 @@ test.describe("the composer, on a dataset with two clocks", () => {
     expect(await page.locator(".mode-description").count()).toBe(1);
   });
 
-  test("only the selected strategy explains itself", async ({ page }) => {
+  test("only the selected strategy explains itself", async ({ twoClocks: page }) => {
     const description = page.getByTestId("mode-description");
     await expect(description).toBeVisible();
 
     // One description, not four. Four asked a reader to compare four
     // paragraphs before asking their first question.
     await expect(description).toHaveCount(1);
-    await expect(description).toContainText(/rule-based planning/i);
 
-    await page.getByRole("radio", { name: /Deterministic Analytics/ }).check();
+    /*
+     * Which strategy is selected on arrival is not this test's subject --
+     * the shared session is reset to Deterministic, and the default
+     * otherwise depends on what the deployment advertises. What is being
+     * tested is that the description follows the selection, so it is
+     * asserted as a change rather than as an initial value.
+     */
+    await page.getByRole("radio", { name: /^Deterministic Analytics/ }).check();
     await expect(description).toContainText(/scripted provider/i);
+
+    const other = page.getByRole("radio", { name: /Compare planning strategies/ });
+    if (await other.isEnabled()) {
+      await other.check();
+      await expect(description).toContainText(/side by side/i);
+      await expect(description).not.toContainText(/scripted provider/i);
+    }
   });
 
   test("every strategy keeps its own description in the accessibility tree", async ({
-    page,
+    twoClocks: page,
   }) => {
     // Collapsing to one *visible* description must not collapse what a
     // screen reader is told: each radio still names what choosing it means.
@@ -119,7 +113,7 @@ test.describe("the composer, on a dataset with two clocks", () => {
     }
   });
 
-  test("suggestions are labelled by what they ask for", async ({ page }) => {
+  test("suggestions are labelled by what they ask for", async ({ twoClocks: page }) => {
     const suggestions = page.getByTestId("question-examples");
     await expect(suggestions).toHaveAttribute("data-source", "schema");
 
@@ -132,7 +126,7 @@ test.describe("the composer, on a dataset with two clocks", () => {
     }
   });
 
-  test("choosing a suggestion puts it in the field", async ({ page }) => {
+  test("choosing a suggestion puts it in the field", async ({ twoClocks: page }) => {
     const first = page.locator("button.suggestion").first();
     const text = (await first.locator(".suggestion-text").textContent()) ?? "";
     await first.click();
@@ -141,13 +135,12 @@ test.describe("the composer, on a dataset with two clocks", () => {
 });
 
 test.describe("the schema side sheet", () => {
-  test.beforeEach(async ({ page }) => {
-    await openApp(page);
-    await uploadFile(page, "sales.csv", twoClockCsv());
+  test.beforeEach(async ({ twoClocks: page }) => {
+    await freshComposer(page);
   });
 
   test("the schema is one control away, not resident on the canvas", async ({
-    page,
+    twoClocks: page,
   }) => {
     // A full field list on the canvas is a reference document every reader
     // scrolls past. It is behind a control now.
@@ -157,7 +150,7 @@ test.describe("the schema side sheet", () => {
   });
 
   test("it opens expanded, because the reader already asked", async ({
-    page,
+    twoClocks: page,
   }) => {
     await page.getByTestId("inspect-schema").click();
     const inspector = page.getByTestId("schema-inspector");
@@ -165,7 +158,7 @@ test.describe("the schema side sheet", () => {
   });
 
   test("Escape closes it and gives focus back to the trigger", async ({
-    page,
+    twoClocks: page,
   }) => {
     // The half that is easy to get wrong is invisible. Closing used to
     // leave focus on `<body>`, which drops a keyboard user at the top of
@@ -186,7 +179,7 @@ test.describe("the schema side sheet", () => {
     await expect(trigger).toBeFocused();
   });
 
-  test("focus does not walk out of the open sheet", async ({ page }) => {
+  test("focus does not walk out of the open sheet", async ({ twoClocks: page }) => {
     await page.getByTestId("inspect-schema").click();
     await expect(page.getByTestId("schema-sheet")).toBeVisible();
 

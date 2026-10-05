@@ -1,5 +1,14 @@
 import { expect, type Page } from "@playwright/test";
 
+import {
+  CAPTURE_HEADER,
+  SOURCE_HEADER,
+  ledgerHarnessRequest,
+  routeConfig,
+  payloadSha,
+  registerPayload,
+} from "./helpers";
+
 /**
  * Reaching a Compare state in a browser, without a provider.
  *
@@ -19,11 +28,49 @@ import { expect, type Page } from "@playwright/test";
  * `/api/health` reports `provider_mode=fake`.
  */
 
-/** Advertise AI and Compare so the selector offers them. */
+/**
+ * When the route went on, and when the application first asked.
+ *
+ * Kept so a test can assert the order rather than infer it from a timeout
+ * ninety seconds later.
+ */
+const seen = new WeakMap<Page, { routed: number; requested: number | null }>();
+
+/**
+ * Did the configuration route exist before the application asked for it?
+ *
+ * `null` when `advertiseAi` was never called for this page, or when the
+ * page never requested the config -- so a test cannot pass by forgetting
+ * to set either up.
+ */
+export function configBeforeMount(page: Page): boolean | null {
+  const record = seen.get(page);
+  if (!record || record.requested === null) return null;
+  return record.routed <= record.requested;
+}
+
+/**
+ * Advertise AI and Compare so the selector offers them.
+ *
+ * **Call this before `openApp`.** The application requests `/api/config`
+ * as it mounts, so a route installed afterwards never sees that request:
+ * the real config says AI is unavailable, the Compare strategy is never
+ * offered, and `startCompare` waits out the full test timeout reporting
+ * only that a radio did not appear.
+ *
+ * This is not hypothetical. Reordering these two lines in `print.spec.ts`
+ * passed on Chromium -- which happened to win the race -- and timed out
+ * every test in the file on Firefox. `configBeforeMount` in
+ * `compareHelpers.spec.ts` pins the ordering so it cannot come back.
+ */
 export async function advertiseAi(page: Page) {
-  await page.route("**/api/config", async (route) => {
-    const response = await route.fetch();
-    const body = await response.json();
+  seen.set(page, { routed: Date.now(), requested: null });
+  page.on("request", (request) => {
+    if (!request.url().includes("/api/config")) return;
+    const record = seen.get(page);
+    if (record && record.requested === null) record.requested = Date.now();
+  });
+  await routeConfig(page, (body) => {
     body.capabilities.modes = body.capabilities.modes.map(
       (mode: { mode: string }) =>
         mode.mode === "ai"
@@ -36,11 +83,31 @@ export async function advertiseAi(page: Page) {
       max_model_calls_per_run: 24,
       max_runtime_seconds: 180,
     };
-    await route.fulfill({ response, json: body });
   });
 }
 
 export const AI_RUN_ID = "run_compare_ai";
+
+/**
+ * One captured deterministic result per question, per worker.
+ *
+ * Every Compare test started a genuine analysis -- ten in `compare.spec.ts`
+ * alone, plus the Compare cells in `visualReview`, `print` and `chart` --
+ * against a container that allows 200 analyses per IP per hour for all
+ * three engines together. What those tests assert is how a comparison is
+ * *presented*: one shared answer under agreement, a structured diff under
+ * divergence, one drawer with a tab per strategy. The scenario is expressed
+ * by `mutate`, which is applied to the captured payload exactly as it was
+ * applied to a fresh one, so each case still differs only in the field it
+ * is about.
+ *
+ * The first comparison of a question is real, and it is what fills this.
+ */
+const replayable = new Map<string, Record<string, unknown>>();
+
+/** Keyed by the dataset the caller named, and the question. */
+const key = (dataset: string, question: string) => `${dataset}\u0000${question}`;
+
 
 /**
  * Route Compare so the right-hand side mirrors a real deterministic run.
@@ -52,9 +119,35 @@ export const AI_RUN_ID = "run_compare_ai";
 export async function compareWith(
   page: Page,
   mutate: (payload: Record<string, unknown>) => Record<string, unknown> = (p) => p,
+  /**
+   * Which data the comparison is over, named by the caller.
+   *
+   * The cache was keyed by the question alone, and `compare.spec.ts` asks
+   * the same question of the demo warehouse and of an uploaded file -- so
+   * "Compare over an uploaded dataset" was answered with the warehouse's
+   * result. Every assertion still passed; what it stopped proving was the
+   * thing in its own name.
+   *
+   * The session id would be the obvious key and is the wrong one: two
+   * pages on the same unchanging warehouse hold two sessions over
+   * identical data, and keying on the session makes each of them pay for
+   * its own comparison. The caller knows what it opened, so it says.
+   */
+  dataset = "demo",
 ) {
   let deterministicId = "";
+  /** What the AI side reports: the captured result passed through `mutate`. */
   let finished: Record<string, unknown> | null = null;
+  /**
+   * What the deterministic side reports on a replay: the capture, untouched.
+   *
+   * On the real path this side is answered by the server itself, so it is
+   * the unmodified result and `mutate` applies only to the mirrored side.
+   * A replay has to preserve that asymmetry -- serving the mutated payload
+   * to both sides made every scenario agree with itself, so the structured
+   * diff had nothing to show and a one-sided refusal refused both sides.
+   */
+  let deterministicPayload: Record<string, unknown> | null = null;
   let reading: Promise<Record<string, unknown>> | null = null;
 
   await page.route("**/api/comparisons", async (route) => {
@@ -62,6 +155,28 @@ export async function compareWith(
       session_id: string;
       question: string;
     };
+    const remembered = replayable.get(key(dataset, request.question));
+    if (remembered) {
+      deterministicPayload = structuredClone(remembered);
+      finished = mutate(structuredClone(remembered));
+      deterministicId = `run_replay_${Math.random().toString(36).slice(2, 10)}`;
+      await route.fulfill({
+        status: 202,
+        headers: {
+          [SOURCE_HEADER]: "capture",
+          [CAPTURE_HEADER]: payloadSha(remembered),
+        },
+        json: {
+          comparison_id: "cmp_replayed",
+          session_id: request.session_id,
+          question: request.question,
+          deterministic_run_id: deterministicId,
+          ai_run_id: AI_RUN_ID,
+        },
+      });
+      return;
+    }
+
     const started = await route.fetch({
       url: new URL("/api/analyses", page.url()).toString(),
       method: "POST",
@@ -69,9 +184,45 @@ export async function compareWith(
       headers: { "content-type": "application/json" },
     });
     const { run_id } = (await started.json()) as { run_id: string };
+    /*
+     * Recorded here because `route.fetch` is not page traffic: the request
+     * exists only inside this handler, so `watchTraffic` cannot see it and
+     * the one analysis a Compare scenario really costs would be invisible.
+     */
+    ledgerHarnessRequest(
+      "/api/analyses",
+      started.status(),
+      `compare: ${request.question.slice(0, 36)}`,
+    );
     deterministicId = run_id;
+    /*
+     * Captured here, by polling to completion before answering.
+     *
+     * Capturing opportunistically in the AI-side route handler missed:
+     * that branch is only reached if a test drives that side to the end,
+     * and three of `compare.spec.ts`'s ten tests assert on the verdict and
+     * stop -- so each of those paid for a real analysis before the cache
+     * ever filled. Polling here costs the *first* comparison a second of
+     * waiting and is certain; every later one replays it.
+     */
+    for (let attempt = 0; attempt < 120; attempt += 1) {
+      const poll = await page.request.get(
+        new URL(`/api/analyses/${run_id}`, page.url()).toString(),
+      );
+      const settled = (await poll.json()) as Record<string, unknown>;
+      if (settled.status && settled.status !== "running") {
+        replayable.set(key(dataset, request.question), structuredClone(settled));
+        // Registered, so a later replay of it reconciles against something
+        // the guard can see was captured from a server-backed response.
+        registerPayload(settled, "capture");
+        break;
+      }
+      await new Promise((resolve) => setTimeout(resolve, 150));
+    }
     await route.fulfill({
       status: 202,
+      // The 202 itself is synthesised while a real run proceeds behind it.
+      headers: { [SOURCE_HEADER]: "harness" },
       json: {
         comparison_id: "cmp_compare_spec",
         session_id: request.session_id,
@@ -79,6 +230,18 @@ export async function compareWith(
         deterministic_run_id: run_id,
         ai_run_id: AI_RUN_ID,
       },
+    });
+  });
+
+  /*
+   * The deterministic side of a replayed comparison. There is no such run
+   * on the server, so the page is answered from the captured payload --
+   * the same one the AI side gets, which is what agreement means here.
+   */
+  await page.route("**/api/analyses/run_replay_*", async (route) => {
+    await route.fulfill({
+      status: 200,
+      json: { ...(deterministicPayload ?? {}), run_id: deterministicId },
     });
   });
 
@@ -156,6 +319,20 @@ export async function compareWith(
 }
 
 export async function startCompare(page: Page, question: string) {
+  /*
+   * One real run, one mirrored.
+   *
+   * `compareWith` starts a genuine deterministic analysis and answers the
+   * AI side with that same payload, so the server performs one analysis per
+   * comparison, not two. Counting both as real would report pressure on a
+   * ceiling that was never touched.
+   */
+  /*
+   * Not counted here. Whether a comparison costs a real analysis is known
+   * only inside `compareWith`'s route handler -- the first for a question
+   * is real and the rest replay it -- so that is where the ledger is
+   * written. Counting at the call site reported ten analyses for one.
+   */
   await page.getByLabel("Business question").fill(question);
   await page.getByRole("radio", { name: /Compare planning strategies/ }).check();
   await page.getByRole("button", { name: /Compare strategies/ }).click();

@@ -1,5 +1,9 @@
-import { expect, test } from "@playwright/test";
-import { openApp } from "./helpers";
+import { advertiseAi, compareWith, startCompare } from "./compareHelpers";
+import { expect, reportFor, test } from "./fixtures";
+
+/** One question for every comparison here, so the job admits it once. */
+const COMPARE_QUESTION = "What is the total revenue by region?";
+import { fixtureHeaders, openApp, routeConfig } from "./helpers";
 
 /**
  * Dual-mode behaviour in a real browser.
@@ -32,9 +36,7 @@ test.describe("choosing a mode", () => {
     // The test must not inherit a developer's local cloud configuration.
     // It exercises the unavailable contract, so make that server response
     // explicit rather than relying on the process environment.
-    await page.route("**/api/config", async (route) => {
-      const response = await route.fetch();
-      const body = await response.json();
+    await routeConfig(page, (body) => {
       body.capabilities.modes = body.capabilities.modes.map(
         (mode: { mode: string }) =>
           mode.mode === "ai"
@@ -47,7 +49,6 @@ test.describe("choosing a mode", () => {
             : mode,
       );
       body.capabilities.compare_available = false;
-      await route.fulfill({ response, json: body });
     });
     await openDemo(page);
     const ai = page.getByRole("radio", { name: /^AI Analytics/ });
@@ -83,10 +84,11 @@ test.describe("choosing a mode", () => {
 });
 
 test.describe("a deterministic run", () => {
-  test("completes and reports findings", async ({ page }) => {
-    await openDemo(page);
-    await page.getByLabel("Business question").fill("What is total revenue?");
-    await page.getByRole("button", { name: /Run analysis/ }).click();
+  test("completes and reports findings", async ({ demo: page }) => {
+    // On the shared warehouse page: the claim is that a deterministic run
+    // publishes an answer, and the warehouse's answer to this question is
+    // the same one every spec in the job is looking at.
+    await reportFor(page, COMPARE_QUESTION);
     // The answer itself, not the findings heading: that panel is hidden
     // when the answer is the only publication, because its whole content
     // was a sentence restating that fact.
@@ -98,79 +100,27 @@ test.describe("a deterministic run", () => {
 
 test.describe("AI and Compare, with the API intercepted", () => {
   test("Compare Both shows two independent panes", async ({ page }) => {
-    // Advertise both modes so the selector offers Compare.
-    await page.route("**/api/config", async (route) => {
-      const response = await route.fetch();
-      const body = await response.json();
-      body.capabilities.modes = body.capabilities.modes.map(
-        (m: { mode: string }) =>
-          m.mode === "ai"
-            ? { ...m, available: true, reason: "", message: "" }
-            : m,
-      );
-      body.capabilities.compare_available = true;
-      body.capabilities.ai_limits = {
-        runs_per_session: 3,
-        max_model_calls_per_run: 24,
-        max_runtime_seconds: 180,
-      };
-      await route.fulfill({ response, json: body });
-    });
-
-    let aiRunId = "";
-    await page.route("**/api/comparisons", async (route) => {
-      // Start a real deterministic run so the left pane is genuine, and
-      // mint an id for the right one that the stub below answers.
-      const request = route.request().postDataJSON() as {
-        session_id: string;
-        question: string;
-      };
-      const started = await route.fetch({
-        url: new URL("/api/analyses", page.url()).toString(),
-        method: "POST",
-        postData: JSON.stringify({ ...request, mode: "deterministic" }),
-        headers: { "content-type": "application/json" },
-      });
-      const { run_id } = (await started.json()) as { run_id: string };
-      aiRunId = "run_stubbed_ai";
-      await route.fulfill({
-        status: 202,
-        json: {
-          comparison_id: "cmp_stub",
-          session_id: request.session_id,
-          question: request.question,
-          deterministic_run_id: run_id,
-          ai_run_id: aiRunId,
-        },
-      });
-    });
-
-    await page.route("**/api/analyses/run_stubbed_ai", async (route) => {
-      await route.fulfill({
-        status: 200,
-        json: {
-          run_id: "run_stubbed_ai",
-          session_id: "x",
-          question: "What is total revenue?",
-          status: "failed",
-          created_at: Date.now() / 1000,
-          mode: "ai",
-          provider_kind: "cloud",
-          error: "AI Analytics has reached its public demo usage limit.",
-          findings: [],
-          rejected: [],
-          charts: [],
-          results: {},
-          events: [],
-          mcp_trace: [],
-        },
-      });
-    });
-
+    /*
+     * Through `compareHelpers`, which owns the comparison route.
+     *
+     * This test kept its own copy, and that copy started the real
+     * deterministic run with `route.fetch` -- a request the traffic
+     * recorder cannot see, so the analysis was made and nothing counted
+     * it. `compareWith` records the admission where it happens and
+     * remembers the settled payload, so one comparison of this question is
+     * real for the whole job and the rest replay it. The AI side is
+     * mutated into the failure this test is about.
+     */
+    await advertiseAi(page);
+    await compareWith(page, (payload) => ({
+      ...payload,
+      status: "failed",
+      outcome: "failed",
+      error: "AI Analytics has reached its public demo usage limit.",
+      findings: [],
+    }));
     await openDemo(page);
-    await page.getByRole("radio", { name: /^Compare planning strategies/ }).click();
-    await page.getByLabel("Business question").fill("What is total revenue?");
-    await page.getByRole("button", { name: /Compare strategies/ }).click();
+    await startCompare(page, COMPARE_QUESTION);
 
     // Two labelled panes.
     await expect(
@@ -222,77 +172,19 @@ test.describe("AI and Compare, with the API intercepted", () => {
     // deterministic answer that had worked. The jsdom tests render
     // `ComparisonView` with children already supplied, so they never
     // exercised the decision about whether to supply them.
-    await page.route("**/api/config", async (route) => {
-      const response = await route.fetch();
-      const body = await response.json();
-      body.capabilities.modes = body.capabilities.modes.map(
-        (m: { mode: string }) =>
-          m.mode === "ai"
-            ? { ...m, available: true, reason: "", message: "" }
-            : m,
-      );
-      body.capabilities.compare_available = true;
-      body.capabilities.ai_limits = {
-        runs_per_session: 3,
-        max_model_calls_per_run: 24,
-        max_runtime_seconds: 180,
-      };
-      await route.fulfill({ response, json: body });
-    });
-
-    await page.route("**/api/comparisons", async (route) => {
-      const request = route.request().postDataJSON() as {
-        session_id: string;
-        question: string;
-      };
-      const started = await route.fetch({
-        url: new URL("/api/analyses", page.url()).toString(),
-        method: "POST",
-        postData: JSON.stringify({ ...request, mode: "deterministic" }),
-        headers: { "content-type": "application/json" },
-      });
-      const { run_id } = (await started.json()) as { run_id: string };
-      await route.fulfill({
-        status: 202,
-        json: {
-          comparison_id: "cmp_refused",
-          session_id: request.session_id,
-          question: request.question,
-          deterministic_run_id: run_id,
-          ai_run_id: "run_refused_ai",
-        },
-      });
-    });
-
-    await page.route("**/api/analyses/run_refused_ai", async (route) => {
-      await route.fulfill({
-        status: 200,
-        json: {
-          run_id: "run_refused_ai",
-          session_id: "x",
-          question: "What is total revenue?",
-          status: "refused",
-          created_at: Date.now() / 1000,
-          mode: "ai",
-          provider_kind: "cloud",
-          findings: [],
-          rejected: [],
-          charts: [],
-          results: {},
-          events: [],
-          mcp_trace: [],
-          report: null,
-          stopped_reason:
-            "the question could not be mapped safely: the AI plan named a grouping this engine does not offer",
-          query_contract: null,
-        },
-      });
-    });
-
+    //
+    // Same setup as above, and for the same reason: one recorded
+    // admission for the job, replayed here.
+    await advertiseAi(page);
+    await compareWith(page, (payload) => ({
+      ...payload,
+      status: "refused",
+      outcome: "refused",
+      stopped_reason: "the question could not be mapped safely",
+      findings: [],
+    }));
     await openDemo(page);
-    await page.getByRole("radio", { name: /^Compare planning strategies/ }).click();
-    await page.getByLabel("Business question").fill("What is total revenue?");
-    await page.getByRole("button", { name: /Compare strategies/ }).click();
+    await startCompare(page, COMPARE_QUESTION);
 
     const ai = page.getByRole("region", { name: "AI Analytics", exact: true });
     await expect(ai).toBeVisible({ timeout: 60_000 });
@@ -328,19 +220,15 @@ test.describe("AI and Compare, with the API intercepted", () => {
   test("an AI run refused by quota is reported without leaking anything", async ({
     page,
   }) => {
-    await page.route("**/api/config", async (route) => {
-      const response = await route.fetch();
-      const body = await response.json();
+    await routeConfig(page, (body) => {
       body.capabilities.modes = body.capabilities.modes.map(
         (m: { mode: string }) =>
-          m.mode === "ai"
-            ? { ...m, available: true, reason: "", message: "" }
-            : m,
+          m.mode === "ai" ? { ...m, available: true, reason: "", message: "" } : m,
       );
-      await route.fulfill({ response, json: body });
     });
     await page.route("**/api/analyses", async (route) => {
       await route.fulfill({
+        headers: fixtureHeaders("dualmode: the AI quota refusal"),
         status: 429,
         json: {
           detail:

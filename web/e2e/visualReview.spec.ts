@@ -2,10 +2,11 @@ import { mkdirSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { expect, test, type Page } from "@playwright/test";
+import { type Page } from "@playwright/test";
 
 import { advertiseAi, compareWith, openDemo, settle, startCompare } from "./compareHelpers";
-import { ask, onCanvas, openApp, sampleCsv, uploadFile, waitForReport } from "./helpers";
+import { expect, freshComposer, reportFor, test } from "./fixtures";
+import { answerRunWith, ask, onCanvas, openApp, setTheme, watchTraffic } from "./helpers";
 
 /**
  * The acceptance sweep: every approved width, both themes, real payloads.
@@ -30,6 +31,16 @@ import { ask, onCanvas, openApp, sampleCsv, uploadFile, waitForReport } from "./
  * the review, which is a person looking at them. They are captured in
  * Chromium only -- one set of artefacts, not three -- and capturing is not
  * an assertion, so the other engines lose no coverage by not writing files.
+ *
+ * --------------------------------------------------------------- uploads
+ *
+ * This file uploaded a dataset for every cell: 36 per engine, 108 across
+ * the CI job, for a matrix whose cells differ only in viewport width,
+ * theme and which payload the response is answered with. None of that
+ * needs a new file. The matrices run on the shared `profiled` session and
+ * iterate as steps, so the whole file costs **one** upload per engine --
+ * and a failing cell still names itself, because a step carries its own
+ * title in the report.
  */
 
 const REVIEW_DIR = join(
@@ -68,18 +79,15 @@ const STATES: StateName[] = [
   "cancelled",
 ];
 
-/** `ThemeToggle` reads this on first render, so it must be set before load. */
-async function withTheme(page: Page, theme: (typeof THEMES)[number]) {
-  await page.addInitScript((value) => {
-    try {
-      localStorage.setItem("aae-theme", value);
-    } catch {
-      /* private browsing; the attribute assertion below will catch it */
-    }
-  }, theme);
-}
-
-/** Answer the finished run with a committed terminal-state payload. */
+/**
+ * Answer the run with a committed terminal-state payload, asking the engine
+ * for nothing.
+ *
+ * Twenty-four cells rendering six states at two widths in two themes cost
+ * twenty-four of the container's 200 analyses per IP per hour, every one of
+ * them discarded the moment it arrived. The state is a fixture; the cell is
+ * about how it looks.
+ */
 async function withState(page: Page, name: StateName) {
   const { readFileSync } = await import("node:fs");
   const payload = JSON.parse(
@@ -96,15 +104,7 @@ async function withState(page: Page, name: StateName) {
       "utf8",
     ),
   );
-  await page.route("**/api/analyses/*", async (route) => {
-    const response = await route.fetch();
-    const real = await response.json();
-    if (real?.status && real.status !== "running") {
-      await route.fulfill({ response, json: { ...payload, run_id: real.run_id } });
-      return;
-    }
-    await route.fulfill({ response, json: real });
-  });
+  return answerRunWith(page, payload);
 }
 
 /** What a reader is shown, measured rather than counted from the source. */
@@ -206,25 +206,74 @@ async function capture(page: Page, browserName: string, name: string) {
   await page.screenshot({ path: join(REVIEW_DIR, `${name}.png`), fullPage: true });
 }
 
-test.describe("a real report, at every approved width and in both themes", () => {
+const REPORT_QUESTION = "What is the total revenue by region?";
+
+/**
+ * The matrix is the size the brief says it is.
+ *
+ * Every cell below is generated from these three lists, so dropping an
+ * entry removes a test rather than failing one -- the suite gets smaller
+ * and greener at the same time, and the skip guard reconciles discovered
+ * against executed, which both fall together. The only thing that catches
+ * it is a claim about the size of the matrix itself.
+ *
+ * 6 widths x 2 themes for a real report, 6 terminal states x 2 themes x 2
+ * widths, and Compare at 2 themes x 2 widths: forty cells, which is what
+ * `docs/design/ACCEPTANCE.md` says was reviewed.
+ */
+test("the visual matrix covers every approved cell", () => {
+  expect(WIDTHS.map((viewport) => viewport.width)).toEqual([
+    360, 390, 768, 1024, 1440, 1920,
+  ]);
+  expect(THEMES).toEqual(["light", "dark"]);
+  expect(STATES).toEqual([
+    "refused",
+    "no-findings",
+    "verification-withheld",
+    "quota-stopped",
+    "failed",
+    "cancelled",
+  ]);
+
+  const report = WIDTHS.length * THEMES.length;
+  const terminal = STATES.length * THEMES.length * 2;
+  const compare = THEMES.length * 2;
+  expect(
+    report + terminal + compare,
+    "the review matrix is no longer forty cells",
+  ).toBe(40);
+});
+
+test.describe("a real report holds at every approved width, in both themes", () => {
+  /*
+   * One upload, one admission, twelve cells.
+   *
+   * Every cell asserts the same report; only the viewport and the theme
+   * change, and neither needs a new dataset or a new run -- `reportFor`
+   * admits the question once and replays the captured payload for the
+   * other eleven.
+   *
+   * One test per cell rather than twelve `test.step`s in a single case.
+   * The steps kept the cell names in the report, but a failure in the
+   * first one stopped the other eleven from running at all, and a reader
+   * of the summary saw one result where there are twelve claims.
+   */
   for (const theme of THEMES) {
     for (const viewport of WIDTHS) {
-      test(`${viewport.label} ${theme}`, async ({ page, browserName }) => {
-        await withTheme(page, theme);
-        await page.setViewportSize({ width: viewport.width, height: viewport.height });
-        await openApp(page);
-        await uploadFile(page, `review-${viewport.label}.csv`, sampleCsv());
-        await ask(page, "What is the total revenue by region?");
-        await waitForReport(page);
+      test(`${viewport.label} ${theme}`, async ({ profiled, browserName }) => {
+        await reportFor(profiled, REPORT_QUESTION, { theme });
+        await profiled.setViewportSize({
+          width: viewport.width,
+          height: viewport.height,
+        });
+        await holds(profiled, `report ${viewport.label} ${theme}`, theme);
 
-        await holds(page, `report ${viewport.label} ${theme}`, theme);
-
-        // The answer is above the first viewport break at phone widths:
-        // a reader on a phone must not scroll to find out what the answer
+        // The answer is above the first viewport break at phone widths: a
+        // reader on a phone must not scroll to find out what the answer
         // was. Asserted where it can fail -- a desktop viewport is tall
         // enough for anything.
         if (viewport.width <= 390) {
-          const answer = await page.getByTestId("direct-answer").boundingBox();
+          const answer = await profiled.getByTestId("direct-answer").boundingBox();
           expect(answer, `${viewport.label}: the answer has no box`).not.toBeNull();
           expect(
             answer!.y + answer!.height,
@@ -240,12 +289,11 @@ test.describe("a real report, at every approved width and in both themes", () =>
            * shown. `findingFold.test.tsx` covers the threshold, and
            * `report.spec.ts` covers a recorded run with six.
            */
-          const findings = page.locator(".finding-item");
+          const findings = profiled.locator(".finding-item");
           const count = await findings.count();
           expect(count, `${viewport.label}: no findings rendered`).toBeGreaterThan(0);
-          // Two one-line rows: nothing to fold, and nothing folded.
           expect(
-            await page.locator(".findings-more").count(),
+            await profiled.locator(".findings-more").count(),
             `${viewport.label}: two findings were folded`,
           ).toBe(0);
           for (let i = 0; i < count; i += 1) {
@@ -262,45 +310,73 @@ test.describe("a real report, at every approved width and in both themes", () =>
             );
           }
           expect(
-            await page.locator(".findings details").count(),
+            await profiled.locator(".findings details").count(),
             `${viewport.label}: a finding is behind a disclosure`,
           ).toBe(0);
         }
 
-        await capture(page, browserName, `report-${viewport.label}-${theme}`);
+        await capture(profiled, browserName, `report-${viewport.label}-${theme}`);
       });
     }
   }
 });
 
-test.describe("every terminal state, in both themes", () => {
+test.describe("every terminal state renders itself, in both themes", () => {
+  /*
+   * Six states, two widths, two themes -- twenty-four cells and, before
+   * this, twenty-four uploads. A terminal state is produced by answering
+   * the finished run with a committed payload fixture, not by the file
+   * that was uploaded, so the dataset is the same every time and the
+   * shared session serves all of them.
+   *
+   * One test per cell, not one test with twenty-four `test.step`s.
+   * Twenty-four cells in a single case do not fit inside a per-test
+   * timeout -- WebKit spent the full two minutes and failed the lot -- and
+   * a failure in the first cell stopped the other twenty-three from ever
+   * running. Each cell now reports itself, and they still share the one
+   * session underneath.
+   */
   for (const name of STATES) {
     for (const theme of THEMES) {
       for (const viewport of [WIDTHS[1], WIDTHS[4]] as const) {
-        test(`${name} ${viewport.label} ${theme}`, async ({ page, browserName }) => {
-          await withTheme(page, theme);
-          await withState(page, name);
-          await page.setViewportSize({ width: viewport.width, height: viewport.height });
-          await openApp(page);
-          await uploadFile(page, `review-${name}.csv`, sampleCsv());
-          await page.getByLabel("Business question").fill(
-            "What is the total revenue by region?",
-          );
-          await page.getByRole("button", { name: "Run analysis" }).click();
-          await expect(page.getByTestId("report-panel")).toBeVisible({
-            timeout: 90_000,
+        test(`${name} ${viewport.label} ${theme}`, async ({
+          profiled,
+          browserName,
+        }) => {
+          await freshComposer(profiled);
+          await profiled.setViewportSize({
+            width: viewport.width,
+            height: viewport.height,
           });
+          await setTheme(profiled, theme);
+          const release = await withState(profiled, name);
+          try {
+            await ask(profiled, "What is the total revenue by region?");
+            await expect(profiled.getByTestId("report-panel")).toBeVisible({
+              timeout: 90_000,
+            });
 
-          await holds(page, `${name} ${viewport.label} ${theme}`, theme);
+            await holds(profiled, `${name} ${viewport.label} ${theme}`, theme);
 
-          // The outcome is stated, visibly, in this theme. A state whose
-          // headline resolved to the background colour would pass every
-          // structural check above.
-          const headline = page.getByTestId("direct-answer");
-          await expect(headline).toBeVisible();
-          expect(((await headline.textContent()) ?? "").trim().length).toBeGreaterThan(0);
+            // The outcome is stated, visibly, in this theme. A state whose
+            // headline resolved to the background colour would pass every
+            // structural check above.
+            const headline = profiled.getByTestId("direct-answer");
+            await expect(headline).toBeVisible();
+            expect(
+              ((await headline.textContent()) ?? "").trim().length,
+            ).toBeGreaterThan(0);
 
-          await capture(page, browserName, `${name}-${viewport.label}-${theme}`);
+            await capture(
+              profiled,
+              browserName,
+              `${name}-${viewport.label}-${theme}`,
+            );
+          } finally {
+            // Always: a route left installed would answer the next cell's
+            // run with the previous cell's payload.
+            await release();
+          }
         });
       }
     }
@@ -308,17 +384,54 @@ test.describe("every terminal state, in both themes", () => {
 });
 
 test.describe("Compare, in both themes", () => {
+  /*
+   * The demo warehouse, not an upload: Compare is about two planners over
+   * one dataset, and the warehouse is a session the server already holds.
+   *
+   * One page and one comparison for all four cells, in a serial describe.
+   * Each cell used to build its own: advertise AI, open a page, open the
+   * warehouse, start a comparison, wait for both lanes to settle, then
+   * screenshot. On Chromium that is a couple of seconds; on WebKit a page
+   * creation plus a comparison plus a full-page screenshot is tens of
+   * seconds, and two of these four cells exceeded the per-test timeout
+   * while a twenty-second assertion was still retrying inside it.
+   *
+   * The cells are still four independently reported tests -- a failure at
+   * desktop dark does not hide phone light -- and what they assert is
+   * unchanged. What they no longer do is rebuild the comparison four times
+   * to look at it from four angles. The comparison itself is replayed from
+   * the job's one captured warehouse comparison, so it costs no admission
+   * either.
+   *
+   * `compareWith` installs routes for the whole context, which is why this
+   * owns its page rather than borrowing a shared one.
+   */
+  test.describe.configure({ mode: "serial" });
+
+  let page: Page;
+
+  test.beforeAll(async ({ browser }) => {
+    page = await browser.newPage();
+    watchTraffic(page);
+    await advertiseAi(page);
+    await compareWith(page);
+    await openApp(page);
+    await openDemo(page);
+    await startCompare(page, "What is the total revenue by region?");
+    await settle(page);
+  });
+
+  test.afterAll(async () => {
+    // The warehouse holds no upload session, so there is nothing to hand
+    // back -- only the page this describe opened.
+    await page.close();
+  });
+
   for (const theme of THEMES) {
     for (const viewport of [WIDTHS[1], WIDTHS[4]] as const) {
-      test(`${viewport.label} ${theme}`, async ({ page, browserName }) => {
-        await withTheme(page, theme);
-        await advertiseAi(page);
-        await compareWith(page);
+      test(`${viewport.label} ${theme}`, async ({}, info) => {
         await page.setViewportSize({ width: viewport.width, height: viewport.height });
-        await openApp(page);
-        await openDemo(page);
-        await startCompare(page, "What is the total revenue by region?");
-        await settle(page);
+        await setTheme(page, theme);
 
         await holds(page, `compare ${viewport.label} ${theme}`, theme);
 
@@ -326,7 +439,7 @@ test.describe("Compare, in both themes", () => {
         // one element whose colour carries meaning in both themes.
         await expect(page.getByTestId("contract-comparison")).toBeVisible();
 
-        await capture(page, browserName, `compare-${viewport.label}-${theme}`);
+        await capture(page, info.project.name, `compare-${viewport.label}-${theme}`);
       });
     }
   }

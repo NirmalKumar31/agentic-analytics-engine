@@ -32,9 +32,11 @@
  * the upload API, not asserted from a hand-written schema.
  */
 
-import { expect, test, type Page } from "@playwright/test";
+import { type Page } from "@playwright/test";
 
-import { ask, onCanvas, openApp, uploadFile, waitForReport } from "./helpers";
+import { expect, reportFor, test } from "./fixtures";
+
+import { ambiguousCsv, answerRunWith, ask, endSession, onCanvas, openApp, plainCsv, uploadFile, waitForReport, watchTraffic } from "./helpers";
 
 /**
  * Open the demo warehouse.
@@ -53,27 +55,9 @@ async function openDemo(page: Page) {
   });
 }
 
-/** A dataset whose `age` column the engine cannot classify from the data. */
-function ambiguousCsv(): string {
-  const regions = ["North", "South", "East", "West"];
-  const lines = ["region,revenue,age,visits"];
-  for (let i = 0; i < 400; i += 1) {
-    lines.push(
-      `${regions[i % 4]},${100 + i * 7},${18 + (i % 48)},${2 + (i % 5)}`,
-    );
-  }
-  return lines.join("\n");
-}
 
-/** An ordinary dataset with nothing ambiguous in it. */
-function plainCsv(): string {
-  const regions = ["North", "South", "East", "West"];
-  const lines = ["region,revenue,month"];
-  for (let i = 0; i < 200; i += 1) {
-    lines.push(`${regions[i % 4]},${100 + i * 7},2025-${(i % 12) + 1}`);
-  }
-  return lines.join("\n");
-}
+
+
 
 test.describe("the schema inspector tells the truth about ambiguity", () => {
   // Serial, with one upload shared across the three tests.
@@ -89,11 +73,18 @@ test.describe("the schema inspector tells the truth about ambiguity", () => {
 
   test.beforeAll(async ({ browser }) => {
     page = await browser.newPage();
+    watchTraffic(page);
     await openApp(page);
     await uploadFile(page, "ia-ambiguous.csv", ambiguousCsv());
   });
 
   test.afterAll(async () => {
+    // The session, not just the page. Closing a browser context does not
+    // free a server-side upload session -- the server holds it until the
+    // capability deletes it or the TTL expires, and the TTL outlives a CI
+    // run. Three engines leaving their sessions behind is what exhausted
+    // the 24-session pool.
+    await endSession(page);
     await page.close();
   });
 
@@ -163,11 +154,18 @@ test.describe("a dataset with nothing ambiguous in it", () => {
 
   test.beforeAll(async ({ browser }) => {
     page = await browser.newPage();
+    watchTraffic(page);
     await openApp(page);
     await uploadFile(page, "ia-plain.csv", plainCsv());
   });
 
   test.afterAll(async () => {
+    // The session, not just the page. Closing a browser context does not
+    // free a server-side upload session -- the server holds it until the
+    // capability deletes it or the TTL expires, and the TTL outlives a CI
+    // run. Three engines leaving their sessions behind is what exhausted
+    // the 24-session pool.
+    await endSession(page);
     await page.close();
   });
 
@@ -238,11 +236,18 @@ test.describe("terminal states, produced by the engine", () => {
 
   test.beforeAll(async ({ browser }) => {
     page = await browser.newPage();
+    watchTraffic(page);
     await openApp(page);
     await uploadFile(page, "ia-terminal.csv", plainCsv());
   });
 
   test.afterAll(async () => {
+    // The session, not just the page. Closing a browser context does not
+    // free a server-side upload session -- the server holds it until the
+    // capability deletes it or the TTL expires, and the TTL outlives a CI
+    // run. Three engines leaving their sessions behind is what exhausted
+    // the 24-session pool.
+    await endSession(page);
     await page.close();
   });
 
@@ -343,16 +348,47 @@ test.describe("terminal states, produced by the engine", () => {
 /**
  * The states the scripted provider cannot produce.
  *
- * The run payload is intercepted and replaced with a server-shaped one. The
- * application then derives the state, the label, the tone and the copy
- * itself, which is the behaviour under test.
+ * The run payload is a server-shaped one with fields overridden. The
+ * application derives the state, the label, the tone and the copy itself,
+ * which is the behaviour under test -- and that derivation has to work on
+ * a payload with *every* field a real run carries, not on a hand-written
+ * stub. So one real run is performed, its payload captured, and each case
+ * is that payload with its own overrides.
+ *
+ * It used to be one real run per case. Five runs for five renderings of one
+ * payload is five of the container's 200 analyses per IP per hour, and the
+ * three engines share that allowance.
  */
+let realPayload: Record<string, unknown> | null = null;
+
+async function captureRealRun(page: Page): Promise<Record<string, unknown>> {
+  if (realPayload) return realPayload;
+  const settled = page.waitForResponse(
+    (r) =>
+      /\/api\/analyses\/[^/]+$/.test(r.url()) &&
+      r.request().method() === "GET" &&
+      r.status() === 200,
+  );
+  await ask(page, "What is total revenue by region?");
+  await expect(page.getByTestId("report-panel")).toBeVisible({ timeout: 90_000 });
+  for (let attempt = 0; attempt < 40; attempt += 1) {
+    const body = (await (await settled).json()) as Record<string, unknown>;
+    if (body.status && body.status !== "running") {
+      realPayload = body;
+      // Back to the composer, so the caller's page is in the same state
+      // whether this performed a run or returned the cached payload.
+      await page.getByRole("button", { name: "Start over" }).click();
+      await expect(page.getByTestId("composer")).toBeVisible({ timeout: 20_000 });
+      return body;
+    }
+    await page.waitForTimeout(250);
+  }
+  throw new Error("the captured run never finished");
+}
+
 async function serveRun(page: Page, overrides: Record<string, unknown>) {
-  await page.route("**/api/analyses/*", async (route) => {
-    const response = await route.fetch();
-    const body = await response.json();
-    await route.fulfill({ response, json: { ...body, ...overrides } });
-  });
+  const base = realPayload ?? {};
+  return answerRunWith(page, { ...base, ...overrides });
 }
 
 test.describe("terminal states that need a payload fixture", () => {
@@ -408,7 +444,10 @@ test.describe("terminal states that need a payload fixture", () => {
     test(`${state} is shown as itself in single mode`, async ({ page }) => {
       await openApp(page);
       await openDemo(page);
-      await serveRun(page, overrides);
+      // One real run, captured once and reused: every case renders the same
+      // payload with its own fields overridden.
+      await captureRealRun(page);
+      const release = await serveRun(page, overrides);
       await ask(page, "What is total revenue by region?");
 
       const report = page.getByTestId("report-panel");
@@ -416,6 +455,7 @@ test.describe("terminal states that need a payload fixture", () => {
       await expect(report).toHaveAttribute("data-state", state);
       await expect(report).toContainText(expected);
       await expect(report).not.toContainText(/\bComplete\b/);
+      await release();
     });
   }
 
@@ -426,6 +466,7 @@ test.describe("terminal states that need a payload fixture", () => {
     // withheld findings that did not exist.
     await openApp(page);
     await openDemo(page);
+    await captureRealRun(page);
     await serveRun(page, cases[1]![1]);
     await ask(page, "What is total revenue by region?");
     const card = page.getByTestId("report-panel");
@@ -436,6 +477,16 @@ test.describe("terminal states that need a payload fixture", () => {
 });
 
 test.describe("layout holds at every width", () => {
+  /*
+   * One run, three widths, three tests.
+   *
+   * The claim is that a finished report fits whatever viewport it is
+   * given. The report is the same report at every width, so admitting it
+   * three times measured the same thing three times at three times the
+   * cost. Serial with the run in `beforeAll`, and a test per width so each
+   * one still reports itself: a phone failure must not take the tablet and
+   * desktop cases down with it.
+   */
   const widths = [
     ["phone", 390, 844],
     ["tablet", 768, 1024],
@@ -444,13 +495,13 @@ test.describe("layout holds at every width", () => {
 
   for (const [label, width, height] of widths) {
     test(`${label}: no horizontal overflow and the strip stays inside`, async ({
-      page,
+      demo: page,
     }) => {
+      // The shared warehouse page, replayed. A report fits a viewport or
+      // it does not; which dataset produced it does not enter into the
+      // claim, and three widths were three real analyses of one report.
+      await reportFor(page, "What is the total revenue by region?");
       await page.setViewportSize({ width, height });
-      await openApp(page);
-      await openDemo(page);
-      await ask(page, "What is total revenue by region?");
-      await waitForReport(page);
 
       // The page must not scroll sideways at any width.
       const overflow = await page.evaluate(

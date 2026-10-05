@@ -1,6 +1,8 @@
-import { expect, test } from "@playwright/test";
+import { type Route } from "@playwright/test";
 
-import { ask, canvasTestId, capability, clientSideState, inDrawer, openApp, recordingButtons, sampleCsv, suggestedQuestions, uploadFile, waitForReport } from "./helpers";
+import { expect, freshComposer, test } from "./fixtures";
+
+import { ask, canvasTestId, capability, clientSideState, endSession, inDrawer, openApp, recordingButtons, sampleCsv, suggestedQuestions, uploadFile, waitForReport } from "./helpers";
 
 /**
  * The flows a visitor actually performs, in a real browser, against a real
@@ -104,12 +106,43 @@ test.describe("the demo warehouse", () => {
       );
     }
 
+    /*
+     * The status poll is held back for the first few replies.
+     *
+     * "Progress is visible while it runs" is a claim about a window that
+     * is open for a few hundred milliseconds -- in fake mode a demo run
+     * finishes in well under a second -- so asserting it against an
+     * unmodified run is a race, and WebKit won it: by the time the
+     * assertion looked, the report had replaced the timeline and the
+     * failure read "element(s) not found" over a screenshot of a finished
+     * report. The responses are the server's own; they simply arrive late,
+     * which is what a slow run looks like to the page.
+     *
+     * The same technique as `accessibility.spec.ts`'s "a run in flight".
+     * It makes the claim deterministic rather than weaker: without it the
+     * test passed on fast engines by luck.
+     */
+    let held = 0;
+    const slowPoll = async (route: Route) => {
+      if (held < 3) {
+        held += 1;
+        await new Promise((resolve) => setTimeout(resolve, 1_000));
+      }
+      await route.fallback();
+    };
+    await page.route("**/api/analyses/*", slowPoll);
+
     await suggestedQuestions(page).first().click();
     await page.getByRole("button", { name: "Run analysis" }).click();
 
-    // Progress is visible while it runs. The ANALYSIS panel heading is
-    // gone; the run timeline is what narrates a run in flight.
-    await expect(canvasTestId(page, "run-timeline")).toBeVisible();
+    try {
+      // Progress is visible while it runs. The ANALYSIS panel heading is
+      // gone; the run timeline is what narrates a run in flight.
+      await expect(canvasTestId(page, "run-timeline")).toBeVisible();
+    } finally {
+      // The delay belongs to this assertion, not to the rest of the test.
+      await page.unroute("**/api/analyses/*", slowPoll);
+    }
     await waitForReport(page);
 
     // Now that something has run, the badge names what produced it. The
@@ -138,10 +171,9 @@ test.describe("the demo warehouse", () => {
 
 test.describe("uploading a file", () => {
   test("profiles it, answers a mappable question, and refuses an unmappable one", async ({
-    page,
+    profiled: page,
   }) => {
-    await openApp(page);
-    await uploadFile(page, "e2e-sales.csv", sampleCsv());
+    await freshComposer(page);
 
     // The dataset understanding step, marked inferred rather than governed.
     //
@@ -270,7 +302,10 @@ test.describe("the session boundary", () => {
       "the dataset should be reachable before deletion",
     ).toBe(200);
 
-    await page.getByRole("button", { name: "End session" }).click();
+    // Through the helper, so the upload ledger records the close and the
+    // budget check can reconcile it against the open. It presses the same
+    // control a reader would.
+    await endSession(page);
     // The dataset chooser, not a heading: "Dataset" is a prefix of "Dataset
     // understanding", which is still on screen for a frame after the click.
     await expect(
@@ -320,6 +355,11 @@ test.describe("the session boundary", () => {
       );
       expect(bobCookie?.value).not.toBe(aliceCookie?.value);
     } finally {
+      // Alice's session, back to the server. Closing her context does not
+      // free it -- the server holds an upload session until the capability
+      // deletes it, and a suite that leaves them behind is what exhausted
+      // the pool.
+      for (const page of alice.pages()) await endSession(page);
       await alice.close();
       await bob.close();
     }

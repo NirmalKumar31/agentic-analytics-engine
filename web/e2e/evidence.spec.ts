@@ -1,6 +1,6 @@
-import { expect, test } from "@playwright/test";
+import { expect, reportFor, test } from "./fixtures";
 
-import { ask, onCanvas, openApp, sampleCsv, uploadFile, waitForReport } from "./helpers";
+import { onCanvas } from "./helpers";
 
 /**
  * The evidence drawer holds everything the report canvas gave up.
@@ -28,17 +28,24 @@ const REQUIRED = [
   "Planning audit",
 ];
 
+const QUESTION = "What is the total revenue by region?";
+
 async function openReport(page: import("@playwright/test").Page) {
-  await openApp(page);
-  await uploadFile(page, "evidence.csv", sampleCsv());
-  await ask(page, "What is the total revenue by region?");
-  await waitForReport(page);
+  /*
+   * The shared session, and the report already on it.
+   *
+   * Every test in this file asks the same question of the same dataset and
+   * then inspects the drawer. The ten uploads this replaced differed in
+   * nothing but their filename, and the ten analyses differed in nothing at
+   * all -- so the report is produced once and the drawer is closed between
+   * tests rather than the run being repeated.
+   */
+  await reportFor(page, QUESTION);
 }
 
+
 test.describe("the evidence drawer", () => {
-  test("is behind one control, and not resident on the canvas", async ({
-    page,
-  }) => {
+  test("is behind one control, and not resident on the canvas", async ({ profiled: page }) => {
     await openReport(page);
 
     await expect(page.getByTestId("evidence-drawer")).toHaveCount(0);
@@ -50,7 +57,7 @@ test.describe("the evidence drawer", () => {
     await expect(page.getByTestId("evidence-drawer")).toBeVisible();
   });
 
-  test("carries every technical datum the canvas gave up", async ({ page }) => {
+  test("carries every technical datum the canvas gave up", async ({ profiled: page }) => {
     await openReport(page);
     await page.getByTestId("show-work").click();
 
@@ -63,9 +70,7 @@ test.describe("the evidence drawer", () => {
     }
   });
 
-  test("states the planner fallback whether or not it happened", async ({
-    page,
-  }) => {
+  test("states the planner fallback whether or not it happened", async ({ profiled: page }) => {
     // "not reached" is information. Its absence is ambiguous, and a reader
     // cannot tell a run that did not fall back from a field nobody rendered.
     await openReport(page);
@@ -75,9 +80,7 @@ test.describe("the evidence drawer", () => {
     );
   });
 
-  test("names the cited cells that link a sentence to its number", async ({
-    page,
-  }) => {
+  test("names the cited cells that link a sentence to its number", async ({ profiled: page }) => {
     await openReport(page);
     await page.getByTestId("show-work").click();
     const drawer = page.getByTestId("evidence-drawer");
@@ -89,7 +92,7 @@ test.describe("the evidence drawer", () => {
 });
 
 test.describe("the evidence drawer's focus behaviour", () => {
-  test("moves focus into the drawer on open", async ({ page }) => {
+  test("moves focus into the drawer on open", async ({ profiled: page }) => {
     await openReport(page);
     await page.getByTestId("show-work").click();
 
@@ -100,7 +103,7 @@ test.describe("the evidence drawer's focus behaviour", () => {
     expect(inside, "focus did not enter the drawer").toBe(true);
   });
 
-  test("traps Tab inside the drawer", async ({ page }) => {
+  test("traps Tab inside the drawer", async ({ profiled: page }) => {
     await openReport(page);
     await page.getByTestId("show-work").click();
 
@@ -132,7 +135,7 @@ test.describe("the evidence drawer's focus behaviour", () => {
     }
   });
 
-  test("Escape closes it and returns focus to the trigger", async ({ page }) => {
+  test("Escape closes it and returns focus to the trigger", async ({ profiled: page }) => {
     await openReport(page);
     const trigger = page.getByTestId("show-work");
     await trigger.click();
@@ -144,9 +147,7 @@ test.describe("the evidence drawer's focus behaviour", () => {
     await expect(trigger).toBeFocused();
   });
 
-  test("the Close control also returns focus to the trigger", async ({
-    page,
-  }) => {
+  test("the Close control also returns focus to the trigger", async ({ profiled: page }) => {
     await openReport(page);
     const trigger = page.getByTestId("show-work");
     await trigger.click();
@@ -160,9 +161,7 @@ test.describe("the evidence drawer's focus behaviour", () => {
 });
 
 test.describe("the report canvas keeps nothing technical", () => {
-  test("no rail, no DAG, no stage cards, no resident activity panel", async ({
-    page,
-  }) => {
+  test("no rail, no DAG, no stage cards, no resident activity panel", async ({ profiled: page }) => {
     await openReport(page);
 
     for (const selector of [
@@ -184,7 +183,7 @@ test.describe("the report canvas keeps nothing technical", () => {
     }
   });
 
-  test("no heading appears twice", async ({ page }) => {
+  test("no heading appears twice", async ({ profiled: page }) => {
     // The old report rendered ANALYSIS twice: once for the finding chips
     // and once for the agent diagram.
     await openReport(page);

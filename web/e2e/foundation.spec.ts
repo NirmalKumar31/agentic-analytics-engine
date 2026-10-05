@@ -1,6 +1,6 @@
-import { expect, test } from "@playwright/test";
+import { expect, freshComposer, reportFor, test } from "./fixtures";
 
-import { ask, openApp, waitForReport } from "./helpers";
+import { openApp } from "./helpers";
 
 /**
  * The visual foundation, asserted from the rendered page.
@@ -29,17 +29,20 @@ test.describe("the application phase", () => {
   });
 
   test("advances as a dataset is opened and a question answered", async ({
-    page,
+    demo: page,
   }) => {
-    await openApp(page);
-    await page.getByRole("button", { name: /Commerce demo warehouse/ }).click();
+    // On the shared warehouse page, reset to the composer first: the
+    // transition this asserts is composer -> completed, and the dataset
+    // being open is the `ready_to_ask` half of it. The run is replayed,
+    // because a phase attribute is a property of the application's state
+    // machine rather than of the engine computing the answer again.
+    await freshComposer(page);
     await expect(page.locator("body")).toHaveAttribute(
       "data-phase",
       "ready_to_ask",
     );
 
-    await ask(page, "What is the total revenue by region?");
-    await waitForReport(page);
+    await reportFor(page, "What is the total revenue by region?");
     await expect(page.locator("body")).toHaveAttribute(
       "data-phase",
       "completed",
@@ -88,15 +91,16 @@ test.describe("motion restraint", () => {
     ).toBe("none");
   });
 
-  test("nothing moves under the pointer", async ({ page }) => {
+  test("nothing moves under the pointer", async ({ profiled: page }) => {
     // There are no `.panel` elements left on the report: the landing, the
     // composer and the report are all built without them. The claim is
     // unchanged -- hovering must not lift or shadow anything -- so it is
     // made against the report itself.
-    await openApp(page);
-    await page.getByRole("button", { name: /Commerce demo warehouse/ }).click();
-    await ask(page, "What is the total revenue by region?");
-    await waitForReport(page);
+    //
+    // On the shared session, replayed: what a surface does under the
+    // pointer is a property of the stylesheet, not of the run that put the
+    // surface there.
+    await reportFor(page, "What is the total revenue by region?");
 
     const panel = page.getByTestId("report-panel");
     await expect(panel).toBeVisible();

@@ -348,3 +348,32 @@
     --motion-ambient: 0s;
   }
 }
+
+/* Paper has no timeline.
+ *
+ * `print.css` already withdraws every animation and transition under
+ * `@media print`, and on Chromium that is enough: the switch to the print
+ * palette is applied, not animated. Firefox is not. Asked to print a page
+ * whose body carries `transition: background-color var(--motion-panel)`,
+ * it starts the transition anyway and the first frame of the printed sheet
+ * is `rgb(111, 114, 114)` -- exactly halfway between the dark canvas and
+ * white. Per the transitions spec the after-change style governs, and
+ * after the change there is no transition to run; Firefox consults the
+ * screen's.
+ *
+ * So the durations go to zero as well, which is the one lever that does
+ * not depend on which style an engine reads. A transition it insists on
+ * starting finishes in the same frame.
+ *
+ * This is belt and braces by design: `print.spec.ts` polls for the settled
+ * colour rather than sampling once, because a printed document must not
+ * depend on animation timing and an assertion about it must not either. */
+@media print {
+  :root {
+    --motion-feedback: 0s;
+    --motion-control: 0s;
+    --motion-panel: 0s;
+    --motion-sequence: 0s;
+    --motion-ambient: 0s;
+  }
+}

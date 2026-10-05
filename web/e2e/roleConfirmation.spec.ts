@@ -1,7 +1,9 @@
 import AxeBuilder from "@axe-core/playwright";
-import { expect, test, type Page, type Request } from "@playwright/test";
+import { type Page, type Request } from "@playwright/test";
 
-import { ask, inDrawer, openApp, suggestedQuestions, uploadFile, waitForReport } from "./helpers";
+import { expect, test } from "./fixtures";
+
+import { ask, closeCallCsv, endSession, inDrawer, openApp, suggestedQuestions, uploadFile, waitForReport, watchTraffic } from "./helpers";
 
 /**
  * Settling a role in a real browser.
@@ -21,15 +23,7 @@ import { ask, inDrawer, openApp, suggestedQuestions, uploadFile, waitForReport }
  * every group below costs exactly one upload.
  */
 
-/** A close call in the band where a code list and a count are identical. */
-function closeCallCsv(rows = 400): string {
-  const sites = ["alpha", "beta", "gamma", "delta"];
-  const lines = ["site,dose,reading"];
-  for (let i = 0; i < rows; i += 1) {
-    lines.push(`${sites[i % 4]},${(2.5 + i * 0.1).toFixed(2)},${18 + (i % 48)}`);
-  }
-  return lines.join("\n");
-}
+
 
 /** Hosts that would mean real money. Never contacted, and asserted so. */
 const PROVIDER_HOSTS = [
@@ -114,12 +108,19 @@ test.describe("settling a close call", () => {
 
   test.beforeAll(async ({ browser }) => {
     page = await browser.newPage();
+    watchTraffic(page);
     await openApp(page);
     seen = watchRequests(page);
     await uploadFile(page, "clinical.csv", closeCallCsv());
   });
 
   test.afterAll(async () => {
+    // The session, not just the page. Closing a browser context does not
+    // free a server-side upload session -- the server holds it until the
+    // capability deletes it or the TTL expires, and the TTL outlives a CI
+    // run. Three engines leaving their sessions behind is what exhausted
+    // the 24-session pool.
+    await endSession(page);
     await page.close();
   });
 
@@ -326,6 +327,7 @@ test.describe("what the engine then does with it", () => {
 
   test.beforeAll(async ({ browser }) => {
     page = await browser.newPage();
+    watchTraffic(page);
     await openApp(page);
     seen = watchRequests(page);
     await uploadFile(page, "clinical.csv", closeCallCsv());
@@ -340,6 +342,12 @@ test.describe("what the engine then does with it", () => {
   });
 
   test.afterAll(async () => {
+    // The session, not just the page. Closing a browser context does not
+    // free a server-side upload session -- the server holds it until the
+    // capability deletes it or the TTL expires, and the TTL outlives a CI
+    // run. Three engines leaving their sessions behind is what exhausted
+    // the 24-session pool.
+    await endSession(page);
     await page.close();
   });
 
@@ -406,6 +414,7 @@ test.describe("confirming the reading the engine already had", () => {
 
   test.beforeAll(async ({ browser }) => {
     page = await browser.newPage();
+    watchTraffic(page);
     await openApp(page);
     await uploadFile(page, "clinical.csv", closeCallCsv());
     await openInspector(page);
@@ -416,6 +425,12 @@ test.describe("confirming the reading the engine already had", () => {
   });
 
   test.afterAll(async () => {
+    // The session, not just the page. Closing a browser context does not
+    // free a server-side upload session -- the server holds it until the
+    // capability deletes it or the TTL expires, and the TTL outlives a CI
+    // run. Three engines leaving their sessions behind is what exhausted
+    // the 24-session pool.
+    await endSession(page);
     await page.close();
   });
 
@@ -443,6 +458,16 @@ test.describe("confirming the reading the engine already had", () => {
 // ------------------------------------------------------------- refusals
 
 test.describe("when the server refuses", () => {
+  /*
+   * Each of these tests uploads its own dataset -- they mutate the schema
+   * revision, so they cannot share one -- and a server-side upload session
+   * is not freed by the test ending. Three engines leaving theirs behind is
+   * what exhausted the 24-session pool.
+   */
+  test.afterEach(async ({ page }) => {
+    await endSession(page);
+  });
+
   test("a stale revision is recovered from, not papered over", async ({ page }) => {
     await openApp(page);
 
@@ -536,6 +561,16 @@ test.describe("when the server refuses", () => {
 // ------------------------------------------------------------ layout & axe
 
 test.describe("the control at every width", () => {
+  /*
+   * Each of these tests uploads its own dataset -- they mutate the schema
+   * revision, so they cannot share one -- and a server-side upload session
+   * is not freed by the test ending. Three engines leaving theirs behind is
+   * what exhausted the 24-session pool.
+   */
+  test.afterEach(async ({ page }) => {
+    await endSession(page);
+  });
+
   const widths = [
     { label: "phone", width: 360, height: 740 },
     { label: "tablet", width: 768, height: 1024 },
@@ -585,6 +620,16 @@ test.describe("the control at every width", () => {
 });
 
 test.describe("accessibility of the control", () => {
+  /*
+   * Each of these tests uploads its own dataset -- they mutate the schema
+   * revision, so they cannot share one -- and a server-side upload session
+   * is not freed by the test ending. Three engines leaving theirs behind is
+   * what exhausted the 24-session pool.
+   */
+  test.afterEach(async ({ page }) => {
+    await endSession(page);
+  });
+
   test("no serious or critical violations, offered or settled", async ({ page }) => {
     await openApp(page);
     await uploadFile(page, "clinical.csv", closeCallCsv());

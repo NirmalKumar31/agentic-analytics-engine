@@ -1,6 +1,8 @@
-import { expect, test, type Page } from "@playwright/test";
+import { type Page } from "@playwright/test";
 
-import { ask, canvasTestId, openApp, recordingButtons, uploadFile, waitForReport } from "./helpers";
+import { expect, reportFor, test } from "./fixtures";
+
+import { canvasTestId, openApp, recordingButtons, setTheme, waitForReport } from "./helpers";
 
 /**
  * The answer-first report, measured.
@@ -10,23 +12,10 @@ import { ask, canvasTestId, openApp, recordingButtons, uploadFile, waitForReport
  * to name the defect it guards.
  */
 
-/** 36 categories over 400 rows: a long table and a high-cardinality chart. */
-function wideCsv(rows = 400, groups = 36): string {
-  const lines = ["id,order_date,category,revenue"];
-  for (let i = 0; i < rows; i += 1) {
-    const month = String((i % 12) + 1).padStart(2, "0");
-    lines.push(
-      `${i},2025-${month}-15,cat_${String(i % groups).padStart(2, "0")},${(10 + ((i * 13) % 900)).toFixed(2)}`,
-    );
-  }
-  return lines.join("\n");
-}
-
 async function wideReport(page: Page) {
-  await openApp(page);
-  await uploadFile(page, "wide.csv", wideCsv());
-  await ask(page, "What is the total revenue by category?");
-  await waitForReport(page);
+  // The `wide` session: 36 categories over 400 rows. Every test here asks
+  // the same question of it, so one upload per engine serves them all.
+  await reportFor(page, "What is the total revenue by category?");
 }
 
 /**
@@ -75,7 +64,7 @@ function toHex(rgb: string): string {
 test.describe("the chart draws in the measured palette", () => {
   for (const theme of ["light", "dark"] as const) {
     test(`a single-series chart uses a --series token in ${theme}`, async ({
-      page,
+      wide: page,
     }) => {
       /*
        * The defect: `config.range.category` only applies where a *colour
@@ -86,10 +75,11 @@ test.describe("the chart draws in the measured palette", () => {
        * never reached.
        */
       await wideReport(page);
-      await page.evaluate(
-        (value) => document.documentElement.setAttribute("data-theme", value),
-        theme,
-      );
+      // The toggle, not `setAttribute`: writing the attribute directly
+      // leaves React's own theme state saying "light" while the document
+      // says "dark", and on a shared session the next reset then waits
+      // forever for a control that reads the other way round.
+      await setTheme(page, theme);
       // The chart re-renders from tokens on a theme change.
       await waitForPlot(page);
 
@@ -116,37 +106,17 @@ test.describe("the chart draws in the measured palette", () => {
   }
 });
 
-/** Two dimensions, so the chart carries a colour encoding. */
-function twoDimensionCsv(rows = 240): string {
-  const regions = ["North", "South", "East", "West"];
-  const channels = ["web", "retail", "partner"];
-  const lines = ["order_id,order_date,region,channel,revenue"];
-  for (let i = 0; i < rows; i += 1) {
-    const month = String((i % 12) + 1).padStart(2, "0");
-    lines.push(
-      `${i},2025-${month}-15,${regions[i % 4]},${channels[i % 3]},${(10 + ((i * 7) % 490)).toFixed(2)}`,
-    );
-  }
-  return lines.join("\n");
-}
-
 test.describe("a multi-series chart draws in the measured palette", () => {
   for (const theme of ["light", "dark"] as const) {
-    test(`every series comes from the ramp in ${theme}`, async ({ page }) => {
+    test(`every series comes from the ramp in ${theme}`, async ({ twoSeries: page }) => {
       /*
        * A single-series chart exercises `config.mark.color`; this exercises
        * `config.range.category`, which is a different code path and the only
        * one the original token work covered. Both had to be checked: the
        * first was broken precisely because the second looked right.
        */
-      await openApp(page);
-      await uploadFile(page, "multi.csv", twoDimensionCsv());
-      await ask(page, "What is the total revenue by region and channel?");
-      await waitForReport(page);
-      await page.evaluate(
-        (value) => document.documentElement.setAttribute("data-theme", value),
-        theme,
-      );
+      await reportFor(page, "What is the total revenue by region and channel?");
+      await setTheme(page, theme);
       await waitForPlot(page);
 
       const fills = await page.evaluate(() =>
@@ -177,7 +147,7 @@ test.describe("a multi-series chart draws in the measured palette", () => {
 
 test.describe("the report keeps the properties the old suite proved", () => {
   test("the table scrolls inside its own frame, not the page", async ({
-    page,
+    wide: page,
   }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await wideReport(page);
@@ -197,7 +167,7 @@ test.describe("the report keeps the properties the old suite proved", () => {
   });
 
   test("the chart fills the column it is given, at 36 groups", async ({
-    page,
+    wide: page,
   }) => {
     await page.setViewportSize({ width: 1440, height: 900 });
     await wideReport(page);
@@ -222,7 +192,7 @@ test.describe("the report keeps the properties the old suite proved", () => {
 test.describe("the answer leads, at phone widths", () => {
   for (const width of [360, 390]) {
     test(`the answer and its context are above the first break at ${width}`, async ({
-      page,
+      wide: page,
     }) => {
       await page.setViewportSize({ width, height: 740 });
       await wideReport(page);
@@ -250,7 +220,7 @@ test.describe("the answer leads, at phone widths", () => {
 
 test.describe("the report canvas is only what the brief allows", () => {
   test("the run timeline is not resident once the report exists", async ({
-    page,
+    wide: page,
   }) => {
     await wideReport(page);
     // It narrates a run in flight. Once the report exists the answer is the
@@ -264,7 +234,7 @@ test.describe("the report canvas is only what the brief allows", () => {
   });
 
   test("the drawer's timeline reports the run's own record, not the stream", async ({
-    page,
+    wide: page,
   }) => {
     /*
      * The live stream is what arrived; `run.events` is the engine's

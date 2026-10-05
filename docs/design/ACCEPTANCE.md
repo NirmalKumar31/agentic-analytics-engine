@@ -192,7 +192,48 @@ rendered artefact.
 | Writing D2's test | `PlanningAudit` called `humanize(contract.operation)` unguarded, and read `dimensions` and `filters` without a fallback. A contract missing any of them threw, React unmounted the subtree, and to a reader the evidence drawer closed itself — the same failure that once made the Compare drawer vanish on an unfinished strategy |
 | The failure-vocabulary test's own control | A failed run said "Nothing partial has been kept." unconditionally, above the chart, the two highlights and the four-row table its payload still carried. The page contradicted itself in the one state where a reader most needs to trust it. The claim is now made only when it is true |
 
-## 6. How to re-run this
+## 6. What is not implemented, stated plainly
+
+These are decisions, not omissions pending a fix. None of them should be
+described as finished.
+
+- **The landing's ambient contour drift** is not implemented. The field is
+  inert, which `foundation.spec.ts` asserts.
+- **The report shows no scale or unit line** (`revenue · thousands`). The
+  payload carries a measure and a value format but no scale, so a unit
+  would have to be inferred from magnitudes, and a unit inferred wrongly is
+  worse than none.
+- **Printed chart marks are outlined** for contrast, which meets WCAG
+  1.4.11 whatever the fill — but the *fills* keep whichever theme embedded
+  the chart, because Vega resolves `--series-*` at embed time and writes
+  them inline. Re-embedding on `beforeprint` does not work: it is
+  asynchronous and `page.pdf()` never fires the event.
+- **There is no "Cancel run" control**, because there is no backend
+  cancellation endpoint. A control that appeared to cancel and did not
+  would be worse than its absence.
+- **Five real-PDF tests are Chromium-only.** `page.pdf()` is a Chromium
+  API in Playwright. Firefox and WebKit each declare exactly those five
+  skips, counted by `scripts/check-playwright-skips.mjs`; everything else
+  print-related runs on all three engines through
+  `emulateMedia({ media: "print" })`.
+
+## 7. What the browser suite costs, and how that is known
+
+The three engines share one container's ceilings — 24 live upload sessions,
+200 uploads per IP per hour, 200 analyses per IP per hour — and the first
+push of this branch exhausted all three.
+
+Accounting is taken at the HTTP boundary: every billed `POST` is recorded on
+its way out with a sequence number and once on its way back with its status
+and its source, where "source" is decided by a response header the
+application has no code to write. An earlier scheme inferred it from a
+client-side marker that one spec left stale, which recorded real analyses as
+free replays and let the guard pass a job that was over budget. `e2e/UPLOADS.md`
+holds the measured figures, the justification for every admission that is
+still real, and the static rules that stop a billed request being issued by
+a path the recorder cannot see.
+
+## 8. How to re-run this
 
 ```
 # unit, including the stylesheet and print-model suites
@@ -201,11 +242,30 @@ npm run test
 # the built output
 npm run build && npm run check:bundle
 
-# one engine at a time, with the reconciling guard
-AAE_E2E_BROWSERS=chromium AAE_E2E_BASE_URL=<url> npx playwright test
-AAE_E2E_BROWSERS=chromium AAE_E2E_ALLOWED_SKIPS=0 node scripts/check-playwright-skips.mjs
+# a server with CI's exact ceilings, including the 24-session upload pool
+scripts/serve-e2e.sh 8125          # from the repository root
+
+# the guards' own self-tests, before anything that depends on them
+npm run check:guards
+
+# one engine at a time, through the single entry point: it runs Playwright,
+# the reconciling guard and this engine's resource budget, and it runs all
+# three whether or not Playwright passed
+export AAE_E2E_JOB_ID=local-$(date +%s)   # once, outside the loop
+rm -rf playwright-ledger                   # once, outside the loop
+AAE_E2E_BROWSERS=chromium AAE_E2E_ALLOWED_SKIPS=0 AAE_E2E_BASE_URL=<url> npm run test:e2e
 # firefox and webkit declare 5 skips: page.pdf() is Chromium-only
+
+# and the job-wide budget, after all three, because the ceilings are shared
+AAE_E2E_LEDGER_ENGINES=chromium,firefox,webkit \
+  node scripts/check-resource-budget.mjs --scope job
 ```
+
+The ledger is cleared **once**, before the first engine, and never between
+them: the three engines share one container's upload and analysis ceilings,
+so clearing it between them would make each engine look like the only one.
+`e2e/UPLOADS.md` holds the budget, the per-spec cost and the justification
+for every analysis that is still real.
 
 Review artefacts are written to `web/test-results/`: `review/` holds 40
 full-page screenshots (six widths × two themes for a real report, plus every

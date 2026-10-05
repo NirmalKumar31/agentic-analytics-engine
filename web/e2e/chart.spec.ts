@@ -1,6 +1,7 @@
-import { expect, test } from "@playwright/test";
+import { advertiseAi, compareWith, startCompare } from "./compareHelpers";
+import { expect, reportFor, test } from "./fixtures";
 
-import { ask, inDrawer, openApp, sampleCsv, suggestedQuestions, uploadFile, waitForCompare, waitForReport } from "./helpers";
+import { endSession, inDrawer, openApp, sampleCsv, uploadFile, waitForCompare } from "./helpers";
 
 /**
  * That the chart actually draws.
@@ -61,25 +62,19 @@ async function expectDrawnChart(page: import("@playwright/test").Page) {
 
 test.describe("a chart on an uploaded dataset", () => {
   test("draws the plot rather than reporting its own specification", async ({
-    page,
+    profiled: page,
   }) => {
-    await openApp(page);
-    await uploadFile(page, "charted.csv", sampleCsv());
-    await ask(page, "What is the total revenue by region?");
-    await waitForReport(page);
+    await reportFor(page, "What is the total revenue by region?");
 
     await expectDrawnChart(page);
     await expectNoChartFailure(page);
   });
 
-  test("the chart survives being printed", async ({ page }) => {
+  test("the chart survives being printed", async ({ profiled: page }) => {
     // The report offers "Print / Save PDF" as a first-class path, and the
     // PDF is the artefact a reader keeps. A chart that renders on screen
     // and vanishes on paper is the same loss.
-    await openApp(page);
-    await uploadFile(page, "printed.csv", sampleCsv());
-    await ask(page, "What is the total revenue by region?");
-    await waitForReport(page);
+    await reportFor(page, "What is the total revenue by region?");
     await expectDrawnChart(page);
 
     await page.emulateMedia({ media: "print" });
@@ -95,15 +90,12 @@ test.describe("a chart on an uploaded dataset", () => {
     await page.emulateMedia({ media: "screen" });
   });
 
-  test("draws a trend as a line, not just a bar chart", async ({ page }) => {
+  test("draws a trend as a line, not just a bar chart", async ({ profiled: page }) => {
     // The hydration walks encoding channels, so it is kind-agnostic -- but
     // a trend plots the engine's synthesised `period` column rather than a
     // column of the uploaded file, which is the one field name that could
     // fail to resolve against the result.
-    await openApp(page);
-    await uploadFile(page, "trend.csv", sampleCsv());
-    await ask(page, "Show the monthly trend of revenue");
-    await waitForReport(page);
+    await reportFor(page, "Show the monthly trend of revenue");
 
     await expectDrawnChart(page);
     await expectNoChartFailure(page);
@@ -119,14 +111,11 @@ test.describe("a chart on an uploaded dataset", () => {
   });
 
   test("a revenue axis reads at the same precision as the table", async ({
-    page,
+    profiled: page,
   }) => {
     // A total shown as 83,373,290.48 in the table and 83M on the axis
     // beside it reads as two different figures.
-    await openApp(page);
-    await uploadFile(page, "precision.csv", sampleCsv());
-    await ask(page, "What is the total revenue by region?");
-    await waitForReport(page);
+    await reportFor(page, "What is the total revenue by region?");
     await expectDrawnChart(page);
 
     const labels = await page
@@ -159,14 +148,18 @@ test.describe("the run timeline, on real runs", () => {
    * reading as stopped or not-reached.
    */
   test("a successful demo run shows no stage as stopped or unreached", async ({
-    page,
+    demo: page,
   }) => {
-    await openApp(page);
-    await page.getByRole("button", { name: /Commerce demo warehouse/ }).click();
-    await expect(page.getByTestId("composer")).toBeVisible();
-    await suggestedQuestions(page).first().click();
-    await page.getByRole("button", { name: "Run analysis" }).click();
-    await waitForReport(page);
+    /*
+     * The stages come from the engine's own event stream either way.
+     *
+     * `reportFor` admits the question once per job and replays the settled
+     * payload afterwards -- and that payload *is* a real run's, events
+     * included. What a replay cannot assert is the progression while it
+     * happens, which is `accessibility.spec.ts`'s "a run in flight" and
+     * `app.spec.ts`'s live demo run. This asserts the finished record.
+     */
+    await reportFor(page, "What is the total revenue by region?");
 
     await page.getByTestId("show-work").click();
     const timeline = inDrawer(page, "run-timeline");
@@ -176,11 +169,8 @@ test.describe("the run timeline, on real runs", () => {
     await expect(timeline).not.toContainText(/not reached/i);
   });
 
-  test("a successful uploaded run reaches publish", async ({ page }) => {
-    await openApp(page);
-    await uploadFile(page, "staged.csv", sampleCsv());
-    await ask(page, "What is the total revenue by region?");
-    await waitForReport(page);
+  test("a successful uploaded run reaches publish", async ({ profiled: page }) => {
+    await reportFor(page, "What is the total revenue by region?");
 
     await page.getByTestId("show-work").click();
     const timeline = inDrawer(page, "run-timeline");
@@ -196,71 +186,44 @@ test.describe("the run timeline, on real runs", () => {
 });
 
 test.describe("Compare Both, in a browser", () => {
-  /**
-   * Advertise AI so the selector offers Compare, then answer the
-   * comparison with one real deterministic run used for both sides.
-   *
-   * Pointing both panes at the same run is the honest way to reach the
-   * shared-result path with real engine data: identical contracts,
-   * identical values and identical withheld findings are exactly the
-   * conditions `shareOneResult` requires, and no model is called to
-   * manufacture them.
-   */
-  async function compareOverOneRun(page: import("@playwright/test").Page) {
-    await page.route("**/api/config", async (route) => {
-      const response = await route.fetch();
-      const body = await response.json();
-      body.capabilities.modes = body.capabilities.modes.map(
-        (m: { mode: string }) =>
-          m.mode === "ai"
-            ? { ...m, available: true, reason: "", message: "" }
-            : m,
-      );
-      body.capabilities.compare_available = true;
-      body.capabilities.ai_limits = {
-        runs_per_session: 3,
-        max_model_calls_per_run: 24,
-        max_runtime_seconds: 180,
-      };
-      await route.fulfill({ response, json: body });
-    });
+  // This describe opens its own session -- see the test below -- so it
+  // hands it back rather than leaving it for the container to time out.
+  test.afterEach(async ({ page }) => {
+    await endSession(page);
+  });
 
-    await page.route("**/api/comparisons", async (route) => {
-      const request = route.request().postDataJSON() as {
-        session_id: string;
-        question: string;
-      };
-      const started = await route.fetch({
-        url: new URL("/api/analyses", page.url()).toString(),
-        method: "POST",
-        postData: JSON.stringify({ ...request, mode: "deterministic" }),
-        headers: { "content-type": "application/json" },
-      });
-      const { run_id } = (await started.json()) as { run_id: string };
-      await route.fulfill({
-        status: 202,
-        json: {
-          comparison_id: "cmp_shared",
-          session_id: request.session_id,
-          question: request.question,
-          deterministic_run_id: run_id,
-          ai_run_id: run_id,
-        },
-      });
-    });
-  }
+  /*
+   * The Compare setup lives in `compareHelpers.ts`.
+   *
+   * This file kept its own copy: an `/api/config` override and an
+   * `/api/comparisons` handler that issued the real deterministic run with
+   * `route.fetch`. That request is invisible to the traffic recorder --
+   * `route.fetch` produces no page event -- so the analysis happened and
+   * nothing counted it. `compareWith` records it where it is made and
+   * remembers the settled payload, so the first comparison of a question
+   * in the whole job is real and every later one replays it.
+   */
 
   test("shows one result, with both planning lanes above it", async ({
     page,
   }) => {
-    await compareOverOneRun(page);
+    /*
+     * Its own page, not the shared session.
+     *
+     * `compareOverOneRun` answers `/api/config` so the selector offers
+     * Compare, and the application requests that config **as it mounts**.
+     * The shared `profiled` session was created at the start of the worker,
+     * long before any such route existed, so on it the Compare strategy is
+     * never offered and the click waits out the whole test timeout --
+     * which is how this failed on Firefox while passing on Chromium.
+     *
+     * `compareSetup.spec.ts` pins the ordering rule this follows.
+     */
+    await advertiseAi(page);
+    await compareWith(page, undefined, "compare-lanes.csv");
     await openApp(page);
-    await uploadFile(page, "shared.csv", sampleCsv());
-    await page.getByRole("radio", { name: /^Compare planning strategies/ }).click();
-    await page.getByLabel("Business question").fill(
-      "What is the total revenue by region?",
-    );
-    await page.getByRole("button", { name: /Compare strategies/ }).click();
+    await uploadFile(page, "compare-lanes.csv", sampleCsv());
+    await startCompare(page, "What is the total revenue by region?");
     // The comparison's anchor, not the single-run report's: Compare renders
     // compact panes and, under agreement, one shared result.
     await waitForCompare(page);
@@ -324,19 +287,22 @@ test.describe("every colour in a chart comes from the palette", () => {
   ];
 
   for (const theme of ["light", "dark"] as const) {
-    test(`in ${theme}`, async ({ page }) => {
-      await page.addInitScript((value) => {
-        try {
-          localStorage.setItem("aae-theme", value);
-        } catch {
-          /* private browsing; the attribute check below catches it */
-        }
-      }, theme);
+    test(`in ${theme}`, async ({ profiled: page }) => {
+      // Toggled, not seeded: `addInitScript` only takes effect on the next
+      // navigation, and a shared session is never navigated -- the dataset
+      // lives in React state and a reload would throw it away.
       await page.setViewportSize({ width: 1440, height: 900 });
-      await openApp(page);
-      await uploadFile(page, `palette-${theme}.csv`, sampleCsv());
-      await ask(page, "What is the total revenue by region?");
-      await waitForReport(page);
+      /*
+       * Replayed, with the theme applied before the chart is drawn.
+       *
+       * The claim is about which colours a chart uses, not about the
+       * engine producing one: the same captured payload embeds under
+       * either palette, and `reportFor` sets the theme before the report
+       * renders because Vega writes `--series-*` inline at embed time. Two
+       * admissions for one question in two themes was two admissions for
+       * nothing.
+       */
+      await reportFor(page, "What is the total revenue by region?", { theme });
       await expect(page.locator("html")).toHaveAttribute("data-theme", theme);
       await expectDrawnChart(page);
 
@@ -406,12 +372,9 @@ test.describe("the chart's category labels", () => {
     });
   }
 
-  test("four short categories are not printed on their sides", async ({ page }) => {
+  test("four short categories are not printed on their sides", async ({ profiled: page }) => {
     await page.setViewportSize({ width: 1440, height: 900 });
-    await openApp(page);
-    await uploadFile(page, "labels.csv", sampleCsv());
-    await ask(page, "What is the total revenue by region?");
-    await waitForReport(page);
+    await reportFor(page, "What is the total revenue by region?");
     await expectDrawnChart(page);
 
     const labels = await labelRotations(page);
@@ -426,16 +389,16 @@ test.describe("the chart's category labels", () => {
   });
 
   test("and a crowded axis keeps every label rather than dropping any", async ({
-    page,
+    wide: page,
   }) => {
     // The opposite failure. Flat labels on a wide axis collide, and Vega
     // resolves a collision by removing labels -- a chart that silently
     // loses most of its axis is worse than one read at an angle.
+    // The `wide` session: 36 categories, which is the crowded axis this
+    // test is about. It replaced a 400-row upload of the ordinary sample
+    // made for this one assertion.
     await page.setViewportSize({ width: 1440, height: 900 });
-    await openApp(page);
-    await uploadFile(page, "labels-wide.csv", sampleCsv(400));
-    await ask(page, "What is the total revenue by order_date?");
-    await waitForReport(page);
+    await reportFor(page, "What is the total revenue by category?");
 
     const chart = page.locator(".chart-host svg");
     if ((await chart.count()) === 0) return;

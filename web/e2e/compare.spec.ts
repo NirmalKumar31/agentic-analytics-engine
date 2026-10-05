@@ -1,6 +1,8 @@
-import { expect, test } from "@playwright/test";
+import { type Page } from "@playwright/test";
 
-import { openApp, sampleCsv, uploadFile } from "./helpers";
+import { closeAnySheet, expect, test as base } from "./fixtures";
+
+import { endSession, openApp, sampleCsv, uploadFile } from "./helpers";
 import {
   advertiseAi,
   compareWith,
@@ -29,6 +31,55 @@ import {
  * Nothing here contacts a provider: the suite refuses to start unless
  * `/api/health` reports `provider_mode=fake`.
  */
+
+/**
+ * One Compare-capable session for the whole file.
+ *
+ * Compare needs two things an ordinary session does not: `/api/config`
+ * answered with AI advertised, which has to be routed *before* the app
+ * loads its config, and an uploaded dataset for the tests that are about
+ * upload semantics. Both are worker-scoped here, so the eight uploads this
+ * file used to make are one.
+ *
+ * `compareWith` stays per test: it closes over the run it mirrors and the
+ * payload it returns, which is the thing each scenario varies. Each test
+ * installs it and `afterEach` takes it off again, because a route left
+ * behind on a shared page answers the next test's comparison with the
+ * previous test's result.
+ */
+const test = base.extend<object, { comparable: Page }>({
+  comparable: [
+    async ({ browser }, use) => {
+      const project = base.info().project.name;
+      const context = await browser.newContext();
+      const page = await context.newPage();
+      await advertiseAi(page);
+      await openApp(page);
+      await uploadFile(page, "compare.csv", sampleCsv());
+      await use(page);
+      await endSession(page, project);
+      try {
+        await context.close();
+      } catch {
+        // Disposed with the worker's browser; the close above is the one
+        // that returns the session to the server.
+      }
+    },
+    { scope: "worker" },
+  ],
+});
+
+/** Back to the composer, with no route left over from the last scenario. */
+async function resetCompare(page: Page): Promise<void> {
+  await closeAnySheet(page);
+  await page.unroute("**/api/comparisons");
+  await page.unroute(`**/api/analyses/**`);
+  const startOver = page.getByRole("button", { name: "Start over" });
+  if ((await startOver.count()) > 0) {
+    await startOver.first().click({ timeout: 15_000 });
+  }
+  await expect(page.getByTestId("composer")).toBeVisible({ timeout: 20_000 });
+}
 
 test.describe("Compare over the demo warehouse", () => {
   test("converges on one shared answer when the strategies agree", async ({
@@ -78,16 +129,17 @@ test.describe("Compare over the demo warehouse", () => {
 });
 
 test.describe("Compare over an uploaded dataset", () => {
-  test.beforeEach(async ({ page }) => {
-    await advertiseAi(page);
-    await openApp(page);
-    await uploadFile(page, "compare.csv", sampleCsv());
+  test.beforeEach(async ({ comparable }) => {
+    await resetCompare(comparable);
+  });
+  test.afterEach(async ({ comparable }) => {
+    await resetCompare(comparable);
   });
 
   test("shows one answer, one chart and one table when they agree", async ({
-    page,
+    comparable: page,
   }) => {
-    await compareWith(page);
+    await compareWith(page, undefined, "compare.csv");
     await startCompare(page, "What is the total revenue by region?");
 
     const shared = page.getByTestId("shared-result");
@@ -107,7 +159,7 @@ test.describe("Compare over an uploaded dataset", () => {
   });
 
   test("puts the structured difference before either detailed report", async ({
-    page,
+    comparable: page,
   }) => {
     // The same question, planned two ways: one groups by region, the other
     // by region then channel.
@@ -123,7 +175,7 @@ test.describe("Compare over an uploaded dataset", () => {
         },
       };
       return { ...payload, query_contract: changed };
-    });
+    }, "compare.csv");
     await startCompare(page, "What is the total revenue by region?");
 
     const divergence = page.getByTestId("divergence");
@@ -151,7 +203,7 @@ test.describe("Compare over an uploaded dataset", () => {
     expect(order, "the difference must come before the two reports").toBe(true);
   });
 
-  test("keeps two results when the outputs differ", async ({ page }) => {
+  test("keeps two results when the outputs differ", async ({ comparable: page }) => {
     // Identical contracts, different numbers. That is an engine defect and
     // the page must say so rather than invite the reader to pick one.
     await compareWith(page, (payload) => {
@@ -163,7 +215,7 @@ test.describe("Compare over an uploaded dataset", () => {
           text: `${String(finding.text)} (adjusted)`,
         })),
       };
-    });
+    }, "compare.csv");
     await startCompare(page, "What is the total revenue by region?");
     // Settled first. The claim is about two *finished* runs that disagree,
     // and both assertions below are also true of a run still in flight --
@@ -175,7 +227,7 @@ test.describe("Compare over an uploaded dataset", () => {
     expect(await page.locator(".compare-pane").count()).toBe(2);
   });
 
-  test("keeps the finished side when the other refuses", async ({ page }) => {
+  test("keeps the finished side when the other refuses", async ({ comparable: page }) => {
     // A result on hand is not withheld because its counterpart is missing.
     await compareWith(page, (payload) => ({
       ...payload,
@@ -183,7 +235,7 @@ test.describe("Compare over an uploaded dataset", () => {
       outcome: "refused",
       stopped_reason: "the question could not be mapped safely",
       findings: [],
-    }));
+    }), "compare.csv");
     await startCompare(page, "What is the total revenue by region?");
 
     // The refusal's reason is on screen, not only in the trace.
@@ -203,16 +255,17 @@ test.describe("Compare over an uploaded dataset", () => {
 });
 
 test.describe("the Compare evidence drawer", () => {
-  test.beforeEach(async ({ page }) => {
-    await advertiseAi(page);
-    await compareWith(page);
-    await openApp(page);
-    await uploadFile(page, "compare-evidence.csv", sampleCsv());
-    await startCompare(page, "What is the total revenue by region?");
-    await settle(page);
+  test.beforeEach(async ({ comparable }) => {
+    await resetCompare(comparable);
+    await compareWith(comparable, undefined, "compare.csv");
+    await startCompare(comparable, "What is the total revenue by region?");
+    await settle(comparable);
+  });
+  test.afterEach(async ({ comparable }) => {
+    await resetCompare(comparable);
   });
 
-  test("is one control, with a tab per strategy", async ({ page }) => {
+  test("is one control, with a tab per strategy", async ({ comparable: page }) => {
     // Two persistent evidence buttons implied two destinations and made
     // the reader pick a side before reading anything.
     await expect(page.getByTestId("inspect-both-traces")).toHaveCount(1);
@@ -231,7 +284,7 @@ test.describe("the Compare evidence drawer", () => {
   });
 
   test("switching tabs changes the panel and issues no request", async ({
-    page,
+    comparable: page,
   }) => {
     const requests: string[] = [];
     page.on("request", (request) => {
@@ -262,7 +315,7 @@ test.describe("the Compare evidence drawer", () => {
     ).toEqual([]);
   });
 
-  test("the tablist is operable with the arrow keys", async ({ page }) => {
+  test("the tablist is operable with the arrow keys", async ({ comparable: page }) => {
     await page.getByTestId("inspect-both-traces").click();
     const drawer = page.getByTestId("compare-evidence-drawer");
     const tabs = drawer.getByRole("tab");
@@ -273,7 +326,7 @@ test.describe("the Compare evidence drawer", () => {
     await expect(tabs.nth(0)).toHaveAttribute("aria-selected", "true");
   });
 
-  test("both traces carry the full evidence record", async ({ page }) => {
+  test("both traces carry the full evidence record", async ({ comparable: page }) => {
     await page.getByTestId("inspect-both-traces").click();
     const drawer = page.getByTestId("compare-evidence-drawer");
 

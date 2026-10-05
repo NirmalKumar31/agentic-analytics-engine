@@ -198,6 +198,15 @@ describe("rules stay in the module that owns their place in the cascade", () => 
      * Six, in cascade order:
      *   foundation.css  the printed *page* -- size, margins, colour-adjust,
      *                   and the white palette every later block assumes.
+     *   tokens.css      the motion durations, set to zero. It is first in
+     *                   the cascade because tokens are inputs, and this
+     *                   block declares nothing a later module could want
+     *                   to override: `print.css` withdraws every
+     *                   transition outright, and this is what stops an
+     *                   engine starting one anyway from the screen's
+     *                   duration. Firefox does, and the first frame of a
+     *                   printed sheet was the midpoint between the dark
+     *                   canvas and white.
      *   landing.css     the landing's own controls, which paper cannot use.
      *   composer.css    the composer and the side sheet, both screen-only.
      *   timeline.css    the run timeline, which is a record of a run in
@@ -216,6 +225,7 @@ describe("rules stay in the module that owns their place in the cascade", () => 
      * file, because it cannot be undone by appending to `states.css`.
      */
     const PRINTS = [
+      "styles/tokens.css",
       "styles/foundation.css",
       "styles/landing.css",
       "styles/composer.css",

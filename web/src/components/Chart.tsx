@@ -228,7 +228,7 @@ export function Chart({ chart, snapshot, onOpenProvenance }: Props) {
     <figure className="chart-card" style={{ margin: 0 }}>
       {/*
         A caption, not a heading.
-        
+
         It was an `<h4>` in a document whose headings run h1, h2 -- a skipped
         level, and a heading for something that is a figure rather than a
         section. `<figcaption>` says what it is and keeps it out of the

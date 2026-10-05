@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, test } from "./fixtures";
 
 import { openApp } from "./helpers";
 
@@ -79,23 +79,46 @@ test.describe("the landing's hierarchy", () => {
   }) => {
     await openApp(page);
 
-    const sizes = await page.evaluate(() => {
-      const display = parseFloat(
-        getComputedStyle(
-          document.querySelector('[data-testid="landing-headline"]')!,
-        ).fontSize,
-      );
-      const others = [...document.querySelectorAll("body *")]
-        .filter(
-          (el) => !el.matches('[data-testid="landing-headline"]'),
-        )
-        .filter((el) => (el.textContent ?? "").trim().length > 0)
-        .map((el) => parseFloat(getComputedStyle(el).fontSize))
-        .filter((px) => Number.isFinite(px));
-      return { display, largestOther: Math.max(...others) };
-    });
+    /*
+     * Polled, not sampled once.
+     *
+     * `openApp` waits for the application shell, which is React having
+     * mounted -- not for the stylesheet to have been applied. Measured in
+     * that window the headline reports the user-agent's 16px and the
+     * assertion fails on a page that is perfectly correct a frame later.
+     * It held under a single-spec run and failed once in a full suite,
+     * where the machine is busier; the claim is unchanged, the moment it
+     * is read is not.
+     */
+    const measure = () =>
+      page.evaluate(() => {
+        const headline = document.querySelector(
+          '[data-testid="landing-headline"]',
+        );
+        if (!headline) return null;
+        const display = parseFloat(getComputedStyle(headline).fontSize);
+        const others = [...document.querySelectorAll("body *")]
+          .filter((el) => !el.matches('[data-testid="landing-headline"]'))
+          .filter((el) => (el.textContent ?? "").trim().length > 0)
+          .map((el) => parseFloat(getComputedStyle(el).fontSize))
+          .filter((px) => Number.isFinite(px));
+        return { display, largestOther: Math.max(...others) };
+      });
 
-    expect(sizes.largestOther).toBeLessThan(sizes.display);
+    await expect
+      .poll(async () => {
+        const sizes = await measure();
+        return sizes === null ? null : sizes.largestOther < sizes.display;
+      }, {
+        timeout: 10_000,
+        message: "something on the landing is set at or above display scale",
+      })
+      .toBe(true);
+
+    // And the sizes themselves, so a failure says what they were.
+    const sizes = await measure();
+    expect(sizes, "the landing headline is not in the document").not.toBeNull();
+    expect(sizes!.largestOther).toBeLessThan(sizes!.display);
   });
 
   test("the retired chrome is gone, not hidden", async ({ page }) => {
