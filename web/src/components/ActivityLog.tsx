@@ -88,11 +88,32 @@ export function ActivityLog({ events, trace, showTrace, onToggleTrace, running }
         }
         break
       case 'mcp_tool_failed':
+        /*
+         * A call the engine refused is not a tool that failed.
+         *
+         * `preflight` checks a proposed call against the tool's real
+         * signature before anything crosses MCP, and refuses it there --
+         * so an unsupported argument never reaches the tool at all. The
+         * trace said "Analyze Timeseries failed: analyze_timeseries does
+         * not accept 'dimensions'", which reads as the analysis breaking
+         * when what happened is the engine declining to make a call it
+         * knew was wrong. The event already carries `preflight`; only the
+         * wording ignored it.
+         *
+         * The distinction matters to a reader deciding whether to trust
+         * the run: a refused call is a guardrail working, and a tool
+         * failure is not.
+         */
         lines.push({
           key: event.event_id,
           tone: 'failed',
           agent: agentLabel(String(data.agent ?? 'Analysis Agent')),
-          detail: (
+          detail: data.preflight ? (
+            <>
+              → {toolLabel(String(data.tool_name))} was not called:{' '}
+              {String(data.error ?? '').slice(0, 120)}
+            </>
+          ) : (
             <>
               → {toolLabel(String(data.tool_name))} failed:{' '}
               {String(data.error ?? '').slice(0, 120)}

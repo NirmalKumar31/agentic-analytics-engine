@@ -69,6 +69,19 @@ class RunResult:
     #: not claim support; it answers whether the executed shape preserved
     #: every component the question fixed.
     question_coverage: QuestionCoverage | None = None
+    #: What the planner understood the question to be asking.
+    #:
+    #: A contract is only accepted for uploaded data, so a run over the
+    #: governed warehouse has none -- and everything that reads intent from
+    #: `query_contract` was blind on exactly the path the public deployment
+    #: uses. Compare then had nothing to compare and reported two absent
+    #: contracts as identical, and the report had no way to tell whether a
+    #: published finding answered the question or merely came first.
+    #:
+    #: This is that intent, recorded as the planner stated it: the analysis
+    #: type, the metrics and groupings the question named, the period it
+    #: fixed, and what it had to leave ambiguous.
+    planner_interpretation: dict[str, Any] | None = None
     #: Stage durations in milliseconds. Exposed so the UI can say where the
     #: time went instead of implying the model computed the answer.
     timings: dict[str, float] = field(default_factory=dict)
@@ -127,6 +140,7 @@ class RunResult:
             "question_coverage": (
                 self.question_coverage.model_dump() if self.question_coverage else None
             ),
+            "planner_interpretation": self.planner_interpretation,
             "timings": dict(self.timings),
             "chart_decision": dict(self.chart_decision),
             "presentation": (
@@ -234,6 +248,33 @@ def _outcome_from_reason(reason: str) -> RunOutcome:
         if needle in lowered:
             return outcome
     return "failed"
+
+
+def _planner_interpretation(analysis: Any | None) -> dict[str, Any] | None:
+    """What the planner read the question as, as a first-class record.
+
+    Everything downstream that wanted to know what was asked read it from
+    `query_contract`, and a contract is only accepted for uploaded data --
+    so on the governed warehouse, which is what the public deployment
+    serves, there was nothing to read. Compare reported two absent
+    contracts as identical, and the report could not tell a finding that
+    answered the question from one that merely came first.
+
+    Only the fields the planner actually stated. `ambiguous` is recorded as
+    a flag as well as its reasons, so a reader of the payload does not have
+    to infer intent from the length of a list.
+    """
+    if analysis is None:
+        return None
+    ambiguities = [str(note) for note in getattr(analysis, "ambiguities", []) or []]
+    return {
+        "analysis_type": getattr(analysis, "analysis_type", None),
+        "metrics": [str(m) for m in getattr(analysis, "target_metrics", []) or []],
+        "dimensions": [str(d) for d in getattr(analysis, "dimensions", []) or []],
+        "period": getattr(analysis, "time_scope", None),
+        "ambiguous": bool(ambiguities),
+        "ambiguities": ambiguities,
+    }
 
 
 def _question_coverage(
@@ -523,6 +564,7 @@ async def run_analysis(
             state.get("query_mapping"),
             state.get("stopped_reason", ""),
         ),
+        planner_interpretation=_planner_interpretation(state.get("analysis")),
         timings=dict(state.get("timings") or {}),
         chart_decision=dict(state.get("chart_decision") or {}),
         schema_revision=schema_revision,

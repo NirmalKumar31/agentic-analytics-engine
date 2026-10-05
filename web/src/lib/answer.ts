@@ -9,7 +9,12 @@
  * provenance after it rather than before.
  */
 
-import type { Finding, QueryContract, ResultSnapshot } from "./types";
+import type {
+  Finding,
+  PlannerInterpretation,
+  QueryContract,
+  ResultSnapshot,
+} from "./types";
 
 /** The tools that execute an accepted query contract. */
 const CONTRACT_TOOLS = new Set(["aggregate_for_question", "compute_metric"]);
@@ -33,6 +38,117 @@ export function directAnswer(
     }
   }
   return null;
+}
+
+/**
+ * How well a published finding answers what was actually asked.
+ *
+ * `directAnswer` only recognises a finding that cites a result produced by
+ * a tool executing an accepted contract, and a contract is only accepted
+ * for uploaded data. On the governed warehouse it therefore always
+ * declines, and the headline fell back to `findings[0]` -- the planner's
+ * own first finding, which makes task ordering into editorial ranking.
+ *
+ * A live run showed what that costs. Asked "Which customer segments are
+ * driving the increase in return rate?", the report led with a finding
+ * about `refund_amount` over two months, while the finding that compared
+ * `return_rate` across `customer_segment` -- the question, answered,
+ * verified and published -- sat second.
+ *
+ * So findings are scored against the components the planner says the
+ * question fixed. The metric is weighted above the grouping because a
+ * finding about the wrong measure cannot answer the question at all,
+ * whereas one about the right measure without the grouping is at least
+ * about the right thing.
+ */
+function scoreAgainstInterpretation(
+  finding: Finding,
+  results: Record<string, ResultSnapshot>,
+  interpretation: PlannerInterpretation,
+): number {
+  const haystack = new Set<string>();
+  for (const id of finding.result_ids) {
+    const snapshot = results[id];
+    if (!snapshot) continue;
+    for (const column of snapshot.columns) haystack.add(column.toLowerCase());
+    // The parameters a task was dispatched with name the metric even when
+    // the result's columns rename it.
+    for (const value of Object.values(snapshot.parameters ?? {})) {
+      if (typeof value === "string") haystack.add(value.toLowerCase());
+      else if (Array.isArray(value)) {
+        for (const item of value) {
+          if (typeof item === "string") haystack.add(item.toLowerCase());
+        }
+      }
+    }
+  }
+
+  let score = 0;
+  const metrics = interpretation.metrics ?? [];
+  const dimensions = interpretation.dimensions ?? [];
+  if (metrics.length > 0 && metrics.some((m) => haystack.has(m.toLowerCase()))) {
+    score += 4;
+  }
+  if (dimensions.length > 0 && dimensions.some((d) => haystack.has(d.toLowerCase()))) {
+    score += 2;
+  }
+  return score;
+}
+
+/** Whether a finding is about the measure the question named. */
+function matchesRequestedMetric(
+  finding: Finding,
+  results: Record<string, ResultSnapshot>,
+  interpretation: PlannerInterpretation,
+): boolean {
+  const metrics = interpretation.metrics ?? [];
+  if (metrics.length === 0) return true;
+  return scoreAgainstInterpretation(finding, results, interpretation) >= 4;
+}
+
+/**
+ * The finding that leads the report.
+ *
+ * In order of authority: a finding citing the accepted contract's own
+ * result; then the best match against what the planner says was asked;
+ * then nothing. The last case is deliberate -- `onTopic: false` means no
+ * published finding was about the measure the question named, and saying
+ * so is better than promoting an unrelated fact to the headline.
+ *
+ * It does not reproduce the earlier failure where a strict rule printed
+ * "no published finding answered this question" above three verified
+ * statements: that rule declined whenever the contract tool was absent,
+ * which on the warehouse is always. This one declines only when the
+ * requested measure appears in no published finding at all.
+ */
+export function rankedAnswer(
+  findings: Finding[],
+  results: Record<string, ResultSnapshot>,
+  interpretation: PlannerInterpretation | null | undefined,
+): { finding: Finding | null; onTopic: boolean } {
+  const contractAnswer = directAnswer(findings, results);
+  if (contractAnswer) return { finding: contractAnswer, onTopic: true };
+  if (findings.length === 0) return { finding: null, onTopic: false };
+
+  if (!interpretation || (interpretation.metrics ?? []).length === 0) {
+    // Nothing to rank against. The engine's own first finding leads, as
+    // before -- this is not worse than it was, it is just not better.
+    return { finding: findings[0] ?? null, onTopic: true };
+  }
+
+  const ranked = [...findings]
+    .map((finding) => ({
+      finding,
+      score: scoreAgainstInterpretation(finding, results, interpretation),
+    }))
+    // Stable: equal scores keep the engine's order.
+    .sort((a, b) => b.score - a.score);
+
+  const best = ranked[0]?.finding ?? null;
+  return {
+    finding: best,
+    onTopic: best ? matchesRequestedMetric(best, results, interpretation) : false,
+  };
 }
 
 /** The result a finding was computed from, if this run still holds it. */

@@ -26,7 +26,7 @@ import { terminalPresentation } from "./terminalReport";
 import {
   answerResult,
   coverageScope,
-  directAnswer,
+  rankedAnswer,
   isComplete,
   observationsUsed,
   populationClauses,
@@ -35,6 +35,7 @@ import {
 import type { RunState } from "./runState";
 import type { RunPayload } from "./types";
 import type {
+  PlannerInterpretation,
   AnalysisPresentation,
   ChartSpec,
   DisplayField,
@@ -194,6 +195,7 @@ function fromFindings({
   charts,
   results,
   queryContract,
+  plannerInterpretation,
 }: {
   report: Report | null;
   findings: Finding[];
@@ -201,19 +203,29 @@ function fromFindings({
   charts: ChartSpec[];
   results: Record<string, ResultSnapshot>;
   queryContract: QueryContract | null;
+  plannerInterpretation?: PlannerInterpretation | null;
 }): ReportModel {
   /*
-   * `directAnswer` is strict: it wants a finding that answers the question
-   * as asked. On a real trend question over the demo warehouse it returned
-   * nothing while three supported findings existed, so the display headline
-   * read "No published finding answered this question directly" above three
-   * verified statements. That is a worse lie than the one it is avoiding.
+   * Ranked against what was asked, not taken from the top of the list.
    *
-   * When it declines, the first published finding leads. It is the engine's
-   * own first key finding, in its own words -- not a synthesis, and not a
-   * claim about whether it answers the question.
+   * `directAnswer` only recognises a finding citing a result produced by a
+   * tool that executed an accepted contract, and a contract is only
+   * accepted for uploaded data -- so on the governed warehouse it always
+   * declines and `findings[0]` used to lead. That makes the planner's task
+   * ordering into editorial ranking, and a live run showed the cost: a
+   * report answering "which customer segments are driving the increase in
+   * return rate?" led with a finding about refund amounts while the
+   * verified segment comparison sat second.
+   *
+   * `rankedAnswer` scores published findings against the metrics and
+   * groupings the planner recorded. It is not the strict rule that was
+   * tried before -- that one printed "no published finding answered this
+   * question directly" above three verified statements, because it
+   * declined whenever the contract tool was absent. This one declines only
+   * when the measure the question named appears in no published finding.
    */
-  const answer = directAnswer(findings, results) ?? findings[0] ?? null;
+  const ranked = rankedAnswer(findings, results, plannerInterpretation);
+  const answer = ranked.finding;
   const answerSnapshot = answerResult(answer, results);
   const rows = rowsInScope(answerSnapshot);
   const observations = observationsUsed(answerSnapshot);
@@ -243,7 +255,19 @@ function fromFindings({
   );
 
   return {
-    eyebrow: answer ? null : "Not answered",
+    /*
+     * The eyebrow says when the headline is not an answer.
+     *
+     * `Not answered` is for a report with no published finding at all.
+     * `Not a direct answer` is the weaker, more common case: findings were
+     * published and verified, but none of them is about the measure the
+     * question named. Promoting one of those silently is what put a
+     * refund trend at the top of a report about customer segments.
+     *
+     * The finding is still shown. Withholding a verified fact because it
+     * is off-topic would be a second mistake; labelling it is the point.
+     */
+    eyebrow: answer ? (ranked.onTopic ? null : "Not a direct answer") : "Not answered",
     answer:
       answer?.text ?? "No verified finding answered the requested analysis.",
     context: context || null,
@@ -299,6 +323,9 @@ export function reportModel(input: {
         charts: input.charts,
         results: input.results,
         queryContract: input.queryContract,
+        // The planner's own record of what was asked. Present on the
+        // governed-warehouse path, where no contract is accepted.
+        plannerInterpretation: input.run?.planner_interpretation ?? null,
       });
 
   /*

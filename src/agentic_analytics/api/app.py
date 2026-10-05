@@ -233,7 +233,20 @@ DEMO_QUESTIONS: list[dict[str, str]] = [
     },
     {
         "id": "returns",
-        "question": "Which customer segments are driving the increase in return rate?",
+        # Reworded, because the old wording did not mean one thing.
+        #
+        # "Which customer segments are driving the increase in return rate?"
+        # names no baseline and no comparison window, and "driving" has two
+        # readings that give different answers: the groups whose own rate
+        # rose most, and the groups that contributed most to the overall
+        # change through their rate *and* their share. A suggested question
+        # is a promise about what the engine will do, and that one could not
+        # keep it -- it is kept in `tests/unit/test_question_intent.py` as
+        # the case that must surface its own ambiguity instead.
+        "question": (
+            "Which customer segment has the highest return rate, and are the "
+            "differences statistically significant?"
+        ),
         "why": "Segmentation with a chi-square test of independence.",
     },
     {

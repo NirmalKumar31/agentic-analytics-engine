@@ -33,7 +33,12 @@
 import { useState } from "react";
 
 import { compareRuns } from "../lib/comparison";
-import { COMPARED_FIELD_COUNT } from "../lib/contractDiff";
+import {
+  COMPARED_FIELD_COUNT,
+  COMPARISON_LABEL,
+  contractComparison,
+  type ComparisonState,
+} from "../lib/contractDiff";
 import { runState } from "../lib/runState";
 import { opensSheet } from "./SideSheet";
 import { CompareEvidenceDrawer } from "./CompareEvidenceDrawer";
@@ -104,25 +109,45 @@ export function CompareWorkspace({
   const comparable = Boolean(deterministic.run && ai.run);
   const differences = comparison.differences;
 
-  // Four facts, in the order the composition states them.
+  /*
+   * Four facts, in the order the composition states them.
+   *
+   * `contracts` and `coverage` each have four states rather than two,
+   * because an absence is not an agreement. Both of these used to collapse
+   * to "identical" whenever there was nothing to compare: a run where each
+   * pane's own appendix read "no contract was accepted" and "coverage not
+   * recorded for this run" was summarised above them as
+   * `contracts: identical · coverage: identical`. The report contradicted
+   * itself on one page, and the summary was the part that was wrong.
+   */
+  const contractState = contractComparison(
+    deterministic.run?.query_contract,
+    ai.run?.query_contract,
+    { bothRan: comparable },
+  );
+  const coverageState: ComparisonState = !comparable
+    ? "not_comparable"
+    : !deterministic.run?.question_coverage || !ai.run?.question_coverage
+      ? "not_recorded"
+      : comparison.verdict === "agree_but_incomplete"
+        ? "different"
+        : "identical";
+
   const facts: Array<{ term: string; value: string; warn: boolean }> = [
     {
       term: "contracts",
-      value: !comparable
-        ? "not comparable"
-        : differences.length > 0
-          ? "differ"
-          : "identical",
-      warn: differences.length > 0,
+      value: COMPARISON_LABEL[contractState],
+      // `not_recorded` is flagged too: a comparison nobody can make is a
+      // thing the reader has to know, not a quiet dash.
+      warn: contractState === "different" || contractState === "not_recorded",
     },
     {
       term: "coverage",
-      value: !comparable
-        ? "—"
-        : comparison.verdict === "agree_but_incomplete"
+      value:
+        coverageState === "different"
           ? "incomplete on both"
-          : "identical",
-      warn: comparison.verdict === "agree_but_incomplete",
+          : COMPARISON_LABEL[coverageState],
+      warn: coverageState === "different" || coverageState === "not_recorded",
     },
     {
       term: "output",
