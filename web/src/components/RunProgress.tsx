@@ -1,54 +1,36 @@
-import { ActivityLog } from "./ActivityLog";
-import { ExecutionFlow } from "./ExecutionFlow";
-import { ExecutionLane } from "./ExecutionLanes";
-import type { RecordingSummary, RunEvent, RunPayload, UiMode } from "../lib/types";
+/**
+ * What a run is doing while it runs.
+ *
+ * Three things used to be here, inside a `<section class="panel">` headed
+ * **ANALYSIS**: a static agent DAG, a STAGES card list, and the activity
+ * log. The DAG drew the same boxes and arrows for every run and was on
+ * screen before anything had happened; the stage cards restated the same
+ * five steps a third time, after the stepper and the DAG had each already
+ * said them.
+ *
+ * One timeline now, derived from backend events only. The activity log is
+ * the per-call record -- different information, and technical -- so it
+ * moved into the evidence drawer with everything else the canvas gave up.
+ */
+
+import { RunTimeline } from "./RunTimeline";
+import type { RecordingSummary, RunEvent } from "../lib/types";
 
 export function RunProgress({
-  run,
   events,
   replay,
-  uiMode,
-  showTrace,
-  onToggleTrace,
-  running,
 }: {
-  run: RunPayload | null;
   events: RunEvent[];
   replay: RecordingSummary | null;
-  uiMode: UiMode;
-  showTrace: boolean;
-  onToggleTrace: () => void;
-  running: boolean;
 }) {
   return (
     <>
-      <section className="panel">
-        <div className="panel-head">
-          <h2>Analysis</h2>
-          <span className="spacer" />
-          {replay && (
-            <span className="small dim">recorded run · {replay.recording_id}</span>
-          )}
-        </div>
-        <ExecutionFlow events={events} />
-        {run && uiMode !== "compare" && (
-          <div className="lane-grid single">
-            <ExecutionLane
-              run={run}
-              mode={uiMode === "ai" ? "ai" : "deterministic"}
-              title="Stages"
-              compared={false}
-            />
-          </div>
-        )}
-      </section>
-      <ActivityLog
-        events={events}
-        trace={run?.mcp_trace ?? []}
-        showTrace={showTrace}
-        onToggleTrace={onToggleTrace}
-        running={running}
-      />
+      <RunTimeline events={events} />
+      {replay && (
+        <p className="timeline-provenance">
+          recorded run · <span className="mono">{replay.recording_id}</span>
+        </p>
+      )}
     </>
   );
 }

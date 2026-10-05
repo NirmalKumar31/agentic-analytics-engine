@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1740" height="581" viewBox="0 0 1740 581"><rect width="1740" height="581" fill="#0E1113"/><g font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif"><text x="40" y="34" font-size="11" font-weight="700" fill="#45C3B2" letter-spacing=".12em">TERMINAL STATE · QUOTA STOPPED · DARK</text><g transform="translate(40,56)"><rect width="1180" height="455" rx="6" fill="#0E1113" stroke="#232A2F"/><rect x="0" y="0" width="1180" height="52" fill="#14181B"/>
+<line x1="0" y1="52" x2="1180" y2="52" stroke="#232A2F"/>
+<g transform="translate(16,18) scale(1.0)" fill="none" stroke="#45C3B2" stroke-width="1.8" stroke-linecap="round"><path d="M0 14 L16 14"/><path d="M3 14 L3 8"/><path d="M8 14 L8 4"/><circle cx="13" cy="6" r="2.2" fill="#45C3B2" stroke="none"/></g>
+<text x="42" y="31" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="14" font-weight="650" fill="#EDF1F3" text-anchor="start">Agentic Analytics</text>
+<text x="590.0" y="31" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="12.5" font-weight="400" fill="#8C98A1" text-anchor="middle">commerce_demo · 7 tables · 502,819 rows</text>
+<text x="1164" y="31" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="12.5" font-weight="400" fill="#8C98A1" text-anchor="end">Governed ▾    ◑    End session</text>
+<text x="72" y="112" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="13.5" font-weight="400" fill="#8C98A1" text-anchor="start">Explain every driver of the Q3 margin change by category and region.</text>
+<rect x="72" y="132" width="6" height="171" fill="#E8755A"/>
+<text x="100" y="176" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="30" font-weight="700" fill="#EDF1F3" text-anchor="start">This AI run reached its input token limit</text>
+<text x="100" y="214" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="14" font-weight="400" fill="#A3AEB6" text-anchor="start">The run was stopped by its own budget before it finished, so nothing was published. Partial</text>
+<text x="100" y="235" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="14" font-weight="400" fill="#A3AEB6" text-anchor="start">work is not presented as an answer. The spend below is what had already been incurred when</text>
+<text x="100" y="256" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="14" font-weight="400" fill="#A3AEB6" text-anchor="start">the limit was reached — it is recorded whether or not anything was published.</text>
+<rect x="100" y="293" width="256.6" height="34" rx="4" fill="#45C3B2"/>
+<text x="228.3" y="315" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="13" font-weight="650" fill="#0E1113" text-anchor="middle">Run deterministically instead</text>
+<rect x="368.6" y="293" width="182.6" height="34" rx="4" fill="none" stroke="#232A2F"/>
+<text x="459.90000000000003" y="315" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="13" font-weight="500" fill="#A3AEB6" text-anchor="middle">Narrow the question</text>
+<text x="100" y="363" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="12.5" font-weight="400" fill="#45C3B2" text-anchor="start">Show what was spent ▾</text>
+<line x1="72" y1="395" x2="1108" y2="395" stroke="#232A2F"/>
+<text x="72" y="425" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="11.5" font-weight="400" fill="#8C98A1" text-anchor="start">outcome budget_exhausted · 0 published · 3 provider calls · $0.000412 · limit 24,000 input tokens</text></g><g transform="translate(1270,56)"><rect width="390" height="410" rx="6" fill="#0E1113" stroke="#232A2F"/><rect x="0" y="0" width="390" height="44" fill="#14181B"/>
+<line x1="0" y1="44" x2="390" y2="44" stroke="#232A2F"/>
+<g transform="translate(16,14) scale(0.9)" fill="none" stroke="#45C3B2" stroke-width="1.8" stroke-linecap="round"><path d="M0 14 L16 14"/><path d="M3 14 L3 8"/><path d="M8 14 L8 4"/><circle cx="13" cy="6" r="2.2" fill="#45C3B2" stroke="none"/></g>
+<text x="40" y="27" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="12.5" font-weight="650" fill="#EDF1F3" text-anchor="start">Agentic Analytics</text>
+<text x="374" y="27" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="12.5" font-weight="400" fill="#8C98A1" text-anchor="end">◑</text>
+<text x="20" y="78" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="11.5" font-weight="400" fill="#8C98A1" text-anchor="start">Explain every driver of the Q3 margin chan…</text>
+<rect x="20" y="96" width="5" height="178" fill="#E8755A"/>
+<text x="40" y="130" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="21" font-weight="700" fill="#EDF1F3" text-anchor="start">This run reached</text>
+<text x="40" y="157" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="21" font-weight="700" fill="#EDF1F3" text-anchor="start">its token limit</text>
+<text x="40" y="186" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="12.5" font-weight="400" fill="#A3AEB6" text-anchor="start">Stopped by its own budget</text>
+<text x="40" y="204" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="12.5" font-weight="400" fill="#A3AEB6" text-anchor="start">before finishing. Nothing</text>
+<text x="40" y="222" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="12.5" font-weight="400" fill="#A3AEB6" text-anchor="start">was published; partial work</text>
+<text x="40" y="240" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="12.5" font-weight="400" fill="#A3AEB6" text-anchor="start">is not an answer.</text>
+<rect x="40" y="272" width="330" height="32" rx="4" fill="#45C3B2"/>
+<text x="205.0" y="293" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="12" font-weight="650" fill="#0E1113" text-anchor="middle">Run deterministically instead</text>
+<text x="40" y="336" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="12" font-weight="400" fill="#45C3B2" text-anchor="start">Show what was spent ▾</text>
+<line x1="20" y1="362" x2="370" y2="362" stroke="#232A2F"/>
+<text x="20" y="386" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="11" font-weight="650" fill="#8C98A1" text-anchor="start">budget_exhausted</text></g><text x="40" y="537" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="11" font-weight="700" fill="#8C98A1" text-anchor="start">DESKTOP 1440 — the budget is a product rule, stated plainly, with a free route offered</text><text x="1270" y="492" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="11" font-weight="700" fill="#8C98A1" text-anchor="start">MOBILE 390 — status budget_exhausted</text></g></svg>

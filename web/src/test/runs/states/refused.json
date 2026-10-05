@@ -1,0 +1,296 @@
+{
+  "run_id": "run_691673bbea5b",
+  "session_id": "ses_Nwz3SyHguzlEWN7-",
+  "question": "What is the total gross margin by region?",
+  "status": "refused",
+  "created_at": 1791095722.721517,
+  "mode": "deterministic",
+  "provider_kind": "scripted",
+  "engine_version": "0.1.0",
+  "build_sha": "unknown",
+  "dataset_fingerprint": "sha256:2402f5316c5e31d72672ed9669811586",
+  "dataset": {
+    "dataset_kind": "upload",
+    "source": "Uploaded file: states.csv",
+    "dataset_fingerprint": "sha256:2402f5316c5e31d72672ed9669811586",
+    "dataset_seed": null,
+    "tables": [
+      {
+        "name": "uploaded_data",
+        "row_count": 160,
+        "columns": [
+          {
+            "name": "order_id",
+            "type": "BIGINT"
+          },
+          {
+            "name": "order_date",
+            "type": "DATE"
+          },
+          {
+            "name": "region",
+            "type": "VARCHAR"
+          },
+          {
+            "name": "revenue",
+            "type": "DOUBLE"
+          }
+        ]
+      }
+    ],
+    "metrics_available": []
+  },
+  "report": {
+    "question": "What is the total gross margin by region?",
+    "executive_summary": "No finding survived verification, so this report states no conclusion. The limitations below explain what the analysis could not establish.",
+    "key_findings": [],
+    "sections": [],
+    "limitations": [
+      "The question was not executed because the question asks about 'gross margin', which is not a column of this table; name a numeric column that is."
+    ],
+    "next_questions": []
+  },
+  "findings": [],
+  "rejected": [],
+  "charts": [],
+  "tasks": [],
+  "results": {},
+  "mcp_trace": [],
+  "events": [
+    {
+      "event_id": "ev_9748848ee583",
+      "seq": 1,
+      "type": "run_started",
+      "at": 1791095722.722122,
+      "data": {
+        "run_id": "run_691673bbea5b",
+        "question": "What is the total gross margin by region?",
+        "provider": "fake",
+        "session_id": "ses_Nwz3SyHguzlEWN7-"
+      }
+    },
+    {
+      "event_id": "ev_fd6d96277631",
+      "seq": 2,
+      "type": "dataset_loaded",
+      "at": 1791095722.760896,
+      "data": {
+        "dataset_kind": "upload",
+        "source": "Uploaded file: states.csv",
+        "dataset_fingerprint": "sha256:2402f5316c5e31d72672ed9669811586",
+        "tables": [
+          {
+            "name": "uploaded_data",
+            "row_count": 160
+          }
+        ],
+        "metrics": []
+      }
+    },
+    {
+      "event_id": "ev_37164782c13f",
+      "seq": 3,
+      "type": "contract_resolved",
+      "at": 1791095722.764274,
+      "data": {
+        "planner": "rule-based",
+        "model_calls": 0,
+        "duration_ms": 2.5,
+        "fallback": false,
+        "confident": false,
+        "contract_hash": "f02b89ba7f087202be8dcb77786a7448b3ca367ffbd5c1f5c6c9af3891d85ec0",
+        "operation": "profile",
+        "dimensions": []
+      }
+    },
+    {
+      "event_id": "ev_e708ad9cc2a4",
+      "seq": 4,
+      "type": "question_analyzed",
+      "at": 1791095722.764287,
+      "data": {
+        "intent": "What is the total gross margin by region?",
+        "analysis_type": "profiling",
+        "target_metrics": [],
+        "dimensions": [],
+        "time_scope": null,
+        "ambiguities": [
+          "the question asks about 'gross margin', which is not a column of this table; name a numeric column that is"
+        ]
+      }
+    },
+    {
+      "event_id": "ev_7423d5318dbe",
+      "seq": 5,
+      "type": "analysis_task_failed",
+      "at": 1791095722.765242,
+      "data": {
+        "reason": "the question could not be mapped safely: the question asks about 'gross margin', which is not a column of this table; name a numeric column that is"
+      }
+    },
+    {
+      "event_id": "ev_60f43807f154",
+      "seq": 6,
+      "type": "report_started",
+      "at": 1791095722.767314,
+      "data": {
+        "finding_count": 0
+      }
+    },
+    {
+      "event_id": "ev_57722926a9f6",
+      "seq": 7,
+      "type": "report_completed",
+      "at": 1791095722.768003,
+      "data": {
+        "finding_count": 0,
+        "rejected_count": 0,
+        "chart_count": 0,
+        "sections": []
+      }
+    },
+    {
+      "event_id": "ev_385379d6e4aa",
+      "seq": 8,
+      "type": "run_completed",
+      "at": 1791095722.7690082,
+      "data": {
+        "run_id": "run_691673bbea5b",
+        "runtime_seconds": 0.046,
+        "provider": "fake",
+        "analysis_tasks": 0,
+        "tasks_succeeded": 0,
+        "tasks_warned": 0,
+        "tasks_failed": 0,
+        "mcp_tool_calls": 0,
+        "mcp_tool_failures": 0,
+        "findings_proposed": 0,
+        "findings_published": 0,
+        "findings_rejected": 0,
+        "charts": 0,
+        "provider_request_attempts": 0,
+        "provider_successful_responses": 0,
+        "llm_calls": 0,
+        "input_tokens": 0,
+        "output_tokens": 0
+      }
+    }
+  ],
+  "metrics": {
+    "runtime_seconds": 0.046,
+    "provider": "fake",
+    "analysis_tasks": 0,
+    "tasks_succeeded": 0,
+    "tasks_warned": 0,
+    "tasks_failed": 0,
+    "mcp_tool_calls": 0,
+    "mcp_tool_failures": 0,
+    "findings_proposed": 0,
+    "findings_published": 0,
+    "findings_rejected": 0,
+    "charts": 0,
+    "provider_request_attempts": 0,
+    "provider_successful_responses": 0,
+    "llm_calls": 0,
+    "input_tokens": 0,
+    "output_tokens": 0,
+    "by_role": {}
+  },
+  "query_contract": {
+    "operation": "profile",
+    "table": "uploaded_data",
+    "measure": null,
+    "period": null,
+    "period_field": null,
+    "filters": [],
+    "dimension": null,
+    "dimensions": [],
+    "time_field": null,
+    "time_grain": null,
+    "ascending": false,
+    "confident": false,
+    "explanation": "the question asks about 'gross margin', which is not a column of this table; name a numeric column that is",
+    "named_columns": [
+      "region"
+    ],
+    "interpretation": "rule-based",
+    "planner_note": "",
+    "contract_hash": "f02b89ba7f087202be8dcb77786a7448b3ca367ffbd5c1f5c6c9af3891d85ec0",
+    "canonical_contract": {
+      "operation": "profile",
+      "table": "uploaded_data",
+      "measure": null,
+      "dimensions": [],
+      "time_field": null,
+      "time_grain": null,
+      "period": null,
+      "period_field": null,
+      "filters": [],
+      "ascending": false
+    }
+  },
+  "question_coverage": {
+    "complete": false,
+    "required_components": [
+      "operation",
+      "dimensions"
+    ],
+    "applied_components": [],
+    "missing_components": [
+      "operation",
+      "dimensions"
+    ],
+    "rejection_codes": [
+      "changed_requested_operation",
+      "missing_requested_grouping",
+      "unresolved_question"
+    ],
+    "details": [
+      "the question asks for sum, and the executed contract used profile",
+      "the question asks for a breakdown by region, and the executed contract grouped by nothing",
+      "the question asks about 'gross margin', which is not a column of this table; name a numeric column that is"
+    ]
+  },
+  "timings": {
+    "planning_ms": 2.5
+  },
+  "chart_decision": {},
+  "presentation": {
+    "schema_version": "1.0",
+    "shape": "refusal",
+    "headline": "the question could not be mapped safely: the question asks about 'gross margin', which is not a column of this table; name a numeric column that is",
+    "secondary_summary": null,
+    "highlights": [],
+    "scope": {
+      "rows_total": null,
+      "rows_matching": null,
+      "rows_represented": null,
+      "observations_matching": null,
+      "observations_represented": null,
+      "groups_returned": null,
+      "groups_total": null,
+      "complete": null,
+      "filters": [],
+      "period": null,
+      "ordering": null
+    },
+    "display_fields": [],
+    "table": null,
+    "chart": null,
+    "caveats": [
+      {
+        "code": "refused",
+        "message": "the question could not be mapped safely: the question asks about 'gross margin', which is not a column of this table; name a numeric column that is",
+        "severity": "blocking",
+        "related_component": "contract"
+      }
+    ],
+    "provenance_refs": [],
+    "compatibility_derived": false
+  },
+  "planner_fallback": false,
+  "stopped_reason": "the question could not be mapped safely: the question asks about 'gross margin', which is not a column of this table; name a numeric column that is",
+  "outcome": "refused",
+  "schema_revision": 0,
+  "role_evidence": []
+}

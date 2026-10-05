@@ -1,6 +1,8 @@
-import { expect, test } from "@playwright/test";
+import { type Route } from "@playwright/test";
 
-import { ask, capability, clientSideState, openApp, recordingButtons, sampleCsv, suggestedQuestions, uploadFile, waitForReport } from "./helpers";
+import { expect, freshComposer, test } from "./fixtures";
+
+import { ask, canvasTestId, capability, clientSideState, endSession, inDrawer, openApp, recordingButtons, sampleCsv, suggestedQuestions, uploadFile, waitForReport } from "./helpers";
 
 /**
  * The flows a visitor actually performs, in a real browser, against a real
@@ -27,7 +29,13 @@ test.describe("the page a visitor lands on", () => {
     await openApp(page);
     const recordings = recordingButtons(page);
     await expect(recordings).toHaveCount(3);
-    await expect(page.getByText(/not a language model/i)).toBeVisible();
+    // The provenance sentence must stay with the recordings: published and
+    // withheld counts beside a run that a reader might take for model
+    // output is the one claim this product most needs to get right. The
+    // first draft of the redesigned landing dropped it, and this caught it.
+    await expect(
+      page.getByTestId("prepared-data").getByText(/not a language model/i),
+    ).toBeVisible();
   });
 });
 
@@ -39,61 +47,43 @@ test.describe("a recorded run", () => {
     await waitForReport(page);
     await expect(page.locator(".mode-pill")).toHaveText("Recorded");
 
-    const findings = page.locator("article.finding");
+    // Published findings are ranked list items now, not bordered cards.
+    const findings = page.locator(".finding-item");
     expect(await findings.count()).toBeGreaterThan(0);
 
-    // Provenance: finding -> task -> MCP call -> result cells.
-    await page.getByRole("button", { name: "Show work →" }).first().click();
-    const drawer = page.getByRole("dialog", { name: "How this was derived" });
+    // Provenance: one drawer, carrying the contract, the verification
+    // outcomes, the cited cells and the MCP trace. It used to be a
+    // per-finding drawer reached from a button on every card.
+    await page.getByTestId("show-work").click();
+    const drawer = page.getByTestId("evidence-drawer");
     await expect(drawer).toBeVisible();
-    await expect(
-      drawer.getByRole("heading", { name: "Finding" }),
-    ).toBeVisible();
-    await expect(
-      drawer.getByRole("heading", { name: "Analytical task" }),
-    ).toBeVisible();
-    await expect(
-      drawer.getByRole("heading", { name: "Agent and tool path" }),
-    ).toBeVisible();
-    await expect(
-      drawer.getByRole("heading", { name: "Referenced cells" }),
-    ).toBeVisible();
-    await expect(drawer.getByText(/MCP:/).first()).toBeVisible();
+    await expect(drawer).toContainText("Accepted contract");
+    await expect(drawer).toContainText("Cited cells");
+    // The tool path, by its new name: the activity trace, which is where
+    // the per-call MCP record lives now.
+    await expect(drawer).toContainText("Activity trace");
+    await expect(drawer).toContainText("Timings");
+    // The dataset fingerprint stays out of the reader's way. It is an
+    // unexplained hash, and the drawer is for provenance a reader can act
+    // on, not for every identifier the engine holds.
     await expect(drawer).not.toContainText(/sha256:/);
 
     await drawer.getByRole("button", { name: "Close" }).click();
-    await expect(drawer).toBeHidden();
+    await expect(drawer).toHaveCount(0);
   });
 
-  test("prints a complete report as a browser PDF", async ({
-    page,
-    browserName,
-  }) => {
-    test.skip(
-      browserName !== "chromium",
-      "Playwright PDF generation is Chromium-only.",
-    );
-    await openApp(page);
-    await recordingButtons(page).first().click();
-    await waitForReport(page);
-
-    await page.emulateMedia({ media: "print" });
-    await expect(
-      page.getByRole("button", { name: /Print \/ Save PDF/ }),
-    ).toBeHidden();
-    // A recorded run carries its own payload and may have no canonical
-    // answer block, so this asserts the report and a published finding --
-    // which is what the test is about.
-    await expect(page.getByTestId("report-panel")).toBeVisible();
-    expect(await page.locator("article.finding").count()).toBeGreaterThan(0);
-    const pdf = await page.pdf({
-      format: "A4",
-      landscape: true,
-      printBackground: true,
-    });
-    expect(pdf.subarray(0, 4).toString()).toBe("%PDF");
-    expect(pdf.byteLength).toBeGreaterThan(1_000);
-  });
+  /*
+   * "prints a complete report as a browser PDF" was here. It asserted the
+   * first four bytes were `%PDF` and the file was over 1kB -- a PDF of a
+   * blank page passes both -- and it rendered landscape, which is not the
+   * page `foundation.css` specifies.
+   *
+   * `print.spec.ts` carries the claim now, for four states rather than one,
+   * with the page actually inspected: the appendix revealed, every
+   * disclosure expanded, no control surviving as a grey rectangle, the
+   * chart bounded by the printable width, and the pages rendered and
+   * looked at rather than measured by their byte count.
+   */
 });
 
 test.describe("the demo warehouse", () => {
@@ -102,7 +92,7 @@ test.describe("the demo warehouse", () => {
   }) => {
     await openApp(page);
     await page.getByRole("button", { name: /Commerce demo warehouse/ }).click();
-    await expect(page.getByRole("heading", { name: "Ask" })).toBeVisible();
+    await expect(page.getByTestId("composer")).toBeVisible();
 
     // Deterministic mode must say that interpretation is rule-based. Read
     // from the selector rather than the badge: before a run the selector is
@@ -116,13 +106,43 @@ test.describe("the demo warehouse", () => {
       );
     }
 
+    /*
+     * The status poll is held back for the first few replies.
+     *
+     * "Progress is visible while it runs" is a claim about a window that
+     * is open for a few hundred milliseconds -- in fake mode a demo run
+     * finishes in well under a second -- so asserting it against an
+     * unmodified run is a race, and WebKit won it: by the time the
+     * assertion looked, the report had replaced the timeline and the
+     * failure read "element(s) not found" over a screenshot of a finished
+     * report. The responses are the server's own; they simply arrive late,
+     * which is what a slow run looks like to the page.
+     *
+     * The same technique as `accessibility.spec.ts`'s "a run in flight".
+     * It makes the claim deterministic rather than weaker: without it the
+     * test passed on fast engines by luck.
+     */
+    let held = 0;
+    const slowPoll = async (route: Route) => {
+      if (held < 3) {
+        held += 1;
+        await new Promise((resolve) => setTimeout(resolve, 1_000));
+      }
+      await route.fallback();
+    };
+    await page.route("**/api/analyses/*", slowPoll);
+
     await suggestedQuestions(page).first().click();
     await page.getByRole("button", { name: "Run analysis" }).click();
 
-    // Progress is visible while it runs.
-    await expect(
-      page.getByRole("heading", { name: "Analysis" }).first(),
-    ).toBeVisible();
+    try {
+      // Progress is visible while it runs. The ANALYSIS panel heading is
+      // gone; the run timeline is what narrates a run in flight.
+      await expect(canvasTestId(page, "run-timeline")).toBeVisible();
+    } finally {
+      // The delay belongs to this assertion, not to the rest of the test.
+      await page.unroute("**/api/analyses/*", slowPoll);
+    }
     await waitForReport(page);
 
     // Now that something has run, the badge names what produced it. The
@@ -131,60 +151,71 @@ test.describe("the demo warehouse", () => {
       /Recorded|Deterministic live|AI live|Compare both/,
     );
 
-    const findings = page.locator("article.finding");
+    // Published findings are ranked list items now, not bordered cards.
+    const findings = page.locator(".finding-item");
     expect(await findings.count()).toBeGreaterThan(0);
-    // Every finding on screen carries its verification verdict.
-    const supported = page.locator("article.finding .tag.supported");
-    expect(await supported.count()).toBeGreaterThan(0);
+    // Verification is stated once, for the report, rather than as a
+    // SUPPORTED badge repeated on six identical cards. The per-verdict
+    // detail is in the evidence drawer.
+    await expect(page.getByTestId("answer-coverage")).toContainText(
+      /\d+ verified, \d+ withheld/,
+    );
 
-    await page.getByRole("button", { name: "Show work →" }).first().click();
-    await expect(
-      page.getByRole("dialog", { name: "How this was derived" }),
-    ).toBeVisible();
+    await page.getByTestId("show-work").click();
+    await expect(page.getByTestId("evidence-drawer")).toBeVisible();
+    await expect(page.getByTestId("evidence-drawer")).toContainText(
+      "Verification",
+    );
   });
 });
 
 test.describe("uploading a file", () => {
   test("profiles it, answers a mappable question, and refuses an unmappable one", async ({
-    page,
+    profiled: page,
   }) => {
-    await openApp(page);
-    await uploadFile(page, "e2e-sales.csv", sampleCsv());
+    await freshComposer(page);
 
     // The dataset understanding step, marked inferred rather than governed.
     //
-    // The inspector is a closed disclosure now, so the caveat has to be
-    // legible without opening it: a reader who never expands it must still
-    // know these roles were inferred from types and cardinality rather than
-    // defined by anyone. Asserted collapsed *and* expanded, because hiding
-    // the caveat behind a click would be the regression.
+    // The inspector is behind a control now, so the caveat has to be
+    // legible without pressing it: a reader who never opens the schema must
+    // still know these roles were inferred from types and cardinality
+    // rather than defined by anyone. Asserted on the strip *and* inside the
+    // sheet, because hiding the caveat behind a click would be the
+    // regression this guards.
+    await expect(page.getByTestId('roles-inferred')).toBeVisible();
+
+    await page.getByTestId('inspect-schema').click();
     const inspector = page.getByTestId('schema-inspector');
     await expect(inspector).toBeVisible();
-    await expect(inspector).not.toHaveAttribute('open', '');
-    // Scoped to the summary: "inferred" also appears in the body sentence,
-    // and an unscoped match resolves to two elements.
-    await expect(inspector.locator('summary .tag')).toHaveText('inferred');
-    await inspector.locator('summary').click();
     await expect(
       page.getByText('Roles are inferred from column types'),
     ).toBeVisible();
-    await inspector.locator('summary').click();
+    await page.keyboard.press('Escape');
+    await expect(page.getByTestId('schema-sheet')).toHaveCount(0);
 
     await ask(page, "What is the total revenue by region?");
     await waitForReport(page);
-    const answered = page.locator("article.finding");
+    const answered = page.locator(".finding-item");
     expect(await answered.count()).toBeGreaterThan(0);
-    await expect(page.locator("article.finding").first()).toContainText(
+    // Against the answer, not the first ranked highlight. A highlight is a
+    // label and a figure -- "Highest: West  12,330" -- and asserting the
+    // question's nouns against it was really asserting the presentation
+    // builder's phrasing. The answer is where the claim belongs.
+    await expect(page.getByTestId("direct-answer")).toContainText(
       /region|revenue/i,
     );
-    // The audit is a disclosure rather than a permanent dashboard. It
-    // records the governed contract and coverage, not a provider prompt or
-    // hidden reasoning.
-    const audit = page.getByTestId("planning-audit");
+    // The audit is in the evidence drawer rather than resident under the
+    // report. It records the governed contract and coverage, not a provider
+    // prompt or hidden reasoning.
+    await page.getByTestId("show-work").click();
+    const audit = inDrawer(page, "planning-audit");
     await expect(audit).toBeVisible();
     await audit.locator("summary").click();
     await expect(audit).toContainText(/accepted contract/i);
     await expect(audit).toContainText(/question coverage/i);
+    await page.keyboard.press("Escape");
+    await expect(page.getByTestId("evidence-drawer")).toHaveCount(0);
 
     // A question the rules cannot map must not be answered anyway.
     await page.getByRole("button", { name: "Start over" }).click();
@@ -194,22 +225,45 @@ test.describe("uploading a file", () => {
     // or a completed report with nothing in it.
     await expect(page.locator("body")).toHaveAttribute("data-phase", "refused");
     // The activity log keeps the engine's own reason verbatim.
-    await expect(page.getByText(/could not be mapped/i).first()).toBeVisible();
+    // The actionable part, not the engine's framing of its own difficulty.
+    // The raw reason -- "the question could not be mapped safely: ..." --
+    // is in the evidence drawer, verbatim.
+    await expect(
+      page.getByTestId("report-panel"),
+    ).toHaveAttribute("data-state", "refused");
+    // This question is refused for a different reason than the column one:
+    // it asks for no calculation at all. Either way the headline is the
+    // engine's actionable sentence, not its "could not be mapped safely"
+    // framing, and it reads as a sentence.
+    const headline = (
+      (await page.getByTestId("direct-answer").textContent()) ?? ""
+    ).trim();
+    expect(headline).not.toMatch(/^the question could not be mapped safely/i);
+    expect(headline.charAt(0)).toBe(headline.charAt(0).toUpperCase());
     // The report records it too, in a sentence written for a reader. This
     // used to be the same raw string repeated in three phrasings; it is
     // now said once, so the assertion is on the reader-facing wording and
     // on there being exactly one of it.
-    const refusals = page.locator("[data-testid='direct-answer']", {
-      hasText: /could not be mapped|could not be answered safely/i,
-    });
+    // The engine's framing -- "could not be mapped safely" -- is no longer
+    // the headline: it is the raw record, kept verbatim in the evidence
+    // drawer. What the canvas records is that this was a refusal, said
+    // once, in the engine's actionable words.
     await expect(
-      refusals.first(),
+      page.getByTestId("report-panel"),
       "the report must record the refusal, not only the activity log",
-    ).toBeVisible();
+    ).toHaveAttribute("data-state", "refused");
+
+    const headlines = page.locator("[data-testid='direct-answer']");
     expect(
-      await refusals.count(),
+      await headlines.count(),
       "a refusal is stated once, not repeated in several phrasings",
     ).toBe(1);
+
+    await page.getByTestId("show-work").click();
+    await expect(inDrawer(page, "raw-stop-reason")).toContainText(
+      /could not be mapped safely/i,
+    );
+    await page.keyboard.press("Escape");
   });
 
   test("refuses an invalid file with a readable message", async ({ page }) => {
@@ -248,7 +302,10 @@ test.describe("the session boundary", () => {
       "the dataset should be reachable before deletion",
     ).toBe(200);
 
-    await page.getByRole("button", { name: "End session" }).click();
+    // Through the helper, so the upload ledger records the close and the
+    // budget check can reconcile it against the open. It presses the same
+    // control a reader would.
+    await endSession(page);
     // The dataset chooser, not a heading: "Dataset" is a prefix of "Dataset
     // understanding", which is still on screen for a frame after the click.
     await expect(
@@ -298,6 +355,11 @@ test.describe("the session boundary", () => {
       );
       expect(bobCookie?.value).not.toBe(aliceCookie?.value);
     } finally {
+      // Alice's session, back to the server. Closing her context does not
+      // free it -- the server holds an upload session until the capability
+      // deletes it, and a suite that leaves them behind is what exhausted
+      // the pool.
+      for (const page of alice.pages()) await endSession(page);
       await alice.close();
       await bob.close();
     }
@@ -310,7 +372,7 @@ test.describe("what the browser can see", () => {
   }) => {
     await openApp(page);
     await page.getByRole("button", { name: /Commerce demo warehouse/ }).click();
-    await expect(page.getByRole("heading", { name: "Ask" })).toBeVisible();
+    await expect(page.getByTestId("composer")).toBeVisible();
 
     const secret = await capability(page);
     expect(secret.length).toBeGreaterThan(20);
@@ -326,7 +388,7 @@ test.describe("what the browser can see", () => {
   }) => {
     await openApp(page);
     await page.getByRole("button", { name: /Commerce demo warehouse/ }).click();
-    await expect(page.getByRole("heading", { name: "Ask" })).toBeVisible();
+    await expect(page.getByTestId("composer")).toBeVisible();
 
     const cookie = (await page.context().cookies()).find(
       (c) => c.name === "aae_session",
@@ -375,6 +437,6 @@ test.describe("the public MCP endpoint", () => {
     await suggestedQuestions(page).first().click();
     await page.getByRole("button", { name: "Run analysis" }).click();
     await waitForReport(page);
-    expect(await page.locator("article.finding").count()).toBeGreaterThan(0);
+    expect(await page.locator(".finding-item").count()).toBeGreaterThan(0);
   });
 });

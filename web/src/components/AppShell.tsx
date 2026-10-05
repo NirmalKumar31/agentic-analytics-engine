@@ -3,13 +3,11 @@ import type { ReactNode } from "react";
 export function AppShell({
   sessionId,
   header,
-  workflow,
   hasRun,
   children,
 }: {
   sessionId?: string;
   header: ReactNode;
-  workflow: ReactNode;
   hasRun: boolean;
   children: ReactNode;
 }) {
@@ -19,7 +17,6 @@ export function AppShell({
     // actually needs before it begins. See `openApp` in e2e/helpers.ts.
     <div className="shell" data-testid="app-shell" data-session-id={sessionId}>
       {header}
-      {workflow}
       <main className="main" data-rail={hasRun ? "true" : "false"}>
         {children}
       </main>

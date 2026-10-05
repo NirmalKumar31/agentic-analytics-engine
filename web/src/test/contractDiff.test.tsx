@@ -7,7 +7,8 @@
 
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
-import { ComparisonView } from "../components/ComparisonView";
+import { CompareWorkspace } from "../components/CompareWorkspace";
+import { COMPARED_FIELD_COUNT } from "../lib/contractDiff";
 import { canonicalOf, contractDifferences } from "../lib/contractDiff";
 import type {
   CanonicalContract,
@@ -131,7 +132,7 @@ describe("contractDifferences", () => {
   });
 });
 
-describe("ComparisonView contract diff", () => {
+describe("CompareWorkspace contract diff", () => {
   const side = (run: RunPayload | null) => ({
     title: "T",
     subtitle: "S",
@@ -145,7 +146,7 @@ describe("ComparisonView contract diff", () => {
 
   it("shows the differing rows when the two panes disagree", () => {
     render(
-      <ComparisonView
+      <CompareWorkspace
         question="Q"
         deterministic={side(runWith(contract()))}
         ai={side(runWith(withCanonical({ dimensions: ["store_id"] })))}
@@ -158,9 +159,62 @@ describe("ComparisonView contract diff", () => {
     expect(table).not.toHaveTextContent("Measure");
   });
 
+  it("captions the diff with the table's own counts", () => {
+    /*
+     * Requirement 17: the caption's agree/differ counts must equal the
+     * counts in the table it labels. The failure it guards against is a
+     * caption written beside a table rather than derived from it -- "two
+     * fields differ" over three rows, which a reader has no way to
+     * resolve and will usually believe.
+     *
+     * So the assertion reads both numbers out of the caption and compares
+     * them with the rendered rows, rather than against a literal.
+     */
+    render(
+      <CompareWorkspace
+        question="Q"
+        deterministic={side(runWith(contract()))}
+        ai={side(
+          runWith(
+            withCanonical({ dimensions: ["store_id"], operation: "avg" }),
+          ),
+        )}
+      />,
+    );
+
+    const table = screen.getByTestId("contract-diff");
+    const rows = table.querySelectorAll("tbody tr").length;
+    expect(rows, "the scenario produces no differing rows").toBeGreaterThan(1);
+
+    const caption = (
+      screen.getByTestId("contract-diff-caption").textContent ?? ""
+    ).replace(/\s+/g, " ");
+    const [differing, compared] = [...caption.matchAll(/\d+/g)].map((m) =>
+      Number(m[0]),
+    );
+    expect(differing, `caption says "${caption}"`).toBe(rows);
+    expect(compared, "the caption's total is not the number compared").toBe(
+      COMPARED_FIELD_COUNT,
+    );
+    expect(compared).toBeGreaterThan(rows);
+  });
+
+  it("says 'field differs' for one, 'fields differ' for several", () => {
+    render(
+      <CompareWorkspace
+        question="Q"
+        deterministic={side(runWith(contract()))}
+        ai={side(runWith(withCanonical({ dimensions: ["store_id"] })))}
+      />,
+    );
+    expect(screen.getByTestId("contract-diff-caption")).toHaveTextContent(
+      /1 of \d+ compared contract field differs/,
+    );
+  });
+
   it("shows no diff table when the panes agree", () => {
     render(
-      <ComparisonView
+      <CompareWorkspace
         question="Q"
         deterministic={side(runWith(contract()))}
         ai={side(runWith(contract({ interpretation: "ai-grounded" })))}
@@ -177,7 +231,7 @@ describe("ComparisonView contract diff", () => {
 
   it("reads identical canonical fields as agreement, whatever the hash says", () => {
     render(
-      <ComparisonView
+      <CompareWorkspace
         question="Q"
         deterministic={side(runWith(contract()))}
         ai={side(runWith(contract({ contract_hash: "hash-z" })))}

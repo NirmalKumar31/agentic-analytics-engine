@@ -1,6 +1,8 @@
-import { expect, test, type Page } from "@playwright/test";
+import { type Page } from "@playwright/test";
 
-import { ask, openApp, sampleCsv, uploadFile, waitForReport } from "./helpers";
+import { expect, reportFor, test } from "./fixtures";
+
+import { onCanvas, openApp } from "./helpers";
 
 /**
  * Golden layout tests: the report at every width it has to survive.
@@ -72,7 +74,7 @@ async function hasHorizontalOverflow(page: Page): Promise<boolean> {
 
 test.describe("the report at every supported width", () => {
   test("answer first, chart fills, nothing overflows, at all six widths", async ({
-    page,
+    profiled: page,
   }) => {
     // One session, six measurements, rather than one session per width.
     //
@@ -90,10 +92,7 @@ test.describe("the report at every supported width", () => {
     // and the ranking question renders a chart and no `direct-answer`.
     // Testing layout needs a report with both in it.
     await page.setViewportSize({ width: 1440, height: 900 });
-    await openApp(page);
-    await uploadFile(page, "layout.csv", sampleCsv());
-    await ask(page, "What is the total revenue by region?");
-    await waitForReport(page);
+    await reportFor(page, "What is the total revenue by region?");
     await expect(
       page.locator(".chart-card .chart-host svg").first(),
     ).toBeVisible({ timeout: 20_000 });
@@ -112,7 +111,10 @@ test.describe("the report at every supported width", () => {
       const answerBox = await answer.boundingBox();
       expect(answerBox, `${viewport.label}: answer has no box`).not.toBeNull();
 
-      const technical = page.locator("details").first();
+      // On the canvas: a `details` inside the hidden print appendix has no
+      // bounding box, and the ordering assertion below would have stopped
+      // running without saying so.
+      const technical = onCanvas(page, "details").first();
       if ((await technical.count()) > 0) {
         const technicalBox = await technical.boundingBox();
         if (technicalBox) {
@@ -123,8 +125,17 @@ test.describe("the report at every supported width", () => {
         }
       }
 
-      // The chart fills the width available to it. This is the defect the
-      // redesign exists to fix: cardinality must not decide width.
+      /*
+       * The chart fills the width available to it. This is the defect the
+       * redesign exists to fix: cardinality must not decide width.
+       *
+       * The threshold was `> 0.8`, which was the loose form written before
+       * the redesign landed; the brief asks for >= 90% at each of the six
+       * widths. Measured on this branch it is 90% at phone-small and 98%
+       * at the rest, in all three engines, so the assertion is tightened
+       * to the number the brief actually states rather than left at a
+       * value the product clears by eight points.
+       */
       await expect
         .poll(() => fractionOfContainer(page), { timeout: 10_000 })
         .not.toBeNull();
@@ -132,7 +143,7 @@ test.describe("the report at every supported width", () => {
       expect(
         fraction!,
         `${viewport.label}: chart used ${((fraction ?? 0) * 100).toFixed(0)}% of its container`,
-      ).toBeGreaterThan(0.8);
+      ).toBeGreaterThanOrEqual(0.9);
       expect(
         fraction!,
         `${viewport.label}: chart overflows its container`,
@@ -159,18 +170,17 @@ test.describe("the report at every supported width", () => {
 
 test.describe("chart width is independent of cardinality", () => {
   for (const shape of SHAPES) {
-    test(`${shape.name} fills the container at 1440px`, async ({ page }) => {
+    test(`${shape.name} fills the container at 1440px`, async ({ demo: page }) => {
       // The whole point: a two-group chart and a forty-five-group chart
       // must both use the width they are given. A fixed step per band
       // meant the first drew a strip and the second did not.
+      //
+      // The two cardinalities are two distinct chart specifications, so
+      // each is admitted once; the shared warehouse page is what stops
+      // them being admitted again by every other spec that asks the same
+      // thing.
       await page.setViewportSize({ width: 1440, height: 900 });
-      await openApp(page);
-      await page
-        .getByRole("button", { name: /Commerce demo warehouse/ })
-        .click();
-      await expect(page.getByRole("heading", { name: "Ask" })).toBeVisible();
-      await ask(page, shape.question);
-      await waitForReport(page);
+      await reportFor(page, shape.question);
 
       await expect(
         page.locator(".chart-card .chart-host svg").first(),
@@ -180,45 +190,45 @@ test.describe("chart width is independent of cardinality", () => {
       expect(
         fraction!,
         `${shape.name}: chart used ${((fraction ?? 0) * 100).toFixed(0)}% of its container`,
-      ).toBeGreaterThan(0.8);
+      ).toBeGreaterThanOrEqual(0.9);
     });
   }
 
   test("a high-cardinality upload still fills the container", async ({
-    page,
+    profiled: page,
   }) => {
     // 48 distinct groups: the case that rendered widest before, and so
     // the one that hid the defect.
     await page.setViewportSize({ width: 1440, height: 900 });
-    await openApp(page);
-    await uploadFile(page, "cardinality.csv", sampleCsv());
-    await ask(page, "What is the total revenue by region?");
-    await waitForReport(page);
+    await reportFor(page, "What is the total revenue by region?");
 
     await expect(
       page.locator(".chart-card .chart-host svg").first(),
     ).toBeVisible({ timeout: 20_000 });
     const fraction = await fractionOfContainer(page);
     expect(fraction, "no chart was rendered on the upload path").not.toBeNull();
-    expect(fraction!).toBeGreaterThan(0.8);
+    expect(fraction!).toBeGreaterThanOrEqual(0.9);
     expect(await hasHorizontalOverflow(page)).toBe(false);
   });
 });
 
 test.describe("touch targets on a phone", () => {
-  test("a standalone disclosure is a thumb-sized target", async ({ page }) => {
-    // The Planning Audit disclosure on a completed report, which is a
-    // control in its own right rather than a link inside a sentence. The
-    // inline privacy disclosure is exempt under WCAG 2.2 SC 2.5.8; this
-    // one is not, and the rule that sizes it was previously unverified --
-    // removing it failed nothing, because the only summary on the
-    // landing page is the exempt one.
+  test("a standalone disclosure is a thumb-sized target", async ({
+    profiled: page,
+  }) => {
+    // The Planning Audit disclosure, which is a control in its own right
+    // rather than a link inside a sentence. The inline privacy disclosure
+    // is exempt under WCAG 2.2 SC 2.5.8; this one is not.
+    //
+    // It is inside the evidence drawer now, which is where a phone meets it
+    // -- and a drawer is exactly where a cramped target hurts most.
+    // On the shared upload rather than the demo warehouse, and replayed:
+    // the size of a hit area does not depend on which dataset produced the
+    // report behind it, so this does not need an admission of its own.
     await page.setViewportSize({ width: 390, height: 844 });
-    await openApp(page);
-    await page.getByRole("button", { name: /Commerce demo warehouse/ }).click();
-    await expect(page.getByRole("heading", { name: "Ask" })).toBeVisible();
-    await ask(page, "What is the total revenue by region?");
-    await waitForReport(page);
+    await reportFor(page, "What is the total revenue by region?");
+    await page.getByTestId("show-work").click();
+    await expect(page.getByTestId("evidence-drawer")).toBeVisible();
 
     const standalone = await page.evaluate(() =>
       [...document.querySelectorAll("details:not(.disclosure) > summary")]

@@ -2,8 +2,9 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { ReportView } from "../components/ReportView";
-import type { AnalysisPresentation, QueryContract, ResultSnapshot } from "../lib/types";
+import { EvidenceBody } from "../components/EvidenceDrawer";
+import { ReportUnderTest } from "./renderReport";
+import type { AnalysisPresentation, QueryContract, ResultSnapshot, RunPayload } from "../lib/types";
 
 const contract: QueryContract = {
   operation: "average",
@@ -23,8 +24,7 @@ const contract: QueryContract = {
 };
 
 function report() {
-  return render(
-    <ReportView
+  return render(<ReportUnderTest
       question="Average annual revenue for people aged 30 to 40 by region"
       report={null}
       findings={[]}
@@ -68,14 +68,32 @@ describe("ReportView", () => {
       columns: ["flag", "average_sleep"], rows: [[0, 6.21], [1, 6.33]], row_count: 2,
       truncated: false, dataset_fingerprint: "x", duration_ms: 1, parameters: {}, warnings: [], statistical_result: null,
     } as ResultSnapshot;
-    render(<ReportView question="q" report={null} findings={[]} rejected={[]} charts={[]} results={{ r1: result }} presentation={presentation} onShowWork={() => {}} />);
+    render(<ReportUnderTest question="q" report={null} findings={[]} rejected={[]} charts={[]} results={{ r1: result }} presentation={presentation} onShowWork={() => {}} />);
     expect(screen.getByTestId("direct-answer")).toHaveTextContent("Average sleep is 6.33 when the filter is On.");
     expect(screen.getByText("A chart is not needed for two values.")).toBeVisible();
     expect(screen.queryByText(/and further groups/i)).toBeNull();
   });
 
   it("shows the operation, population filters and grouping actually executed", () => {
-    report();
+    // In the evidence drawer, under "Accepted contract". It was a resident
+    // `applied-analysis` panel under every report; moving the panel without
+    // moving its content would have been a deletion dressed as a
+    // disclosure, so the content moved with it and this test followed.
+    render(
+      <EvidenceBody
+        run={
+          {
+            query_contract: contract,
+            findings: [],
+            rejected: [],
+            events: [],
+            mcp_trace: [],
+            report: null,
+            metrics: {},
+          } as unknown as RunPayload
+        }
+      />,
+    );
     const applied = screen.getByTestId("applied-analysis");
     expect(applied).toHaveTextContent("average");
     expect(applied).toHaveTextContent("annual revenue");

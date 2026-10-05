@@ -10,8 +10,13 @@
     "typecheck": "tsc -b --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:e2e": "playwright test && node scripts/check-playwright-skips.mjs",
-    "test:e2e:install": "playwright install --with-deps chromium"
+    "test:e2e": "node scripts/e2e.mjs",
+    "test:e2e:install": "playwright install --with-deps chromium",
+    "check:bundle": "node scripts/check-bundle.mjs",
+    "test:e2e:guard": "node scripts/e2eWrapper.check.mjs",
+    "check:budget": "node scripts/check-resource-budget.mjs",
+    "check:sources": "node scripts/check-e2e-sources.mjs",
+    "check:guards": "node scripts/e2eWrapper.check.mjs && node scripts/budgetGuard.check.mjs && node scripts/sourceGuard.check.mjs && node scripts/check-e2e-sources.mjs"
   },
   "dependencies": {
     "react": "^19.2.0",

@@ -1,18 +1,17 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { AppShell } from "./components/AppShell";
-import { DatasetIdentity } from "./components/DatasetIdentity";
-import { DatasetOnboarding } from "./components/DatasetOnboarding";
+import { DatasetContextBar } from "./components/DatasetContextBar";
+import { EvidenceDrawer } from "./components/EvidenceDrawer";
+import { LandingView } from "./components/LandingView";
 import { ProductHeader } from "./components/ProductHeader";
-import { ProvenanceDrawer } from "./components/ProvenanceDrawer";
-import { RightRail } from "./components/RightRail";
 import { QuestionComposer } from "./components/QuestionComposer";
-import { ReportWorkspace, type ProvenanceSide } from "./components/ReportWorkspace";
+import { ReportWorkspace } from "./components/ReportWorkspace";
 import { RunProgress } from "./components/RunProgress";
 import { SchemaInspector } from "./components/SchemaInspector";
+import { SideSheet } from "./components/SideSheet";
 import { TerminalState } from "./components/TerminalState";
 import { useTheme } from "./components/ThemeToggle";
-import { WorkflowIndex } from "./components/WorkflowIndex";
 import { ApiError, api } from "./lib/api";
 import { phaseOf } from "./lib/phase";
 import type {
@@ -27,7 +26,6 @@ import type {
 } from "./lib/types";
 import { useRunEvents } from "./lib/useRunEvents";
 
-type ProvenanceTarget = { side: ProvenanceSide; findingId: string };
 
 export function App() {
   const [config, setConfig] = useState<ServerConfig | null>(null);
@@ -39,7 +37,6 @@ export function App() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showTrace, setShowTrace] = useState(false);
-  const [target, setTarget] = useState<ProvenanceTarget | null>(null);
   const [replay, setReplay] = useState<RecordingSummary | null>(null);
   const [uiMode, setUiMode] = useState<UiMode>("auto");
   const [theme, toggleTheme] = useTheme();
@@ -181,7 +178,7 @@ export function App() {
   }, [comparison]);
 
   const reset = useCallback(() => {
-    setRun(null); setRunId(null); setReplay(null); setTarget(null);
+    setRun(null); setRunId(null); setReplay(null);
     setComparison(null); setAiRun(null); setAiError(null);
   }, []);
 
@@ -191,12 +188,28 @@ export function App() {
     try { await api.endSession(session.session_id); } catch { /* expired is already gone */ }
     finally {
       setSession(null); setRun(null); setRunId(null); setReplay(null);
-      setTarget(null); setQuestion(""); setBusy(false);
+      setQuestion(""); setBusy(false);
     }
   }, [session]);
 
-  const provenanceRun = target ? (target.side === "ai" ? aiRun : run) : null;
-  const finding = provenanceRun?.findings.find((candidate) => candidate.finding_id === target?.findingId) ?? null;
+  // The schema inspector is a sheet now, not a resident table. Closed by
+  // default and closed again whenever the dataset changes: a sheet left
+  // open across an upload would be describing the previous file.
+  const [schemaOpen, setSchemaOpen] = useState(false);
+  // The evidence drawer. One per report, opened by one control, closed on
+  // Escape. Reset whenever a new run begins, so a drawer left open is never
+  // describing the previous run.
+  const [evidenceOpen, setEvidenceOpen] = useState(false);
+  useEffect(() => { setEvidenceOpen(false); }, [runId]);
+  useEffect(() => { setSchemaOpen(false); }, [session?.session_id]);
+
+  /*
+   * The per-finding provenance drawer is gone with the finding cards that
+   * opened it. Every published finding used to carry its own "Show work →",
+   * and six identical cards meant six triggers for six drawers describing
+   * one run. The evidence drawer carries the contract, verification, cited
+   * cells, timings and the trace once, for the report.
+   */
   const catalog = run?.dataset ?? session?.catalog ?? null;
   const hasRun = Boolean(run || runId);
 
@@ -205,16 +218,25 @@ export function App() {
       sessionId={session?.session_id}
       hasRun={hasRun}
       header={<ProductHeader config={config} hasRun={hasRun} hasSession={Boolean(session)} replaying={Boolean(replay)} uiMode={uiMode} theme={theme} onToggleTheme={toggleTheme} onEndSession={() => void endSession()} onReset={reset} />}
-      workflow={<WorkflowIndex phase={phase} />}
     >
       <div className="column">
-        <DatasetIdentity catalog={catalog} />
+        <DatasetContextBar
+          catalog={catalog}
+          summary={session?.summary ?? null}
+          onInspect={session?.summary ? () => setSchemaOpen(true) : undefined}
+        />
         <TerminalState configError={configError} error={error} />
-        {!run && !runId && config && (
-          <DatasetOnboarding config={config} session={session} replay={replay} busy={busy} onDemo={() => void openDemo()} onUploadClick={() => fileInput.current?.click()} onFile={(file) => void upload(file)} onRecording={(recording) => void openRecording(recording)} />
+        {/* The landing and the composer are different states of the screen,
+            not two things stacked on it. The old Dataset panel stayed
+            mounted under the Ask panel for the whole session, so after an
+            upload a reader saw their file's composer above a drop zone
+            still inviting them to choose one. With the landing being a
+            full-page hero that is not merely redundant, it is two products
+            on one page. */}
+        {!session && !run && !runId && config && (
+          <LandingView config={config} session={session} replay={replay} busy={busy} onDemo={() => void openDemo()} onUploadClick={() => fileInput.current?.click()} onFile={(file) => void upload(file)} onRecording={(recording) => void openRecording(recording)} />
         )}
         <input ref={fileInput} type="file" accept=".csv,.parquet" className="sr-only" aria-label="Upload a CSV or Parquet file" onChange={(event) => { const file = event.target.files?.[0]; if (file) void upload(file); event.target.value = ""; }} />
-        {session?.summary && session.catalog.dataset_kind === "upload" && !hasRun && <SchemaInspector summary={session.summary} onConfirmRoles={confirmRoles} />}
         {session && !hasRun && <QuestionComposer config={config} summary={
                   // Only an uploaded file gets schema-derived examples. The
                   // demo session also carries a summary, so gating on its
@@ -225,16 +247,36 @@ export function App() {
                     ? session.summary
                     : null
                 } question={question} onQuestionChange={setQuestion} onAsk={() => void ask()} busy={busy} uiMode={uiMode} onModeChange={setUiMode} />}
-        {hasRun && <RunProgress run={run} events={recordedEvents} replay={replay} uiMode={uiMode} showTrace={showTrace} onToggleTrace={() => setShowTrace((value) => !value)} running={Boolean(runId) && !finished} />}
-        <ReportWorkspace comparison={comparison} run={run} aiRun={aiRun} aiError={aiError} config={config} deterministicPending={Boolean(runId) && !finished} onShowWork={(side, findingId) => setTarget({ side, findingId })} />
+        {/*
+          The timeline narrates a run in flight. Once the report exists it
+          is no longer the thing on screen -- the answer is -- so it moves
+          into the evidence drawer with the rest of the technical record.
+        */}
+        {hasRun && !run && <RunProgress events={recordedEvents} replay={replay} />}
+        <ReportWorkspace comparison={comparison} run={run} aiRun={aiRun} aiError={aiError} config={config} deterministicPending={Boolean(runId) && !finished} onShowEvidence={() => setEvidenceOpen(true)} />
       </div>
-      {!hasRun && <RightRail catalog={catalog} metrics={session?.metrics ?? []} usedMetrics={[]} results={{}} tasks={[]} runMetrics={null} onOpenResult={() => undefined} />}
-      {finding && provenanceRun && <ProvenanceDrawer finding={finding} results={provenanceRun.results} tasks={provenanceRun.tasks} trace={provenanceRun.mcp_trace} onClose={() => setTarget(null)} />}
-      {target && !finding && (
-        <div className="drawer" role="dialog" aria-label="Provenance unavailable">
-          <div className="drawer-head"><h3>Provenance unavailable</h3><button type="button" onClick={() => setTarget(null)}>Close</button></div>
-          <p>This finding is no longer part of the {target.side === "ai" ? "AI" : "deterministic"} run, so its working cannot be shown. Re-run the question to inspect it.</p>
-        </div>
+      {evidenceOpen && run && (
+        <EvidenceDrawer
+          run={run}
+          showTrace={showTrace}
+          onToggleTrace={() => setShowTrace((value) => !value)}
+          onClose={() => setEvidenceOpen(false)}
+        />
+      )}
+      {schemaOpen && session?.summary && (
+        <SideSheet
+          title="Dataset schema"
+          testId="schema-sheet"
+          onClose={() => setSchemaOpen(false)}
+        >
+          <SchemaInspector
+            open
+            summary={session.summary}
+            onConfirmRoles={
+              session.catalog.dataset_kind === "upload" ? confirmRoles : undefined
+            }
+          />
+        </SideSheet>
       )}
     </AppShell>
   );

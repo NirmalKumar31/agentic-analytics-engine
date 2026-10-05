@@ -17,15 +17,6 @@
 .finding.interpretation {
   border-left-color: var(--signal);
 }
-.finding-text {
-  margin: 0;
-}
-.finding-foot {
-  display: flex;
-  align-items: center;
-  gap: 9px;
-  flex-wrap: wrap;
-}
 
 .tag {
   display: inline-flex;
@@ -142,4 +133,24 @@ pre.sql {
      calculation reachable without a long scroll. */
   max-height: 260px;
   overflow: auto;
+}
+
+/* ------------------------------------------------- the rest, on a phone
+ *
+ * One finding is expanded on arrival at phone widths and the rest fold
+ * behind this. It is a `<details>`, so it is reachable by keyboard and the
+ * print cascade expands it: the paper copy is never the folded one.
+ */
+.findings-more {
+  margin-block-start: var(--space-3);
+}
+
+.findings-more > summary {
+  cursor: pointer;
+  font-size: var(--text-sm);
+  color: var(--ink-secondary);
+}
+
+.findings-more > ol {
+  margin-block-start: var(--space-3);
 }

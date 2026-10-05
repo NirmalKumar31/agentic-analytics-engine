@@ -1,0 +1,635 @@
+{
+  "run_id": "run_81a9c3974647",
+  "session_id": "ses_Nwz3SyHguzlEWN7-",
+  "question": "What is total revenue by region where region is Atlantis?",
+  "status": "completed",
+  "created_at": 1791095723.0223098,
+  "mode": "deterministic",
+  "provider_kind": "scripted",
+  "engine_version": "0.1.0",
+  "build_sha": "unknown",
+  "dataset_fingerprint": "sha256:2402f5316c5e31d72672ed9669811586",
+  "dataset": {
+    "dataset_kind": "upload",
+    "source": "Uploaded file: states.csv",
+    "dataset_fingerprint": "sha256:2402f5316c5e31d72672ed9669811586",
+    "dataset_seed": null,
+    "tables": [
+      {
+        "name": "uploaded_data",
+        "row_count": 160,
+        "columns": [
+          {
+            "name": "order_id",
+            "type": "BIGINT"
+          },
+          {
+            "name": "order_date",
+            "type": "DATE"
+          },
+          {
+            "name": "region",
+            "type": "VARCHAR"
+          },
+          {
+            "name": "revenue",
+            "type": "DOUBLE"
+          }
+        ]
+      }
+    ],
+    "metrics_available": []
+  },
+  "report": {
+    "question": "What is total revenue by region where region is Atlantis?",
+    "executive_summary": "",
+    "key_findings": [],
+    "sections": [],
+    "limitations": [
+      "No rows matched the requested filters: region = Atlantis. The analysis ran; the data contained no matching rows."
+    ],
+    "next_questions": []
+  },
+  "findings": [],
+  "rejected": [],
+  "charts": [],
+  "tasks": [],
+  "results": {
+    "res_7a89a58fe2bb": {
+      "result_id": "res_7a89a58fe2bb",
+      "tool_name": "aggregate_for_question",
+      "task_id": null,
+      "sql": "SELECT \"region\" AS region, ROUND(SUM(CAST(\"revenue\" AS DOUBLE)), 4) AS total_revenue, COUNT(*) AS row_count, COUNT(\"revenue\") AS value_count FROM \"uploaded_data\" WHERE \"region\" = 'Atlantis' GROUP BY 1 ORDER BY 1 LIMIT 501",
+      "columns": [
+        "region",
+        "total_revenue",
+        "row_count",
+        "value_count"
+      ],
+      "rows": [],
+      "row_count": 0,
+      "truncated": false,
+      "dataset_fingerprint": "sha256:2402f5316c5e31d72672ed9669811586",
+      "started_at": 1791095723.063415,
+      "duration_ms": 0.785,
+      "parameters": {
+        "table": "uploaded_data",
+        "question": "What is total revenue by region where region is Atlantis?",
+        "operation": "sum",
+        "measure": "revenue",
+        "period": null,
+        "period_field": null,
+        "filters": [
+          {
+            "column": "region",
+            "operator": "=",
+            "value": "Atlantis",
+            "value_type": "text",
+            "source_text": "where region is Atlantis"
+          }
+        ],
+        "dimension": "region",
+        "dimensions": [
+          "region"
+        ],
+        "time_field": null,
+        "time_grain": null,
+        "ascending": false,
+        "confident": true,
+        "explanation": "validated schema-grounded AI plan",
+        "named_columns": [
+          "region",
+          "revenue"
+        ],
+        "interpretation": "rule-based",
+        "planner_note": "",
+        "contract_hash": "46a9f27f20ea723ed5a244d68c41e79328c89442c84b787ade968f27b87e7574",
+        "canonical_contract": {
+          "operation": "sum",
+          "table": "uploaded_data",
+          "measure": "revenue",
+          "dimensions": [
+            "region"
+          ],
+          "time_field": null,
+          "time_grain": null,
+          "period": null,
+          "period_field": null,
+          "filters": [
+            {
+              "column": "region",
+              "operator": "=",
+              "value": "Atlantis",
+              "value_type": "text"
+            }
+          ],
+          "ascending": false
+        }
+      },
+      "warnings": [
+        "question interpreted by rule-based: validated schema-grounded AI plan"
+      ],
+      "statistical_result": null,
+      "decomposition": null,
+      "withhold_cells": false,
+      "column_types": {
+        "region": "VARCHAR",
+        "total_revenue": "DOUBLE",
+        "row_count": "BIGINT",
+        "value_count": "BIGINT"
+      },
+      "column_lineage": {
+        "region": {
+          "kind": "grouping",
+          "table": "uploaded_data",
+          "column": "region"
+        },
+        "total_revenue": {
+          "kind": "aggregate",
+          "aggregate": "SUM",
+          "table": "uploaded_data",
+          "column": "revenue",
+          "expression": "SUM(uploaded_data.revenue)"
+        },
+        "value_count": {
+          "kind": "aggregate",
+          "aggregate": "COUNT",
+          "table": "uploaded_data",
+          "column": "revenue",
+          "expression": "COUNT(uploaded_data.revenue)"
+        },
+        "row_count": {
+          "kind": "aggregate",
+          "aggregate": "COUNT",
+          "table": "uploaded_data",
+          "column": "*",
+          "expression": "COUNT(*) over uploaded_data"
+        }
+      },
+      "group_coverage": {
+        "complete": true,
+        "groups_returned": 0,
+        "groups_total": 0,
+        "rows_total": 160,
+        "rows_matching": 0,
+        "rows_represented": 0,
+        "observations_matching": 0,
+        "observations_represented": 0,
+        "query_limit": null,
+        "ordering": "dimension",
+        "ranked_by_request": false
+      }
+    }
+  },
+  "mcp_trace": [
+    {
+      "tool_name": "aggregate_for_question",
+      "agent": "fast_path",
+      "task_id": "task_01",
+      "arguments": {
+        "table": "uploaded_data",
+        "question": "What is total revenue by region where region is Atlantis?",
+        "contract": {
+          "operation": "sum",
+          "table": "uploaded_data",
+          "measure": "revenue",
+          "period": null,
+          "period_field": null,
+          "filters": [
+            {
+              "column": "region",
+              "operator": "=",
+              "value": "Atlantis",
+              "value_type": "text",
+              "source_text": "where region is Atlantis"
+            }
+          ],
+          "dimension": "region",
+          "dimensions": [
+            "region"
+          ],
+          "time_field": null,
+          "time_grain": null,
+          "ascending": false,
+          "confident": true,
+          "explanation": "total revenue by region",
+          "named_columns": [
+            "revenue",
+            "region"
+          ],
+          "interpretation": "rule-based",
+          "planner_note": "",
+          "contract_hash": "46a9f27f20ea723ed5a244d68c41e79328c89442c84b787ade968f27b87e7574",
+          "canonical_contract": {
+            "operation": "sum",
+            "table": "uploaded_data",
+            "measure": "revenue",
+            "dimensions": [
+              "region"
+            ],
+            "time_field": null,
+            "time_grain": null,
+            "period": null,
+            "period_field": null,
+            "filters": [
+              {
+                "column": "region",
+                "operator": "=",
+                "value": "Atlantis",
+                "value_type": "text"
+              }
+            ],
+            "ascending": false
+          }
+        },
+        "expected_schema_revision": 0
+      },
+      "duration_ms": 18.65,
+      "result_id": "res_7a89a58fe2bb",
+      "row_count": 0,
+      "ok": true,
+      "error": null
+    }
+  ],
+  "events": [
+    {
+      "event_id": "ev_23402dcee2ca",
+      "seq": 1,
+      "type": "run_started",
+      "at": 1791095723.0228102,
+      "data": {
+        "run_id": "run_81a9c3974647",
+        "question": "What is total revenue by region where region is Atlantis?",
+        "provider": "fake",
+        "session_id": "ses_Nwz3SyHguzlEWN7-"
+      }
+    },
+    {
+      "event_id": "ev_9da67f0619bc",
+      "seq": 2,
+      "type": "dataset_loaded",
+      "at": 1791095723.04575,
+      "data": {
+        "dataset_kind": "upload",
+        "source": "Uploaded file: states.csv",
+        "dataset_fingerprint": "sha256:2402f5316c5e31d72672ed9669811586",
+        "tables": [
+          {
+            "name": "uploaded_data",
+            "row_count": 160
+          }
+        ],
+        "metrics": []
+      }
+    },
+    {
+      "event_id": "ev_029a28927a97",
+      "seq": 3,
+      "type": "contract_resolved",
+      "at": 1791095723.0542579,
+      "data": {
+        "planner": "rule-based",
+        "model_calls": 0,
+        "duration_ms": 7.5,
+        "fallback": false,
+        "confident": true,
+        "contract_hash": "46a9f27f20ea723ed5a244d68c41e79328c89442c84b787ade968f27b87e7574",
+        "operation": "sum",
+        "dimensions": [
+          "region"
+        ]
+      }
+    },
+    {
+      "event_id": "ev_ebabb697109d",
+      "seq": 4,
+      "type": "question_analyzed",
+      "at": 1791095723.054271,
+      "data": {
+        "intent": "What is total revenue by region where region is Atlantis?",
+        "analysis_type": "segmentation",
+        "target_metrics": [
+          "revenue"
+        ],
+        "dimensions": [
+          "region"
+        ],
+        "time_scope": null,
+        "ambiguities": []
+      }
+    },
+    {
+      "event_id": "ev_2ded9c7d7804",
+      "seq": 5,
+      "type": "mcp_tool_called",
+      "at": 1791095723.0551748,
+      "data": {
+        "tool_name": "aggregate_for_question",
+        "agent": "fast_path",
+        "task_id": "task_01",
+        "arguments": {
+          "table": "uploaded_data",
+          "question": "What is total revenue by region where region is Atlantis?",
+          "contract": {
+            "operation": "sum",
+            "table": "uploaded_data",
+            "measure": "revenue",
+            "period": null,
+            "period_field": null,
+            "filters": [
+              {
+                "column": "region",
+                "operator": "=",
+                "value": "Atlantis",
+                "value_type": "text",
+                "source_text": "where region is Atlantis"
+              }
+            ],
+            "dimension": "region",
+            "dimensions": [
+              "region"
+            ],
+            "time_field": null,
+            "time_grain": null,
+            "ascending": false,
+            "confident": true,
+            "explanation": "total revenue by region",
+            "named_columns": [
+              "revenue",
+              "region"
+            ],
+            "interpretation": "rule-based",
+            "planner_note": "",
+            "contract_hash": "46a9f27f20ea723ed5a244d68c41e79328c89442c84b787ade968f27b87e7574",
+            "canonical_contract": {
+              "operation": "sum",
+              "table": "uploaded_data",
+              "measure": "revenue",
+              "dimensions": [
+                "region"
+              ],
+              "time_field": null,
+              "time_grain": null,
+              "period": null,
+              "period_field": null,
+              "filters": [
+                {
+                  "column": "region",
+                  "operator": "=",
+                  "value": "Atlantis",
+                  "value_type": "text"
+                }
+              ],
+              "ascending": false
+            }
+          },
+          "expected_schema_revision": 0
+        },
+        "duration_ms": 0,
+        "result_id": null,
+        "row_count": null,
+        "ok": true,
+        "error": null,
+        "transport": "in-process"
+      }
+    },
+    {
+      "event_id": "ev_fd9845514ca4",
+      "seq": 6,
+      "type": "mcp_tool_completed",
+      "at": 1791095723.073857,
+      "data": {
+        "tool_name": "aggregate_for_question",
+        "agent": "fast_path",
+        "task_id": "task_01",
+        "arguments": {
+          "table": "uploaded_data",
+          "question": "What is total revenue by region where region is Atlantis?",
+          "contract": {
+            "operation": "sum",
+            "table": "uploaded_data",
+            "measure": "revenue",
+            "period": null,
+            "period_field": null,
+            "filters": [
+              {
+                "column": "region",
+                "operator": "=",
+                "value": "Atlantis",
+                "value_type": "text",
+                "source_text": "where region is Atlantis"
+              }
+            ],
+            "dimension": "region",
+            "dimensions": [
+              "region"
+            ],
+            "time_field": null,
+            "time_grain": null,
+            "ascending": false,
+            "confident": true,
+            "explanation": "total revenue by region",
+            "named_columns": [
+              "revenue",
+              "region"
+            ],
+            "interpretation": "rule-based",
+            "planner_note": "",
+            "contract_hash": "46a9f27f20ea723ed5a244d68c41e79328c89442c84b787ade968f27b87e7574",
+            "canonical_contract": {
+              "operation": "sum",
+              "table": "uploaded_data",
+              "measure": "revenue",
+              "dimensions": [
+                "region"
+              ],
+              "time_field": null,
+              "time_grain": null,
+              "period": null,
+              "period_field": null,
+              "filters": [
+                {
+                  "column": "region",
+                  "operator": "=",
+                  "value": "Atlantis",
+                  "value_type": "text"
+                }
+              ],
+              "ascending": false
+            }
+          },
+          "expected_schema_revision": 0
+        },
+        "duration_ms": 18.65,
+        "result_id": "res_7a89a58fe2bb",
+        "row_count": 0,
+        "ok": true,
+        "error": null
+      }
+    },
+    {
+      "event_id": "ev_ce7b47434d8c",
+      "seq": 7,
+      "type": "report_completed",
+      "at": 1791095723.074791,
+      "data": {
+        "finding_count": 0,
+        "rejected_count": 0,
+        "chart_count": 0,
+        "sections": []
+      }
+    },
+    {
+      "event_id": "ev_655bcd86e271",
+      "seq": 8,
+      "type": "run_completed",
+      "at": 1791095723.0759811,
+      "data": {
+        "run_id": "run_81a9c3974647",
+        "runtime_seconds": 0.053,
+        "provider": "fake",
+        "analysis_tasks": 0,
+        "tasks_succeeded": 0,
+        "tasks_warned": 0,
+        "tasks_failed": 0,
+        "mcp_tool_calls": 1,
+        "mcp_tool_failures": 0,
+        "findings_proposed": 0,
+        "findings_published": 0,
+        "findings_rejected": 0,
+        "charts": 0,
+        "provider_request_attempts": 0,
+        "provider_successful_responses": 0,
+        "llm_calls": 0,
+        "input_tokens": 0,
+        "output_tokens": 0
+      }
+    }
+  ],
+  "metrics": {
+    "runtime_seconds": 0.053,
+    "provider": "fake",
+    "analysis_tasks": 0,
+    "tasks_succeeded": 0,
+    "tasks_warned": 0,
+    "tasks_failed": 0,
+    "mcp_tool_calls": 1,
+    "mcp_tool_failures": 0,
+    "findings_proposed": 0,
+    "findings_published": 0,
+    "findings_rejected": 0,
+    "charts": 0,
+    "provider_request_attempts": 0,
+    "provider_successful_responses": 0,
+    "llm_calls": 0,
+    "input_tokens": 0,
+    "output_tokens": 0,
+    "by_role": {}
+  },
+  "query_contract": {
+    "operation": "sum",
+    "table": "uploaded_data",
+    "measure": "revenue",
+    "period": null,
+    "period_field": null,
+    "filters": [
+      {
+        "column": "region",
+        "operator": "=",
+        "value": "Atlantis",
+        "value_type": "text",
+        "source_text": "where region is Atlantis"
+      }
+    ],
+    "dimension": "region",
+    "dimensions": [
+      "region"
+    ],
+    "time_field": null,
+    "time_grain": null,
+    "ascending": false,
+    "confident": true,
+    "explanation": "total revenue by region",
+    "named_columns": [
+      "revenue",
+      "region"
+    ],
+    "interpretation": "rule-based",
+    "planner_note": "",
+    "contract_hash": "46a9f27f20ea723ed5a244d68c41e79328c89442c84b787ade968f27b87e7574",
+    "canonical_contract": {
+      "operation": "sum",
+      "table": "uploaded_data",
+      "measure": "revenue",
+      "dimensions": [
+        "region"
+      ],
+      "time_field": null,
+      "time_grain": null,
+      "period": null,
+      "period_field": null,
+      "filters": [
+        {
+          "column": "region",
+          "operator": "=",
+          "value": "Atlantis",
+          "value_type": "text"
+        }
+      ],
+      "ascending": false
+    }
+  },
+  "question_coverage": {
+    "complete": true,
+    "required_components": [
+      "operation",
+      "measure",
+      "dimensions",
+      "filters"
+    ],
+    "applied_components": [
+      "operation",
+      "measure",
+      "dimensions",
+      "filters"
+    ],
+    "missing_components": [],
+    "rejection_codes": [],
+    "details": []
+  },
+  "timings": {
+    "planning_ms": 7.5,
+    "execution_ms": 18.8,
+    "verification_ms": 0,
+    "total_ms": 26.3
+  },
+  "chart_decision": {},
+  "presentation": null,
+  "planner_fallback": false,
+  "stopped_reason": "",
+  "outcome": "completed",
+  "schema_revision": 0,
+  "role_evidence": [
+    {
+      "column": "region",
+      "effective_role": "dimension",
+      "inferred_role": "dimension",
+      "role_source": "inferred",
+      "ambiguous": false,
+      "used_as": [
+        "grouping",
+        "filter"
+      ]
+    },
+    {
+      "column": "revenue",
+      "effective_role": "measure",
+      "inferred_role": "measure",
+      "role_source": "inferred",
+      "ambiguous": false,
+      "used_as": [
+        "measure"
+      ]
+    }
+  ]
+}

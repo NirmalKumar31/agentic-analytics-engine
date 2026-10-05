@@ -1,0 +1,807 @@
+{
+  "run_id": "run_ccb8017aa6d5",
+  "session_id": "ses_Ij9tN_KFusSy_MLB",
+  "question": "What is the total revenue?",
+  "status": "completed",
+  "created_at": 1791084234.90849,
+  "mode": "deterministic",
+  "provider_kind": "scripted",
+  "engine_version": "0.1.0",
+  "build_sha": "unknown",
+  "dataset_fingerprint": "sha256:8e9ad9348f7dc18660d78ed3cd4d4b32",
+  "usage": {
+    "input_tokens": 3962,
+    "output_tokens": 216,
+    "provider_attempts": 5,
+    "estimated_cost_microdollars": 0
+  },
+  "dataset": {
+    "dataset_kind": "demo",
+    "source": "Commerce demo warehouse",
+    "dataset_fingerprint": "sha256:8e9ad9348f7dc18660d78ed3cd4d4b32",
+    "dataset_seed": 20260924,
+    "tables": [
+      {
+        "name": "customers",
+        "row_count": 30000,
+        "columns": [
+          {
+            "name": "customer_id",
+            "type": "BIGINT"
+          },
+          {
+            "name": "signup_date",
+            "type": "DATE"
+          },
+          {
+            "name": "customer_segment",
+            "type": "VARCHAR"
+          },
+          {
+            "name": "region",
+            "type": "VARCHAR"
+          },
+          {
+            "name": "acquisition_channel",
+            "type": "VARCHAR"
+          }
+        ]
+      },
+      {
+        "name": "products",
+        "row_count": 800,
+        "columns": [
+          {
+            "name": "product_id",
+            "type": "BIGINT"
+          },
+          {
+            "name": "product_name",
+            "type": "VARCHAR"
+          },
+          {
+            "name": "category",
+            "type": "VARCHAR"
+          },
+          {
+            "name": "brand",
+            "type": "VARCHAR"
+          },
+          {
+            "name": "list_price",
+            "type": "DOUBLE"
+          },
+          {
+            "name": "unit_cost",
+            "type": "DOUBLE"
+          }
+        ]
+      },
+      {
+        "name": "orders",
+        "row_count": 104915,
+        "columns": [
+          {
+            "name": "order_id",
+            "type": "BIGINT"
+          },
+          {
+            "name": "customer_id",
+            "type": "BIGINT"
+          },
+          {
+            "name": "order_date",
+            "type": "DATE"
+          },
+          {
+            "name": "channel",
+            "type": "VARCHAR"
+          },
+          {
+            "name": "discount_rate",
+            "type": "DOUBLE"
+          },
+          {
+            "name": "shipping_cost",
+            "type": "DOUBLE"
+          },
+          {
+            "name": "status",
+            "type": "VARCHAR"
+          },
+          {
+            "name": "is_first_order",
+            "type": "BOOLEAN"
+          }
+        ]
+      },
+      {
+        "name": "order_items",
+        "row_count": 239794,
+        "columns": [
+          {
+            "name": "order_item_id",
+            "type": "BIGINT"
+          },
+          {
+            "name": "order_id",
+            "type": "BIGINT"
+          },
+          {
+            "name": "product_id",
+            "type": "BIGINT"
+          },
+          {
+            "name": "quantity",
+            "type": "BIGINT"
+          },
+          {
+            "name": "unit_price",
+            "type": "DOUBLE"
+          },
+          {
+            "name": "unit_cost",
+            "type": "DOUBLE"
+          },
+          {
+            "name": "list_price",
+            "type": "DOUBLE"
+          },
+          {
+            "name": "discount_amount",
+            "type": "DOUBLE"
+          }
+        ]
+      },
+      {
+        "name": "returns",
+        "row_count": 19471,
+        "columns": [
+          {
+            "name": "return_id",
+            "type": "BIGINT"
+          },
+          {
+            "name": "order_id",
+            "type": "BIGINT"
+          },
+          {
+            "name": "order_item_id",
+            "type": "BIGINT"
+          },
+          {
+            "name": "product_id",
+            "type": "BIGINT"
+          },
+          {
+            "name": "customer_id",
+            "type": "BIGINT"
+          },
+          {
+            "name": "return_date",
+            "type": "DATE"
+          },
+          {
+            "name": "return_reason",
+            "type": "VARCHAR"
+          },
+          {
+            "name": "refund_amount",
+            "type": "DOUBLE"
+          }
+        ]
+      },
+      {
+        "name": "shipping_events",
+        "row_count": 104915,
+        "columns": [
+          {
+            "name": "order_id",
+            "type": "BIGINT"
+          },
+          {
+            "name": "carrier",
+            "type": "VARCHAR"
+          },
+          {
+            "name": "region",
+            "type": "VARCHAR"
+          },
+          {
+            "name": "shipped_date",
+            "type": "DATE"
+          },
+          {
+            "name": "promised_days",
+            "type": "BIGINT"
+          },
+          {
+            "name": "delivered_date",
+            "type": "DATE"
+          },
+          {
+            "name": "delivery_days",
+            "type": "BIGINT"
+          },
+          {
+            "name": "is_late",
+            "type": "BOOLEAN"
+          }
+        ]
+      },
+      {
+        "name": "marketing_daily",
+        "row_count": 2924,
+        "columns": [
+          {
+            "name": "date",
+            "type": "DATE"
+          },
+          {
+            "name": "channel",
+            "type": "VARCHAR"
+          },
+          {
+            "name": "campaign",
+            "type": "VARCHAR"
+          },
+          {
+            "name": "spend",
+            "type": "DOUBLE"
+          },
+          {
+            "name": "impressions",
+            "type": "BIGINT"
+          },
+          {
+            "name": "clicks",
+            "type": "BIGINT"
+          }
+        ]
+      }
+    ],
+    "metrics_available": [
+      "average_order_value",
+      "avg_delivery_days",
+      "avg_discount_rate",
+      "cogs",
+      "contribution_margin",
+      "contribution_margin_pct",
+      "customer_count",
+      "discount_amount",
+      "gross_margin_pct",
+      "gross_profit",
+      "late_delivery_rate",
+      "marketing_spend",
+      "orders",
+      "refund_amount",
+      "repeat_purchase_rate",
+      "return_rate",
+      "revenue",
+      "roas",
+      "shipments",
+      "units"
+    ]
+  },
+  "report": {
+    "question": "What is the total revenue?",
+    "executive_summary": "Each finding below passed the publication checks and is listed once, with the results it was checked against.",
+    "key_findings": [
+      "Revenue: revenue: $10,087,379.47."
+    ],
+    "sections": [
+      {
+        "heading": "What the numbers show",
+        "finding_ids": [
+          "fin_f1e0644c"
+        ]
+      }
+    ],
+    "limitations": [
+      "1 proposed finding was withheld because the engine published the complete breakdown instead, so a summary naming only some of the groups was not needed."
+    ],
+    "next_questions": [
+      "Which dimension explains the largest share of the variation seen here?"
+    ]
+  },
+  "findings": [
+    {
+      "finding_id": "fin_f1e0644c",
+      "text": "Revenue: revenue: $10,087,379.47.",
+      "kind": "calculated_fact",
+      "task_id": null,
+      "result_ids": [
+        "res_a9c1fe93ed11"
+      ],
+      "evidence_cells": [
+        {
+          "result_id": "res_a9c1fe93ed11",
+          "row": 0,
+          "column": "revenue",
+          "value": 10087379.470000014,
+          "label": "revenue for revenue"
+        }
+      ],
+      "metric_ids": [],
+      "verification_status": "supported",
+      "verifier_reason": "Composed by the engine from the executed aggregate and its result lineage, and checked against the cells it cites.",
+      "verifier_rule": "engine_canonical",
+      "numeric_check": {
+        "ok": true,
+        "reason": "Every stated number traces to a cited result.",
+        "checks": [
+          {
+            "stated": 10087379.47,
+            "matched": true,
+            "source": "res_a9c1fe93ed11[0].revenue",
+            "computed": 10087379.470000014
+          }
+        ],
+        "claimed_change_discarded": false
+      },
+      "evidence_supported": true,
+      "answers_question": true,
+      "relevance_reason": "",
+      "claimed_change": null
+    }
+  ],
+  "rejected": [
+    {
+      "finding_id": "task_01:fin_fce6c0a0:0",
+      "status": "unsupported",
+      "reason": "The engine published the complete registry-grounded answer instead of a partial summary.",
+      "rule": "partial_metric_answer",
+      "numeric_check": null,
+      "evidence_supported": true,
+      "answers_question": false,
+      "relevance_reason": ""
+    }
+  ],
+  "charts": [],
+  "tasks": [
+    {
+      "task_id": "task_01",
+      "status": "succeeded",
+      "findings": [
+        {
+          "finding_id": "task_01:fin_fce6c0a0:0",
+          "text": "revenue for the selected scope is 10,087,379.",
+          "kind": "calculated_fact",
+          "task_id": "task_01",
+          "result_ids": [
+            "res_a9c1fe93ed11"
+          ],
+          "evidence_cells": [
+            {
+              "result_id": "res_a9c1fe93ed11",
+              "row": 0,
+              "column": "revenue",
+              "value": 10087379.470000014,
+              "label": "revenue"
+            }
+          ],
+          "metric_ids": [
+            "revenue"
+          ],
+          "claimed_change": null
+        }
+      ],
+      "result_ids": [
+        "res_a9c1fe93ed11"
+      ],
+      "tool_calls": 1,
+      "error": null,
+      "notes": [],
+      "tool_telemetry": {
+        "tool_calls_attempted": 1,
+        "tool_calls_succeeded": 1,
+        "tool_calls_failed": 0,
+        "preflight_rejections": 0,
+        "duplicate_failed_calls_suppressed": 0,
+        "mcp_failures": 0,
+        "failures_by_category": {},
+        "execution_contract_characters": 3028
+      }
+    }
+  ],
+  "results": {
+    "res_a9c1fe93ed11": {
+      "result_id": "res_a9c1fe93ed11",
+      "tool_name": "compute_metric",
+      "task_id": "task_01",
+      "sql": "SELECT SUM(quantity * unit_price) AS \"revenue\"\nFROM (\nSELECT\n  o.order_id,\n  o.order_date,\n  o.customer_id,\n  o.channel            AS order_channel,\n  o.discount_rate,\n  o.shipping_cost,\n  o.status,\n  o.is_first_order,\n  i.order_item_id,\n  i.product_id,\n  i.quantity,\n  i.unit_price,\n  i.unit_cost,\n  i.list_price,\n  i.discount_amount,\n  p.category,\n  p.brand,\n  c.region,\n  c.customer_segment,\n  c.acquisition_channel,\n  CASE WHEN r.return_id IS NULL THEN 0 ELSE 1 END AS is_returned,\n  COALESCE(r.refund_amount, 0)                    AS refund_amount,\n  r.return_reason\nFROM orders o\nJOIN order_items i ON i.order_id = o.order_id\nJOIN products p    ON p.product_id = i.product_id\nJOIN customers c   ON c.customer_id = o.customer_id\nLEFT JOIN returns r ON r.order_item_id = i.order_item_id\n) AS m",
+      "columns": [
+        "revenue"
+      ],
+      "rows": [
+        [
+          10087379.470000014
+        ]
+      ],
+      "row_count": 1,
+      "truncated": false,
+      "dataset_fingerprint": "sha256:8e9ad9348f7dc18660d78ed3cd4d4b32",
+      "started_at": 1791084234.934054,
+      "duration_ms": 9.166,
+      "parameters": {
+        "metric": "revenue",
+        "dimensions": [],
+        "time_grain": null,
+        "filters": []
+      },
+      "warnings": [],
+      "statistical_result": null,
+      "decomposition": null,
+      "withhold_cells": false,
+      "column_types": {
+        "revenue": "DOUBLE"
+      },
+      "column_lineage": {},
+      "group_coverage": null
+    }
+  },
+  "mcp_trace": [
+    {
+      "tool_name": "compute_metric",
+      "agent": "analysis_worker",
+      "task_id": "task_01",
+      "arguments": {
+        "metric": "revenue",
+        "dimensions": [],
+        "filters": [],
+        "task_id": "task_01"
+      },
+      "duration_ms": 14.83,
+      "result_id": "res_a9c1fe93ed11",
+      "row_count": 1,
+      "ok": true,
+      "error": null
+    }
+  ],
+  "events": [
+    {
+      "event_id": "ev_c55ee0763942",
+      "seq": 1,
+      "type": "run_started",
+      "at": 1791084234.9086158,
+      "data": {
+        "run_id": "run_ccb8017aa6d5",
+        "question": "What is the total revenue?",
+        "provider": "fake",
+        "session_id": "ses_Ij9tN_KFusSy_MLB"
+      }
+    },
+    {
+      "event_id": "ev_82cb4e93deee",
+      "seq": 2,
+      "type": "dataset_loaded",
+      "at": 1791084234.929814,
+      "data": {
+        "dataset_kind": "demo",
+        "source": "Commerce demo warehouse",
+        "dataset_fingerprint": "sha256:8e9ad9348f7dc18660d78ed3cd4d4b32",
+        "tables": [
+          {
+            "name": "customers",
+            "row_count": 30000
+          },
+          {
+            "name": "products",
+            "row_count": 800
+          },
+          {
+            "name": "orders",
+            "row_count": 104915
+          },
+          {
+            "name": "order_items",
+            "row_count": 239794
+          },
+          {
+            "name": "returns",
+            "row_count": 19471
+          },
+          {
+            "name": "shipping_events",
+            "row_count": 104915
+          },
+          {
+            "name": "marketing_daily",
+            "row_count": 2924
+          }
+        ],
+        "metrics": [
+          "average_order_value",
+          "avg_delivery_days",
+          "avg_discount_rate",
+          "cogs",
+          "contribution_margin",
+          "contribution_margin_pct",
+          "customer_count",
+          "discount_amount",
+          "gross_margin_pct",
+          "gross_profit",
+          "late_delivery_rate",
+          "marketing_spend",
+          "orders",
+          "refund_amount",
+          "repeat_purchase_rate",
+          "return_rate",
+          "revenue",
+          "roas",
+          "shipments",
+          "units"
+        ]
+      }
+    },
+    {
+      "event_id": "ev_97bc6d071848",
+      "seq": 3,
+      "type": "contract_resolved",
+      "at": 1791084234.9310222,
+      "data": {
+        "planner": "metric-registry",
+        "model_calls": 0,
+        "duration_ms": 0.3,
+        "fallback": false,
+        "confident": true,
+        "contract_hash": "53a4ca33dba05823506972f8947ac2131ecbc0c9e278a8f697d63a9c20baabdf",
+        "operation": "aggregate",
+        "dimensions": []
+      }
+    },
+    {
+      "event_id": "ev_1421e28df32c",
+      "seq": 4,
+      "type": "question_analyzed",
+      "at": 1791084234.9310331,
+      "data": {
+        "intent": "What is the total revenue?",
+        "analysis_type": "segmentation",
+        "target_metrics": [
+          "revenue"
+        ],
+        "dimensions": [],
+        "time_scope": null,
+        "ambiguities": []
+      }
+    },
+    {
+      "event_id": "ev_8ec868d284b4",
+      "seq": 5,
+      "type": "plan_generated",
+      "at": 1791084234.931893,
+      "data": {
+        "task_count": 1,
+        "contract_hash": "53a4ca33dba05823506972f8947ac2131ecbc0c9e278a8f697d63a9c20baabdf",
+        "interpretation": "metric-registry",
+        "tasks": [
+          {
+            "task_id": "task_01",
+            "objective": "Compute the accepted query contract",
+            "analysis_type": "segmentation",
+            "preferred_tool": "compute_metric",
+            "metrics": [
+              "revenue"
+            ],
+            "dimensions": [],
+            "priority": 1
+          }
+        ]
+      }
+    },
+    {
+      "event_id": "ev_77ad65bd9b01",
+      "seq": 6,
+      "type": "analysis_task_started",
+      "at": 1791084234.932846,
+      "data": {
+        "task_id": "task_01",
+        "objective": "Compute the accepted query contract",
+        "analysis_type": "segmentation",
+        "preferred_tool": "compute_metric",
+        "metrics": [
+          "revenue"
+        ],
+        "dimensions": []
+      }
+    },
+    {
+      "event_id": "ev_536956b74735",
+      "seq": 7,
+      "type": "mcp_tool_called",
+      "at": 1791084234.9335942,
+      "data": {
+        "tool_name": "compute_metric",
+        "agent": "analysis_worker",
+        "task_id": "task_01",
+        "arguments": {
+          "metric": "revenue",
+          "dimensions": [],
+          "filters": [],
+          "task_id": "task_01"
+        },
+        "duration_ms": 0,
+        "result_id": null,
+        "row_count": null,
+        "ok": true,
+        "error": null,
+        "transport": "in-process"
+      }
+    },
+    {
+      "event_id": "ev_f1bd71ff5e1a",
+      "seq": 8,
+      "type": "mcp_tool_completed",
+      "at": 1791084234.94846,
+      "data": {
+        "tool_name": "compute_metric",
+        "agent": "analysis_worker",
+        "task_id": "task_01",
+        "arguments": {
+          "metric": "revenue",
+          "dimensions": [],
+          "filters": [],
+          "task_id": "task_01"
+        },
+        "duration_ms": 14.83,
+        "result_id": "res_a9c1fe93ed11",
+        "row_count": 1,
+        "ok": true,
+        "error": null
+      }
+    },
+    {
+      "event_id": "ev_c98e4adbb82f",
+      "seq": 9,
+      "type": "finding_proposed",
+      "at": 1791084234.950351,
+      "data": {
+        "finding_id": "task_01:fin_fce6c0a0:0",
+        "task_id": "task_01",
+        "kind": "calculated_fact",
+        "text": "revenue for the selected scope is 10,087,379.",
+        "result_ids": [
+          "res_a9c1fe93ed11"
+        ]
+      }
+    },
+    {
+      "event_id": "ev_d09c5c47c0b7",
+      "seq": 10,
+      "type": "analysis_task_completed",
+      "at": 1791084234.950372,
+      "data": {
+        "task_id": "task_01",
+        "objective": "Compute the accepted query contract",
+        "status": "succeeded",
+        "findings": 1,
+        "tool_calls": 1,
+        "result_ids": [
+          "res_a9c1fe93ed11"
+        ]
+      }
+    },
+    {
+      "event_id": "ev_6c4b4ec39a61",
+      "seq": 11,
+      "type": "finding_verified",
+      "at": 1791084234.9522822,
+      "data": {
+        "finding_id": "task_01:fin_fce6c0a0:0",
+        "task_id": "task_01",
+        "status": "supported",
+        "reason": "The wording matches the values in the cited result.",
+        "text": "revenue for the selected scope is 10,087,379."
+      }
+    },
+    {
+      "event_id": "ev_e6c7a5cf5467",
+      "seq": 12,
+      "type": "report_started",
+      "at": 1791084234.95363,
+      "data": {
+        "finding_count": 1
+      }
+    },
+    {
+      "event_id": "ev_176379bddad1",
+      "seq": 13,
+      "type": "report_completed",
+      "at": 1791084234.955193,
+      "data": {
+        "finding_count": 1,
+        "rejected_count": 1,
+        "chart_count": 0,
+        "sections": [
+          "What the numbers show"
+        ]
+      }
+    },
+    {
+      "event_id": "ev_008452640120",
+      "seq": 14,
+      "type": "run_completed",
+      "at": 1791084234.9558332,
+      "data": {
+        "run_id": "run_ccb8017aa6d5",
+        "runtime_seconds": 0.047,
+        "provider": "fake",
+        "analysis_tasks": 1,
+        "tasks_succeeded": 1,
+        "tasks_warned": 0,
+        "tasks_failed": 0,
+        "mcp_tool_calls": 1,
+        "mcp_tool_failures": 0,
+        "findings_proposed": 2,
+        "findings_published": 1,
+        "findings_rejected": 1,
+        "charts": 0,
+        "provider_request_attempts": 5,
+        "provider_successful_responses": 5,
+        "llm_calls": 5,
+        "input_tokens": 3962,
+        "output_tokens": 216
+      }
+    }
+  ],
+  "metrics": {
+    "runtime_seconds": 0.047,
+    "provider": "fake",
+    "analysis_tasks": 1,
+    "tasks_succeeded": 1,
+    "tasks_warned": 0,
+    "tasks_failed": 0,
+    "mcp_tool_calls": 1,
+    "mcp_tool_failures": 0,
+    "findings_proposed": 2,
+    "findings_published": 1,
+    "findings_rejected": 1,
+    "charts": 0,
+    "provider_request_attempts": 5,
+    "provider_successful_responses": 5,
+    "llm_calls": 5,
+    "input_tokens": 3962,
+    "output_tokens": 216,
+    "by_role": {
+      "worker_next_tool": 2,
+      "worker_findings": 1,
+      "critic": 1,
+      "reporter": 1
+    }
+  },
+  "query_contract": {
+    "kind": "metric_registry",
+    "operation": "aggregate",
+    "metric": "revenue",
+    "dimensions": [],
+    "time_grain": null,
+    "table": null,
+    "measure": "revenue",
+    "dimension": null,
+    "filters": [],
+    "ascending": false,
+    "confident": true,
+    "explanation": "",
+    "interpretation": "metric-registry",
+    "contract_hash": "53a4ca33dba05823506972f8947ac2131ecbc0c9e278a8f697d63a9c20baabdf",
+    "canonical_contract": {
+      "kind": "metric_registry",
+      "operation": "aggregate",
+      "metric": "revenue",
+      "dimensions": [],
+      "time_grain": null
+    }
+  },
+  "question_coverage": null,
+  "timings": {
+    "planning_ms": 0.3
+  },
+  "chart_decision": {},
+  "presentation": null,
+  "planner_fallback": false,
+  "stopped_reason": "",
+  "outcome": "completed",
+  "schema_revision": 0,
+  "role_evidence": []
+}

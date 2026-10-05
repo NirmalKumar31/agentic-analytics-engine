@@ -4,7 +4,6 @@
  */
 
 import { describe, expect, it } from "vitest";
-import { laneStages } from "../components/ExecutionLanes";
 import { compareRuns } from "../lib/comparison";
 import type {
   CanonicalContract,
@@ -180,147 +179,26 @@ describe("compareRuns", () => {
   });
 });
 
-describe("execution lanes", () => {
-  it("shows the planner each mode used, and the shared computation", () => {
-    const withPlanning = run({
-      events: [
-        {
-          type: "contract_resolved",
-          data: { model_calls: 1, planner: "ai-grounded" },
-        },
-        { type: "mcp_tool_called", data: {} },
-      ],
-      timings: { planning_ms: 820, execution_ms: 44, verification_ms: 2 },
-    } as never);
-
-    const ai = laneStages(withPlanning, "ai");
-    const deterministicStages = laneStages(withPlanning, "deterministic");
-    expect(ai).toHaveLength(5);
-    expect(deterministicStages).toHaveLength(5);
-    const aiPlanner = ai[0]!;
-    const detPlanner = deterministicStages[0]!;
-    expect(aiPlanner.label).toBe("Cloud semantic planner");
-    expect(aiPlanner.detail).toMatch(/1 model call/);
-    expect(aiPlanner.detail).toMatch(/820ms/);
-
-    expect(detPlanner.label).toBe("Rule resolver");
-    expect(detPlanner.detail).toMatch(/no model calls/);
-
-    // Everything after the planner is the same lane.
-    expect(ai.slice(1).map((stage) => stage.label)).toEqual(
-      deterministicStages.slice(1).map((stage) => stage.label),
-    );
-    expect(ai[2]!.label).toBe("DuckDB via MCP");
-  });
-
-  it("always returns five stages, which the lane alignment depends on", () => {
-    // `.lane-grid` declares `grid-template-rows: auto repeat(5, auto) auto`
-    // and the lanes take those rows through `subgrid` so the two columns
-    // line up stage for stage. A sixth stage would fall outside the
-    // declared rows.
-    const cases: RunPayload[] = [
-      run(),
-      run({ query_contract: null, question_coverage: null, events: [] } as never),
-      run({
-        query_contract: null,
-        question_coverage: null,
-        events: [
-          { type: "question_analyzed", data: {} },
-          { type: "plan_generated", data: { task_count: 4 } },
-        ],
-      } as never),
-      run({ status: "refused", findings: [], events: [] } as never),
-    ];
-    for (const payload of cases) {
-      for (const mode of ["ai", "deterministic"] as const) {
-        expect(laneStages(payload, mode)).toHaveLength(5);
-      }
-    }
-    expect(laneStages(null, "ai")).toHaveLength(5);
-  });
-
-  it("describes the registry path by what it did, not by a contract it never built", () => {
-    // The bundled demo dataset is answered from the metric registry by
-    // planning agents. It emits no contract_resolved and carries no upload
-    // contract, and the lane used to report "Rule resolver: not reached"
-    // and "Contract validation: not accepted" for a run that succeeded.
-    const demo = run({
-      query_contract: null,
-      question_coverage: null,
-      events: [
-        {
-          type: "question_analyzed",
-          data: {
-            analysis_type: "correlation",
-            target_metrics: ["repeat_purchase_rate"],
-            dimensions: ["shipping_delay_days"],
-          },
-        },
-        { type: "plan_generated", data: { task_count: 3 } },
-        { type: "followup_round_started", data: {} },
-        { type: "mcp_tool_called", data: {} },
-      ],
-      timings: { planning_ms: 410, execution_ms: 52, verification_ms: 3 },
-    } as never);
-
-    for (const mode of ["ai", "deterministic"] as const) {
-      const stages = laneStages(demo, mode);
-      expect(stages).toHaveLength(5);
-      for (const stage of stages.slice(0, 2)) {
-        expect(stage.detail).not.toMatch(/not reached|not accepted/i);
-        expect(stage.state).not.toBe("idle");
-      }
-      expect(stages[0]!.label).not.toMatch(/resolver|semantic planner/i);
-      expect(stages[1]!.label).toBe("Analysis plan");
-      expect(stages[1]!.detail).toMatch(/3 tasks/);
-      expect(stages[1]!.detail).toMatch(/1 follow-up round/);
-      expect(stages[2]!.label).toBe("DuckDB via MCP");
-    }
-
-    // The planner is still named per mode, as it is on the contract path.
-    expect(laneStages(demo, "ai")[0]!.label).toBe("Question analyst");
-    expect(laneStages(demo, "deterministic")[0]!.label).toBe(
-      "Scripted analyst",
-    );
-    expect(laneStages(demo, "ai")[0]!.detail).toMatch(/correlation/);
-  });
-
-  it("still keeps contract stages for a run that was on the contract path", () => {
-    // Detection must key on evidence a contract existed, not on the mere
-    // presence of planning events, or an upload run that failed early would
-    // be described as if it had been a registry run.
-    const stages = laneStages(
-      run({
-        events: [{ type: "question_analyzed", data: {} }],
-      } as never),
-      "deterministic",
-    );
-    expect(stages[0]!.label).toBe("Rule resolver");
-    expect(stages[1]!.label).toBe("Contract validation");
-  });
-
-  it("says the planner fell back rather than implying it agreed", () => {
-    const stages = laneStages(
-      run({
-        planner_fallback: true,
-        events: [{ type: "contract_resolved", data: { model_calls: 1 } }],
-      } as never),
-      "ai",
-    );
-    expect(stages[0]!.detail).toMatch(/fell back to the rules contract/i);
-    expect(stages[0]!.state).toBe("failed");
-  });
-
-  it("marks computation skipped when the request was refused first", () => {
-    const stages = laneStages(
-      run({ status: "refused", findings: [], events: [] } as never),
-      "deterministic",
-    );
-    const compute = stages.find((stage) => stage.key === "compute")!;
-    expect(compute.state).toBe("skipped");
-    expect(compute.detail).toMatch(/refused first/i);
-  });
-});
+/*
+ * The "execution lanes" suite stood here and went with `ExecutionLanes`.
+ *
+ * It tested `laneStages`, the pure function behind the STAGES card panel:
+ * that five stages were always returned, that the registry path was
+ * described by what it did rather than by a contract it never built, that a
+ * planner fallback was not reported as the model agreeing, and that
+ * computation was marked skipped when the request was refused first.
+ *
+ * The panel is gone -- it restated the same five steps a third time, after
+ * the stepper and the agent diagram had each already said them -- and
+ * Compare now states how each strategy got there in a single table.
+ *
+ * Those claims are not lost. They are the run timeline's, derived from the
+ * events a run actually emitted rather than from a mode string, and tested
+ * in `timeline.test.ts` against captured payloads -- including the two
+ * sequences that showed the old derivation was reading fields the engine
+ * does not emit. `compareRuns` keeps the fallback claim directly: see
+ * "does not present a fallback as the model independently agreeing" above.
+ */
 
 describe("a run that has not finished has not disagreed", () => {
   // Seen against a real governed Compare run: the deterministic pane

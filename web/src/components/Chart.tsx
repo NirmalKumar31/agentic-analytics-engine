@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 
+import { categoryLabelAngle } from "../lib/axisLabels";
 import { hydrateChartSpec } from "../lib/chartHydration";
 import { checkChartSpec } from "../lib/chartSafety";
 import type { ChartSpec, ResultSnapshot } from "../lib/types";
@@ -108,6 +109,10 @@ export function Chart({ chart, snapshot, onOpenProvenance }: Props) {
       css.getPropertyValue(name).trim() || fallback;
     const plotWidth = plotWidthOf(element);
 
+    // Flat where the labels fit, angled where they would collide. Vega's
+    // own default turns every nominal label to vertical, whatever it says.
+    const labelAngle = categoryLabelAngle(hydrated.spec);
+
     void import("vega-embed")
       .then(({ default: embed }) =>
         // The card renders the title above the plot, so the spec's own title
@@ -130,15 +135,55 @@ export function Chart({ chart, snapshot, onOpenProvenance }: Props) {
             renderer: "svg",
             config: {
               background: "transparent",
+              /*
+               * The frame Vega draws around the plot.
+               *
+               * `view.stroke` defaults to `#ddd`, a light grey chosen for a
+               * white page and never revisited. In dark mode it rendered as
+               * a near-white rectangle on a #0e1113 canvas -- the brightest
+               * thing on the report, outlining the chart like a selection
+               * box, in a colour from neither palette. In light mode the
+               * same value is almost invisible against #f2f4f1, which is
+               * why it survived: the defect only existed in the theme
+               * nobody screenshotted.
+               *
+               * Found by looking at a dark-mode screenshot, confirmed by
+               * reading `stroke` off the rendered `path.background`.
+               */
+              view: { stroke: token("--rule-hairline", "#d9d2c7") },
               axis: {
                 labelColor: token("--ink-secondary", "#5d544b"),
                 titleColor: token("--ink-secondary", "#5d544b"),
                 gridColor: token("--rule-hairline", "#d9d2c7"),
+                // Same argument as `view.stroke`: Vega's defaults for these
+                // are greys picked for a white page.
+                domainColor: token("--rule-hairline", "#d9d2c7"),
+                tickColor: token("--rule-hairline", "#d9d2c7"),
               },
+              /*
+               * `axisX` rather than `axis`, and config rather than the
+               * spec: a specification that set its own `axis.labelAngle`
+               * -- which the demo warehouse's do -- overrides config and
+               * keeps the decision it made.
+               */
+              ...(labelAngle === null
+                ? {}
+                : { axisX: { labelAngle, labelOverlap: false } }),
               legend: {
                 labelColor: token("--ink-secondary", "#5d544b"),
                 titleColor: token("--ink-secondary", "#5d544b"),
               },
+              // The default mark colour.
+              //
+              // `range.category` below only applies where a *colour
+              // encoding* exists. A single-series bar or line has none, so
+              // every such chart in the product was drawn in Vega's own
+              // default `#4c78a8` -- a blue from neither palette, unchanged
+              // between light and dark, and never measured for contrast
+              // against the plot surface. Observed on a real report, not
+              // inferred: the token range was right and simply never
+              // reached.
+              mark: { color: token("--series-4", "#1d5860") },
               // The series ramp, from tokens, so it follows the theme.
               //
               // Three of these five used to be hardcoded hexes chosen for a
@@ -181,7 +226,17 @@ export function Chart({ chart, snapshot, onOpenProvenance }: Props) {
 
   return (
     <figure className="chart-card" style={{ margin: 0 }}>
-      <h4>{chart.title}</h4>
+      {/*
+        A caption, not a heading.
+
+        It was an `<h4>` in a document whose headings run h1, h2 -- a skipped
+        level, and a heading for something that is a figure rather than a
+        section. `<figcaption>` says what it is and keeps it out of the
+        heading outline, where "total revenue by region" was competing with
+        "What the numbers show" and "Result" for a reader navigating by
+        heading.
+      */}
+      <figcaption className="chart-title">{chart.title}</figcaption>
       {error ? (
         <div className="notice warn">{error}</div>
       ) : (

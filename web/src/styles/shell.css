@@ -7,13 +7,22 @@
   min-height: 100%;
 }
 
+/* A thin header: one rule's worth of chrome.
+ *
+ * It was two lines tall because it carried a tagline under the product
+ * name. Height in a persistent header is paid on every screen, forever, by
+ * the content below it -- and what it bought was a sentence nobody reads
+ * twice. One line now, 52px, which is the height the approved composition
+ * is drawn at. */
 .topbar {
   display: flex;
   align-items: center;
-  gap: 16px;
-  padding: 12px 22px;
+  gap: var(--space-4);
+  min-height: 52px;
+  padding-block: 0;
+  padding-inline: var(--gutter);
   border-bottom: 1px solid var(--rule-hairline);
-  background: var(--surface-raised);
+  background: var(--surface-paper);
   position: sticky;
   top: 0;
   z-index: 40;
@@ -22,18 +31,18 @@
 .brand {
   display: flex;
   align-items: center;
-  gap: 10px;
-  font-weight: 600;
+  gap: var(--space-2);
   letter-spacing: -0.01em;
 }
 .brand-mark {
-  width: 22px;
-  height: 22px;
+  width: 18px;
+  height: 18px;
+  flex: none;
 }
-.brand small {
-  color: var(--ink-muted);
-  font-weight: 400;
-  font-size: 12px;
+.brand-name {
+  font-size: var(--text-base);
+  font-weight: var(--weight-semibold);
+  color: var(--ink-primary);
 }
 
 .topbar-spacer {
@@ -63,113 +72,42 @@
   background: var(--signal);
 }
 
-/* ------------------------------------------------------------------ steps */
-
-/* Which dataset the answer on screen is about.
- *
- * Context rather than content: one line, quiet, and never competing with
- * the answer below it. It stays on screen through a run, because the
- * moment a report exists is the moment a reader most needs to know which
- * data produced it.
- *
- * `min-width: 0` on the source so a long filename truncates instead of
- * widening the column and taking the page sideways -- the same failure the
- * narrow-viewport work fixed elsewhere.
- */
-.dataset-strip {
-  display: flex;
-  align-items: baseline;
-  flex-wrap: wrap;
-  gap: 4px 10px;
-  padding: 7px 0 9px;
-  border-bottom: 1px solid var(--rule-hairline);
-  font-size: 13px;
-}
-.dataset-strip-kind {
-  color: var(--ink-secondary);
-  font-weight: var(--weight-medium);
-}
-.dataset-strip-source {
-  color: var(--ink-primary);
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  max-width: min(42ch, 100%);
-}
-.dataset-strip-shape {
-  margin-inline-start: auto;
-  font-variant-numeric: tabular-nums;
-}
-
-.steps {
-  display: flex;
-  gap: 4px;
-  padding: 10px 22px;
-  border-bottom: 1px solid var(--rule-hairline);
-  background: var(--surface-canvas);
-  overflow-x: auto;
-}
-
-.step {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 5px 12px;
-  border-radius: 999px;
-  font-size: 12.5px;
-  color: var(--ink-muted);
-  white-space: nowrap;
-  border: 1px solid transparent;
-  transition:
-    color 160ms ease,
-    border-color 160ms ease,
-    background 160ms ease;
-}
-.step[data-state="active"] {
-  color: var(--ink-primary);
-  border-color: var(--signal-weak);
-  background: rgb(var(--signal-rgb) / 9%);
-}
-.step[data-state="done"] {
-  color: var(--ink-secondary);
-}
-.step-index {
-  width: 18px;
-  height: 18px;
-  border-radius: 50%;
-  display: grid;
-  place-items: center;
-  font-size: 11px;
-  font-variant-numeric: tabular-nums;
-  border: 1px solid currentColor;
-}
-.step[data-state="done"] .step-index {
-  background: var(--supported);
-  border-color: var(--supported);
-  color: #04231a;
-}
+/* The five-step `.steps` / `.step` pipeline index used to sit here,
+   between the header and the content, on every screen. It is removed
+   rather than hidden: a resident diagram of the engine's stages is
+   exactly the pipeline-first hierarchy this redesign replaces, and the
+   run's progress belongs to the active-run timeline. */
 
 /* ------------------------------------------------------------------ layout */
 
+/* One column.
+ *
+ * This was `minmax(0, 1fr) 330px` -- a reserved column for the right rail.
+ * The rail is deleted, so from the moment a run existed the layout held
+ * 330px of empty canvas down the right of every report, and the content
+ * sat off-centre in the remainder. `data-rail` is still set on the element
+ * for the phase it describes, but nothing lays out from it any more. */
 .main {
   flex: 1;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 330px;
-  gap: 22px;
-  padding: 26px 24px 48px;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-5);
+  padding-block: var(--space-6) var(--space-8);
+  padding-inline: var(--gutter);
   align-items: start;
-  max-width: 1500px;
+  /* The measures are tokens now rather than two numbers invented here.
+     1500 and 1020 were close to, but not the same as, the widths the
+     compositions are drawn at, so every panel inside them sat a few pixels
+     off the column the design specifies. */
+  max-width: var(--measure-wide);
   width: 100%;
   margin: 0 auto;
 }
 
-/* No rail on this screen, so no column for one. Reserving 330px for an
-   empty aside is what left a dead strip down the right of the landing
-   page; the content is centred at a readable measure instead. */
+/* Before a run, the content is held to the reading column rather than
+   running to the full working width. */
 .main[data-rail="false"] {
-  grid-template-columns: minmax(0, 1fr);
-  max-width: 1020px;
+  max-width: var(--measure-content);
 }
 
 @media (max-width: 1100px) {
@@ -201,12 +139,18 @@
   padding: 14px 18px;
   border-bottom: 1px solid var(--rule-hairline);
 }
+/* Sentence case at body-ish scale, like every other heading in this
+   design. It was 12.5px/700/0.07em uppercase -- the panel chrome's
+   signature, from the layout this redesign replaced. The one `.panel` left
+   is the activity log inside the evidence drawer, where it rendered as
+   "ACTIVITY" directly under the drawer's own "Activity trace", which is
+   both a shout and a repetition. */
 .panel-head h2 {
   margin: 0;
-  font-size: 12.5px;
-  font-weight: 700;
-  letter-spacing: 0.07em;
-  text-transform: uppercase;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+  letter-spacing: normal;
+  text-transform: none;
   color: var(--ink-secondary);
 }
 .panel-head .spacer {

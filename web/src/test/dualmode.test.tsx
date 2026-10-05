@@ -2,7 +2,7 @@ import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
-import { ComparisonView } from "../components/ComparisonView";
+import { CompareWorkspace } from "../components/CompareWorkspace";
 import { ModeSelector } from "../components/ModeSelector";
 import type { Capabilities, QueryContract, RunPayload } from "../lib/types";
 
@@ -164,7 +164,7 @@ describe("ModeSelector", () => {
 });
 
 function side(
-  overrides: Partial<Parameters<typeof ComparisonView>[0]["ai"]> = {},
+  overrides: Partial<Parameters<typeof CompareWorkspace>[0]["ai"]> = {},
 ) {
   return {
     title: "AI Analytics",
@@ -177,7 +177,7 @@ function side(
   };
 }
 
-describe("ComparisonView", () => {
+describe("CompareWorkspace", () => {
   const deterministic = side({
     title: "Deterministic Analytics",
     children: <p>left result</p>,
@@ -185,7 +185,7 @@ describe("ComparisonView", () => {
 
   it("shows both panes with independent labels", () => {
     render(
-      <ComparisonView
+      <CompareWorkspace
         question="Why did margin fall?"
         deterministic={deterministic}
         ai={side({ children: <p>right result</p> })}
@@ -203,7 +203,7 @@ describe("ComparisonView", () => {
 
   it("keeps the deterministic result when the AI side failed", () => {
     render(
-      <ComparisonView
+      <CompareWorkspace
         question="Why did margin fall?"
         deterministic={deterministic}
         ai={side({
@@ -218,7 +218,7 @@ describe("ComparisonView", () => {
 
   it("announces each side status politely", () => {
     render(
-      <ComparisonView
+      <CompareWorkspace
         question="Q"
         deterministic={deterministic}
         ai={side({ pending: true })}
@@ -230,7 +230,7 @@ describe("ComparisonView", () => {
 
   it("shows AI usage without inventing one for the deterministic side", () => {
     render(
-      <ComparisonView
+      <CompareWorkspace
         question="Q"
         deterministic={deterministic}
         ai={side({
@@ -249,7 +249,7 @@ describe("ComparisonView", () => {
 
   it("never declares a winner or ranks the two sides", () => {
     const { container } = render(
-      <ComparisonView
+      <CompareWorkspace
         question="Why did margin fall?"
         deterministic={deterministic}
         ai={side({ children: <p>right result</p> })}
@@ -270,7 +270,7 @@ describe("ComparisonView", () => {
 
   it("explains that only the planning differs", () => {
     const { container } = render(
-      <ComparisonView question="Q" deterministic={deterministic} ai={side()} />,
+      <CompareWorkspace question="Q" deterministic={deterministic} ai={side()} />,
     );
     const text = container.textContent ?? "";
     expect(text).toContain("rule-based planning");
@@ -297,7 +297,7 @@ describe("ComparisonView", () => {
 
   it("confirms when both panes execute the same canonical contract", () => {
     render(
-      <ComparisonView
+      <CompareWorkspace
         question="Q"
         deterministic={side({ run: runWith(contract) })}
         ai={side({
@@ -315,7 +315,7 @@ describe("ComparisonView", () => {
     // confirmations, and they pushed the planning lanes -- the part that
     // actually differed -- off the top of the screen.
     render(
-      <ComparisonView
+      <CompareWorkspace
         question="Q"
         deterministic={side({
           title: "Deterministic Analytics",
@@ -329,24 +329,31 @@ describe("ComparisonView", () => {
       />,
     );
     expect(screen.getByTestId("shared-result")).toBeInTheDocument();
-    expect(screen.queryAllByTestId("pane-status")).toHaveLength(0);
     expect(screen.getAllByText("the result")).toHaveLength(1);
-    // The two planning lanes stay, because that is what differed.
+
+    // No side-by-side panes: that is what "shown once" means, and it is
+    // the claim `pane-status.length === 0` used to stand for. The status
+    // itself has not gone anywhere -- it is a column in the table that
+    // compares the two strategies, where both sides now read "Complete",
+    // which is more informative than two panes that are not rendered.
+    expect(document.querySelectorAll(".compare-pane")).toHaveLength(0);
+    expect(screen.getAllByTestId("pane-status")).toHaveLength(2);
+
+    // The planning comparison stays, because that is what differed. It was
+    // two `ExecutionLane` regions restating the same five stages twice;
+    // it is one table with a row per strategy.
+    const routes = screen.getByTestId("compare-routes");
     expect(
-      // testing-library matches a string `name` against the whole
-      // accessible name, so this cannot collide with the pane labels.
-      screen.getByRole("region", {
-        name: "Deterministic Analytics execution",
-      }),
+      within(routes).getByRole("rowheader", { name: "Deterministic Analytics" }),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("region", { name: "AI Analytics execution" }),
+      within(routes).getByRole("rowheader", { name: "AI Analytics" }),
     ).toBeInTheDocument();
   });
 
   it("never collapses a disagreement into one result", () => {
     render(
-      <ComparisonView
+      <CompareWorkspace
         question="Q"
         deterministic={side({
           title: "Deterministic Analytics",
@@ -375,7 +382,7 @@ describe("ComparisonView", () => {
       output_tokens: 0,
     } as never;
     render(
-      <ComparisonView
+      <CompareWorkspace
         question="Q"
         deterministic={side({
           title: "Deterministic Analytics",
@@ -402,7 +409,7 @@ describe("ComparisonView", () => {
 
   it("warns instead of presenting unlike contracts as equivalent", () => {
     render(
-      <ComparisonView
+      <CompareWorkspace
         question="Q"
         deterministic={side({ run: runWith(contract) })}
         ai={side({

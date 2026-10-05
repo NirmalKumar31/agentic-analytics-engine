@@ -3,7 +3,7 @@
  *
  * What was here: a lift on every panel hover, a sweep across any busy
  * panel, a ripple under every button press, a glow on the active step, a
- * self-drawing brand mark, a shimmer on skeletons, and a lit mode option.
+ * self-drawing brand mark, and a lit mode option.
  * Seven simultaneous animations, none of which told the reader anything,
  * all of which competed with the figure they surrounded.
  *
@@ -24,16 +24,14 @@
 }
 
 .btn,
-.mode-option,
-.cell-chip {
+.mode-option {
   transition:
     background-color var(--motion-feedback) var(--ease-out),
     border-color var(--motion-feedback) var(--ease-out),
     color var(--motion-feedback) var(--ease-out);
 }
 
-.btn:hover:not(:disabled),
-.cell-chip:hover {
+.btn:hover:not(:disabled) {
   border-color: var(--rule-strong);
 }
 
@@ -81,32 +79,10 @@
   }
 }
 
-/* The active step is marked by weight and by its rule. A completed one is
-   marked by being complete. Neither needs to pulse. */
-.step {
-  transition:
-    color var(--motion-control) var(--ease-out),
-    border-color var(--motion-control) var(--ease-out);
-}
-.step[data-state="active"] {
-  border-color: var(--signal);
-  color: var(--ink-primary);
-  font-weight: var(--weight-medium);
-}
-.step[data-state="done"] {
-  color: var(--supported);
-}
-/* A run that stopped marks the stage it stopped at. Showing the earlier
-   stages as done and the rest as idle read as a run still in progress,
-   which is the opposite of what happened. Ochre rather than the failure
-   red: a refusal and a quota stop are not breakages, and the stage index
-   carries the same meaning as a glyph for a reader who cannot separate
-   the hues. */
-.step[data-state="stopped"] {
-  color: var(--warning-text);
-  border-color: rgb(var(--warning-rgb) / 45%);
-  font-weight: var(--weight-medium);
-}
+/* The `.step` state overrides that stood here went with the stepper.
+   The claim they encoded -- a stopped run marks the stage it stopped at,
+   in ochre rather than failure red, because a refusal is not a breakage
+   -- is owed by the step D timeline. */
 
 /* A withheld finding is stated as withheld; the dimming is a second,
    quieter signal rather than the only one. */
@@ -127,13 +103,6 @@
     opacity: 1;
   }
 }
-
-/* Waiting, without implying progress that is not being measured. */
-.skeleton {
-  background: var(--surface-inset);
-  border-radius: var(--radius-sm);
-  animation: waiting 1.8s var(--ease-in-out) infinite;
-}
 @keyframes waiting {
   0%,
   100% {
@@ -149,70 +118,12 @@
   border-color: var(--signal);
   background: var(--signal-weak);
 }
-
-/* Backend-owned answer workspace.  The answer is a document, not a dashboard:
-   the visual and table follow it instead of competing with it. */
-.presentation-report .question-label,
-.presentation-report .eyebrow {
-  margin: 0;
-  color: var(--ink-muted);
-  font-size: var(--text-xs);
-  font-weight: var(--weight-medium);
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-.presentation-report .question-text {
-  margin: 0;
-  font-size: var(--text-md);
-}
-.answer-card {
-  display: grid;
-  gap: var(--space-3);
-  padding: var(--space-5);
-  border-inline-start: 3px solid var(--signal);
-  background: var(--surface-inset);
-}
-.answer-card h3 {
-  margin: 0;
-  font-size: var(--text-xl);
-  max-width: var(--measure-prose);
-}
-.answer-card p {
-  margin: 0;
-  max-width: var(--measure-prose);
-}
-.highlight-grid {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-3);
-  margin: 0;
-}
-.highlight-grid > div {
-  min-width: min(15rem, 100%);
-  padding-inline-end: var(--space-5);
-}
-.highlight-grid dt {
-  color: var(--ink-muted);
-  font-size: var(--text-xs);
-}
-.highlight-grid dd {
-  margin: var(--space-1) 0 0;
-  font-family: var(--font-mono);
-  font-variant-numeric: var(--numeric);
-  font-size: var(--text-lg);
-}
-.answer-scope {
-  color: var(--ink-secondary);
-  font-size: var(--text-sm);
-}
 .report-visual,
-.report-table,
-.caveat-list {
+.report-table {
   display: grid;
   gap: var(--space-3);
 }
-.report-table h3,
-.caveat-list h3 {
+.report-table h3 {
   margin: 0;
   font-size: var(--text-md);
 }
@@ -229,21 +140,19 @@
 .chart-host svg {
   max-width: 100%;
 }
-/* App retains the execution panels in DOM before the report so an in-flight
-   run can stream them. Once a report exists, the document workspace is the
-   first thing a reader sees; the technical trace remains available below. */
-.column > .report-workspace {
-  order: -1;
-}
-/* The state card belongs with the report it explains.
-   `ReportWorkspace` renders it as a sibling of the report, so the rule
-   above moved the report to the top and left the card in document order --
-   below the execution panels, a long scroll from the outcome it describes.
-   A reader met "Not answered" at the top and found "Refused." somewhere
-   further down. -2 puts it immediately above the report. */
-.column > [data-testid="run-state-card"] {
-  order: -2;
-}
+/* The two `order` rules that stood here are gone.
+ *
+ * They lifted `.report-workspace` to `order: -1` and the state card to
+ * `order: -2`, because the execution panels used to stream above the report
+ * and the outcome ended up a long scroll below them. Those panels are gone:
+ * the activity log is in the evidence drawer and the timeline is not
+ * resident once a report exists, so document order is already right.
+ *
+ * Left in place, they put the terminal state *above the dataset context
+ * strip* -- outside the reading column, full width, before the reader had
+ * been told which file this was about. A refusal appeared as a banner
+ * floating over the top of the page.
+ */
 .technical-audit {
   padding: var(--space-3) var(--space-4);
   border-top: 1px solid var(--rule-hairline);
@@ -290,23 +199,12 @@
   gap: var(--space-1);
 }
 
-@media print {
-  .presentation-report .answer-card {
-    break-inside: avoid;
-  }
-  .presentation-report .chart-host {
-    min-height: 0;
-  }
-}
-
 /* Reduced motion removes every animation here. The token overrides in
    `tokens.css` already collapse the durations; these are the infinite
    ones, which a duration cannot stop. */
 @media (prefers-reduced-motion: reduce) {
   .panel[data-busy="true"]::after,
-  .skeleton,
   .chart-card,
-  body::before,
   body::after {
     animation: none;
   }

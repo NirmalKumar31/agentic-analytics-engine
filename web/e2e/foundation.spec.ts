@@ -1,6 +1,6 @@
-import { expect, test } from "@playwright/test";
+import { expect, freshComposer, reportFor, test } from "./fixtures";
 
-import { ask, openApp, waitForReport } from "./helpers";
+import { openApp } from "./helpers";
 
 /**
  * The visual foundation, asserted from the rendered page.
@@ -29,17 +29,20 @@ test.describe("the application phase", () => {
   });
 
   test("advances as a dataset is opened and a question answered", async ({
-    page,
+    demo: page,
   }) => {
-    await openApp(page);
-    await page.getByRole("button", { name: /Commerce demo warehouse/ }).click();
+    // On the shared warehouse page, reset to the composer first: the
+    // transition this asserts is composer -> completed, and the dataset
+    // being open is the `ready_to_ask` half of it. The run is replayed,
+    // because a phase attribute is a property of the application's state
+    // machine rather than of the engine computing the answer again.
+    await freshComposer(page);
     await expect(page.locator("body")).toHaveAttribute(
       "data-phase",
       "ready_to_ask",
     );
 
-    await ask(page, "What is the total revenue by region?");
-    await waitForReport(page);
+    await reportFor(page, "What is the total revenue by region?");
     await expect(page.locator("body")).toHaveAttribute(
       "data-phase",
       "completed",
@@ -55,56 +58,51 @@ test.describe("the application phase", () => {
 });
 
 test.describe("motion restraint", () => {
-  test("the ambient grid holds still once a report is on screen", async ({
-    page,
-  }) => {
+  test("the landing's ambient field is inert", async ({ page }) => {
     await openApp(page);
-    // The phase is published by an effect once the config fetch resolves,
-    // so the ambient rule does not apply on the first frame. Waiting for
-    // the attribute is waiting for the state the rule selects on.
     await expect(page.locator("body")).toHaveAttribute(
       "data-phase",
       "choose_dataset",
     );
-    const idle = await page.evaluate(
-      () => getComputedStyle(document.body, "::before").animationName,
-    );
-    expect(idle).toBe("grid-drift");
 
-    await page.getByRole("button", { name: /Commerce demo warehouse/ }).click();
-    await ask(page, "What is the total revenue by region?");
-    await waitForReport(page);
-
-    // A report exists. The texture stops and recedes, because the most
-    // useful background behind something being read is one that is not
-    // competing with it.
-    await expect(page.locator("body")).toHaveAttribute(
-      "data-phase",
-      "completed",
-    );
+    // This replaces "the ambient grid holds still once a report is on
+    // screen". That test watched `body::before`, a 46px plotting grid that
+    // drifted while idle and faded to 12% once a report existed. The grid
+    // is gone: the landing now carries the ambient analytical field, which
+    // is scoped to the one surface that wants it, and every other surface
+    // has a plain canvas. Stacking contours over graph paper would have
+    // been two textures behind the same content.
+    //
+    // The claim is stronger than the one it replaces -- the field does not
+    // animate at all, in any phase -- so there is no "holds still once a
+    // report arrives" case to test. When the storyboard's 48s drift is
+    // implemented, this becomes a reduced-motion assertion.
+    const field = page.getByTestId("analytical-field");
+    await expect(field).toBeVisible();
     expect(
-      await page.evaluate(
-        () => getComputedStyle(document.body, "::before").animationName,
-      ),
+      await field.evaluate((el) => getComputedStyle(el).animationName),
     ).toBe("none");
 
-    // Polled, because the opacity is transitioned over a panel duration:
-    // reading it on the frame the report arrives catches the start of the
-    // fade rather than its end.
-    await expect
-      .poll(
-        () =>
-          page.evaluate(() =>
-            Number(getComputedStyle(document.body, "::before").opacity),
-          ),
-        { timeout: 5_000 },
-      )
-      .toBeLessThan(0.2);
+    // And the texture it replaced is not merely hidden.
+    expect(
+      await page.evaluate(
+        () => getComputedStyle(document.body, "::before").content,
+      ),
+    ).toBe("none");
   });
 
-  test("no panel moves under the pointer", async ({ page }) => {
-    await openApp(page);
-    const panel = page.locator("section.panel").first();
+  test("nothing moves under the pointer", async ({ profiled: page }) => {
+    // There are no `.panel` elements left on the report: the landing, the
+    // composer and the report are all built without them. The claim is
+    // unchanged -- hovering must not lift or shadow anything -- so it is
+    // made against the report itself.
+    //
+    // On the shared session, replayed: what a surface does under the
+    // pointer is a property of the stylesheet, not of the run that put the
+    // surface there.
+    await reportFor(page, "What is the total revenue by region?");
+
+    const panel = page.getByTestId("report-panel");
     await expect(panel).toBeVisible();
 
     await panel.hover();
@@ -124,8 +122,7 @@ test.describe("motion restraint", () => {
     // how the lift used to be reinforced. So this compares before with
     // after rather than asserting there is none at all.
     const resting = await page
-      .locator("section.panel")
-      .last()
+      .getByTestId("report-question")
       .evaluate((el) => getComputedStyle(el).boxShadow);
     const hovered = await panel.evaluate(
       (el) => getComputedStyle(el).boxShadow,
@@ -191,7 +188,7 @@ test.describe("motion restraint", () => {
     const openDemo = page.getByRole("button", { name: /Commerce demo warehouse/ });
     await expect(openDemo).toBeEnabled();
     await openDemo.click();
-    await expect(page.getByRole("heading", { name: "Ask" })).toBeVisible();
+    await expect(page.getByTestId("composer")).toBeVisible();
 
     const seen: { tag: string; style: string; width: number }[] = [];
     for (let i = 0; i < 12; i += 1) {

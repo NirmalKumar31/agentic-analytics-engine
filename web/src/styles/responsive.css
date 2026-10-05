@@ -20,8 +20,6 @@
    a test, because no committed fixture produces a table wide enough to
    need it. It is kept because the alternative failure mode is the page
    scrolling sideways, which is what the two rules below actually fixed. */
-.steps,
-.flow,
 .table-wrap {
   min-width: 0;
 }
@@ -54,17 +52,4 @@
     min-height: 44px;
   }
 
-  /* The stepper scrolls inside itself. Hidden scrollbars would hide that
-     there is more to see, so it keeps them. */
-  .steps {
-    padding-inline: 12px;
-    -webkit-overflow-scrolling: touch;
-  }
-
-  /* The flow diagram is the one element with an intrinsic minimum width.
-     It scrolls within its own container rather than being squeezed into
-     illegibility. */
-  .flow {
-    overflow-x: auto;
-  }
 }

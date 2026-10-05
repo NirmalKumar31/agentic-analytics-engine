@@ -1,0 +1,507 @@
+/**
+ * The answer-first report, and the evidence drawer.
+ *
+ * No panel, no card around the answer, no bordered box per section. The
+ * report is one column of prose and figures separated by space and by the
+ * occasional hairline. The old version was seven bordered panels, and the
+ * reader's eye had to decide which box mattered before reading anything.
+ */
+
+.report {
+  display: block;
+  padding-block: var(--space-6) var(--space-8);
+}
+
+/* The question, quietly, so the answer below it has a subject. It is not a
+   heading: the answer is the heading. */
+.report-question {
+  margin: 0 0 var(--space-4);
+  font-size: var(--text-sm);
+  color: var(--ink-muted);
+  max-width: 68ch;
+}
+
+/* Only present when the shape is not an answer. */
+.report-eyebrow {
+  margin: 0 0 var(--space-2);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-semibold);
+  color: var(--warning-text);
+  text-transform: none;
+  letter-spacing: normal;
+}
+
+.report .display {
+  margin: 0;
+  max-width: 24ch;
+}
+
+/* The display headline is allowed to run wider than prose: it is one
+   sentence, read once, and breaking it early wastes the line. */
+@media (min-width: 768px) {
+  .report .display {
+    max-width: 34ch;
+  }
+}
+
+.report .context-line {
+  margin: var(--space-3) 0 0;
+  max-width: 68ch;
+}
+
+.report-summary {
+  margin: var(--space-4) 0 0;
+  font-size: var(--text-md);
+  color: var(--ink-secondary);
+  line-height: var(--leading-prose);
+  max-width: 68ch;
+}
+
+/* ---------------------------------------------------------------- chart
+ *
+ * On the canvas, not in a card. `.chart-card` paints an inset surface and
+ * draws a border, which put the chart in a grey box inside a report that
+ * has no other boxes -- the panel composition surviving in one place.
+ */
+.report-visual {
+  margin-block-start: var(--space-6);
+}
+
+.report-visual .chart-card {
+  background: none;
+  border: 0;
+  border-radius: 0;
+  padding: 0;
+}
+
+.report-no-chart {
+  margin-block-start: var(--space-5);
+  font-size: var(--text-sm);
+  color: var(--ink-muted);
+}
+
+/* ------------------------------------------------------------- findings
+ *
+ * Ranked, numbered, and set as a list rather than as cards. Six identical
+ * bordered cards each carrying SUPPORTED + CALCULATED + "Show work →" is
+ * what the old report did, and it made every finding look equally
+ * important, which is the opposite of ranking them.
+ */
+.findings {
+  margin-block-start: var(--space-7);
+  padding-block-start: var(--space-5);
+  border-block-start: 1px solid var(--rule-hairline);
+}
+
+.finding-list {
+  list-style: none;
+  margin: var(--space-4) 0 0;
+  padding: 0;
+  display: grid;
+  gap: var(--space-4);
+}
+
+.finding-item {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: var(--space-3);
+  align-items: start;
+}
+
+.finding-rank {
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--signal-weak);
+  color: var(--signal);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-bold);
+  font-variant-numeric: var(--numeric);
+}
+
+.finding-body {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-2) var(--space-3);
+  min-width: 0;
+}
+
+.finding-label {
+  font-size: var(--text-base);
+  color: var(--ink-primary);
+}
+
+.finding-value {
+  font-size: var(--text-base);
+  font-weight: var(--weight-semibold);
+  color: var(--ink-primary);
+}
+
+.finding-compare {
+  font-size: var(--text-sm);
+  color: var(--ink-muted);
+}
+
+/* ---------------------------------------------------------------- notes */
+
+.report-notes {
+  margin-block-start: var(--space-6);
+}
+
+.report-notes .notice {
+  margin-block-start: var(--space-3);
+}
+
+/* ---------------------------------------------------------------- table */
+
+.report-table {
+  margin-block-start: var(--space-7);
+  padding-block-start: var(--space-5);
+  border-block-start: 1px solid var(--rule-hairline);
+  /* The table scrolls inside its own frame; the page never goes sideways. */
+  min-width: 0;
+}
+
+/* -------------------------------------------------------------- actions */
+
+.report-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+  margin-block-start: var(--space-7);
+  padding-block-start: var(--space-5);
+  border-block-start: 1px solid var(--rule-hairline);
+}
+
+/* The run's identity, beside the control rather than under a heading: it
+   is a reference, not a section. Muted and small, because a reader who is
+   not copying a hash should not have to read past it. */
+.report-stamp {
+  font-size: var(--text-xs);
+  color: var(--ink-muted);
+  letter-spacing: 0.01em;
+}
+
+.report-compat {
+  margin-block-start: var(--space-4);
+  font-size: var(--text-xs);
+  color: var(--ink-muted);
+}
+
+/* ------------------------------------------------------- evidence drawer */
+
+.evidence-list {
+  margin: 0;
+  display: grid;
+  gap: var(--space-5);
+}
+
+.evidence-row > dt {
+  font-size: var(--text-xs);
+  font-weight: var(--weight-semibold);
+  color: var(--ink-muted);
+  margin-block-end: var(--space-1);
+}
+
+.evidence-row > dd {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--ink-primary);
+  line-height: var(--leading-normal);
+}
+
+/* A qualifier under a value, on its own line. */
+.evidence-note {
+  display: block;
+  margin-block-start: var(--space-1);
+  font-size: var(--text-xs);
+  color: var(--ink-muted);
+}
+
+/* Cell references are read character by character and compared, so they
+   wrap anywhere rather than scrolling the sheet sideways. */
+.evidence-cells {
+  overflow-wrap: anywhere;
+  font-size: var(--text-xs);
+}
+
+.evidence-limitations {
+  margin: 0;
+  padding-inline-start: var(--space-4);
+}
+
+.evidence-limitations > li + li {
+  margin-block-start: var(--space-2);
+}
+
+.evidence-plan,
+.evidence-timeline,
+.evidence-trace {
+  margin-block-start: var(--space-6);
+  padding-block-start: var(--space-5);
+  border-block-start: 1px solid var(--rule-hairline);
+}
+
+@media print {
+  /* The drawer's contents become a visible appendix in print -- step H
+     builds that. What must not print is the overlay itself: a panel
+     floating over the report, with a scrim behind it. */
+  .report-actions {
+    display: none;
+  }
+}
+
+/* ------------------------------------------------------------- compare
+ *
+ * Verdict first, then how each strategy got there, then either one shared
+ * answer or the structured difference. No winner badge, and no third
+ * column for automatic routing: that is a policy decision about which of
+ * the two runs, not a run of its own.
+ */
+
+.compare {
+  padding-block: var(--space-6) var(--space-8);
+}
+
+.compare-verdict .display {
+  margin: 0;
+  max-width: 30ch;
+}
+
+.compare-scope-note {
+  margin: var(--space-4) 0 0;
+  font-size: var(--text-sm);
+  color: var(--ink-secondary);
+  line-height: var(--leading-prose);
+  max-width: 68ch;
+}
+
+/* Four facts, read straight from the comparison. */
+.compare-facts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: var(--space-4);
+  margin: var(--space-5) 0 0;
+  padding: var(--space-4);
+  background: var(--signal-weak);
+  border-radius: var(--radius-md);
+}
+
+.compare-fact > dt {
+  font-size: var(--text-xs);
+  color: var(--ink-muted);
+}
+
+.compare-fact > dd {
+  margin: var(--space-1) 0 0;
+  font-size: var(--text-base);
+  font-weight: var(--weight-semibold);
+  color: var(--signal);
+}
+
+/* The one fact that changes what a reader should do with the comparison. */
+.compare-fact--warn {
+  color: var(--warning-text);
+}
+
+/* The recorded route is a sentence, not a notice. `.notice info` paints a
+   bordered grey panel, which put a card inside the facts strip -- the panel
+   composition surviving in exactly one place. */
+.compare-fact .notice {
+  background: none;
+  border: 0;
+  padding: 0;
+  margin: 0;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-regular);
+  color: var(--ink-secondary);
+  line-height: var(--leading-normal);
+}
+
+.compare-fact .notice strong {
+  color: var(--ink-primary);
+}
+
+.compare-routes,
+.compare-diff-section,
+.compare-shared {
+  margin-block-start: var(--space-7);
+  padding-block-start: var(--space-5);
+  border-block-start: 1px solid var(--rule-hairline);
+}
+
+.compare-diff-note {
+  margin: var(--space-3) 0 var(--space-5);
+  font-size: var(--text-sm);
+  color: var(--ink-secondary);
+  max-width: 68ch;
+  line-height: var(--leading-normal);
+}
+
+/* A differing row is marked by its fill *and* by the word in the field
+   column, never by colour alone. */
+.contract-diff tbody tr:has(td) th[scope="row"] {
+  font-weight: var(--weight-semibold);
+}
+
+.compare-agreement {
+  margin-block-start: var(--space-6);
+  padding-block-start: var(--space-5);
+  border-block-start: 1px solid var(--rule-hairline);
+}
+
+.compare-grid {
+  display: grid;
+  gap: var(--space-6);
+  margin-block-start: var(--space-6);
+}
+
+@media (min-width: 900px) {
+  .compare-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.compare-pane {
+  min-width: 0;
+}
+
+.compare-pane-sub {
+  margin: var(--space-1) 0 var(--space-4);
+  font-size: var(--text-sm);
+  color: var(--ink-muted);
+}
+
+.compare-pane-empty {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--ink-muted);
+}
+
+/* A pane's answer is not display scale: there are two of them, and the
+   signature rule is one display headline per page. */
+.compare-answer {
+  margin: 0;
+  font-size: var(--text-md);
+  font-weight: var(--weight-semibold);
+  color: var(--ink-primary);
+  line-height: var(--leading-tight);
+}
+
+.report--compact .report-visual,
+.report--compact .findings,
+.report--compact .report-table {
+  margin-block-start: var(--space-4);
+  padding-block-start: 0;
+  border-block-start: 0;
+}
+
+.compare-action-note {
+  align-self: center;
+  font-size: var(--text-sm);
+  color: var(--ink-muted);
+}
+
+/* -------------------------------------------------- evidence tabs */
+
+.evidence-intro {
+  margin: 0 0 var(--space-4);
+  font-size: var(--text-sm);
+  color: var(--ink-muted);
+}
+
+.evidence-tabs {
+  display: flex;
+  gap: var(--space-4);
+  border-block-end: 1px solid var(--rule-hairline);
+  margin-block-end: var(--space-5);
+}
+
+.evidence-tab {
+  border: 0;
+  background: none;
+  padding: var(--space-2) 0;
+  font: inherit;
+  font-size: var(--text-sm);
+  color: var(--ink-muted);
+  cursor: pointer;
+  /* The active indicator is drawn on the element, not slid between tabs:
+     a sliding indicator implies the two traces are points on a continuum,
+     and they are two independent records of two independent runs. */
+  border-block-end: 2px solid transparent;
+  margin-block-end: -1px;
+}
+
+.evidence-tab.is-active {
+  color: var(--ink-primary);
+  font-weight: var(--weight-semibold);
+  border-block-end-color: var(--signal);
+}
+
+.evidence-empty {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--ink-muted);
+}
+
+.evidence-contract {
+  margin: var(--space-2) 0 0;
+  display: grid;
+  gap: var(--space-1);
+}
+
+.evidence-contract > div {
+  display: flex;
+  gap: var(--space-2);
+  font-size: var(--text-xs);
+}
+
+.evidence-contract dt {
+  color: var(--ink-muted);
+  min-width: 9ch;
+}
+
+.evidence-contract dd {
+  margin: 0;
+  color: var(--ink-secondary);
+}
+
+/* --------------------------------------------------------- terminal state
+ *
+ * A run that did not end in a verified answer says so at the top of the
+ * report, inside the same reading column as the question and the chart --
+ * not as a banner above the dataset strip, which is where an `order: -2`
+ * rule used to put it.
+ *
+ * Severity is carried by the rule bar and by the words. It is never carried
+ * by the primary action: a recovery control drawn in the warning colour
+ * reads as the hazard rather than the exit from it.
+ */
+.report--terminal {
+  border-inline-start: 3px solid var(--rule-strong);
+  padding-inline-start: var(--space-5);
+}
+
+.report--terminal[data-tone="warn"] {
+  border-inline-start-color: var(--warning);
+}
+
+.report--terminal[data-tone="error"] {
+  border-inline-start-color: var(--failure);
+}
+
+.report--terminal[data-tone="neutral"] {
+  border-inline-start-color: var(--ink-muted);
+}
+
+.report-eyebrow[data-tone="neutral"] {
+  color: var(--ink-muted);
+}
+
+.report-eyebrow[data-tone="error"] {
+  color: var(--failure);
+}

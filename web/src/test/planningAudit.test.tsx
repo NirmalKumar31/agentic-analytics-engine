@@ -31,3 +31,29 @@ describe("PlanningAudit", () => {
     expect(screen.queryByText(/system prompt|raw provider response/i)).toBeNull();
   });
 });
+
+describe("a partial contract does not take the drawer with it", () => {
+  /*
+   * `humanize(contract.operation)` was unguarded, and a contract without
+   * `operation` threw -- React unmounts the subtree, and to a reader the
+   * evidence drawer closes itself. It is the same failure mode that made
+   * the Compare drawer vanish on a strategy that had not finished, which
+   * is why every collection in these components is read defensively.
+   */
+  it("renders with a contract that is missing its operation", () => {
+    const partial = {
+      ...run(),
+      query_contract: { contract_hash: "abc123" },
+    } as unknown as RunPayload;
+    expect(() => render(<PlanningAudit run={partial} open />)).not.toThrow();
+  });
+
+  it("renders with a contract that has no dimensions or filters", () => {
+    const partial = {
+      ...run(),
+      query_contract: { contract_hash: "abc123", operation: "sum", measure: "revenue" },
+    } as unknown as RunPayload;
+    render(<PlanningAudit run={partial} open />);
+    expect(screen.getByTestId("planning-audit")).toHaveTextContent(/sum revenue/);
+  });
+});

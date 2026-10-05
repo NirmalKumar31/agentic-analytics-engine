@@ -1,15 +1,12 @@
-import { ComparisonView } from "./ComparisonView";
-import { ReportView } from "./ReportView";
-import { RunStateCard } from "./RunStateCard";
-import { TechnicalInspector } from "./TechnicalInspector";
+import { AnswerReport } from "./AnswerReport";
+import { CompareWorkspace } from "./CompareWorkspace";
+import { reportModel } from "../lib/reportModel";
 import { runState } from "../lib/runState";
 import type {
   ComparisonStarted,
   RunPayload,
   ServerConfig,
 } from "../lib/types";
-
-export type ProvenanceSide = "deterministic" | "ai";
 
 export function ReportWorkspace({
   comparison,
@@ -18,7 +15,7 @@ export function ReportWorkspace({
   aiError,
   config,
   deterministicPending,
-  onShowWork,
+  onShowEvidence,
 }: {
   comparison: ComparisonStarted | null;
   run: RunPayload | null;
@@ -26,11 +23,12 @@ export function ReportWorkspace({
   aiError: string | null;
   config: ServerConfig | null;
   deterministicPending: boolean;
-  onShowWork: (side: ProvenanceSide, findingId: string) => void;
+  /** Opens the evidence drawer for the single-run report. */
+  onShowEvidence?: () => void;
 }) {
   if (comparison) {
     return (
-      <ComparisonView
+      <CompareWorkspace
         question={comparison.question}
         deterministic={{
           title: "Deterministic Analytics",
@@ -38,12 +36,8 @@ export function ReportWorkspace({
           run,
           error: null,
           pending: deterministicPending,
-          children: run ? (
-            <RunReport
-              run={run}
-              onShowWork={(id) => onShowWork("deterministic", id)}
-            />
-          ) : null,
+          usage: run?.usage,
+          children: run ? <PaneReport run={run} /> : null,
         }}
         ai={{
           title: "AI Analytics",
@@ -63,10 +57,7 @@ export function ReportWorkspace({
           usage: aiRun?.usage,
           children:
             aiRun && runState(aiRun).showsReport ? (
-              <RunReport
-                run={aiRun}
-                onShowWork={(id) => onShowWork("ai", id)}
-              />
+              <PaneReport run={aiRun} />
             ) : null,
         }}
       />
@@ -84,36 +75,78 @@ export function ReportWorkspace({
   const state = runState(run);
   return (
     <>
-      <RunStateCard state={state} />
+      {/*
+        No separate `RunStateCard` here.
+
+        It was a sibling of the report, which meant a refusal said its
+        reason twice -- once in the card and once as the display headline,
+        because the presentation builder sets the headline from the same
+        stop reason. The terminal state is part of the report now, inside
+        the same reading column as the question, the context line and the
+        chart, and `reportModel` decides what it says.
+      */}
+      {/*
+        One report for both payload shapes. An uploaded file comes back with
+        a `presentation`; the demo warehouse does not, because it is
+        answered through the metric registry. `reportModel` derives the same
+        seven elements from either, so the demo is not left on the old
+        seven-panel report.
+      */}
       {state.showsReport && (
-        <RunReport
+        <AnswerReport
+          question={run.question}
+          model={reportModel({
+            presentation: run.presentation,
+            report: run.report,
+            findings: run.findings,
+            rejected: run.rejected,
+            charts: run.charts,
+            results: run.results,
+            queryContract: run.query_contract ?? null,
+            state,
+            run,
+          })}
+          publishedCount={run.findings.length}
+          withheldCount={run.rejected.length}
+          onShowEvidence={onShowEvidence ?? (() => undefined)}
           run={run}
-          onShowWork={(id) => onShowWork("deterministic", id)}
         />
       )}
-      <TechnicalInspector run={run} />
+      {/*
+        `TechnicalInspector` -- the planning audit -- used to render here,
+        resident under every report. It is in the evidence drawer now,
+        together with the activity trace, the contract, the route, coverage,
+        verification, cited cells, timings and the limitations. Relocated,
+        not deleted: `EVIDENCE_SECTIONS` names each one and a test asserts
+        they are all reachable.
+      */}
     </>
   );
 }
 
-function RunReport({
-  run,
-  onShowWork,
-}: {
-  run: RunPayload;
-  onShowWork: (findingId: string) => void;
-}) {
+/**
+ * One strategy's report, inside a Compare pane.
+ *
+ * The same answer-first report as a single run, compact: no repeated
+ * question and no second evidence control, because Compare states the
+ * question once and carries one "Inspect both traces".
+ */
+function PaneReport({ run }: { run: RunPayload }) {
   return (
-    <ReportView
+    <AnswerReport
+      compact
       question={run.question}
-      report={run.report}
-      findings={run.findings}
-      rejected={run.rejected}
-      charts={run.charts}
-      results={run.results}
-      queryContract={run.query_contract}
-      presentation={run.presentation}
-      onShowWork={onShowWork}
+      model={reportModel({
+        presentation: run.presentation,
+        report: run.report,
+        findings: run.findings,
+        rejected: run.rejected,
+        charts: run.charts,
+        results: run.results,
+        queryContract: run.query_contract ?? null,
+      })}
+      publishedCount={run.findings.length}
+      withheldCount={run.rejected.length}
     />
   );
 }

@@ -29,6 +29,8 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
+import { modules } from "./stylesheet";
+
 const TOKENS = readFileSync(
   join(__dirname, "..", "styles", "tokens.css"),
   "utf8",
@@ -120,13 +122,37 @@ const LIGHT = resolve(hexTokens(LIGHT_BLOCK), aliasTokens(LIGHT_BLOCK));
  * Reading the block alone reports the rest as absent, which hides exactly
  * the failure this is looking for: a colour tuned for a light surface that
  * nobody remembered to redefine, still sitting there on a dark one.
+ *
+ * **Hexes and aliases compose differently, and conflating them is a bug.**
+ *
+ * A hex the dark block omits really does inherit the light value, and that
+ * is the defect this file was written to catch -- light-surface ochre left
+ * sitting on a near-black panel.
+ *
+ * An *alias* omitted by the dark block does not. `--action: var(--signal)`
+ * declared on `:root` is a substitution performed where the token is used,
+ * against whatever `--signal` holds on the element then. Under
+ * `[data-theme="dark"]` that is the dark signal, so the alias follows the
+ * override without being restated -- and restating it is how a palette
+ * drifts, because a later edit that forgets one alias leaves a single
+ * component wearing the old hue.
+ *
+ * Composing the light block's aliases onto dark's values models that. The
+ * earlier version resolved dark using only the aliases the dark block
+ * itself declared, so every alias held its *light* target. It reported the
+ * light signal green as dark mode's `--action` and failed it at 2.72:1
+ * against a surface no reader will ever see it on.
  */
 const DARK_BLOCK = blockAt(clean, clean.indexOf(':root[data-theme="dark"]'));
-const DARK_OVERRIDES = resolve(
-  { ...LIGHT, ...hexTokens(DARK_BLOCK) },
-  aliasTokens(DARK_BLOCK),
-);
-const DARK = { ...LIGHT, ...DARK_OVERRIDES };
+const DARK_HEXES = { ...hexTokens(LIGHT_BLOCK), ...hexTokens(DARK_BLOCK) };
+const DARK_ALIASES = { ...aliasTokens(LIGHT_BLOCK), ...aliasTokens(DARK_BLOCK) };
+// A token the dark block pins to a literal colour is no longer an alias
+// there, whatever `:root` said. Without this, the inherited alias would be
+// applied after the hex and quietly win.
+for (const name of Object.keys(hexTokens(DARK_BLOCK))) {
+  if (!(name in aliasTokens(DARK_BLOCK))) delete DARK_ALIASES[name];
+}
+const DARK = resolve(DARK_HEXES, DARK_ALIASES);
 
 // ------------------------------------------------------------ contrast maths
 
@@ -217,7 +243,10 @@ describe("the palette parses", () => {
     // surface and pass everything.
     expect(LIGHT["surface-canvas"]).not.toBe(DARK["surface-canvas"]);
     expect(LIGHT["ink-primary"]).not.toBe(DARK["ink-primary"]);
-    expect(Object.keys(DARK_OVERRIDES).length).toBeGreaterThan(10);
+    // The dark block must actually restate a substantial palette, not a
+    // token or two: a near-empty override block is the failure that leaves
+    // light-surface colours on dark surfaces.
+    expect(Object.keys(hexTokens(DARK_BLOCK)).length).toBeGreaterThan(10);
   });
 });
 
@@ -249,6 +278,109 @@ describe("interface colours clear 3:1 on every surface", () => {
           ).toBeGreaterThanOrEqual(3);
         });
       }
+    }
+  }
+});
+
+/**
+ * Foreground-on-fill pairs, which the surface matrix cannot see.
+ *
+ * Every test above measures a text colour against one of the four
+ * *surfaces*. A filled control is neither: `.btn.primary` paints
+ * `--signal` and sets a foreground on top of it, and that pair appears in
+ * no surface combination.
+ *
+ * It went wrong exactly there. `.btn.primary` carried `color: #1a1000`, a
+ * near-black left from the palette where `--signal` was a light orange.
+ * Against the mineral green it fell below 3:1, and axe failed three
+ * browser states on it, while all 87 assertions here passed -- because
+ * none of them was looking at that pair.
+ *
+ * Each entry is (foreground token, fill token). Adding a filled control
+ * means adding its pair here.
+ */
+const FILL_PAIRS: Array<[string, string]> = [
+  ["ink-inverse", "signal"],
+  ["ink-inverse", "signal-strong"],
+  ["ink-inverse", "warning"],
+  ["signal", "signal-weak"],
+  ["warning-text", "warning-weak"],
+  ["ink-primary", "surface-inset"],
+];
+
+describe("text on a filled control clears 4.5:1", () => {
+  for (const [theme, palette] of THEMES) {
+    for (const [fg, fill] of FILL_PAIRS) {
+      it(`${theme}: --${fg} on --${fill}`, () => {
+        const ratio = contrast(palette[fg]!, palette[fill]!);
+        expect(
+          Number(ratio.toFixed(2)),
+          `--${fg} (${palette[fg]}) on --${fill} (${palette[fill]})`,
+        ).toBeGreaterThanOrEqual(4.5);
+      });
+    }
+  }
+});
+
+/**
+ * Every (background, colour) pair the stylesheet actually declares.
+ *
+ * `FILL_PAIRS` above is a hand-kept list, and a hand-kept list is exactly
+ * what missed `.btn.primary` in the first place. This derives the pairs
+ * from the CSS instead: any rule that sets both `background: var(--x)` and
+ * `color: var(--y)` is a filled element with a foreground on it, and both
+ * themes are measured. Adding a new filled control covers itself.
+ *
+ * Only token-to-token pairs are checked. A literal hex in a rule is a
+ * separate problem and `cssArchitecture.test.ts` is where it is caught.
+ */
+function declaredFillPairs(): Array<[string, string, string]> {
+  const out: Array<[string, string, string]> = [];
+  const seen = new Set<string>();
+  for (const [module, source] of modules()) {
+    const css = withoutComments(source);
+    // Brace-matched rule bodies, with the selector that introduced them.
+    for (const match of css.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
+      const selector = match[1]!.trim().replace(/\s+/g, " ");
+      const body = match[2]!;
+      const bg = /background(?:-color)?:\s*var\(\s*--([\w-]+)\s*\)/.exec(body);
+      const fg = /(?<!-)color:\s*var\(\s*--([\w-]+)\s*\)/.exec(body);
+      if (!bg || !fg) continue;
+      const key = `${fg[1]}|${bg[1]}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      out.push([fg[1]!, bg[1]!, `${module} ${selector}`]);
+    }
+  }
+  return out;
+}
+
+describe("every filled element declared in the stylesheet", () => {
+  const pairs = declaredFillPairs();
+
+  it("finds pairs to measure", () => {
+    // A derivation that silently matched nothing would pass every
+    // assertion below by having none to make.
+    expect(pairs.length).toBeGreaterThan(4);
+  });
+
+  for (const [theme, palette] of THEMES) {
+    for (const [fg, bg, where] of pairs) {
+      it(`${theme}: --${fg} on --${bg} (${where})`, () => {
+        const foreground = palette[fg];
+        const background = palette[bg];
+        // A pair naming a token the palette does not define is itself a
+        // defect: the browser drops the declaration and the element
+        // inherits something nobody chose.
+        expect(foreground, `--${fg} is not defined`).toBeTruthy();
+        expect(background, `--${bg} is not defined`).toBeTruthy();
+
+        const ratio = contrast(foreground!, background!);
+        expect(
+          Number(ratio.toFixed(2)),
+          `${where}: --${fg} (${foreground}) on --${bg} (${background})`,
+        ).toBeGreaterThanOrEqual(4.5);
+      });
     }
   }
 });

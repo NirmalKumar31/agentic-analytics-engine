@@ -1,7 +1,16 @@
 import type { RunPayload } from "../lib/types";
 
-function humanize(value: string) {
-  return value.replaceAll("_", " ");
+/**
+ * Tolerant of a missing value, like every other read in this drawer.
+ *
+ * A contract arriving without `operation` crashed the audit outright --
+ * React unmounts the subtree and the drawer appears to close itself, which
+ * is the same failure mode that once made the Compare evidence drawer
+ * vanish on a strategy that had not finished. Every collection and every
+ * string here is read defensively for that reason.
+ */
+function humanize(value: string | null | undefined) {
+  return (value ?? "").replaceAll("_", " ");
 }
 
 /** The engine's role words are not a reader's. */
@@ -19,8 +28,20 @@ function readable(role: string): string {
  * route, coverage and timings. Neither group should have to parse the other
  * group's interface.
  */
-export function PlanningAudit({ run }: { run: RunPayload }) {
-  const event = run.events.find((item) => item.type === "contract_resolved");
+export function PlanningAudit({
+  run,
+  open = false,
+}: {
+  run: RunPayload;
+  /** Open from the start, for the print appendix. See `EvidenceBody`. */
+  open?: boolean;
+}) {
+  // Optional: a run that is still in flight has no `events` at all, and
+  // the drawer renders this component for whichever strategy a reader
+  // selects -- finished or not.
+  const event = (run.events ?? []).find(
+    (item) => item.type === "contract_resolved",
+  );
   const data = event?.data ?? {};
   const contract = run.query_contract;
   const coverage = run.question_coverage;
@@ -35,7 +56,7 @@ export function PlanningAudit({ run }: { run: RunPayload }) {
 
   if (!contract && !coverage && !event && roleEvidence.length === 0) return null;
   return (
-    <details className="technical-audit" data-testid="planning-audit">
+    <details className="technical-audit" data-testid="planning-audit" open={open}>
       <summary>Planning audit</summary>
       <div className="technical-audit-body">
         <p className="small dim">
@@ -85,8 +106,8 @@ export function PlanningAudit({ run }: { run: RunPayload }) {
             <p>
               {humanize(contract.operation)}
               {contract.measure ? ` ${humanize(contract.measure)}` : ""}
-              {contract.dimensions.length ? ` by ${contract.dimensions.map(humanize).join(" then ")}` : ""}
-              {contract.filters.length ? ` · ${contract.filters.map((f) => `${humanize(f.column)} ${f.operator} ${f.value ?? ""}`).join("; ")}` : ""}
+              {(contract.dimensions ?? []).length ? ` by ${(contract.dimensions ?? []).map(humanize).join(" then ")}` : ""}
+              {(contract.filters ?? []).length ? ` · ${(contract.filters ?? []).map((f) => `${humanize(f.column)} ${f.operator} ${f.value ?? ""}`).join("; ")}` : ""}
             </p>
           </div>
         ) : null}

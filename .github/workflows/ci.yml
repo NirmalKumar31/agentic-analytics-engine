@@ -220,6 +220,11 @@ jobs:
         run: npm run test
       - name: Production build
         run: npm run build
+      - name: Bundle guard
+        # After the build, because it reads dist/. Vega stays lazy and the
+        # initial payload stays under its ceiling; the measured baseline is
+        # in the script's header.
+        run: npm run check:bundle
       - name: Audit runtime dependencies
         run: npm audit --omit=dev --audit-level=high
 
@@ -271,6 +276,15 @@ jobs:
     name: Browser end to end
     runs-on: ubuntu-latest
     needs: [python, frontend]
+    # Every ledger record carries this. The ledger outlives a Playwright
+    # invocation on purpose -- the three engines share one container's
+    # ceilings, so they have to share one ledger -- and the price is that a
+    # file left by an earlier job is indistinguishable from this job's
+    # unless each line says who wrote it. The attempt is in the id so a
+    # re-run of the same workflow is a different job, and a budget assembled
+    # from both halves fails rather than averaging them.
+    env:
+      AAE_E2E_JOB_ID: ${{ github.run_id }}-${{ github.run_attempt }}
     steps:
       - uses: actions/checkout@v4
       - uses: docker/setup-buildx-action@v3
@@ -290,29 +304,25 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      # The per-IP upload ceiling is 4-6 an hour in the real deployment,
-      # and the suite uploads several times per browser from one address.
-      # Raised here so every test runs; the ceiling itself is covered by
-      # tests/security and by the live acceptance run.
+      # The per-IP ceilings are a few an hour in the real deployment, and
+      # the suite uploads and analyses several times per browser from one
+      # address. Raised here so every test runs; the production ceilings
+      # themselves are covered by tests/security and by the live acceptance
+      # run.
       #
-      # 60 was not enough and failed in a way that pointed at the wrong
-      # thing. The suite uploads 21 times per engine and runs on three, so
-      # 63 uploads arrive from one address before retries -- and WebKit,
-      # running last, had 15 upload-dependent tests refused with "too many
-      # uploads from this address". Most of them were pre-existing chart and
-      # golden tests, so the failure read as a WebKit problem rather than as
-      # a shared ceiling being exhausted.
+      # These are the numbers the suite is measured against, not numbers
+      # chosen to make it fit: `web/scripts/check-resource-budget.mjs`
+      # holds budgets well inside them and fails the job on a 429, a leaked
+      # session, or a total over budget. There is no retry to double
+      # anything -- `playwright.config.ts` sets `retries: 0`, because the
+      # report guard refuses a flaky result outright, so a retry could only
+      # spend the budget twice. `web/e2e/UPLOADS.md` holds the measured
+      # cost and the justification for every analysis the suite still asks
+      # the engine to perform.
       #
-      # 150 left room for three engines plus the one retry CI allows. The
-      # real fix is not uploading needlessly: specs share a profiled dataset
-      # across tests that only differ in what they ask of it.
-      #
-      # The role-confirmation spec added 7 more per engine, so the arithmetic
-      # is now 63 + (7 x 3) = 84 before retries, and 84 x 2 = 168 with the
-      # retry -- past 150. Raised to 200, which is 168 plus headroom for the
-      # next spec rather than a number chosen to just fit. That spec holds
-      # itself to 7 by resizing one dataset across three viewports instead of
-      # uploading one per width.
+      # `AAE_MAX_ACTIVE_UPLOAD_SESSIONS` is set explicitly. It was not, and
+      # the default of 24 was what the first push of the redesign branch
+      # exhausted -- a ceiling nothing in the workflow named.
       - name: Boot the container
         run: |
           docker run -d --name aae-e2e -p 8000:8000 \
@@ -321,6 +331,7 @@ jobs:
             -e AAE_UPLOADS_PER_IP_PER_HOUR=200 \
             -e AAE_ANALYSES_PER_IP_PER_HOUR=200 \
             -e AAE_ANALYSES_PER_SESSION=40 \
+            -e AAE_MAX_ACTIVE_UPLOAD_SESSIONS=24 \
             agentic-analytics-engine:e2e
           for i in $(seq 1 60); do
             curl -fsS http://127.0.0.1:8000/api/health >/dev/null 2>&1 && break
@@ -328,7 +339,7 @@ jobs:
           done
           curl -fsS http://127.0.0.1:8000/api/health
 
-      - name: Install Playwright and Chromium
+      - name: Install Playwright and all three engines
         working-directory: web
         run: |
           npm ci --no-audit --no-fund
@@ -343,6 +354,23 @@ jobs:
       # Each engine runs separately so a failure names the engine, and so
       # the zero-skip guard is evaluated per engine rather than across a
       # pooled total that could hide one engine skipping everything.
+      # Before the engines, because every result below is only as good as
+      # the guard that reads it -- and the guard used not to run at all on a
+      # failing run.
+      - name: Guard self-tests
+        working-directory: web
+        # The wrapper, the budget guard, the static source rules, and the
+        # source rules applied to this tree. The last one is what stops a
+        # billed request being issued by a path the recorder cannot see.
+        run: npm run check:guards
+
+      # Once, for the whole job. The three engines share the container's
+      # ceilings, so they share one ledger; clearing it between them would
+      # make each engine look like the only one.
+      - name: Clear the resource ledger
+        working-directory: web
+        run: rm -rf playwright-ledger
+
       - name: Chromium end to end
         working-directory: web
         env:
@@ -356,46 +384,92 @@ jobs:
       # change break WebKit" went unanswered for the whole cycle. The job
       # still fails, because a failed step fails it.
       #
-      # Firefox skips the same browser-PDF test as WebKit.
+      # Firefox skips the same five PDF tests as WebKit.
       - name: Firefox end to end
         if: always()
         working-directory: web
         env:
           AAE_E2E_BASE_URL: http://127.0.0.1:8000
           AAE_E2E_BROWSERS: firefox
-          AAE_E2E_ALLOWED_SKIPS: "1"
+          AAE_E2E_ALLOWED_SKIPS: "5"
         run: npm run test:e2e
 
-      # WebKit skips the browser-PDF test, which uses `page.pdf()` -- a
-      # Chromium-only Playwright API, gated in the spec rather than
-      # failing. The guard is told to expect exactly that one.
+      # Five skips, all of them `page.pdf()` -- a Chromium-only Playwright
+      # API. They are `print.spec.ts`'s four state PDFs (successful,
+      # Compare, refusal, no findings) plus the dark-theme one, each gated
+      # with an explicit `test.skip` in the spec rather than filtered out
+      # of the file, so the guard counts them and a silent zero-test run
+      # cannot pass for a clean one.
+      #
+      # Was "1", for the single browser-PDF test `app.spec.ts` used to
+      # carry. That test asserted `%PDF` and a file size over 1kB, which a
+      # PDF of a blank page passes; `print.spec.ts` renders the pages and
+      # inspects them instead. Everything else print-related runs on all
+      # three engines through `emulateMedia({ media: "print" })`, which is
+      # not Chromium-only.
       - name: WebKit end to end
         if: always()
         working-directory: web
         env:
           AAE_E2E_BASE_URL: http://127.0.0.1:8000
           AAE_E2E_BROWSERS: webkit
-          AAE_E2E_ALLOWED_SKIPS: "1"
+          AAE_E2E_ALLOWED_SKIPS: "5"
         run: npm run test:e2e
 
-      # Traces and screenshots, not only the HTML report. A flaky Firefox
-      # test was rescued by the retry, so the job passed, so nothing was
-      # uploaded -- and the trace that would have named the stalled request
-      # was discarded with the runner. The guard now refuses a flake, which
-      # makes the job fail, which makes this fire; `test-results` is what
-      # actually holds the trace.zip and the failure screenshot.
+      # After all three engines, because the ceilings are shared: the
+      # container allows 200 uploads per IP per hour and 24 live upload
+      # sessions, and the three engines run from one address inside one
+      # hour. Per-engine totals would miss exactly the exhaustion that
+      # failed this job.
+      - name: Resource budget
+        if: always()
+        working-directory: web
+        env:
+          AAE_E2E_LEDGER_ENGINES: chromium,firefox,webkit
+        run: node scripts/check-resource-budget.mjs --scope job
+
+      # Traces and screenshots, not only the HTML report. A flake used to be
+      # rescued by a retry, so the job passed, so nothing was uploaded --
+      # and the trace that would have named the stalled request was
+      # discarded with the runner. Retries are off now and the guard
+      # refuses a flake outright, so the job fails and this fires;
+      # `test-results` is what actually holds the trace.zip and the failure
+      # screenshot.
+      - name: Capture the container's own account
+        if: always()
+        run: |
+          mkdir -p web/playwright-ledger
+          docker logs --timestamps aae-e2e \
+            > web/playwright-ledger/container.log 2>&1 || true
+
+      # `always()`, and every engine's evidence separately.
+      #
+      # This used to be `if: failure()` over shared paths: the three engines
+      # wrote one `playwright-results.json`, one `test-results/` and one
+      # `playwright-report/`, and Playwright clears its output directory on
+      # the way in -- so a Chromium failure investigated after a WebKit run
+      # had traces for WebKit only. The ledger was not uploaded at all,
+      # which is the one artifact that says what the job cost.
       - name: Playwright report and traces
-        if: failure()
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: playwright-report-${{ github.run_attempt }}
           path: |
             web/playwright-report
             web/test-results
-            web/playwright-results.json
+            web/playwright-results-*.json
+            web/playwright-ledger
           if-no-files-found: ignore
           retention-days: 14
 
+      # The whole log, into the artifact, and the tail into the job output.
+      #
+      # `tail -60` in the job log was all there was, and sixty lines of a
+      # three-engine run is the end of WebKit. When a Chromium test fails
+      # the server's account of that request is already gone. Written
+      # beside the ledger so it is uploaded by the step above -- which runs
+      # before this one, so the file has to exist by then.
       - name: Container logs
         if: always()
         run: docker logs aae-e2e 2>&1 | tail -60 || true

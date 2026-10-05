@@ -55,7 +55,21 @@ export function DatasetSummary({
           {summary.headline}
         </p>
 
-        <div className="table-wrap" style={{ maxHeight: 280 }}>
+        {/* Focusable, because it scrolls.
+            WCAG 2.1.1: a region a pointer can scroll must be reachable by
+            keyboard, or its content is unreachable without a mouse. This
+            went unflagged while the inspector sat on a wide canvas and the
+            table did not actually overflow; inside a 560px side sheet it
+            does, and axe caught it immediately. `tabIndex={0}` with a
+            label is the whole fix -- the browser supplies arrow-key
+            scrolling once the region can take focus. */}
+        <div
+          className="table-wrap"
+          style={{ maxHeight: 280 }}
+          tabIndex={0}
+          role="group"
+          aria-label="Inferred field roles"
+        >
           <table className="data">
             <thead>
               <tr>
@@ -252,4 +266,38 @@ export function suggestions(summary: Summary): string[] {
   // Deduplicated before the cap, so a repeat cannot consume a slot and
   // push the question naming a confirmed field off the end.
   return [...new Set(out)].slice(0, 3);
+}
+
+
+/** What a suggested question is asking for, which is how the composer groups them. */
+export type Intent = "Trend" | "Compare" | "Rank" | "Relationship" | "Count";
+
+/**
+ * The same suggestions, labelled by what they ask for.
+ *
+ * The labels are derived from the sentence `suggestions()` built, not
+ * guessed at from the text: this function and that one are the same
+ * knowledge, and reading the intent back out of English would be a parser
+ * that drifts the first time the wording changes.
+ *
+ * `Relationship` is deliberately absent. The generator does not produce a
+ * two-variable question, because proposing one would invite a causal
+ * reading the verifier would then withhold -- and a suggestion that
+ * reliably produces a withheld finding is a worse suggestion than none.
+ * The wireframe showed four intent groups; three are honest.
+ */
+export function groupedSuggestions(
+  summary: Summary,
+): Array<{ intent: Intent; question: string }> {
+  return suggestions(summary).map((question) => ({
+    intent: intentOf(question),
+    question,
+  }));
+}
+
+function intentOf(question: string): Intent {
+  if (question.startsWith("How did")) return "Trend";
+  if (question.startsWith("Which")) return "Rank";
+  if (question.startsWith("How many")) return "Count";
+  return "Compare";
 }

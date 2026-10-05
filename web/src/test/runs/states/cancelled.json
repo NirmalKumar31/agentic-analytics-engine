@@ -1,0 +1,932 @@
+{
+  "run_id": "run_bc908feceb5e",
+  "session_id": "ses_Nwz3SyHguzlEWN7-",
+  "question": "What is the total revenue by region?",
+  "status": "cancelled",
+  "created_at": 1791095723.305355,
+  "mode": "deterministic",
+  "provider_kind": "scripted",
+  "engine_version": "0.1.0",
+  "build_sha": "unknown",
+  "dataset_fingerprint": "sha256:2402f5316c5e31d72672ed9669811586",
+  "dataset": {
+    "dataset_kind": "upload",
+    "source": "Uploaded file: states.csv",
+    "dataset_fingerprint": "sha256:2402f5316c5e31d72672ed9669811586",
+    "dataset_seed": null,
+    "tables": [
+      {
+        "name": "uploaded_data",
+        "row_count": 160,
+        "columns": [
+          {
+            "name": "order_id",
+            "type": "BIGINT"
+          },
+          {
+            "name": "order_date",
+            "type": "DATE"
+          },
+          {
+            "name": "region",
+            "type": "VARCHAR"
+          },
+          {
+            "name": "revenue",
+            "type": "DOUBLE"
+          }
+        ]
+      }
+    ],
+    "metrics_available": []
+  },
+  "report": {
+    "question": "What is the total revenue by region?",
+    "executive_summary": "",
+    "key_findings": [],
+    "sections": [],
+    "limitations": [],
+    "next_questions": []
+  },
+  "findings": [],
+  "rejected": [],
+  "charts": [
+    {
+      "chart_id": "cht_97d19367",
+      "title": "total revenue by region",
+      "result_id": "res_d08aa27ff5f3",
+      "finding_ids": [
+        "fin_3b36bca2"
+      ],
+      "spec": {
+        "mark": "bar",
+        "encoding": {
+          "x": {
+            "field": "region",
+            "type": "nominal",
+            "title": "region"
+          },
+          "y": {
+            "field": "total_revenue",
+            "type": "quantitative",
+            "title": "total revenue",
+            "axis": {
+              "format": ","
+            }
+          },
+          "tooltip": [
+            {
+              "field": "region",
+              "type": "nominal",
+              "title": "region"
+            },
+            {
+              "field": "total_revenue",
+              "type": "quantitative",
+              "title": "total revenue",
+              "format": ","
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "tasks": [],
+  "results": {
+    "res_d08aa27ff5f3": {
+      "result_id": "res_d08aa27ff5f3",
+      "tool_name": "aggregate_for_question",
+      "task_id": null,
+      "sql": "SELECT \"region\" AS region, ROUND(SUM(CAST(\"revenue\" AS DOUBLE)), 4) AS total_revenue, COUNT(*) AS row_count, COUNT(\"revenue\") AS value_count FROM \"uploaded_data\" GROUP BY 1 ORDER BY 1 LIMIT 501",
+      "columns": [
+        "region",
+        "total_revenue",
+        "row_count",
+        "value_count"
+      ],
+      "rows": [
+        [
+          "East",
+          9080,
+          40,
+          40
+        ],
+        [
+          "North",
+          9010,
+          40,
+          40
+        ],
+        [
+          "South",
+          9290,
+          40,
+          40
+        ],
+        [
+          "West",
+          9360,
+          40,
+          40
+        ]
+      ],
+      "row_count": 4,
+      "truncated": false,
+      "dataset_fingerprint": "sha256:2402f5316c5e31d72672ed9669811586",
+      "started_at": 1791095723.343359,
+      "duration_ms": 0.817,
+      "parameters": {
+        "table": "uploaded_data",
+        "question": "What is the total revenue by region?",
+        "operation": "sum",
+        "measure": "revenue",
+        "period": null,
+        "period_field": null,
+        "filters": [],
+        "dimension": "region",
+        "dimensions": [
+          "region"
+        ],
+        "time_field": null,
+        "time_grain": null,
+        "ascending": false,
+        "confident": true,
+        "explanation": "validated schema-grounded AI plan",
+        "named_columns": [
+          "region",
+          "revenue"
+        ],
+        "interpretation": "rule-based",
+        "planner_note": "",
+        "contract_hash": "a7c31ad7adfdb83cf19352a90fe9f02406c8cce6fd7d416f305b242fb6d0cdb9",
+        "canonical_contract": {
+          "operation": "sum",
+          "table": "uploaded_data",
+          "measure": "revenue",
+          "dimensions": [
+            "region"
+          ],
+          "time_field": null,
+          "time_grain": null,
+          "period": null,
+          "period_field": null,
+          "filters": [],
+          "ascending": false
+        }
+      },
+      "warnings": [
+        "question interpreted by rule-based: validated schema-grounded AI plan"
+      ],
+      "statistical_result": null,
+      "decomposition": null,
+      "withhold_cells": false,
+      "column_types": {
+        "region": "VARCHAR",
+        "total_revenue": "DOUBLE",
+        "row_count": "BIGINT",
+        "value_count": "BIGINT"
+      },
+      "column_lineage": {
+        "region": {
+          "kind": "grouping",
+          "table": "uploaded_data",
+          "column": "region"
+        },
+        "total_revenue": {
+          "kind": "aggregate",
+          "aggregate": "SUM",
+          "table": "uploaded_data",
+          "column": "revenue",
+          "expression": "SUM(uploaded_data.revenue)"
+        },
+        "value_count": {
+          "kind": "aggregate",
+          "aggregate": "COUNT",
+          "table": "uploaded_data",
+          "column": "revenue",
+          "expression": "COUNT(uploaded_data.revenue)"
+        },
+        "row_count": {
+          "kind": "aggregate",
+          "aggregate": "COUNT",
+          "table": "uploaded_data",
+          "column": "*",
+          "expression": "COUNT(*) over uploaded_data"
+        }
+      },
+      "group_coverage": {
+        "complete": true,
+        "groups_returned": 4,
+        "groups_total": 4,
+        "rows_total": 160,
+        "rows_matching": 160,
+        "rows_represented": 160,
+        "observations_matching": 160,
+        "observations_represented": 160,
+        "query_limit": null,
+        "ordering": "dimension",
+        "ranked_by_request": false
+      }
+    }
+  },
+  "mcp_trace": [
+    {
+      "tool_name": "aggregate_for_question",
+      "agent": "fast_path",
+      "task_id": "task_01",
+      "arguments": {
+        "table": "uploaded_data",
+        "question": "What is the total revenue by region?",
+        "contract": {
+          "operation": "sum",
+          "table": "uploaded_data",
+          "measure": "revenue",
+          "period": null,
+          "period_field": null,
+          "filters": [],
+          "dimension": "region",
+          "dimensions": [
+            "region"
+          ],
+          "time_field": null,
+          "time_grain": null,
+          "ascending": false,
+          "confident": true,
+          "explanation": "total revenue by region",
+          "named_columns": [
+            "revenue",
+            "region"
+          ],
+          "interpretation": "rule-based",
+          "planner_note": "",
+          "contract_hash": "a7c31ad7adfdb83cf19352a90fe9f02406c8cce6fd7d416f305b242fb6d0cdb9",
+          "canonical_contract": {
+            "operation": "sum",
+            "table": "uploaded_data",
+            "measure": "revenue",
+            "dimensions": [
+              "region"
+            ],
+            "time_field": null,
+            "time_grain": null,
+            "period": null,
+            "period_field": null,
+            "filters": [],
+            "ascending": false
+          }
+        },
+        "expected_schema_revision": 0
+      },
+      "duration_ms": 15.56,
+      "result_id": "res_d08aa27ff5f3",
+      "row_count": 4,
+      "ok": true,
+      "error": null
+    }
+  ],
+  "events": [
+    {
+      "event_id": "ev_3f0ff66fb05e",
+      "seq": 1,
+      "type": "run_started",
+      "at": 1791095723.3058739,
+      "data": {
+        "run_id": "run_bc908feceb5e",
+        "question": "What is the total revenue by region?",
+        "provider": "fake",
+        "session_id": "ses_Nwz3SyHguzlEWN7-"
+      }
+    },
+    {
+      "event_id": "ev_091390b1c227",
+      "seq": 2,
+      "type": "dataset_loaded",
+      "at": 1791095723.329185,
+      "data": {
+        "dataset_kind": "upload",
+        "source": "Uploaded file: states.csv",
+        "dataset_fingerprint": "sha256:2402f5316c5e31d72672ed9669811586",
+        "tables": [
+          {
+            "name": "uploaded_data",
+            "row_count": 160
+          }
+        ],
+        "metrics": []
+      }
+    },
+    {
+      "event_id": "ev_673154f2de4d",
+      "seq": 3,
+      "type": "contract_resolved",
+      "at": 1791095723.335735,
+      "data": {
+        "planner": "rule-based",
+        "model_calls": 0,
+        "duration_ms": 5.4,
+        "fallback": false,
+        "confident": true,
+        "contract_hash": "a7c31ad7adfdb83cf19352a90fe9f02406c8cce6fd7d416f305b242fb6d0cdb9",
+        "operation": "sum",
+        "dimensions": [
+          "region"
+        ]
+      }
+    },
+    {
+      "event_id": "ev_89618f3c8d63",
+      "seq": 4,
+      "type": "question_analyzed",
+      "at": 1791095723.335745,
+      "data": {
+        "intent": "What is the total revenue by region?",
+        "analysis_type": "segmentation",
+        "target_metrics": [
+          "revenue"
+        ],
+        "dimensions": [
+          "region"
+        ],
+        "time_scope": null,
+        "ambiguities": []
+      }
+    },
+    {
+      "event_id": "ev_d0114c25a0ac",
+      "seq": 5,
+      "type": "mcp_tool_called",
+      "at": 1791095723.336693,
+      "data": {
+        "tool_name": "aggregate_for_question",
+        "agent": "fast_path",
+        "task_id": "task_01",
+        "arguments": {
+          "table": "uploaded_data",
+          "question": "What is the total revenue by region?",
+          "contract": {
+            "operation": "sum",
+            "table": "uploaded_data",
+            "measure": "revenue",
+            "period": null,
+            "period_field": null,
+            "filters": [],
+            "dimension": "region",
+            "dimensions": [
+              "region"
+            ],
+            "time_field": null,
+            "time_grain": null,
+            "ascending": false,
+            "confident": true,
+            "explanation": "total revenue by region",
+            "named_columns": [
+              "revenue",
+              "region"
+            ],
+            "interpretation": "rule-based",
+            "planner_note": "",
+            "contract_hash": "a7c31ad7adfdb83cf19352a90fe9f02406c8cce6fd7d416f305b242fb6d0cdb9",
+            "canonical_contract": {
+              "operation": "sum",
+              "table": "uploaded_data",
+              "measure": "revenue",
+              "dimensions": [
+                "region"
+              ],
+              "time_field": null,
+              "time_grain": null,
+              "period": null,
+              "period_field": null,
+              "filters": [],
+              "ascending": false
+            }
+          },
+          "expected_schema_revision": 0
+        },
+        "duration_ms": 0,
+        "result_id": null,
+        "row_count": null,
+        "ok": true,
+        "error": null,
+        "transport": "in-process"
+      }
+    },
+    {
+      "event_id": "ev_f429be3e3e53",
+      "seq": 6,
+      "type": "mcp_tool_completed",
+      "at": 1791095723.352282,
+      "data": {
+        "tool_name": "aggregate_for_question",
+        "agent": "fast_path",
+        "task_id": "task_01",
+        "arguments": {
+          "table": "uploaded_data",
+          "question": "What is the total revenue by region?",
+          "contract": {
+            "operation": "sum",
+            "table": "uploaded_data",
+            "measure": "revenue",
+            "period": null,
+            "period_field": null,
+            "filters": [],
+            "dimension": "region",
+            "dimensions": [
+              "region"
+            ],
+            "time_field": null,
+            "time_grain": null,
+            "ascending": false,
+            "confident": true,
+            "explanation": "total revenue by region",
+            "named_columns": [
+              "revenue",
+              "region"
+            ],
+            "interpretation": "rule-based",
+            "planner_note": "",
+            "contract_hash": "a7c31ad7adfdb83cf19352a90fe9f02406c8cce6fd7d416f305b242fb6d0cdb9",
+            "canonical_contract": {
+              "operation": "sum",
+              "table": "uploaded_data",
+              "measure": "revenue",
+              "dimensions": [
+                "region"
+              ],
+              "time_field": null,
+              "time_grain": null,
+              "period": null,
+              "period_field": null,
+              "filters": [],
+              "ascending": false
+            }
+          },
+          "expected_schema_revision": 0
+        },
+        "duration_ms": 15.56,
+        "result_id": "res_d08aa27ff5f3",
+        "row_count": 4,
+        "ok": true,
+        "error": null
+      }
+    },
+    {
+      "event_id": "ev_206dee06c153",
+      "seq": 7,
+      "type": "finding_verified",
+      "at": 1791095723.3527098,
+      "data": {
+        "finding_id": "fin_3b36bca2",
+        "status": "supported",
+        "rule": "engine_canonical"
+      }
+    },
+    {
+      "event_id": "ev_702b3a102fd9",
+      "seq": 8,
+      "type": "chart_created",
+      "at": 1791095723.352779,
+      "data": {
+        "chart_id": "cht_97d19367",
+        "chart_kind": "bar",
+        "result_id": "res_d08aa27ff5f3"
+      }
+    },
+    {
+      "event_id": "ev_97e4663e280b",
+      "seq": 9,
+      "type": "report_completed",
+      "at": 1791095723.3536808,
+      "data": {
+        "finding_count": 1,
+        "rejected_count": 0,
+        "chart_count": 1,
+        "sections": []
+      }
+    },
+    {
+      "event_id": "ev_64b588be7977",
+      "seq": 10,
+      "type": "run_completed",
+      "at": 1791095723.354608,
+      "data": {
+        "run_id": "run_bc908feceb5e",
+        "runtime_seconds": 0.048,
+        "provider": "fake",
+        "analysis_tasks": 0,
+        "tasks_succeeded": 0,
+        "tasks_warned": 0,
+        "tasks_failed": 0,
+        "mcp_tool_calls": 1,
+        "mcp_tool_failures": 0,
+        "findings_proposed": 1,
+        "findings_published": 1,
+        "findings_rejected": 0,
+        "charts": 1,
+        "provider_request_attempts": 0,
+        "provider_successful_responses": 0,
+        "llm_calls": 0,
+        "input_tokens": 0,
+        "output_tokens": 0
+      }
+    }
+  ],
+  "metrics": {
+    "runtime_seconds": 0.048,
+    "provider": "fake",
+    "analysis_tasks": 0,
+    "tasks_succeeded": 0,
+    "tasks_warned": 0,
+    "tasks_failed": 0,
+    "mcp_tool_calls": 1,
+    "mcp_tool_failures": 0,
+    "findings_proposed": 1,
+    "findings_published": 1,
+    "findings_rejected": 0,
+    "charts": 1,
+    "provider_request_attempts": 0,
+    "provider_successful_responses": 0,
+    "llm_calls": 0,
+    "input_tokens": 0,
+    "output_tokens": 0,
+    "by_role": {}
+  },
+  "query_contract": {
+    "operation": "sum",
+    "table": "uploaded_data",
+    "measure": "revenue",
+    "period": null,
+    "period_field": null,
+    "filters": [],
+    "dimension": "region",
+    "dimensions": [
+      "region"
+    ],
+    "time_field": null,
+    "time_grain": null,
+    "ascending": false,
+    "confident": true,
+    "explanation": "total revenue by region",
+    "named_columns": [
+      "revenue",
+      "region"
+    ],
+    "interpretation": "rule-based",
+    "planner_note": "",
+    "contract_hash": "a7c31ad7adfdb83cf19352a90fe9f02406c8cce6fd7d416f305b242fb6d0cdb9",
+    "canonical_contract": {
+      "operation": "sum",
+      "table": "uploaded_data",
+      "measure": "revenue",
+      "dimensions": [
+        "region"
+      ],
+      "time_field": null,
+      "time_grain": null,
+      "period": null,
+      "period_field": null,
+      "filters": [],
+      "ascending": false
+    }
+  },
+  "question_coverage": {
+    "complete": true,
+    "required_components": [
+      "operation",
+      "measure",
+      "dimensions"
+    ],
+    "applied_components": [
+      "operation",
+      "measure",
+      "dimensions"
+    ],
+    "missing_components": [],
+    "rejection_codes": [],
+    "details": []
+  },
+  "timings": {
+    "planning_ms": 5.4,
+    "execution_ms": 15.7,
+    "verification_ms": 0.4,
+    "total_ms": 21.5
+  },
+  "chart_decision": {
+    "kind": "bar",
+    "title": "total revenue by region",
+    "spec": {
+      "mark": "bar",
+      "encoding": {
+        "x": {
+          "field": "region",
+          "type": "nominal",
+          "title": "region"
+        },
+        "y": {
+          "field": "total_revenue",
+          "type": "quantitative",
+          "title": "total revenue",
+          "axis": {
+            "format": ","
+          }
+        },
+        "tooltip": [
+          {
+            "field": "region",
+            "type": "nominal",
+            "title": "region"
+          },
+          {
+            "field": "total_revenue",
+            "type": "quantitative",
+            "title": "total revenue",
+            "format": ","
+          }
+        ]
+      }
+    }
+  },
+  "presentation": {
+    "schema_version": "1.0",
+    "shape": "categorical_breakdown",
+    "headline": "Total revenue is highest for West, at 9,360, and lowest for North, at 9,010.",
+    "secondary_summary": "All groups are in the table below.",
+    "highlights": [
+      {
+        "highlight_id": "highest",
+        "label": "Highest: West",
+        "value": {
+          "raw_value": 9360,
+          "formatted_value": "9,360",
+          "unit": null
+        },
+        "comparison_value": null,
+        "delta": null,
+        "evidence_cells": [
+          {
+            "result_id": "res_d08aa27ff5f3",
+            "row": 3,
+            "column": "total_revenue",
+            "value": 9360,
+            "label": "total revenue, highest"
+          }
+        ],
+        "interpretation_level": "measured"
+      },
+      {
+        "highlight_id": "lowest",
+        "label": "Lowest: North",
+        "value": {
+          "raw_value": 9010,
+          "formatted_value": "9,010",
+          "unit": null
+        },
+        "comparison_value": null,
+        "delta": null,
+        "evidence_cells": [
+          {
+            "result_id": "res_d08aa27ff5f3",
+            "row": 1,
+            "column": "total_revenue",
+            "value": 9010,
+            "label": "total revenue, lowest"
+          }
+        ],
+        "interpretation_level": "measured"
+      }
+    ],
+    "scope": {
+      "rows_total": 160,
+      "rows_matching": 160,
+      "rows_represented": 160,
+      "observations_matching": 160,
+      "observations_represented": 160,
+      "groups_returned": 4,
+      "groups_total": 4,
+      "complete": true,
+      "filters": [],
+      "period": null,
+      "ordering": "dimension"
+    },
+    "display_fields": [
+      {
+        "source_name": "revenue",
+        "display_label": "Revenue",
+        "semantic_kind": "measure",
+        "unit": null,
+        "precision": 2,
+        "boolean_labels": null,
+        "ordered": true,
+        "identifier": false,
+        "sensitive": false
+      },
+      {
+        "source_name": "region",
+        "display_label": "Region",
+        "semantic_kind": "category",
+        "unit": null,
+        "precision": null,
+        "boolean_labels": null,
+        "ordered": false,
+        "identifier": false,
+        "sensitive": false
+      },
+      {
+        "source_name": "total_revenue",
+        "display_label": "Total revenue",
+        "semantic_kind": "ordered_numeric",
+        "unit": null,
+        "precision": 2,
+        "boolean_labels": null,
+        "ordered": true,
+        "identifier": false,
+        "sensitive": false
+      },
+      {
+        "source_name": "row_count",
+        "display_label": "Row count",
+        "semantic_kind": "measure",
+        "unit": null,
+        "precision": null,
+        "boolean_labels": null,
+        "ordered": true,
+        "identifier": false,
+        "sensitive": false
+      },
+      {
+        "source_name": "value_count",
+        "display_label": "Value count",
+        "semantic_kind": "measure",
+        "unit": null,
+        "precision": null,
+        "boolean_labels": null,
+        "ordered": true,
+        "identifier": false,
+        "sensitive": false
+      }
+    ],
+    "table": {
+      "result_id": "res_d08aa27ff5f3",
+      "visible_columns": [
+        "region",
+        "total_revenue",
+        "row_count"
+      ],
+      "display_fields": [
+        {
+          "source_name": "region",
+          "display_label": "Region",
+          "semantic_kind": "category",
+          "unit": null,
+          "precision": null,
+          "boolean_labels": null,
+          "ordered": false,
+          "identifier": false,
+          "sensitive": false
+        },
+        {
+          "source_name": "total_revenue",
+          "display_label": "Total revenue",
+          "semantic_kind": "ordered_numeric",
+          "unit": null,
+          "precision": 2,
+          "boolean_labels": null,
+          "ordered": true,
+          "identifier": false,
+          "sensitive": false
+        },
+        {
+          "source_name": "row_count",
+          "display_label": "Row count",
+          "semantic_kind": "measure",
+          "unit": null,
+          "precision": null,
+          "boolean_labels": null,
+          "ordered": true,
+          "identifier": false,
+          "sensitive": false
+        },
+        {
+          "source_name": "value_count",
+          "display_label": "Value count",
+          "semantic_kind": "measure",
+          "unit": null,
+          "precision": null,
+          "boolean_labels": null,
+          "ordered": true,
+          "identifier": false,
+          "sensitive": false
+        }
+      ],
+      "default_sort": null,
+      "preview_limit": null,
+      "complete": true
+    },
+    "chart": {
+      "chart_id": "fin_3b36bca2",
+      "result_id": "res_d08aa27ff5f3",
+      "kind": "bar",
+      "title": "total revenue by region",
+      "subtitle": null,
+      "x_field": "region",
+      "y_field": "total_revenue",
+      "series_field": null,
+      "no_chart_reason": null,
+      "spec": {
+        "mark": "bar",
+        "encoding": {
+          "x": {
+            "field": "region",
+            "type": "nominal",
+            "title": "region"
+          },
+          "y": {
+            "field": "total_revenue",
+            "type": "quantitative",
+            "title": "total revenue",
+            "axis": {
+              "format": ","
+            }
+          },
+          "tooltip": [
+            {
+              "field": "region",
+              "type": "nominal",
+              "title": "region"
+            },
+            {
+              "field": "total_revenue",
+              "type": "quantitative",
+              "title": "total revenue",
+              "format": ","
+            }
+          ]
+        }
+      }
+    },
+    "caveats": [],
+    "provenance_refs": [
+      {
+        "finding_id": "fin_3b36bca2",
+        "result_id": "res_d08aa27ff5f3",
+        "evidence_cells": [
+          {
+            "result_id": "res_d08aa27ff5f3",
+            "row": 0,
+            "column": "total_revenue",
+            "value": 9080,
+            "label": "sum of revenue for East"
+          },
+          {
+            "result_id": "res_d08aa27ff5f3",
+            "row": 1,
+            "column": "total_revenue",
+            "value": 9010,
+            "label": "sum of revenue for North"
+          },
+          {
+            "result_id": "res_d08aa27ff5f3",
+            "row": 2,
+            "column": "total_revenue",
+            "value": 9290,
+            "label": "sum of revenue for South"
+          },
+          {
+            "result_id": "res_d08aa27ff5f3",
+            "row": 3,
+            "column": "total_revenue",
+            "value": 9360,
+            "label": "sum of revenue for West"
+          }
+        ]
+      }
+    ],
+    "compatibility_derived": false
+  },
+  "planner_fallback": false,
+  "stopped_reason": "the dataset was closed",
+  "outcome": "cancelled",
+  "schema_revision": 0,
+  "role_evidence": [
+    {
+      "column": "region",
+      "effective_role": "dimension",
+      "inferred_role": "dimension",
+      "role_source": "inferred",
+      "ambiguous": false,
+      "used_as": [
+        "grouping"
+      ]
+    },
+    {
+      "column": "revenue",
+      "effective_role": "measure",
+      "inferred_role": "measure",
+      "role_source": "inferred",
+      "ambiguous": false,
+      "used_as": [
+        "measure"
+      ]
+    }
+  ]
+}

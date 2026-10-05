@@ -1,6 +1,7 @@
-import { expect, test } from "@playwright/test";
+import { advertiseAi, compareWith, startCompare } from "./compareHelpers";
+import { expect, reportFor, test } from "./fixtures";
 
-import { ask, openApp, sampleCsv, suggestedQuestions, uploadFile, waitForReport } from "./helpers";
+import { endSession, inDrawer, openApp, sampleCsv, uploadFile, waitForCompare } from "./helpers";
 
 /**
  * That the chart actually draws.
@@ -61,25 +62,19 @@ async function expectDrawnChart(page: import("@playwright/test").Page) {
 
 test.describe("a chart on an uploaded dataset", () => {
   test("draws the plot rather than reporting its own specification", async ({
-    page,
+    profiled: page,
   }) => {
-    await openApp(page);
-    await uploadFile(page, "charted.csv", sampleCsv());
-    await ask(page, "What is the total revenue by region?");
-    await waitForReport(page);
+    await reportFor(page, "What is the total revenue by region?");
 
     await expectDrawnChart(page);
     await expectNoChartFailure(page);
   });
 
-  test("the chart survives being printed", async ({ page }) => {
+  test("the chart survives being printed", async ({ profiled: page }) => {
     // The report offers "Print / Save PDF" as a first-class path, and the
     // PDF is the artefact a reader keeps. A chart that renders on screen
     // and vanishes on paper is the same loss.
-    await openApp(page);
-    await uploadFile(page, "printed.csv", sampleCsv());
-    await ask(page, "What is the total revenue by region?");
-    await waitForReport(page);
+    await reportFor(page, "What is the total revenue by region?");
     await expectDrawnChart(page);
 
     await page.emulateMedia({ media: "print" });
@@ -95,15 +90,12 @@ test.describe("a chart on an uploaded dataset", () => {
     await page.emulateMedia({ media: "screen" });
   });
 
-  test("draws a trend as a line, not just a bar chart", async ({ page }) => {
+  test("draws a trend as a line, not just a bar chart", async ({ profiled: page }) => {
     // The hydration walks encoding channels, so it is kind-agnostic -- but
     // a trend plots the engine's synthesised `period` column rather than a
     // column of the uploaded file, which is the one field name that could
     // fail to resolve against the result.
-    await openApp(page);
-    await uploadFile(page, "trend.csv", sampleCsv());
-    await ask(page, "Show the monthly trend of revenue");
-    await waitForReport(page);
+    await reportFor(page, "Show the monthly trend of revenue");
 
     await expectDrawnChart(page);
     await expectNoChartFailure(page);
@@ -112,18 +104,18 @@ test.describe("a chart on an uploaded dataset", () => {
     expect(
       await card.locator(".chart-host svg path.line, .chart-host svg path").count(),
     ).toBeGreaterThan(0);
-    await expect(card.locator("h4")).toContainText(/over time/i);
+    // `figcaption`, not `h4`: a figure's name is a caption, and an `<h4>`
+    // in a document whose headings run h1, h2 was both a skipped level and
+    // a competitor in the heading outline.
+    await expect(card.locator("figcaption")).toContainText(/over time/i);
   });
 
   test("a revenue axis reads at the same precision as the table", async ({
-    page,
+    profiled: page,
   }) => {
     // A total shown as 83,373,290.48 in the table and 83M on the axis
     // beside it reads as two different figures.
-    await openApp(page);
-    await uploadFile(page, "precision.csv", sampleCsv());
-    await ask(page, "What is the total revenue by region?");
-    await waitForReport(page);
+    await reportFor(page, "What is the total revenue by region?");
     await expectDrawnChart(page);
 
     const labels = await page
@@ -141,138 +133,281 @@ test.describe("a chart on an uploaded dataset", () => {
   });
 });
 
-test.describe("the stage lane", () => {
-  test("does not report the demo dataset's stages as not reached", async ({
-    page,
+test.describe("the run timeline, on real runs", () => {
+  /*
+   * These two tests were "the stage lane" and asserted `ExecutionLane`, the
+   * STAGES card panel. The panel is gone; its claims are not, and they are
+   * the timeline's now.
+   *
+   * The claim worth keeping is the one that caught a real defect: the lane
+   * described every run with the *upload contract* path's stages, so a
+   * working demo run reported "Rule resolver: not reached" and "Contract
+   * validation: not accepted" -- two false statements about a run that
+   * succeeded. The timeline derives from the events a run actually emitted,
+   * so the equivalent assertion is that a successful run has no stage
+   * reading as stopped or not-reached.
+   */
+  test("a successful demo run shows no stage as stopped or unreached", async ({
+    demo: page,
   }) => {
-    // The demo warehouse is answered from the metric registry by planning
-    // agents, which never build an upload contract. The lane described
-    // every run with the contract path's stages, so a working demo run
-    // reported "Rule resolver: not reached" and "Contract validation: not
-    // accepted" -- two false statements about a run that succeeded.
-    await openApp(page);
-    await page.getByRole("button", { name: /Commerce demo warehouse/ }).click();
-    // The demo warehouse has no upload profile panel; its questions are
-    // offered directly in the Ask panel.
-    await expect(page.getByRole("heading", { name: "Ask" })).toBeVisible();
-    await suggestedQuestions(page).first().click();
-    await page.getByRole("button", { name: "Run analysis" }).click();
-    await waitForReport(page);
+    /*
+     * The stages come from the engine's own event stream either way.
+     *
+     * `reportFor` admits the question once per job and replays the settled
+     * payload afterwards -- and that payload *is* a real run's, events
+     * included. What a replay cannot assert is the progression while it
+     * happens, which is `accessibility.spec.ts`'s "a run in flight" and
+     * `app.spec.ts`'s live demo run. This asserts the finished record.
+     */
+    await reportFor(page, "What is the total revenue by region?");
 
-    const lane = page.locator(".lane").first();
-    await expect(lane).toBeVisible();
-    const stages = lane.locator(".lane-stage");
-    await expect(stages).toHaveCount(5);
-
-    // The first two stages are the ones that used to read as failures.
-    for (const index of [0, 1]) {
-      const text = (await stages.nth(index).textContent()) ?? "";
-      expect(text, `stage ${index + 1} reads as not reached`).not.toMatch(
-        /not reached|not accepted/i,
-      );
-      await expect(stages.nth(index)).not.toHaveClass(/state-idle/);
-    }
+    await page.getByTestId("show-work").click();
+    const timeline = inDrawer(page, "run-timeline");
+    await expect(timeline).toBeVisible();
+    expect(await timeline.locator('[data-state="stopped"]').count()).toBe(0);
+    expect(await timeline.locator('[data-state="skipped"]').count()).toBe(0);
+    await expect(timeline).not.toContainText(/not reached/i);
   });
 
-  test("shows an uploaded run its governed stages", async ({ page }) => {
-    // The branch diagram draws one branch for a one-query fast path, which
-    // made the more governed path look like it did less. The lane names the
-    // contract stages the diagram has no nodes for.
-    await openApp(page);
-    await uploadFile(page, "staged.csv", sampleCsv());
-    await ask(page, "What is the total revenue by region?");
-    await waitForReport(page);
+  test("a successful uploaded run reaches publish", async ({ profiled: page }) => {
+    await reportFor(page, "What is the total revenue by region?");
 
-    const lane = page.locator(".lane").first();
-    await expect(lane).toBeVisible();
-    await expect(lane.locator(".lane-stage")).toHaveCount(5);
-    await expect(lane).toContainText(/contract validation/i);
-    await expect(lane).toContainText(/DuckDB via MCP/i);
-    await expect(lane).not.toContainText(/not reached|not accepted/i);
+    await page.getByTestId("show-work").click();
+    const timeline = inDrawer(page, "run-timeline");
+    await expect(timeline).toBeVisible();
+    // Five stages for a deterministic run, every one of them reached.
+    await expect(timeline.locator(".timeline-stage")).toHaveCount(5);
+    await expect(timeline.getByTestId("stage-publish")).toHaveAttribute(
+      "data-state",
+      "complete",
+    );
+    await expect(timeline).not.toContainText(/not reached/i);
   });
 });
 
 test.describe("Compare Both, in a browser", () => {
-  /**
-   * Advertise AI so the selector offers Compare, then answer the
-   * comparison with one real deterministic run used for both sides.
-   *
-   * Pointing both panes at the same run is the honest way to reach the
-   * shared-result path with real engine data: identical contracts,
-   * identical values and identical withheld findings are exactly the
-   * conditions `shareOneResult` requires, and no model is called to
-   * manufacture them.
-   */
-  async function compareOverOneRun(page: import("@playwright/test").Page) {
-    await page.route("**/api/config", async (route) => {
-      const response = await route.fetch();
-      const body = await response.json();
-      body.capabilities.modes = body.capabilities.modes.map(
-        (m: { mode: string }) =>
-          m.mode === "ai"
-            ? { ...m, available: true, reason: "", message: "" }
-            : m,
-      );
-      body.capabilities.compare_available = true;
-      body.capabilities.ai_limits = {
-        runs_per_session: 3,
-        max_model_calls_per_run: 24,
-        max_runtime_seconds: 180,
-      };
-      await route.fulfill({ response, json: body });
-    });
+  // This describe opens its own session -- see the test below -- so it
+  // hands it back rather than leaving it for the container to time out.
+  test.afterEach(async ({ page }) => {
+    await endSession(page);
+  });
 
-    await page.route("**/api/comparisons", async (route) => {
-      const request = route.request().postDataJSON() as {
-        session_id: string;
-        question: string;
-      };
-      const started = await route.fetch({
-        url: new URL("/api/analyses", page.url()).toString(),
-        method: "POST",
-        postData: JSON.stringify({ ...request, mode: "deterministic" }),
-        headers: { "content-type": "application/json" },
-      });
-      const { run_id } = (await started.json()) as { run_id: string };
-      await route.fulfill({
-        status: 202,
-        json: {
-          comparison_id: "cmp_shared",
-          session_id: request.session_id,
-          question: request.question,
-          deterministic_run_id: run_id,
-          ai_run_id: run_id,
-        },
-      });
-    });
-  }
+  /*
+   * The Compare setup lives in `compareHelpers.ts`.
+   *
+   * This file kept its own copy: an `/api/config` override and an
+   * `/api/comparisons` handler that issued the real deterministic run with
+   * `route.fetch`. That request is invisible to the traffic recorder --
+   * `route.fetch` produces no page event -- so the analysis happened and
+   * nothing counted it. `compareWith` records it where it is made and
+   * remembers the settled payload, so the first comparison of a question
+   * in the whole job is real and every later one replays it.
+   */
 
   test("shows one result, with both planning lanes above it", async ({
     page,
   }) => {
-    await compareOverOneRun(page);
+    /*
+     * Its own page, not the shared session.
+     *
+     * `compareOverOneRun` answers `/api/config` so the selector offers
+     * Compare, and the application requests that config **as it mounts**.
+     * The shared `profiled` session was created at the start of the worker,
+     * long before any such route existed, so on it the Compare strategy is
+     * never offered and the click waits out the whole test timeout --
+     * which is how this failed on Firefox while passing on Chromium.
+     *
+     * `compareSetup.spec.ts` pins the ordering rule this follows.
+     */
+    await advertiseAi(page);
+    await compareWith(page, undefined, "compare-lanes.csv");
     await openApp(page);
-    await uploadFile(page, "shared.csv", sampleCsv());
-    await page.getByRole("radio", { name: /^Compare planning strategies/ }).click();
-    await page.getByLabel("Business question").fill(
-      "What is the total revenue by region?",
-    );
-    await page.getByRole("button", { name: /Compare strategies/ }).click();
-    await waitForReport(page);
+    await uploadFile(page, "compare-lanes.csv", sampleCsv());
+    await startCompare(page, "What is the total revenue by region?");
+    // The comparison's anchor, not the single-run report's: Compare renders
+    // compact panes and, under agreement, one shared result.
+    await waitForCompare(page);
 
     // One shared result, not two copies of it.
     await expect(page.getByTestId("shared-result")).toBeVisible({
       timeout: 60_000,
     });
-    await expect(page.locator('[data-testid="pane-status"]')).toHaveCount(0);
     // One report, not the same report twice.
-    await expect(page.getByTestId("report-panel")).toHaveCount(1);
+    await expect(page.getByTestId("compare-report")).toHaveCount(1);
+    await expect(page.locator(".compare-pane")).toHaveCount(0);
 
-    // The two planning lanes stay: that is what actually differed.
-    await expect(page.locator(".lane")).toHaveCount(2);
+    // The planning comparison stays: that is what actually differed. It was
+    // two `.lane` stage stacks restating the same five steps twice; it is
+    // one table with a row per strategy, and each row carries that
+    // strategy's own status.
+    await expect(page.getByTestId("compare-routes")).toBeVisible();
+    await expect(page.locator('[data-testid="pane-status"]')).toHaveCount(2);
 
     // And the one chart it shows is drawn, not described.
     await expectDrawnChart(page);
     await expectNoChartFailure(page);
+  });
+});
+
+test.describe("every colour in a chart comes from the palette", () => {
+  /*
+   * Vega's defaults are greys and blues chosen for a white page, and they
+   * are written *inline* on the SVG, where no stylesheet can reach them.
+   * Two have already shipped: `#4c78a8` for a single-series mark, which was
+   * a blue from neither palette and identical in both themes; and `#ddd`
+   * for `view.stroke`, which rendered as a near-white rectangle outlining
+   * the plot on a #0e1113 dark canvas and was invisible in light, which is
+   * why it survived.
+   *
+   * Both were found by looking at a screenshot. This is the general form:
+   * resolve every token the palette defines to the colour the browser
+   * computes for it, then assert that the chart uses nothing else. A third
+   * unthemed default cannot ship without failing here, whichever property
+   * carries it.
+   */
+  const PALETTE = [
+    "--series-1",
+    "--series-2",
+    "--series-3",
+    "--series-4",
+    "--series-5",
+    "--ink-primary",
+    "--ink-secondary",
+    "--ink-muted",
+    "--ink-inverse",
+    "--rule-hairline",
+    "--rule-strong",
+    "--surface-canvas",
+    "--surface-paper",
+    "--surface-raised",
+    "--surface-inset",
+    "--signal",
+    "--signal-strong",
+    "--warning",
+  ];
+
+  for (const theme of ["light", "dark"] as const) {
+    test(`in ${theme}`, async ({ profiled: page }) => {
+      // Toggled, not seeded: `addInitScript` only takes effect on the next
+      // navigation, and a shared session is never navigated -- the dataset
+      // lives in React state and a reload would throw it away.
+      await page.setViewportSize({ width: 1440, height: 900 });
+      /*
+       * Replayed, with the theme applied before the chart is drawn.
+       *
+       * The claim is about which colours a chart uses, not about the
+       * engine producing one: the same captured payload embeds under
+       * either palette, and `reportFor` sets the theme before the report
+       * renders because Vega writes `--series-*` inline at embed time. Two
+       * admissions for one question in two themes was two admissions for
+       * nothing.
+       */
+      await reportFor(page, "What is the total revenue by region?", { theme });
+      await expect(page.locator("html")).toHaveAttribute("data-theme", theme);
+      await expectDrawnChart(page);
+
+      const foreign = await page.evaluate((tokens) => {
+        // Resolve each token the way the browser will, so the comparison
+        // is between computed colours rather than between a hex and an
+        // `rgb()` string that mean the same thing.
+        const probe = document.createElement("span");
+        probe.style.display = "none";
+        document.body.append(probe);
+        const allowed = new Set(["none", "rgba(0, 0, 0, 0)", "rgb(0, 0, 0)"]);
+        for (const name of tokens) {
+          probe.style.color = `var(${name})`;
+          const resolved = getComputedStyle(probe).color;
+          if (resolved) allowed.add(resolved);
+        }
+        probe.remove();
+
+        const svg = document.querySelector(".chart-host svg");
+        if (!svg) return ["no chart"];
+        const seen = new Map<string, string>();
+        for (const node of Array.from(svg.querySelectorAll("*"))) {
+          const style = getComputedStyle(node);
+          for (const property of ["fill", "stroke"] as const) {
+            const value = style[property];
+            if (!value || allowed.has(value)) continue;
+            const where = `${node.tagName}.${node.getAttribute("class") ?? ""}`;
+            seen.set(`${property}=${value}`, where);
+          }
+        }
+        return [...seen].map(([colour, where]) => `${colour} on ${where}`);
+      }, PALETTE);
+
+      expect(
+        foreign,
+        `${theme}: colours from outside the palette: ${foreign.join(" | ")}`,
+      ).toEqual([]);
+    });
+  }
+});
+
+test.describe("the chart's category labels", () => {
+  /*
+   * Vega turns a nominal x axis to vertical by default, whatever the
+   * labels are: four words at 1440px were printed on their sides, in the
+   * same product whose demo-warehouse specifications set `-30` and look as
+   * the mockup intends. The angle is decided from the labels now --
+   * `categoryLabelAngle`, unit-tested in `axisLabels.test.ts` -- and this
+   * is the half that only a browser can check: that the decision reaches
+   * the rendered SVG.
+   */
+  async function labelRotations(page: import("@playwright/test").Page) {
+    return page.evaluate(() => {
+      const labels = Array.from(
+        document.querySelectorAll(
+          ".chart-host svg g.role-axis-label text, .chart-host svg .mark-text.role-axis-label text",
+        ),
+      );
+      return labels.map((node) => {
+        const transform = node.getAttribute("transform") ?? "";
+        const match = transform.match(/rotate\(\s*(-?[\d.]+)/);
+        return {
+          text: (node.textContent ?? "").trim(),
+          angle: match ? Number(match[1]) : 0,
+        };
+      });
+    });
+  }
+
+  test("four short categories are not printed on their sides", async ({ profiled: page }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await reportFor(page, "What is the total revenue by region?");
+    await expectDrawnChart(page);
+
+    const labels = await labelRotations(page);
+    const named = labels.filter((label) => /East|North|South|West/.test(label.text));
+    expect(named.length, "the region labels were not found").toBeGreaterThan(0);
+    for (const label of named) {
+      expect(
+        Math.abs(label.angle),
+        `"${label.text}" is rotated ${label.angle} degrees`,
+      ).toBeLessThan(1);
+    }
+  });
+
+  test("and a crowded axis keeps every label rather than dropping any", async ({
+    wide: page,
+  }) => {
+    // The opposite failure. Flat labels on a wide axis collide, and Vega
+    // resolves a collision by removing labels -- a chart that silently
+    // loses most of its axis is worse than one read at an angle.
+    // The `wide` session: 36 categories, which is the crowded axis this
+    // test is about. It replaced a 400-row upload of the ordinary sample
+    // made for this one assertion.
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await reportFor(page, "What is the total revenue by category?");
+
+    const chart = page.locator(".chart-host svg");
+    if ((await chart.count()) === 0) return;
+    const labels = await labelRotations(page);
+    if (labels.length < 10) return;
+    const angles = new Set(labels.map((label) => Math.round(label.angle)));
+    expect(
+      [...angles].every((angle) => angle === 0 || angle === -30),
+      `unexpected angles: ${[...angles].join(", ")}`,
+    ).toBe(true);
   });
 });

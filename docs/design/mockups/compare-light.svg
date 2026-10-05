@@ -1,0 +1,134 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1740" height="1256" viewBox="0 0 1740 1256"><rect width="1740" height="1256" fill="#F2F4F1"/><g font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif"><text x="40" y="34" font-size="11" font-weight="700" fill="#0E6E66" letter-spacing=".12em">HIGH-FIDELITY MOCKUP · COMPARE · AGREEMENT · LIGHT</text><g transform="translate(40,56)"><rect width="1180" height="1130" rx="6" fill="#F2F4F1" stroke="#DDE2DC"/><rect x="0" y="0" width="1180" height="52" fill="#FBFCFA"/>
+<line x1="0" y1="52" x2="1180" y2="52" stroke="#DDE2DC"/>
+<g transform="translate(16,18) scale(1.0)" fill="none" stroke="#0E6E66" stroke-width="1.8" stroke-linecap="round"><path d="M0 14 L16 14"/><path d="M3 14 L3 8"/><path d="M8 14 L8 4"/><circle cx="13" cy="6" r="2.2" fill="#0E6E66" stroke="none"/></g>
+<text x="42" y="31" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="14" font-weight="650" fill="#121619" text-anchor="start">Agentic Analytics</text>
+<text x="590.0" y="31" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="12.5" font-weight="400" fill="#5C666F" text-anchor="middle">orders_2024.csv · 200 rows · 3 fields</text>
+<text x="1164" y="31" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="12.5" font-weight="400" fill="#5C666F" text-anchor="end">Governed ▾    ◑    End session</text>
+<text x="72" y="100" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="24" font-weight="700" fill="#121619" text-anchor="start">What was total revenue in 2024 using order_date?</text>
+<text x="72" y="126" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="12.5" font-weight="400" fill="#5C666F" text-anchor="start">Compared across two planning strategies · 200 rows · 140 matched 2024</text>
+<rect x="72" y="150" width="1036" height="64" rx="5" fill="#DCEDEA"/>
+<text x="96" y="176" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="11.5" font-weight="400" fill="#5C666F" text-anchor="start">contracts</text>
+<text x="96" y="196" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="14" font-weight="650" fill="#0E6E66" text-anchor="start">identical</text>
+<text x="356" y="176" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="11.5" font-weight="400" fill="#5C666F" text-anchor="start">coverage</text>
+<text x="356" y="196" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="14" font-weight="650" fill="#0E6E66" text-anchor="start">identical</text>
+<text x="616" y="176" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="11.5" font-weight="400" fill="#5C666F" text-anchor="start">output</text>
+<text x="616" y="196" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="14" font-weight="650" fill="#0E6E66" text-anchor="start">identical</text>
+<text x="876" y="176" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="11.5" font-weight="400" fill="#5C666F" text-anchor="start">recorded route</text>
+<text x="876" y="196" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="14" font-weight="650" fill="#0E6E66" text-anchor="start">deterministic was sufficient</text>
+<text x="72" y="254" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="16" font-weight="650" fill="#121619" text-anchor="start">How each strategy got there</text>
+<line x1="72" y1="272" x2="1108" y2="272" stroke="#DDE2DC"/>
+<text x="72" y="292" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="11.5" font-weight="650" fill="#5C666F" text-anchor="start">strategy</text>
+<text x="272" y="292" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="11.5" font-weight="650" fill="#5C666F" text-anchor="start">route</text>
+<text x="550" y="292" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="11.5" font-weight="650" fill="#5C666F" text-anchor="end">calls</text>
+<text x="690" y="292" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="11.5" font-weight="650" fill="#5C666F" text-anchor="end">cost</text>
+<text x="800" y="292" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="11.5" font-weight="650" fill="#5C666F" text-anchor="end">runtime</text>
+<text x="930" y="292" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="11.5" font-weight="650" fill="#5C666F" text-anchor="end">contract</text>
+<text x="1052" y="292" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="11.5" font-weight="650" fill="#5C666F" text-anchor="end">status</text>
+<line x1="72" y1="302" x2="1108" y2="302" stroke="#DDE2DC"/>
+<text x="72" y="329" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="12.5" font-weight="400" fill="#49535B" text-anchor="start">Deterministic</text>
+<text x="272" y="329" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="12.5" font-weight="400" fill="#49535B" text-anchor="start">rules only</text>
+<text x="550" y="329" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="12.5" font-weight="400" fill="#121619" text-anchor="end">0</text>
+<text x="690" y="329" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="12.5" font-weight="400" fill="#121619" text-anchor="end">$0.000000</text>
+<text x="800" y="329" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="12.5" font-weight="400" fill="#121619" text-anchor="end">1.9 s</text>
+<text x="930" y="329" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="12.5" font-weight="400" fill="#121619" text-anchor="end">a3f9c1</text>
+<text x="1052" y="329" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="12.5" font-weight="400" fill="#121619" text-anchor="end">completed</text>
+<rect x="72" y="337" width="1036" height="27" fill="#E7EAE5" opacity=".55"/>
+<text x="72" y="356" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="12.5" font-weight="400" fill="#49535B" text-anchor="start">AI (typed plan)</text>
+<text x="272" y="356" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="12.5" font-weight="400" fill="#49535B" text-anchor="start">governed planner</text>
+<text x="550" y="356" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="12.5" font-weight="400" fill="#121619" text-anchor="end">1</text>
+<text x="690" y="356" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="12.5" font-weight="400" fill="#121619" text-anchor="end">$0.000200</text>
+<text x="800" y="356" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="12.5" font-weight="400" fill="#121619" text-anchor="end">4.3 s</text>
+<text x="930" y="356" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="12.5" font-weight="400" fill="#121619" text-anchor="end">a3f9c1</text>
+<text x="1052" y="356" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="12.5" font-weight="400" fill="#121619" text-anchor="end">completed</text>
+<line x1="72" y1="400" x2="1108" y2="400" stroke="#DDE2DC"/>
+<text x="72" y="436" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="19" font-weight="650" fill="#121619" text-anchor="start">Both strategies produced the same answer</text>
+<text x="72" y="510" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="38" font-weight="700" fill="#121619" text-anchor="start">29,225.00</text>
+<text x="72" y="536" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="12.5" font-weight="400" fill="#5C666F" text-anchor="start">total revenue · 2024 by order_date · 140 of 200 rows matched</text>
+<line x1="138" y1="758.0" x2="1088" y2="758.0" stroke="#E6E9E4"/>
+<text x="130" y="762.0" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="10.5" font-weight="400" fill="#5C666F" text-anchor="end">6,000</text>
+<line x1="138" y1="729.2" x2="1088" y2="729.2" stroke="#E6E9E4"/>
+<text x="130" y="733.2" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="10.5" font-weight="400" fill="#5C666F" text-anchor="end">6,500</text>
+<line x1="138" y1="700.4" x2="1088" y2="700.4" stroke="#E6E9E4"/>
+<text x="130" y="704.4" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="10.5" font-weight="400" fill="#5C666F" text-anchor="end">7,000</text>
+<line x1="138" y1="671.6" x2="1088" y2="671.6" stroke="#E6E9E4"/>
+<text x="130" y="675.6" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="10.5" font-weight="400" fill="#5C666F" text-anchor="end">7,500</text>
+<line x1="138" y1="642.8" x2="1088" y2="642.8" stroke="#E6E9E4"/>
+<text x="130" y="646.8" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="10.5" font-weight="400" fill="#5C666F" text-anchor="end">8,000</text>
+<line x1="138" y1="614.0" x2="1088" y2="614.0" stroke="#E6E9E4"/>
+<text x="130" y="618.0" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="10.5" font-weight="400" fill="#5C666F" text-anchor="end">8,500</text>
+<path d="M144.0 730.352 L450.0 693.488 L756.0 669.296 L1062.0 637.904" fill="none" stroke="#1d5860" stroke-width="2.6" stroke-linejoin="round"/>
+<circle cx="144.0" cy="730.352" r="3.4" fill="#FBFCFA" stroke="#1d5860" stroke-width="2"/>
+<text x="144.0" y="782" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="10.5" font-weight="400" fill="#5C666F" text-anchor="middle">2024-Q1</text>
+<circle cx="450.0" cy="693.488" r="3.4" fill="#FBFCFA" stroke="#1d5860" stroke-width="2"/>
+<text x="450.0" y="782" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="10.5" font-weight="400" fill="#5C666F" text-anchor="middle">2024-Q2</text>
+<circle cx="756.0" cy="669.296" r="3.4" fill="#FBFCFA" stroke="#1d5860" stroke-width="2"/>
+<text x="756.0" y="782" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="10.5" font-weight="400" fill="#5C666F" text-anchor="middle">2024-Q3</text>
+<circle cx="1062.0" cy="637.904" r="3.4" fill="#FBFCFA" stroke="#1d5860" stroke-width="2"/>
+<text x="1062.0" y="782" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="10.5" font-weight="400" fill="#5C666F" text-anchor="middle">2024-Q4</text>
+<line x1="1062.0" y1="627.904" x2="996.0" y2="616" stroke="#49535B" stroke-width="1"/>
+<text x="992.0" y="612" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="11.5" font-weight="650" fill="#121619" text-anchor="end">sums to 29,225.00</text>
+<text x="1108" y="576" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="12" font-weight="400" fill="#0E6E66" text-anchor="end">table ·  evidence ·  download</text>
+<text x="72" y="576" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="14" font-weight="650" fill="#121619" text-anchor="start">Revenue by quarter, 2024</text>
+<text x="72" y="592" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="10.5" font-weight="400" fill="#5C666F" text-anchor="start">revenue</text>
+<line x1="72" y1="824" x2="1108" y2="824" stroke="#DDE2DC"/>
+<text x="72" y="858" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="16" font-weight="650" fill="#121619" text-anchor="start">Why this counts as agreement</text>
+<text x="72" y="892" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="12" font-weight="650" fill="#5C666F" text-anchor="start">accepted contract</text>
+<text x="290" y="892" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="13.5" font-weight="400" fill="#49535B" text-anchor="start">byte-identical typed plan: same measure, same period field, same filters, same grouping</text>
+<text x="72" y="936" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="12" font-weight="650" fill="#5C666F" text-anchor="start">canonical output</text>
+<text x="290" y="936" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="13.5" font-weight="400" fill="#49535B" text-anchor="start">same canonical hash a3f9c1 over the result rows — explanation and wording are excluded from it</text>
+<text x="72" y="980" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="12" font-weight="650" fill="#5C666F" text-anchor="start">coverage</text>
+<text x="290" y="980" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="13.5" font-weight="400" fill="#49535B" text-anchor="start">both matched 140 of 200 rows and 140 observations; neither discarded a row the other kept</text>
+<text x="72" y="1024" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="12.5" font-weight="400" fill="#5C666F" text-anchor="start">Wording differs between the two narrations and is not compared: it is not part of the contract.</text>
+<rect x="72" y="1056" width="300" height="42" rx="4" fill="none" stroke="#0E6E66"/>
+<text x="96" y="1083" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="13.5" font-weight="650" fill="#0E6E66" text-anchor="start">Inspect both traces</text>
+<text x="348" y="1083" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="13.5" font-weight="400" fill="#0E6E66" text-anchor="end">→</text>
+<text x="392" y="1083" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="12" font-weight="400" fill="#5C666F" text-anchor="start">opens one drawer with a tab per strategy</text></g><g transform="translate(1270,56)"><rect width="390" height="790" rx="6" fill="#F2F4F1" stroke="#DDE2DC"/><rect x="0" y="0" width="390" height="44" fill="#FBFCFA"/>
+<line x1="0" y1="44" x2="390" y2="44" stroke="#DDE2DC"/>
+<g transform="translate(16,14) scale(0.9)" fill="none" stroke="#0E6E66" stroke-width="1.8" stroke-linecap="round"><path d="M0 14 L16 14"/><path d="M3 14 L3 8"/><path d="M8 14 L8 4"/><circle cx="13" cy="6" r="2.2" fill="#0E6E66" stroke="none"/></g>
+<text x="40" y="27" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="12.5" font-weight="650" fill="#121619" text-anchor="start">Agentic Analytics</text>
+<text x="20" y="82" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="15" font-weight="700" fill="#121619" text-anchor="start">What was total revenue in</text>
+<text x="20" y="102" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="15" font-weight="700" fill="#121619" text-anchor="start">2024 using order_date?</text>
+<rect x="20" y="120" width="350" height="92" rx="5" fill="#DCEDEA"/>
+<text x="36" y="146" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="11.5" font-weight="400" fill="#5C666F" text-anchor="start">contracts</text>
+<text x="354" y="146" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="12" font-weight="650" fill="#0E6E66" text-anchor="end">identical</text>
+<text x="36" y="170" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="11.5" font-weight="400" fill="#5C666F" text-anchor="start">coverage</text>
+<text x="354" y="170" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="12" font-weight="650" fill="#0E6E66" text-anchor="end">identical</text>
+<text x="36" y="194" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="11.5" font-weight="400" fill="#5C666F" text-anchor="start">output</text>
+<text x="354" y="194" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="12" font-weight="650" fill="#0E6E66" text-anchor="end">identical</text>
+<text x="20" y="248" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="15" font-weight="650" fill="#121619" text-anchor="start">Both strategies agreed</text>
+<text x="20" y="292" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="28" font-weight="700" fill="#121619" text-anchor="start">29,225.00</text>
+<text x="20" y="314" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="11.5" font-weight="400" fill="#5C666F" text-anchor="start">total revenue · 2024 by order_date</text>
+<line x1="86" y1="482.0" x2="350" y2="482.0" stroke="#E6E9E4"/>
+<text x="78" y="486.0" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="10.5" font-weight="400" fill="#5C666F" text-anchor="end">6,000</text>
+<line x1="86" y1="463.2" x2="350" y2="463.2" stroke="#E6E9E4"/>
+<text x="78" y="467.2" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="10.5" font-weight="400" fill="#5C666F" text-anchor="end">6,500</text>
+<line x1="86" y1="444.4" x2="350" y2="444.4" stroke="#E6E9E4"/>
+<text x="78" y="448.4" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="10.5" font-weight="400" fill="#5C666F" text-anchor="end">7,000</text>
+<line x1="86" y1="425.6" x2="350" y2="425.6" stroke="#E6E9E4"/>
+<text x="78" y="429.6" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="10.5" font-weight="400" fill="#5C666F" text-anchor="end">7,500</text>
+<line x1="86" y1="406.8" x2="350" y2="406.8" stroke="#E6E9E4"/>
+<text x="78" y="410.8" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="10.5" font-weight="400" fill="#5C666F" text-anchor="end">8,000</text>
+<line x1="86" y1="388.0" x2="350" y2="388.0" stroke="#E6E9E4"/>
+<text x="78" y="392.0" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="10.5" font-weight="400" fill="#5C666F" text-anchor="end">8,500</text>
+<path d="M92.0 463.952 L169.33333333333331 439.888 L246.66666666666666 424.096 L324.0 403.604" fill="none" stroke="#1d5860" stroke-width="2.6" stroke-linejoin="round"/>
+<circle cx="92.0" cy="463.952" r="3.4" fill="#FBFCFA" stroke="#1d5860" stroke-width="2"/>
+<text x="92.0" y="506" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="10.5" font-weight="400" fill="#5C666F" text-anchor="middle">2024-Q1</text>
+<circle cx="169.33333333333331" cy="439.888" r="3.4" fill="#FBFCFA" stroke="#1d5860" stroke-width="2"/>
+<text x="169.33333333333331" y="506" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="10.5" font-weight="400" fill="#5C666F" text-anchor="middle">2024-Q2</text>
+<circle cx="246.66666666666666" cy="424.096" r="3.4" fill="#FBFCFA" stroke="#1d5860" stroke-width="2"/>
+<text x="246.66666666666666" y="506" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="10.5" font-weight="400" fill="#5C666F" text-anchor="middle">2024-Q3</text>
+<circle cx="324.0" cy="403.604" r="3.4" fill="#FBFCFA" stroke="#1d5860" stroke-width="2"/>
+<text x="324.0" y="506" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="10.5" font-weight="400" fill="#5C666F" text-anchor="middle">2024-Q4</text>
+<text x="20" y="350" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="14" font-weight="650" fill="#121619" text-anchor="start">Revenue by quarter, 2024</text>
+<text x="20" y="366" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="10.5" font-weight="400" fill="#5C666F" text-anchor="start">revenue</text>
+<line x1="20" y1="544" x2="370" y2="544" stroke="#DDE2DC"/>
+<text x="20" y="572" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="13" font-weight="650" fill="#121619" text-anchor="start">Why this counts as agreement</text>
+<text x="20" y="596" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="12" font-weight="400" fill="#49535B" text-anchor="start">· Same accepted contract</text>
+<text x="20" y="616" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="12" font-weight="400" fill="#49535B" text-anchor="start">· Same canonical hash a3f9c1</text>
+<text x="20" y="636" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="12" font-weight="400" fill="#49535B" text-anchor="start">· Both matched 140 of 200 rows</text>
+<rect x="20" y="668" width="350" height="40" rx="4" fill="#FBFCFA" stroke="#0E6E66"/>
+<text x="36" y="693" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="12.5" font-weight="650" fill="#0E6E66" text-anchor="start">Inspect both traces</text>
+<text x="354" y="693" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="12.5" font-weight="650" fill="#0E6E66" text-anchor="end">▲</text>
+<rect x="20" y="716" width="350" height="40" rx="4" fill="#FBFCFA" stroke="#DDE2DC"/>
+<text x="36" y="741" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="12.5" font-weight="500" fill="#49535B" text-anchor="start">How each strategy got there</text>
+<text x="354" y="741" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="12.5" font-weight="400" fill="#5C666F" text-anchor="end">▾</text></g><text x="40" y="1212" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="11" font-weight="700" fill="#5C666F" text-anchor="start">DESKTOP 1440 — one shared answer, then why it counts as agreement, then one action</text><text x="1270" y="872" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="11" font-weight="700" fill="#5C666F" text-anchor="start">MOBILE 390</text></g></svg>

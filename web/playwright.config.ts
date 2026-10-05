@@ -39,8 +39,23 @@ const projects = selected.map((name) => available[name as keyof typeof available
 // rather than leaving it to be inferred from the request.
 console.log(`E2E engines selected: ${selected.join(', ')}`)
 
+/*
+ * One set of paths per engine.
+ *
+ * The three engines are three invocations against one container, and they
+ * used to write to the same `playwright-results.json`, `test-results/` and
+ * `playwright-report/`. A later engine therefore overwrote the evidence of
+ * an earlier one's failure: Chromium could fail, Firefox could clear the
+ * output directory on its way in, and the artifact uploaded at the end held
+ * traces for WebKit only. The one engine whose failure started the
+ * investigation was the one with nothing left to look at.
+ */
+const engine = selected.length === 1 ? selected[0] : 'all'
+const report = process.env.PLAYWRIGHT_JSON_OUTPUT_NAME ?? `playwright-results-${engine}.json`
+
 export default defineConfig({
   testDir: './e2e',
+  outputDir: `test-results/${engine}`,
   // Refuses the whole run unless /api/health reports provider_mode=fake.
   // A paid provider was once listening on this suite's default port; see
   // ./e2e/preflight.ts. There is no bypass flag on purpose.
@@ -51,12 +66,32 @@ export default defineConfig({
   workers: 1,
   fullyParallel: false,
   forbidOnly: Boolean(process.env.CI),
-  retries: process.env.CI ? 1 : 0,
+  /*
+   * No retries, anywhere.
+   *
+   * CI used to retry once. That cannot rescue a run -- the report guard
+   * refuses a flaky result outright, because a test that passes only on
+   * retry has not demonstrated what it asserts -- so the retry could never
+   * turn the job green. What it could do is spend the budget again: every
+   * retried test re-uploads its dataset and re-runs its analyses, against a
+   * container that allows 200 analyses and 200 uploads per IP per hour for
+   * all three engines together. A worst-case budget including retries would
+   * have to be half the size for no gain.
+   *
+   * So the policy is: retries off, and the budget is the true cost of one
+   * pass. An infrastructure flake now fails the job honestly instead of
+   * being papered over at twice the price.
+   */
+  retries: 0,
   timeout: 120_000,
   expect: { timeout: 20_000 },
   reporter: process.env.CI
-    ? [['list'], ['json', { outputFile: 'playwright-results.json' }], ['html', { open: 'never' }]]
-    : [['list'], ['json', { outputFile: 'playwright-results.json' }]],
+    ? [
+        ['list'],
+        ['json', { outputFile: report }],
+        ['html', { open: 'never', outputFolder: `playwright-report/${engine}` }],
+      ]
+    : [['list'], ['json', { outputFile: report }]],
   use: {
     baseURL,
     trace: 'retain-on-failure',

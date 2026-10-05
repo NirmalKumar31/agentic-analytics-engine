@@ -105,7 +105,19 @@ export function ActivityLog({ events, trace, showTrace, onToggleTrace, running }
           key: event.event_id,
           tone: 'verified',
           agent: 'Verifier',
-          detail: <>→ supported: {truncate(String(data.text ?? ''))}</>,
+          // The event carries `status` and `rule`, not the finding's text,
+          // so this rendered "supported:" followed by nothing.
+          detail: (
+            <>
+              → {String(data.status ?? 'supported')}
+              {data.rule ? (
+                <>
+                  {' · '}
+                  <span className="mono">{String(data.rule)}</span>
+                </>
+              ) : null}
+            </>
+          ),
         })
         break
       case 'finding_rejected':
@@ -145,7 +157,17 @@ export function ActivityLog({ events, trace, showTrace, onToggleTrace, running }
           key: event.event_id,
           tone: 'plain',
           agent: 'Visualisation Agent',
-          detail: <>→ {String(data.mark)} chart · {String(data.title)}</>,
+          // `chart_kind` and `result_id`, which is what the engine emits.
+          // This read `data.mark` and `data.title`; neither exists on the
+          // event, so every chart in every trace read
+          // "undefined chart · undefined". Found by reading a captured
+          // payload rather than by looking at the code.
+          detail: (
+            <>
+              → {String(data.chart_kind ?? 'chart')} chart ·{' '}
+              <span className="mono">{String(data.result_id ?? '')}</span>
+            </>
+          ),
         })
         break
       case 'chart_rejected':
@@ -182,9 +204,9 @@ export function ActivityLog({ events, trace, showTrace, onToggleTrace, running }
   }
 
   return (
-    <section className="panel" data-busy={running ? 'true' : 'false'}>
+    <section className="panel" data-testid="activity" data-busy={running ? 'true' : 'false'}>
       <div className="panel-head">
-        <h2>Activity</h2>
+        <h2 className="section-heading">Activity</h2>
         {running && <span className="tag pulse">running</span>}
         <span className="spacer" />
         <button className="btn ghost small" onClick={onToggleTrace} aria-pressed={showTrace}>

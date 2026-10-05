@@ -26,14 +26,13 @@ import { join } from "node:path";
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
-import { ComparisonView } from "../components/ComparisonView";
+import { CompareWorkspace } from "../components/CompareWorkspace";
 import { QuestionComposer } from "../components/QuestionComposer";
-import { DatasetIdentity } from "../components/DatasetIdentity";
+import { DatasetContextBar } from "../components/DatasetContextBar";
 import { ModeBadge, badgeMode } from "../components/ModeBadge";
-import { PresentationReportView } from "../components/PresentationReportView";
+import { ReportUnderTest } from "./renderReport";
 import { ReportWorkspace } from "../components/ReportWorkspace";
 import { SchemaInspector } from "../components/SchemaInspector";
-import { WorkflowIndex } from "../components/WorkflowIndex";
 import { runState } from "../lib/runState";
 import type {
   DatasetCatalog,
@@ -42,6 +41,7 @@ import type {
   Verdict,
 } from "../lib/types";
 import { event, finding, snapshot } from "./fixtures";
+import { expectOffCanvas, onCanvas } from "./canvas";
 
 function run(overrides: Partial<RunPayload> = {}): RunPayload {
   return {
@@ -208,11 +208,24 @@ describe("every terminal state is distinguishable", () => {
         aiError={null}
         config={null}
         deterministicPending={false}
-        onShowWork={() => undefined}
+
       />,
     );
-    const card = screen.getByTestId("run-state-card");
-    expect(card).toHaveTextContent(expected);
+    // The terminal state is part of the report now, inside the same
+    // reading column as the question and the chart.
+    const report = screen.getByTestId("report-panel");
+    expect(report).toHaveTextContent(expected);
+
+    // One heading, once. The defect this guards is a refusal stating its
+    // reason twice -- in a card and again as the display headline --
+    // which is counted on the headline, not on every occurrence of the
+    // word: "withheld" legitimately recurs in a sentence explaining that a
+    // claim which cannot be checked is withheld.
+    const headline = screen.getByTestId("direct-answer");
+    expect(screen.getAllByTestId("direct-answer")).toHaveLength(1);
+    const text = (headline.textContent ?? "").trim();
+    const said = (report.textContent ?? "").split(text).length - 1;
+    expect(said, `the headline is stated ${said} times`).toBe(1);
   });
 
   it("gives each state its own label, with no two sharing one", () => {
@@ -239,19 +252,15 @@ describe("every terminal state is distinguishable", () => {
         aiError={null}
         config={null}
         deterministicPending={false}
-        onShowWork={() => undefined}
+
       />,
     );
     expect(screen.queryByTestId("run-state-card")).toBeNull();
   });
 
-  it("marks the workflow stage a stopped run stopped at", () => {
-    render(<WorkflowIndex phase="refused" />);
-    expect(screen.getByText("Analyse").closest(".step")).toHaveAttribute(
-      "data-state",
-      "stopped",
-    );
-  });
+  // The stepper assertion that stood here went with the stepper. Its claim
+  // -- a stopped run is shown stopped at the stage it stopped at -- is owed
+  // by the step D timeline, from backend events.
 });
 
 // ----------------------------------------------------------------- 3. auto
@@ -275,7 +284,7 @@ describe("automatic routing in Compare", () => {
 
   it("reports a recorded route as fact", () => {
     render(
-      <ComparisonView
+      <CompareWorkspace
         question="q"
         deterministic={side(resolved({ route: "rules_exact", model_calls: 0 }))}
         ai={side(run({ status: "completed", findings: [finding] }))}
@@ -291,7 +300,7 @@ describe("automatic routing in Compare", () => {
     // model-eligible, which this path does not record. Saying so is the
     // correct output; naming a route would be a guess.
     render(
-      <ComparisonView
+      <CompareWorkspace
         question="q"
         deterministic={side(resolved({ confident: false }))}
         ai={side(run({ status: "completed", findings: [finding] }))}
@@ -307,7 +316,7 @@ describe("automatic routing in Compare", () => {
 
   it("says automatic mode would have used the rules when they resolved it", () => {
     render(
-      <ComparisonView
+      <CompareWorkspace
         question="q"
         deterministic={side(resolved({ confident: true, model_calls: 0 }))}
         ai={side(run({ status: "completed", findings: [finding] }))}
@@ -320,7 +329,7 @@ describe("automatic routing in Compare", () => {
 
   it("adds no third column for a policy that is not a planner", () => {
     render(
-      <ComparisonView
+      <CompareWorkspace
         question="q"
         deterministic={side(resolved({ route: "rules_exact", model_calls: 0 }))}
         ai={side(run({ status: "completed", findings: [finding] }))}
@@ -333,7 +342,7 @@ describe("automatic routing in Compare", () => {
 
   it("shows nothing when no planning record exists", () => {
     render(
-      <ComparisonView
+      <CompareWorkspace
         question="q"
         deterministic={side(run({ status: "completed", findings: [finding] }))}
         ai={side(null)}
@@ -363,47 +372,104 @@ describe("the report workspace", () => {
         aiError={null}
         config={null}
         deterministicPending={false}
-        onShowWork={() => undefined}
+
       />,
     );
   }
 
-  it("leads with the answer, before the technical audit", () => {
+  it("leads with the answer, and the answer is the first heading", () => {
     workspace(audited);
     const report = screen.getByTestId("report-panel");
-    const audit = screen.getByTestId("planning-audit");
+    const answer = screen.getByTestId("direct-answer");
     // DOM order, not text search: this is a claim about structure, and a
     // text index would pass on a coincidental substring.
-    expect(
-      report.compareDocumentPosition(audit) &
-        Node.DOCUMENT_POSITION_FOLLOWING,
-      "the planning audit must come after the report",
-    ).toBeTruthy();
+    expect(report.contains(answer)).toBe(true);
+    expect(answer.tagName).toBe("H1");
+    const headings = report.querySelectorAll("h1, h2, h3");
+    expect(headings[0]).toBe(answer);
   });
 
-  it("keeps the technical audit a closed disclosure", () => {
+  it("stamps the run's identity beside the one control", () => {
+    /*
+     * The approved mockup carries `contract a3f9c1 · sha 5913f6e · 412 ms`
+     * under the report and the implementation dropped it, reading
+     * requirement 6 as forbidding anything technical on the canvas. That
+     * requirement names the panels it is about; this is the identity of
+     * what produced the numbers, in the same register as the dataset strip
+     * that names the file.
+     *
+     * The numbers are read from the payload, so a stamp that silently
+     * stopped tracking the run would fail here rather than keep printing a
+     * stale hash.
+     */
+    const stamped = run({
+      query_contract: {
+        contract_hash: "a7c31ad7adfdb83cf19352a90fe9f02406c8cce6fd7d416f",
+      } as RunPayload["query_contract"],
+      build_sha: "5913f6e2b1c4",
+      timings: { total_ms: 412 } as RunPayload["timings"],
+    });
+    workspace(stamped);
+    const stamp = screen.getByTestId("report-stamp");
+
+    // The short forms, not the whole hash: this is a reference a reader can
+    // quote, not the record itself -- which is in the evidence drawer.
+    expect(stamp).toHaveTextContent("a7c31a");
+    expect(stamp).toHaveTextContent("5913f6e");
+    expect(stamp).toHaveTextContent("412 ms");
+    expect(stamp.textContent).not.toContain(
+      "a7c31ad7adfdb83cf19352a90fe9f02406c8cce6fd7d416f",
+    );
+  });
+
+  it("stamps nothing rather than a row of placeholders", () => {
+    // A stamp reading "contract — · sha — · — ms" looks like a record and
+    // holds none.
+    workspace(
+      run({ query_contract: undefined, build_sha: "unknown", timings: undefined }),
+    );
+    expect(screen.queryByTestId("report-stamp")).toBeNull();
+  });
+
+  it("keeps the planning audit off the report canvas entirely", () => {
+    // It used to be a closed disclosure resident under every report. A
+    // closed disclosure is still a thing in the reading order, still a tab
+    // stop, and still the last thing on the page -- so the claim is now
+    // stronger: it is not on the canvas at all, and lives in the evidence
+    // drawer with everything else the canvas gave up.
     workspace(audited);
-    const audit = screen.getByTestId("planning-audit");
-    expect(audit.tagName).toBe("DETAILS");
-    expect(audit).not.toHaveAttribute("open");
+    expectOffCanvas(document.body, '[data-testid="planning-audit"]');
   });
 
-  it("puts the state card above the report when a run did not answer", () => {
+  it("states the outcome at the top of the report when a run did not answer", () => {
     workspace(
       run({ status: "refused", stopped_reason: "no date column", findings: [] }),
     );
-    const card = screen.getByTestId("run-state-card");
-    const panel = screen.queryByTestId("report-panel");
-    // A refusal still has a report worth showing -- it carries the accepted
-    // interpretation -- but the reason comes first.
-    if (panel) {
-      expect(
-        card.compareDocumentPosition(panel) &
-          Node.DOCUMENT_POSITION_FOLLOWING,
-      ).toBeTruthy();
-    } else {
-      expect(card).toBeTruthy();
-    }
+    /*
+     * The outcome is the first thing in the report, and it is *in* the
+     * report rather than above it.
+     *
+     * This used to compare the position of a separate state card against
+     * the report panel. The card is gone: it sat outside the reading
+     * column, and an `order: -2` rule lifted it above the dataset context
+     * strip, so a refusal appeared as a banner before the reader had been
+     * told which file it was about.
+     */
+    const panel = screen.getByTestId("report-panel");
+    const state = screen.getByTestId("terminal-state");
+    expect(panel.contains(state)).toBe(true);
+
+    const question = screen.getByTestId("report-question");
+    const answer = screen.getByTestId("direct-answer");
+    expect(
+      question.compareDocumentPosition(state) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+      "the outcome must follow the question it is about",
+    ).toBeTruthy();
+    expect(
+      state.compareDocumentPosition(answer) & Node.DOCUMENT_POSITION_FOLLOWING,
+      "the outcome must precede the headline",
+    ).toBeTruthy();
   });
 
   it("keeps the schema inspector a closed disclosure", () => {
@@ -430,31 +496,48 @@ describe("dataset identity", () => {
   });
 
   it("says which dataset the answer is about", () => {
-    render(<DatasetIdentity catalog={catalog("upload")} />);
-    const strip = screen.getByTestId("dataset-identity");
+    render(<DatasetContextBar catalog={catalog("upload")} summary={null} />);
+    const strip = screen.getByTestId("dataset-context");
     expect(strip).toHaveTextContent("Your file");
     expect(strip).toHaveTextContent("quarterly-sales.csv");
     expect(strip).toHaveTextContent("200 rows");
   });
 
   it("does not put an unexplained hash in front of a reader", () => {
-    render(<DatasetIdentity catalog={catalog("upload")} />);
-    const strip = screen.getByTestId("dataset-identity");
+    render(<DatasetContextBar catalog={catalog("upload")} summary={null} />);
+    const strip = screen.getByTestId("dataset-context");
     expect(strip).not.toHaveTextContent(/sha256|abcdef0123456789/);
   });
 
   it("distinguishes the demo warehouse from an uploaded file", () => {
-    const { rerender } = render(<DatasetIdentity catalog={catalog("demo")} />);
-    expect(screen.getByTestId("dataset-identity")).toHaveTextContent(
-      "Demo warehouse",
+    // The demo names itself in its source, so the strip does not also
+    // print the kind; an upload does not, so it keeps "Your file".
+    const demo = {
+      ...catalog("demo"),
+      source: "Commerce demo warehouse",
+    };
+    const { rerender } = render(
+      <DatasetContextBar catalog={demo} summary={null} />,
     );
-    rerender(<DatasetIdentity catalog={catalog("upload")} />);
-    expect(screen.getByTestId("dataset-identity")).toHaveTextContent("Your file");
+    const strip = () => screen.getByTestId("dataset-context");
+    expect(strip()).toHaveTextContent(/demo warehouse/i);
+    expect(strip().textContent?.match(/demo warehouse/gi)).toHaveLength(1);
+
+    rerender(<DatasetContextBar catalog={catalog("upload")} summary={null} />);
+    expect(strip()).toHaveTextContent("Your file");
+    expect(strip()).toHaveTextContent("quarterly-sales.csv");
   });
 
   it("renders nothing when there is no dataset", () => {
-    render(<DatasetIdentity catalog={null} />);
-    expect(screen.queryByTestId("dataset-identity")).toBeNull();
+    render(<DatasetContextBar catalog={null} summary={null} />);
+    expect(screen.queryByTestId("dataset-context")).toBeNull();
+  });
+
+  it("offers no schema control when there is no schema to inspect", () => {
+    // A replayed recording has a catalog and no summary. A control that
+    // opened an empty sheet would be worse than no control.
+    render(<DatasetContextBar catalog={catalog("demo")} summary={null} />);
+    expect(screen.queryByTestId("inspect-schema")).toBeNull();
   });
 });
 
@@ -541,29 +624,45 @@ describe("a query that matched nothing", () => {
         aiError={null}
         config={null}
         deterministicPending={false}
-        onShowWork={() => undefined}
+
       />,
     );
   }
 
   it("reads as no findings, not as a failure", () => {
     workspace(emptyResult);
-    const card = screen.getByTestId("run-state-card");
-    expect(card).toHaveAttribute("data-state", "no_findings");
-    expect(card).not.toHaveTextContent(/failed/i);
-    expect(card).not.toHaveTextContent(/\bComplete\b/);
+    const report = screen.getByTestId("report-panel");
+    expect(screen.getByTestId("direct-answer")).toHaveTextContent(
+      /no findings to publish/i,
+    );
+    expect(report).not.toHaveTextContent(/failed/i);
+    expect(report).not.toHaveTextContent(/\bComplete\b/);
+    // And never refusal language. "No findings" is a *completed* run, and
+    // the whole reason these states are separate is that a reader can tell
+    // a run that declined to answer from one that answered and found
+    // nothing. "Not answered" above a completed run erases that.
+    expect(report).not.toHaveTextContent(/not answered/i);
+    expect(report).not.toHaveTextContent(/refus/i);
+    // It says the execution finished, in those words.
+    expect(report).toHaveTextContent(/ran and completed/i);
   });
 
   it("shows the reason the engine gave, naming the restriction", () => {
     workspace(emptyResult);
-    expect(screen.getByText(/No rows matched the requested filters/)).toBeVisible();
-    expect(screen.getByText(/region = Atlantis/)).toBeVisible();
+    // `getAllByText` + `onCanvas`, because the hidden print appendix holds
+    // a second copy of everything the evidence drawer shows.
+    for (const pattern of [/No rows matched the requested filters/, /region = Atlantis/]) {
+      const [shown] = screen.getAllByText(pattern).filter(onCanvas);
+      expect(shown, `${pattern} is not shown on the canvas`).toBeDefined();
+      expect(shown!).toBeVisible();
+    }
   });
 
   it("does not blame verification for withholding something", () => {
     workspace(emptyResult);
-    const card = screen.getByTestId("run-state-card");
-    expect(card).toHaveTextContent(/nothing was withheld/i);
+    expect(screen.getByTestId("report-panel")).toHaveTextContent(
+      /nothing was withheld/i,
+    );
   });
 });
 
@@ -572,7 +671,7 @@ describe("a query that matched nothing", () => {
 describe("the report card says what it actually is", () => {
   function present(shape: string, headline: string, caveats: unknown[] = []) {
     return render(
-      <PresentationReportView
+      <ReportUnderTest
         question="What is the total gross margin by region?"
         presentation={
           {
@@ -600,7 +699,7 @@ describe("the report card says what it actually is", () => {
           } as never
         }
         results={{}}
-        onShowWork={() => undefined}
+
       />,
     );
   }
@@ -609,24 +708,49 @@ describe("the report card says what it actually is", () => {
     // It labelled every shape "Verified answer", so a question the engine
     // declined to map was presented as a verified answer to it, with the
     // refusal reason as the answer. Nothing was verified.
+    //
+    // Scoped to the report rather than to the headline element: the shape
+    // label is now an eyebrow above the answer rather than a line inside
+    // the same card, so the claim is about what the report says, which is
+    // what it was always about.
     present("refusal", "the question could not be mapped safely");
-    const card = screen.getByTestId("direct-answer");
-    expect(card).not.toHaveTextContent(/verified answer/i);
-    expect(card).toHaveTextContent(/not answered/i);
+    const report = screen.getByTestId("report-panel");
+    expect(report).not.toHaveTextContent(/verified answer/i);
+    expect(report).toHaveTextContent(/not answered/i);
   });
 
   it("does not call a failure a verified answer", () => {
     present("failure", "The analysis could not be completed.");
-    const card = screen.getByTestId("direct-answer");
-    expect(card).not.toHaveTextContent(/verified answer/i);
-    expect(card).toHaveTextContent(/not completed/i);
+    const report = screen.getByTestId("report-panel");
+    expect(report).not.toHaveTextContent(/verified answer/i);
+    expect(report).toHaveTextContent(/not completed/i);
   });
 
-  it("still calls a real answer a verified answer", () => {
+  it("states a real answer without labelling its own epistemic status", () => {
+    /*
+     * This asserted the inverse -- that an answer *is* labelled "Verified
+     * answer". That label is gone, and this is the one place in the suite
+     * where the claim genuinely changed rather than moving.
+     *
+     * The label delayed the sentence a reader came for by one line, on
+     * every successful report, to say something the report's existence
+     * already says: an unverified claim is withheld, so anything published
+     * as the answer passed verification. The badge a reader learns to skip
+     * is the badge that stops being read when it matters.
+     *
+     * What must not happen is the opposite failure, which the original
+     * caught: a refusal or a failure wearing the answer's clothes. The two
+     * tests above assert that directly, and they are stronger than this one
+     * was -- they check the whole report, not one element.
+     */
     present("breakdown", "Revenue by region: North $1.00.");
+    const report = screen.getByTestId("report-panel");
     expect(screen.getByTestId("direct-answer")).toHaveTextContent(
-      /verified answer/i,
+      "Revenue by region: North $1.00.",
     );
+    expect(report).not.toHaveTextContent(/verified answer/i);
+    // And no shape eyebrow at all: there is nothing to qualify.
+    expect(report).not.toHaveTextContent(/not answered|not completed/i);
   });
 
   it("does not repeat the headline in the notes", () => {
@@ -644,7 +768,12 @@ describe("the report card says what it actually is", () => {
     present("breakdown", "Revenue by region: North $1.00.", [
       { code: "coverage", message: "Two groups were omitted.", severity: "warn" },
     ]);
-    expect(screen.getByRole("heading", { name: "Notes" })).toBeVisible();
+    // The heading is "What to be careful about" now. "Notes" named the
+    // container; this names what is in it, which is the difference between
+    // a label a reader skips and one that earns its line.
+    expect(
+      screen.getByRole("heading", { name: "What to be careful about" }),
+    ).toBeVisible();
     expect(screen.getByText("Two groups were omitted.")).toBeVisible();
   });
 });
@@ -671,7 +800,7 @@ describe("the comparison is named the same thing everywhere", () => {
     const sources = [
       "components/ModeBadge.tsx",
       "components/ModeSelector.tsx",
-      "components/ComparisonView.tsx",
+      "components/CompareWorkspace.tsx",
     ].map((f) => readFileSync(join(__dirname, "..", f), "utf8"));
 
     for (const [index, source] of sources.entries()) {

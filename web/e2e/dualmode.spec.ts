@@ -1,5 +1,9 @@
-import { expect, test } from "@playwright/test";
-import { openApp } from "./helpers";
+import { advertiseAi, compareWith, startCompare } from "./compareHelpers";
+import { expect, reportFor, test } from "./fixtures";
+
+/** One question for every comparison here, so the job admits it once. */
+const COMPARE_QUESTION = "What is the total revenue by region?";
+import { fixtureHeaders, openApp, routeConfig, selectMode } from "./helpers";
 
 /**
  * Dual-mode behaviour in a real browser.
@@ -26,15 +30,33 @@ test.describe("choosing a mode", () => {
     await expect(page.getByRole("radio", { name: /^Deterministic Analytics/ })).toBeEnabled();
   });
 
-  test("AI and Compare are disabled, with a stated reason, when AI is off", async ({
+  test("every mode is uniquely addressable and selectable when AI is off", async ({
     page,
   }) => {
-    // The test must not inherit a developer's local cloud configuration.
-    // It exercises the unavailable contract, so make that server response
-    // explicit rather than relying on the process environment.
-    await page.route("**/api/config", async (route) => {
-      const response = await route.fetch();
-      const body = await response.json();
+    /*
+     * The configuration CI runs and a developer's machine usually does
+     * not: no provider key, so AI and Compare are unavailable. Two defects
+     * hid behind that difference until the container found them, and this
+     * is the regression test for both.
+     *
+     * 1. A radio's accessible name is its label -- the visible mode name
+     *    plus the screen-reader description -- and when AI is unavailable
+     *    Compare's unavailable message *is* the AI mode's message. So the
+     *    Compare radio's name also contains "AI Analytics", and an
+     *    unanchored match resolved to two radios. Playwright's strict mode
+     *    refused it, and it was the only Chromium and WebKit failure in
+     *    the container.
+     *
+     * 2. The radio input is covered by its own label. `.check()` clicks
+     *    the input, and Firefox's hit-testing reports the label as
+     *    intercepting those pointer events, so the click retries until the
+     *    test timeout. Twenty Firefox tests died that way in one CI run,
+     *    every one of them through the shared composer reset.
+     *
+     * Asserted together because they are the same surface: how a test
+     * addresses a mode, and how it selects one.
+     */
+    await routeConfig(page, (body) => {
       body.capabilities.modes = body.capabilities.modes.map(
         (mode: { mode: string }) =>
           mode.mode === "ai"
@@ -47,7 +69,57 @@ test.describe("choosing a mode", () => {
             : mode,
       );
       body.capabilities.compare_available = false;
-      await route.fulfill({ response, json: body });
+    });
+    await openDemo(page);
+
+    // Every mode's label identifies exactly one radio, anchored.
+    for (const label of [
+      "Governed Analysis",
+      "Deterministic Analytics",
+      "AI Analytics",
+      "Compare planning strategies",
+    ]) {
+      await expect(
+        page.getByRole("radio", { name: new RegExp(`^${label}`) }),
+        `"${label}" does not identify exactly one mode radio`,
+      ).toHaveCount(1);
+    }
+
+    // And "AI Analytics" unanchored really does match two of them here,
+    // which is what made the anchoring necessary rather than tidy.
+    expect(
+      await page.getByRole("radio", { name: /AI Analytics/ }).count(),
+      "the ambiguity this guards against has gone, so the guard is stale",
+    ).toBeGreaterThan(1);
+
+    // The two available modes are selectable through their labels, which
+    // is the interaction a reader performs and the one `.check()` could
+    // not complete on Firefox.
+    await selectMode(page, "deterministic");
+    await expect(page.locator("#mode-deterministic")).toBeChecked();
+    await selectMode(page, "auto");
+    await expect(page.locator("#mode-auto")).toBeChecked();
+  });
+
+  test("AI and Compare are disabled, with a stated reason, when AI is off", async ({
+    page,
+  }) => {
+    // The test must not inherit a developer's local cloud configuration.
+    // It exercises the unavailable contract, so make that server response
+    // explicit rather than relying on the process environment.
+    await routeConfig(page, (body) => {
+      body.capabilities.modes = body.capabilities.modes.map(
+        (mode: { mode: string }) =>
+          mode.mode === "ai"
+            ? {
+                ...mode,
+                available: false,
+                reason: "ai_disabled",
+                message: "AI Analytics is turned off for this deployment.",
+              }
+            : mode,
+      );
+      body.capabilities.compare_available = false;
     });
     await openDemo(page);
     const ai = page.getByRole("radio", { name: /^AI Analytics/ });
@@ -83,10 +155,11 @@ test.describe("choosing a mode", () => {
 });
 
 test.describe("a deterministic run", () => {
-  test("completes and reports findings", async ({ page }) => {
-    await openDemo(page);
-    await page.getByLabel("Business question").fill("What is total revenue?");
-    await page.getByRole("button", { name: /Run analysis/ }).click();
+  test("completes and reports findings", async ({ demo: page }) => {
+    // On the shared warehouse page: the claim is that a deterministic run
+    // publishes an answer, and the warehouse's answer to this question is
+    // the same one every spec in the job is looking at.
+    await reportFor(page, COMPARE_QUESTION);
     // The answer itself, not the findings heading: that panel is hidden
     // when the answer is the only publication, because its whole content
     // was a sentence restating that fact.
@@ -98,79 +171,27 @@ test.describe("a deterministic run", () => {
 
 test.describe("AI and Compare, with the API intercepted", () => {
   test("Compare Both shows two independent panes", async ({ page }) => {
-    // Advertise both modes so the selector offers Compare.
-    await page.route("**/api/config", async (route) => {
-      const response = await route.fetch();
-      const body = await response.json();
-      body.capabilities.modes = body.capabilities.modes.map(
-        (m: { mode: string }) =>
-          m.mode === "ai"
-            ? { ...m, available: true, reason: "", message: "" }
-            : m,
-      );
-      body.capabilities.compare_available = true;
-      body.capabilities.ai_limits = {
-        runs_per_session: 3,
-        max_model_calls_per_run: 24,
-        max_runtime_seconds: 180,
-      };
-      await route.fulfill({ response, json: body });
-    });
-
-    let aiRunId = "";
-    await page.route("**/api/comparisons", async (route) => {
-      // Start a real deterministic run so the left pane is genuine, and
-      // mint an id for the right one that the stub below answers.
-      const request = route.request().postDataJSON() as {
-        session_id: string;
-        question: string;
-      };
-      const started = await route.fetch({
-        url: new URL("/api/analyses", page.url()).toString(),
-        method: "POST",
-        postData: JSON.stringify({ ...request, mode: "deterministic" }),
-        headers: { "content-type": "application/json" },
-      });
-      const { run_id } = (await started.json()) as { run_id: string };
-      aiRunId = "run_stubbed_ai";
-      await route.fulfill({
-        status: 202,
-        json: {
-          comparison_id: "cmp_stub",
-          session_id: request.session_id,
-          question: request.question,
-          deterministic_run_id: run_id,
-          ai_run_id: aiRunId,
-        },
-      });
-    });
-
-    await page.route("**/api/analyses/run_stubbed_ai", async (route) => {
-      await route.fulfill({
-        status: 200,
-        json: {
-          run_id: "run_stubbed_ai",
-          session_id: "x",
-          question: "What is total revenue?",
-          status: "failed",
-          created_at: Date.now() / 1000,
-          mode: "ai",
-          provider_kind: "cloud",
-          error: "AI Analytics has reached its public demo usage limit.",
-          findings: [],
-          rejected: [],
-          charts: [],
-          results: {},
-          events: [],
-          mcp_trace: [],
-        },
-      });
-    });
-
+    /*
+     * Through `compareHelpers`, which owns the comparison route.
+     *
+     * This test kept its own copy, and that copy started the real
+     * deterministic run with `route.fetch` -- a request the traffic
+     * recorder cannot see, so the analysis was made and nothing counted
+     * it. `compareWith` records the admission where it happens and
+     * remembers the settled payload, so one comparison of this question is
+     * real for the whole job and the rest replay it. The AI side is
+     * mutated into the failure this test is about.
+     */
+    await advertiseAi(page);
+    await compareWith(page, (payload) => ({
+      ...payload,
+      status: "failed",
+      outcome: "failed",
+      error: "AI Analytics has reached its public demo usage limit.",
+      findings: [],
+    }));
     await openDemo(page);
-    await page.getByRole("radio", { name: /^Compare planning strategies/ }).click();
-    await page.getByLabel("Business question").fill("What is total revenue?");
-    await page.getByRole("button", { name: /Compare strategies/ }).click();
+    await startCompare(page, COMPARE_QUESTION);
 
     // Two labelled panes.
     await expect(
@@ -222,83 +243,33 @@ test.describe("AI and Compare, with the API intercepted", () => {
     // deterministic answer that had worked. The jsdom tests render
     // `ComparisonView` with children already supplied, so they never
     // exercised the decision about whether to supply them.
-    await page.route("**/api/config", async (route) => {
-      const response = await route.fetch();
-      const body = await response.json();
-      body.capabilities.modes = body.capabilities.modes.map(
-        (m: { mode: string }) =>
-          m.mode === "ai"
-            ? { ...m, available: true, reason: "", message: "" }
-            : m,
-      );
-      body.capabilities.compare_available = true;
-      body.capabilities.ai_limits = {
-        runs_per_session: 3,
-        max_model_calls_per_run: 24,
-        max_runtime_seconds: 180,
-      };
-      await route.fulfill({ response, json: body });
-    });
-
-    await page.route("**/api/comparisons", async (route) => {
-      const request = route.request().postDataJSON() as {
-        session_id: string;
-        question: string;
-      };
-      const started = await route.fetch({
-        url: new URL("/api/analyses", page.url()).toString(),
-        method: "POST",
-        postData: JSON.stringify({ ...request, mode: "deterministic" }),
-        headers: { "content-type": "application/json" },
-      });
-      const { run_id } = (await started.json()) as { run_id: string };
-      await route.fulfill({
-        status: 202,
-        json: {
-          comparison_id: "cmp_refused",
-          session_id: request.session_id,
-          question: request.question,
-          deterministic_run_id: run_id,
-          ai_run_id: "run_refused_ai",
-        },
-      });
-    });
-
-    await page.route("**/api/analyses/run_refused_ai", async (route) => {
-      await route.fulfill({
-        status: 200,
-        json: {
-          run_id: "run_refused_ai",
-          session_id: "x",
-          question: "What is total revenue?",
-          status: "refused",
-          created_at: Date.now() / 1000,
-          mode: "ai",
-          provider_kind: "cloud",
-          findings: [],
-          rejected: [],
-          charts: [],
-          results: {},
-          events: [],
-          mcp_trace: [],
-          report: null,
-          stopped_reason:
-            "the question could not be mapped safely: the AI plan named a grouping this engine does not offer",
-          query_contract: null,
-        },
-      });
-    });
-
+    //
+    // Same setup as above, and for the same reason: one recorded
+    // admission for the job, replayed here.
+    await advertiseAi(page);
+    await compareWith(page, (payload) => ({
+      ...payload,
+      status: "refused",
+      outcome: "refused",
+      stopped_reason: "the question could not be mapped safely",
+      findings: [],
+    }));
     await openDemo(page);
-    await page.getByRole("radio", { name: /^Compare planning strategies/ }).click();
-    await page.getByLabel("Business question").fill("What is total revenue?");
-    await page.getByRole("button", { name: /Compare strategies/ }).click();
+    await startCompare(page, COMPARE_QUESTION);
 
     const ai = page.getByRole("region", { name: "AI Analytics", exact: true });
     await expect(ai).toBeVisible({ timeout: 60_000 });
 
-    await expect(ai.getByTestId("pane-status")).toHaveText(/Refused/);
-    await expect(ai.getByTestId("pane-status")).toHaveAttribute(
+    // The status moved from a pane header into the row of the table that
+    // compares the two strategies. The claim is unchanged -- the AI side's
+    // own outcome, attributable to that side and machine-readable -- and
+    // the row is scoped by its header, which is the strategy's name.
+    const aiRow = page
+      .getByTestId("compare-routes")
+      .getByRole("row")
+      .filter({ has: page.getByRole("rowheader", { name: "AI Analytics" }) });
+    await expect(aiRow.getByTestId("pane-status")).toHaveText(/Refused/);
+    await expect(aiRow.getByTestId("pane-status")).toHaveAttribute(
       "data-state",
       "refused",
     );
@@ -320,19 +291,15 @@ test.describe("AI and Compare, with the API intercepted", () => {
   test("an AI run refused by quota is reported without leaking anything", async ({
     page,
   }) => {
-    await page.route("**/api/config", async (route) => {
-      const response = await route.fetch();
-      const body = await response.json();
+    await routeConfig(page, (body) => {
       body.capabilities.modes = body.capabilities.modes.map(
         (m: { mode: string }) =>
-          m.mode === "ai"
-            ? { ...m, available: true, reason: "", message: "" }
-            : m,
+          m.mode === "ai" ? { ...m, available: true, reason: "", message: "" } : m,
       );
-      await route.fulfill({ response, json: body });
     });
     await page.route("**/api/analyses", async (route) => {
       await route.fulfill({
+        headers: fixtureHeaders("dualmode: the AI quota refusal"),
         status: 429,
         json: {
           detail:
@@ -342,7 +309,7 @@ test.describe("AI and Compare, with the API intercepted", () => {
     });
 
     await openDemo(page);
-    await page.getByRole("radio", { name: /^AI Analytics/ }).click();
+    await selectMode(page, "ai");
     await page.getByLabel("Business question").fill("What is total revenue?");
     await page.getByRole("button", { name: /Run with AI/ }).click();
 
@@ -353,151 +320,21 @@ test.describe("AI and Compare, with the API intercepted", () => {
     }
   });
 
-  test("Show work resolves evidence from the pane the visitor clicked", async ({
-    page,
-  }) => {
-    await page.route("**/api/config", async (route) => {
-      const response = await route.fetch();
-      const body = await response.json();
-      body.capabilities.modes = body.capabilities.modes.map(
-        (mode: { mode: string }) =>
-          mode.mode === "ai"
-            ? { ...mode, available: true, reason: "", message: "" }
-            : mode,
-      );
-      body.capabilities.compare_available = true;
-      body.capabilities.ai_limits = {
-        runs_per_session: 3,
-        max_model_calls_per_run: 24,
-        max_runtime_seconds: 180,
-      };
-      await route.fulfill({ response, json: body });
-    });
+  /*
+   * "Show work resolves evidence from the pane the visitor clicked" stood
+   * here and is retired, because the thing it guarded cannot happen now.
+   *
+   * It existed because each pane had its own "Show work" button, both runs
+   * mint finding ids within themselves, and `f1` on the AI side is a
+   * different claim from `f1` on the deterministic side -- so the app had
+   * to carry *which side* alongside the id, and once did not.
+   *
+   * There is one evidence control for the comparison, and the drawer has a
+   * tab per strategy. Which trace is shown is the tab, not a resolution
+   * step that can be wrong. `compare.spec.ts` asserts that directly and
+   * more strongly than this did: the panel is labelled with the strategy
+   * (`data-strategy`), switching tabs changes it, both tabs carry the full
+   * evidence record, and the switch issues no request.
+   */
 
-    await page.route("**/api/comparisons", async (route) => {
-      const request = route.request().postDataJSON() as {
-        session_id: string;
-        question: string;
-      };
-      const started = await route.fetch({
-        url: new URL("/api/analyses", page.url()).toString(),
-        method: "POST",
-        postData: JSON.stringify({ ...request, mode: "deterministic" }),
-        headers: { "content-type": "application/json" },
-      });
-      const { run_id } = (await started.json()) as { run_id: string };
-      await route.fulfill({
-        status: 202,
-        json: {
-          comparison_id: "cmp_provenance",
-          session_id: request.session_id,
-          question: request.question,
-          deterministic_run_id: run_id,
-          ai_run_id: "run_ai_provenance",
-        },
-      });
-    });
-
-    await page.route("**/api/analyses/run_ai_provenance", async (route) => {
-      await route.fulfill({
-        status: 200,
-        json: {
-          run_id: "run_ai_provenance",
-          session_id: "session_ai",
-          question: "What is total revenue?",
-          status: "completed",
-          created_at: Date.now() / 1000,
-          mode: "ai",
-          provider_kind: "cloud",
-          dataset: {
-            dataset_kind: "demo",
-            source: "test",
-            dataset_fingerprint: "sha256:ai-pane-only",
-            tables: [],
-            metrics_available: [],
-          },
-          report: null,
-          findings: [
-            {
-              finding_id: "f1",
-              text: "AI PANE ONLY: total revenue is 123.",
-              kind: "calculated_fact",
-              task_id: "task_ai",
-              result_ids: ["res_ai"],
-              evidence_cells: [
-                {
-                  result_id: "res_ai",
-                  row: 0,
-                  column: "total_revenue",
-                  value: 123,
-                  label: "AI total",
-                },
-              ],
-              metric_ids: [],
-              verification_status: "supported",
-              verifier_reason: "Test fixture.",
-              numeric_check: null,
-              claimed_change: null,
-            },
-          ],
-          rejected: [],
-          charts: [],
-          tasks: [
-            {
-              task_id: "task_ai",
-              status: "succeeded",
-              findings: [],
-              result_ids: ["res_ai"],
-              tool_calls: 1,
-              error: null,
-              notes: [],
-            },
-          ],
-          results: {
-            res_ai: {
-              result_id: "res_ai",
-              tool_name: "aggregate_for_question",
-              task_id: "task_ai",
-              sql: "SELECT 123 AS total_revenue",
-              columns: ["total_revenue"],
-              rows: [[123]],
-              row_count: 1,
-              truncated: false,
-              dataset_fingerprint: "sha256:ai-pane-only",
-              duration_ms: 1,
-              parameters: {},
-              warnings: [],
-              statistical_result: null,
-            },
-          },
-          mcp_trace: [],
-          events: [],
-          metrics: {},
-          stopped_reason: "",
-        },
-      });
-    });
-
-    await openDemo(page);
-    await page.getByRole("radio", { name: /^Compare planning strategies/ }).click();
-    await page.getByLabel("Business question").fill("What is total revenue?");
-    await page.getByRole("button", { name: /Compare strategies/ }).click();
-
-    const aiPane = page.getByRole("region", {
-      name: "AI Analytics",
-      exact: true,
-    });
-    await expect(
-      aiPane.getByText("AI PANE ONLY: total revenue is 123."),
-    ).toBeVisible();
-    await aiPane.getByRole("button", { name: "Show work →" }).click();
-
-    const drawer = page.getByRole("dialog", { name: "How this was derived" });
-    await expect(drawer).toContainText("AI PANE ONLY: total revenue is 123.");
-    // The pane owns the evidence even though opaque result ids are no longer
-    // shown to a visitor. The deterministic result would have a different
-    // total, so this proves resolution from the clicked pane.
-    await expect(drawer).toContainText("AI total = 123");
-    await expect(drawer).not.toContainText("Deterministic finding");
-  });
 });

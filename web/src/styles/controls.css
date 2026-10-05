@@ -22,15 +22,26 @@
   opacity: 0.45;
   cursor: not-allowed;
 }
+/* The one press-worthy control on a screen.
+ *
+ * `color` was `#1a1000`, a near-black left over from the palette where
+ * `--signal` was a light orange. Against the mineral green it measured
+ * below 3:1 and axe failed the landing, the profiled-upload state and the
+ * role-confirmation control on it -- one hardcoded hex, three failing
+ * states, and the surface-versus-surface contrast test could not see it
+ * because the pair is a foreground on a *fill*, not on a surface.
+ *
+ * `--ink-inverse` is the right answer in both themes: near-white on the
+ * dark green (5.93:1), near-black on the bright green (8.75:1). */
 .btn.primary {
   background: var(--signal);
   border-color: var(--signal);
-  color: #1a1000;
-  font-weight: 600;
+  color: var(--ink-inverse);
+  font-weight: var(--weight-semibold);
 }
 .btn.primary:hover:not(:disabled) {
-  background: #ffb257;
-  border-color: #ffb257;
+  background: var(--signal-strong);
+  border-color: var(--signal-strong);
 }
 .btn.ghost {
   background: transparent;
@@ -74,14 +85,6 @@
 }
 .field::placeholder {
   color: var(--ink-muted);
-}
-
-/* ---------------------------------------------------------------- dataset */
-
-.dataset-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-  gap: 12px;
 }
 
 .choice {
