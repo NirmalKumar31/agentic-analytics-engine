@@ -832,6 +832,32 @@ export async function ask(page: Page, question: string): Promise<void> {
       'this session, or the reset did not return it to the composer',
   ).toBeVisible({ timeout: 15_000 })
   await field.fill(question)
+  /*
+   * And the value stuck.
+   *
+   * The composer is a controlled textarea, so a render landing just after
+   * the fill can revert it to whatever the component's state still holds.
+   * Closing a side sheet is one way to produce that render -- focus
+   * restoration happens asynchronously -- and the result was an empty
+   * field, a disabled run button, and a diagnostic that correctly reported
+   * both without saying why.
+   *
+   * Asserted and refilled rather than waited on: the question is either in
+   * the field or it is not, and that is a state to check rather than a
+   * duration to guess at.
+   */
+  await expect
+    .poll(
+      async () => {
+        if ((await field.inputValue()) !== question) await field.fill(question)
+        return field.inputValue()
+      },
+      {
+        timeout: 10_000,
+        message: 'the composer did not keep the question it was given',
+      },
+    )
+    .toBe(question)
 
   const run = page.getByRole('button', { name: /^(Run analysis|Run with AI)/ })
   try {
