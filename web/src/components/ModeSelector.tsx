@@ -143,6 +143,22 @@ export function ModeSelector({
         {selected.available ? selected.description : selected.unavailableMessage}
       </p>
 
+      {/*
+        What the four choices are, in one sentence.
+
+        A reader asked why Compare shows two panes when the selector offers
+        three modes, and the answer is not discoverable from the selector:
+        Governed Analysis is a *router* that picks one of the two planners,
+        so comparing it against them would duplicate whichever it chose.
+        Said once, here, rather than left to be inferred.
+      */}
+      <p className="mode-taxonomy small dim" data-testid="mode-taxonomy">
+        Governed Analysis chooses between two planners: Deterministic
+        Analytics plans by rule, AI Analytics plans with a cloud model.
+        Compare runs both and shows them side by side, which is why it has
+        two panes and not three.
+      </p>
+
       {value === "ai" || value === "compare" ? (
         <p className="mode-note">
           AI Analytics uses a limited public quota and can fail if the provider

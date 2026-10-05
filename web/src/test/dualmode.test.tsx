@@ -426,3 +426,38 @@ describe("CompareWorkspace", () => {
     );
   });
 });
+
+describe("the mode taxonomy", () => {
+  it("explains that Governed Analysis is a router, not a third planner", () => {
+    /*
+     * A reader asked why Compare shows two panes when the selector offers
+     * three modes. The answer was not discoverable anywhere on screen:
+     * Governed Analysis picks one of the two planners, so comparing it
+     * against them would duplicate whichever it chose.
+     */
+    render(
+      <ModeSelector
+        capabilities={BOTH_AVAILABLE}
+        value="auto"
+        onChange={() => {}}
+      />,
+    );
+    const note = screen.getByTestId("mode-taxonomy");
+    expect(note).toHaveTextContent(/chooses between two planners/i);
+    expect(note).toHaveTextContent(/two panes and not three/i);
+  });
+
+  it("says it whichever mode is selected, because the question is about all of them", () => {
+    for (const value of ["auto", "deterministic", "ai", "compare"] as const) {
+      const { unmount } = render(
+        <ModeSelector
+          capabilities={BOTH_AVAILABLE}
+          value={value}
+          onChange={() => {}}
+        />,
+      );
+      expect(screen.getByTestId("mode-taxonomy")).toBeInTheDocument();
+      unmount();
+    }
+  });
+});

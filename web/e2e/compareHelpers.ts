@@ -104,6 +104,16 @@ export async function advertiseAi(page: Page) {
 export const AI_RUN_ID = "run_compare_ai";
 
 /**
+ * The dataset label for the 200-row sample.
+ *
+ * `compare.spec.ts` uploads it as `compare.csv` and `chart.spec.ts` as
+ * `compare-lanes.csv`, and both call `sampleCsv()` -- the same bytes under
+ * two names. The label identifies the data, so they share one, and the job
+ * admits one comparison over it rather than two.
+ */
+export const SAMPLE_CSV_DATASET = "sample-200-row";
+
+/**
  * One captured deterministic result per question, per worker.
  *
  * Every Compare test started a genuine analysis -- ten in `compare.spec.ts`

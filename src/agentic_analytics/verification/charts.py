@@ -12,6 +12,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
+from agentic_analytics.analytics.labels import column_label
 from agentic_analytics.analytics.results import ResultSnapshot
 
 ALLOWED_MARKS: frozenset[str] = frozenset({"bar", "line", "area", "point", "scatter"})
@@ -103,23 +104,43 @@ def build_chart(
     elif request.x_type in ("nominal", "ordinal"):
         x_axis |= {"labelAngle": -30, "labelLimit": 120}
 
+    # Axis, legend and tooltip titles are the reader's words.
+    #
+    # These were the field names, so a published chart carried
+    # `rate_effect` down its y-axis -- the arithmetic naming itself, on the
+    # most primary surface there is. `column_label` is the same source the
+    # chart title, the table headers and the headline use, so they cannot
+    # disagree about what a column is called. The `field` stays raw,
+    # because that is what Vega looks up in the data.
     encoding: dict[str, Any] = {
         "x": {
             "field": request.x,
             "type": request.x_type,
-            "title": request.x,
+            "title": column_label(request.x),
             "axis": x_axis,
         },
-        "y": {"field": request.y, "type": request.y_type, "title": request.y},
+        "y": {
+            "field": request.y,
+            "type": request.y_type,
+            "title": column_label(request.y),
+        },
     }
     if vega_mark == "bar":
         # Full-width bars read as a filled area rather than as a comparison.
         encoding["x"]["scale"] = {"paddingInner": 0.3, "paddingOuter": 0.15}
 
     if request.color:
-        encoding["color"] = {"field": request.color, "type": "nominal"}
+        encoding["color"] = {
+            "field": request.color,
+            "type": "nominal",
+            "title": column_label(request.color),
+        }
     encoding["tooltip"] = [
-        {"field": column, "type": "quantitative" if _is_numeric(snapshot, column) else "nominal"}
+        {
+            "field": column,
+            "type": "quantitative" if _is_numeric(snapshot, column) else "nominal",
+            "title": column_label(column),
+        }
         for column in snapshot.columns
     ]
 
@@ -127,7 +148,9 @@ def build_chart(
         "$schema": VEGA_LITE_SCHEMA,
         # Carried for the card heading and the chart's accessible name; the
         # plot itself does not repeat it.
-        "title": (request.title or f"{request.y} by {request.x}")[:120],
+        "title": (
+            request.title or f"{column_label(request.y)} by {column_label(request.x).lower()}"
+        )[:120],
         "data": {"values": records},
         "mark": {"type": vega_mark, "tooltip": True},
         "encoding": encoding,

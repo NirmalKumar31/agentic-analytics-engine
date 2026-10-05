@@ -7,6 +7,7 @@ from pydantic import BaseModel
 from agentic_analytics.agents.base import ask_into
 from agentic_analytics.agents.prompts import VISUALIZER
 from agentic_analytics.agents.schemas import ChartSpec, PublishedFinding
+from agentic_analytics.analytics.labels import column_label
 from agentic_analytics.analytics.results import ResultSnapshot
 from agentic_analytics.events import EventBus, EventType
 from agentic_analytics.llm.base import LLMError, LLMProvider
@@ -115,20 +116,30 @@ async def build_charts(
 
 
 def _default_title(snapshot: ResultSnapshot) -> str:
+    """A chart title in the reader's words.
+
+    Built from the engine's own names, which is why it has to be labelled:
+    a title reading `return_rate by customer_segment` describes the query
+    rather than the chart, and a chart title is the first thing read on a
+    primary surface. `column_label` is the same source the axis titles and
+    the table headers use, so they cannot disagree.
+    """
     params = snapshot.parameters
     metric = params.get("metric")
     dimension = params.get("dimension") or (params.get("dimensions") or [None])[0]
     if metric and dimension:
-        return f"{metric} by {dimension}"
+        return f"{column_label(str(metric))} by {column_label(str(dimension)).lower()}"
     if metric and params.get("grain"):
-        return f"{metric} by {params['grain']}"
+        return f"{column_label(str(metric))} by {str(params['grain']).lower()}"
     if metric:
-        return str(metric)
-    # Hand-written SQL carries no metric parameters, so the result's own
-    # column names are the only honest description of what it shows.
+        return column_label(str(metric))
+    # Hand-written SQL and statistical tests carry no metric parameters, so
+    # the result's own columns are the only honest description of what it
+    # shows -- labelled, because "arrived_late by customer_segment" is a
+    # chart title a reader was actually shown.
     if len(snapshot.columns) >= 2:
-        return f"{snapshot.columns[1]} by {snapshot.columns[0]}"
-    return snapshot.tool_name
+        return f"{column_label(snapshot.columns[1])} by {column_label(snapshot.columns[0]).lower()}"
+    return column_label(snapshot.tool_name)
 
 
 def _prompt(snapshot: ResultSnapshot, finding_text: str) -> str:

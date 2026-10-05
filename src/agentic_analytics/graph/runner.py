@@ -250,6 +250,142 @@ def _outcome_from_reason(reason: str) -> RunOutcome:
     return "failed"
 
 
+@dataclass(frozen=True)
+class _MetricContract:
+    """A metric-layer result, shaped like an accepted contract.
+
+    `build_presentation` reads its contract through `getattr` with
+    defaults -- `measure`, `dimensions`, `filters`, `time_grain`, `period`,
+    `operation`, `ascending`, `confident`, `explanation` -- and never
+    requires the uploaded-data type. So a governed-warehouse answer can
+    drive the same builder by describing itself in those terms, which is
+    better than a second presentation path that would drift from the first.
+
+    Nothing here is inferred. Every field is read back from the parameters
+    the metric layer was actually called with.
+    """
+
+    measure: str
+    dimensions: tuple[str, ...]
+    filters: tuple[Any, ...]
+    time_grain: str | None
+    period: tuple[str, str] | None = None
+    #: Empty on purpose.
+    #
+    # The operation word prefixes the measure in a headline -- "total
+    # revenue", "average order value" -- and a governed metric's name
+    # already carries its aggregation. Naming the operation here produced
+    # "Aggregate return rate is highest for new", which puts the planner's
+    # vocabulary in front of a reader who did not ask for it. The metric
+    # definition says what it aggregates; the headline says what it is.
+    operation: str = ""
+    ascending: bool = False
+    #: Always true: the metric registry resolved it, so there is no
+    #: ambiguity left for a presentation to hedge about. An unresolvable
+    #: question never reaches here -- it is refused earlier, and that
+    #: refusal has its own presentation.
+    confident: bool = True
+    explanation: str = ""
+    #: The metric's declared format -- `percent`, `currency`, `integer`,
+    #: `ratio` or `number` -- read from the registry, never inferred from a
+    #: value's magnitude.
+    measure_format: str | None = None
+
+
+#: Metric-layer tools whose results describe an answer, per analysis type.
+#:
+#: Ordered by how well each answers that kind of question. A fixed order
+#: was wrong: preferring a segment comparison everywhere answered "show the
+#: monthly trend of revenue" with a breakdown by product category, because
+#: the planner had dispatched both and the breakdown came first in the
+#: list. The planner already recorded what it read the question as, so that
+#: is what chooses.
+_METRIC_RESULT_TOOLS: dict[str, tuple[str, ...]] = {
+    "timeseries": ("analyze_timeseries", "compute_metric", "compare_segments"),
+    "segmentation": ("compare_segments", "compute_metric", "analyze_timeseries"),
+}
+_DEFAULT_METRIC_RESULT_TOOLS = ("compute_metric", "compare_segments", "analyze_timeseries")
+
+
+def _metric_presentation_inputs(
+    result: RunResult,
+    registry: Any | None = None,
+    analysis_type: str | None = None,
+) -> tuple[ResultSnapshot | None, _MetricContract | None]:
+    """A metric-layer result and the contract it amounts to, if there is one.
+
+    The registry is consulted for the metric's declared format, so a rate
+    renders as a rate. It is never guessed from the magnitude of a value:
+    `10.97` is a percentage because the metric says
+    `format: percent`, not because it happens to be small.
+    """
+    preference = _METRIC_RESULT_TOOLS.get(str(analysis_type or ""), _DEFAULT_METRIC_RESULT_TOOLS)
+    for tool in preference:
+        snapshot = next((s for s in result.results.values() if s.tool_name == tool), None)
+        if snapshot is None:
+            continue
+        parameters = dict(snapshot.parameters or {})
+        metric = str(parameters.get("metric") or "")
+        if not metric:
+            continue
+        dimensions = parameters.get("dimensions")
+        if dimensions is None:
+            # `compare_segments` names one cut in the singular.
+            single = parameters.get("dimension")
+            dimensions = [single] if single else []
+        declared = None
+        if registry is not None:
+            try:
+                declared = registry.metric(metric).format
+            except Exception:  # pragma: no cover - an unknown metric has no format
+                declared = None
+        return snapshot, _MetricContract(
+            measure=metric,
+            dimensions=tuple(str(d) for d in dimensions if d),
+            filters=tuple(parameters.get("filters") or ()),
+            time_grain=(str(parameters.get("time_grain") or parameters.get("grain") or "") or None),
+            measure_format=declared,
+        )
+    return None, None
+
+
+def _chart_decision_for(result: RunResult, snapshot: ResultSnapshot) -> dict[str, Any]:
+    """The chart the run built for this result, as a decision record.
+
+    `chart_decision` is written on the upload path and left empty on the
+    governed warehouse, and `presentation_chart` reads "no decision" as
+    "no chart". So a presentation built for a warehouse answer declared
+    `kind: none` while the run held two real charts beside it -- and
+    because the interface prefers the presentation, the report rendered no
+    chart at all. Two width tests caught it, which is what they are for.
+
+    The Visualisation Agent already decided: it produced a validated
+    specification bound to this result. This restates that as the decision
+    record the presentation contract expects, rather than inventing one.
+    """
+    recorded = dict(result.chart_decision or {})
+    if recorded:
+        return recorded
+    chart = next((c for c in result.charts if c.result_id == snapshot.result_id), None)
+    if chart is None:
+        return {}
+    spec = dict(chart.spec or {})
+    # The rows come out.
+    #
+    # `PresentationChart` refuses a published specification that carries
+    # its own data: it cites `result_id` and the browser resolves the rows
+    # from the result, so the chart and the table cannot disagree about
+    # what they are drawing. The run's own specification embeds the rows
+    # because it is handed straight to Vega.
+    spec.pop("data", None)
+    # The kind is read from the specification's own mark, which is what
+    # Vega will draw. Naming it anything else would describe a chart the
+    # reader is not looking at.
+    mark = spec.get("mark")
+    kind = str(mark.get("type") if isinstance(mark, dict) else mark or "") or "none"
+    return {"kind": kind, "title": chart.title, "spec": spec}
+
+
 def _planner_interpretation(analysis: Any | None) -> dict[str, Any] | None:
     """What the planner read the question as, as a first-class record.
 
@@ -583,13 +719,13 @@ async def run_analysis(
     )
     bus.close()
     result.events = [e.model_dump() for e in bus.history]
-    result.presentation = _presentation_for(result, state)
+    result.presentation = _presentation_for(result, state, session)
     if own_provider:
         await llm.aclose()
     return result
 
 
-def _presentation_for(result: RunResult, state: Any) -> Any | None:
+def _presentation_for(result: RunResult, state: Any, session: Any | None = None) -> Any | None:
     """How this run's answer should be presented.
 
     Built here rather than in the graph because it needs the finished run:
@@ -608,6 +744,41 @@ def _presentation_for(result: RunResult, state: Any) -> Any | None:
         None,
     )
     mapping = state.get("query_mapping") if hasattr(state, "get") else None
+
+    if snapshot is None:
+        # The governed warehouse resolves through the metric registry and
+        # never produces an `aggregate_for_question` snapshot, so this used
+        # to return None for every demo run -- and None means the interface
+        # falls back to rendering a finding's own prose as the headline.
+        #
+        # On a cloud-planned run that prose is the model's, and a live run
+        # published "a sustained month-over-month increase from
+        # 9.170305676855895 ... to 10.763569457221712" while the result
+        # table two pages later showed the same figures as 9.17 and 10.64.
+        # The number was right; nothing had formatted it, because nothing
+        # owned its presentation.
+        #
+        # A metric-layer result describes an answer just as well. It says
+        # which metric, which cuts and which grain it was computed at, so a
+        # contract-shaped view of it drives the same builder.
+        interpretation = result.planner_interpretation or {}
+        metric_snapshot, metric_mapping = _metric_presentation_inputs(
+            result,
+            getattr(session, "registry", None),
+            analysis_type=interpretation.get("analysis_type"),
+        )
+        if metric_snapshot is not None:
+            snapshot = metric_snapshot
+            # The metric contract wins over an upload-shaped mapping here.
+            #
+            # The warehouse sets `query_mapping` as well, and that object
+            # knows nothing about the metric's declared format and carries
+            # the planner's operation word -- which is how an answer came
+            # out as "Aggregate revenue is highest for West" with no
+            # currency on either figure. The metric contract describes what
+            # was actually executed, so it is the one that describes it.
+            mapping = metric_mapping
+
     if mapping is None and snapshot is None:
         return None
 
@@ -642,7 +813,7 @@ def _presentation_for(result: RunResult, state: Any) -> Any | None:
             snapshot=snapshot,
             findings=list(result.published),
             question_coverage=result.question_coverage,
-            chart_decision=result.chart_decision,
+            chart_decision=_chart_decision_for(result, snapshot) if snapshot else {},
             schema=state.get("upload_schema") if hasattr(state, "get") else None,
             planner_fallback=result.planner_fallback,
             outcome=result.outcome,

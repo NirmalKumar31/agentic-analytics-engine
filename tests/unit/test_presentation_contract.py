@@ -367,7 +367,11 @@ def test_a_time_series_states_its_peak_without_enumerating_periods() -> None:
         snapshot=result,
     )
     assert presentation.shape is PresentationShape.TIME_SERIES
-    assert "2010-12" in presentation.headline
+    # The peak's period, as a reader reads it rather than as it is stored.
+    # This asserted "2010-12" and passed over headlines that said
+    # "2025-12-01T00:00:00" -- a serialisation format shown to a reader.
+    assert "Dec 2010" in presentation.headline
+    assert "T00:00:00" not in presentation.headline
     assert presentation.headline.count(";") <= 1
     assert "further period" not in presentation.headline.lower()
 

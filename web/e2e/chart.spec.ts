@@ -1,4 +1,4 @@
-import { advertiseAi, compareWith, startCompare } from "./compareHelpers";
+import { advertiseAi, compareWith, SAMPLE_CSV_DATASET, startCompare } from "./compareHelpers";
 import { expect, reportFor, test } from "./fixtures";
 
 import { endSession, inDrawer, openApp, sampleCsv, uploadFile, waitForCompare } from "./helpers";
@@ -220,7 +220,16 @@ test.describe("Compare Both, in a browser", () => {
      * `compareSetup.spec.ts` pins the ordering rule this follows.
      */
     await advertiseAi(page);
-    await compareWith(page, undefined, "compare-lanes.csv");
+    /*
+     * The same dataset label `compare.spec.ts` uses.
+     *
+     * Both files are `sampleCsv()` -- byte-identical data under two
+     * filenames -- and the label exists to stop a comparison being
+     * replayed across *different* data, not across two names for the
+     * same data. Sharing it means the job admits one comparison over
+     * this dataset instead of two.
+     */
+    await compareWith(page, undefined, SAMPLE_CSV_DATASET);
     await openApp(page);
     await uploadFile(page, "compare-lanes.csv", sampleCsv());
     await startCompare(page, "What is the total revenue by region?");

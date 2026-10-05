@@ -19,6 +19,7 @@ from __future__ import annotations
 
 from typing import Any, Literal
 
+from agentic_analytics.analytics.labels import output_label
 from agentic_analytics.analytics.results import ResultSnapshot
 
 ChartKind = Literal["bar", "line", "grouped_bar", "ranked_bar", "kpi", "none"]
@@ -44,6 +45,20 @@ def _numeric_column(snapshot: ResultSnapshot, exclude: set[str]) -> str | None:
 
 
 def _label(column: str) -> str:
+    """An axis, legend or tooltip title a reader can act on.
+
+    The declared label comes first. `rate_effect` separated into "rate
+    effect" is still the arithmetic's name for itself, and a chart axis is
+    a primary surface -- the published PDF carried `rate_effect` down its
+    y-axis, under a title that said the same thing.
+
+    Falling back to word-separation keeps every other column working and
+    claims nothing: an uploaded file's `branch_no` becomes "branch no",
+    not "branch number".
+    """
+    declared = output_label(column)
+    if declared is not None:
+        return declared
     return column.replace("_", " ")
 
 

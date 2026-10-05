@@ -24,6 +24,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from agentic_analytics.analytics.labels import column_label
 from agentic_analytics.presentation.schemas import DisplayField, SemanticKind
 
 #: Column-name tokens that suggest a percentage. Necessary, never
@@ -51,17 +52,19 @@ _BOOLEAN_TYPES = frozenset({"BOOLEAN", "BOOL"})
 def humanize(name: str) -> str:
     """A readable label for a column name.
 
-    Conservative on purpose. It separates words and capitalises the first;
-    it does not expand abbreviations, because `pct` becoming "Percentage"
-    on a column that turns out not to be one compounds the error, and
-    `Branch_No` becoming "Branch Number" is a claim about someone else's
-    naming.
+    An analytical output column gets the name declared for it in
+    `analytics/labels.py`: those columns are the engine's own, so what they
+    measure is known and can be said. `rate_effect` separated into "rate
+    effect" is still the arithmetic naming itself, and that is what reached
+    a reader as a chart title.
+
+    Everything else is conservative on purpose. It separates words and
+    capitalises the first; it does not expand abbreviations, because `pct`
+    becoming "Percentage" on a column that turns out not to be one
+    compounds the error, and `Branch_No` becoming "Branch Number" is a
+    claim about someone else's naming.
     """
-    cleaned = name.replace("_", " ").replace("-", " ").strip()
-    cleaned = " ".join(cleaned.split())
-    if not cleaned:
-        return name
-    return cleaned[0].upper() + cleaned[1:]
+    return column_label(name)
 
 
 def _tokens(name: str) -> set[str]:

@@ -136,6 +136,12 @@ def _profile_fields(schema: Any) -> list[Any]:
     return out
 
 
+#: The unit a declared metric format implies. `number` and `ratio` imply
+#: none: a bare number has no unit, and a ratio's unit depends on what it
+#: is a ratio of, which the registry does not say.
+_UNIT_FOR_FORMAT = {"percent": "%", "currency": "$", "integer": None, "number": None}
+
+
 def display_fields_for(
     mapping: Any,
     snapshot: ResultSnapshot,
@@ -153,6 +159,15 @@ def display_fields_for(
     measure = str(getattr(mapping, "measure", "") or "")
     dimensions = {str(d) for d in (getattr(mapping, "dimensions", ()) or ())}
 
+    # The metric's declared format, for the measure column only.
+    #
+    # A governed metric says what it is -- `format: percent` for a rate --
+    # and that is the only honest source for a unit. Never inferred from
+    # magnitude: 10.97 is a percentage because the registry says so, not
+    # because it happens to be small.
+    declared_format = str(getattr(mapping, "measure_format", "") or "")
+    measure_unit = _UNIT_FOR_FORMAT.get(declared_format)
+
     out: list[DisplayField] = []
     seen: set[str] = set()
 
@@ -164,12 +179,23 @@ def display_fields_for(
         seen.add(name)
         field = profile.get(name)
         if field is None:
-            continue
+            # No upload profile, which is every governed-warehouse run.
+            #
+            # This used to `continue` after marking the name seen, so the
+            # loop below skipped it too and a contract column present in
+            # the result got no presentation metadata at all. That is where
+            # the measure's declared unit had nowhere to attach, and the
+            # warehouse's own answer read "is highest for new, at 10.97"
+            # with no sign that it was a percentage.
+            if name not in snapshot.columns:
+                continue
+            field = _Column(name, snapshot, role="measure" if name == measure else "dimension")
         resolved = name if name in snapshot.columns else None
         out.append(
             display_field_for(
                 field,
                 observed_values=_observed(snapshot, resolved) if resolved else None,
+                unit=measure_unit if name == measure else None,
             )
         )
 
@@ -181,7 +207,13 @@ def display_fields_for(
         if field is None:
             role = "measure" if name in {measure, "row_count", "value_count"} else "dimension"
             field = _Column(name, snapshot, role=role)
-        out.append(display_field_for(field, observed_values=_observed(snapshot, name)))
+        out.append(
+            display_field_for(
+                field,
+                observed_values=_observed(snapshot, name),
+                unit=measure_unit if name == measure else None,
+            )
+        )
     return out
 
 
