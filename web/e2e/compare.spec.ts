@@ -3,13 +3,7 @@ import { type Page } from "@playwright/test";
 import { closeAnySheet, expect, test as base } from "./fixtures";
 
 import { endSession, openApp, sampleCsv, uploadFile } from "./helpers";
-import {
-  advertiseAi,
-  compareWith,
-  openDemo,
-  settle,
-  startCompare,
-} from "./compareHelpers";
+import { advertiseAi, compareWith, openDemo, SAMPLE_CSV_DATASET, settle, startCompare } from "./compareHelpers";
 
 /**
  * Compare, over real runs.
@@ -139,7 +133,7 @@ test.describe("Compare over an uploaded dataset", () => {
   test("shows one answer, one chart and one table when they agree", async ({
     comparable: page,
   }) => {
-    await compareWith(page, undefined, "compare.csv");
+    await compareWith(page, undefined, SAMPLE_CSV_DATASET);
     await startCompare(page, "What is the total revenue by region?");
 
     const shared = page.getByTestId("shared-result");
@@ -175,7 +169,7 @@ test.describe("Compare over an uploaded dataset", () => {
         },
       };
       return { ...payload, query_contract: changed };
-    }, "compare.csv");
+    }, SAMPLE_CSV_DATASET);
     await startCompare(page, "What is the total revenue by region?");
 
     const divergence = page.getByTestId("divergence");
@@ -215,7 +209,7 @@ test.describe("Compare over an uploaded dataset", () => {
           text: `${String(finding.text)} (adjusted)`,
         })),
       };
-    }, "compare.csv");
+    }, SAMPLE_CSV_DATASET);
     await startCompare(page, "What is the total revenue by region?");
     // Settled first. The claim is about two *finished* runs that disagree,
     // and both assertions below are also true of a run still in flight --
@@ -235,7 +229,7 @@ test.describe("Compare over an uploaded dataset", () => {
       outcome: "refused",
       stopped_reason: "the question could not be mapped safely",
       findings: [],
-    }), "compare.csv");
+    }), SAMPLE_CSV_DATASET);
     await startCompare(page, "What is the total revenue by region?");
 
     // The refusal's reason is on screen, not only in the trace.
@@ -257,7 +251,7 @@ test.describe("Compare over an uploaded dataset", () => {
 test.describe("the Compare evidence drawer", () => {
   test.beforeEach(async ({ comparable }) => {
     await resetCompare(comparable);
-    await compareWith(comparable, undefined, "compare.csv");
+    await compareWith(comparable, undefined, SAMPLE_CSV_DATASET);
     await startCompare(comparable, "What is the total revenue by region?");
     await settle(comparable);
   });

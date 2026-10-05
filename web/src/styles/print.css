@@ -76,7 +76,16 @@
   .drawer,
   .evidence-tabs,
   .result-foot .btn,
-  .suggestions {
+  .suggestions,
+  /* Microcopy that explains a control, on a page with no controls.
+   *
+   * "opens one drawer with a tab per strategy" printed under a button that
+   * print had already hidden, so a PDF carried an instruction about an
+   * interaction its reader cannot perform. The button was in this list;
+   * the sentence explaining it was not. Any hint of this kind belongs with
+   * the thing it describes. */
+  .compare-action-note,
+  .action-note {
     display: none !important;
   }
 

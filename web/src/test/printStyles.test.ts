@@ -271,6 +271,15 @@ describe("screen-only chrome does not print", () => {
     [".report-actions .btn", "the report's own buttons"],
     [".evidence-tabs", "the evidence drawer's tabs"],
     [".suggestions", "the suggested questions"],
+    /*
+     * The sentence that explains a control, not just the control.
+     *
+     * A PDF printed "opens one drawer with a tab per strategy" underneath
+     * a button print had already hidden -- an instruction about an
+     * interaction its reader cannot perform. The button was in this list;
+     * the microcopy explaining it was not.
+     */
+    [".compare-action-note", "the hint under Compare's evidence button"],
   ])("%s is hidden (%s)", (selector) => {
     const escaped = selector.replace(".", "\\.");
     expect(
@@ -282,7 +291,9 @@ describe("screen-only chrome does not print", () => {
   it("hides them with one rule rather than ten", () => {
     // They are a single selector list; a per-element rule is how one gets
     // forgotten.
-    expect(block).toMatch(/\.topbar,[\s\S]{0,400}?\.suggestions\s*\{\s*display:\s*none\s*!important/);
+    expect(block).toMatch(
+      /\.topbar,[\s\S]{0,900}?\.action-note\s*\{\s*display:\s*none\s*!important/,
+    );
   });
 
   it("keeps the run's stamp, which is not a control", () => {

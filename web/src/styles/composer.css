@@ -330,6 +330,7 @@
 
 /* The one description on screen: whichever strategy is selected. */
 .mode-description,
+.mode-taxonomy,
 .mode-note {
   margin: 0;
   font-size: var(--text-sm);

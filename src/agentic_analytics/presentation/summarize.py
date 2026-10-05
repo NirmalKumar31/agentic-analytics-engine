@@ -71,6 +71,22 @@ def measure_column(snapshot: ResultSnapshot, mapping: Any) -> str | None:
         return aggregates[0]
     if aggregates:
         return aggregates[0]
+    # Lineage is empty on a metric-layer result.
+    #
+    # `compute_metric`, `compare_segments` and `analyze_timeseries` return
+    # the metric as a named column and record no `column_lineage`, so the
+    # loop above finds no aggregate and every governed-warehouse answer
+    # resolved to no measure at all -- which made `detect_shape` call it a
+    # failure and the report say "could not be summarised as an answer".
+    #
+    # The metric's own name is the lineage in that case: the registry
+    # resolved it, and the result carries a column called exactly that. It
+    # is a last resort rather than a first guess, so the upload path, where
+    # lineage exists and is authoritative, is untouched.
+    if measure is not None:
+        named = resolve_result_column(str(measure), snapshot.columns)
+        if named:
+            return named
     if "row_count" in snapshot.columns:
         return "row_count"
     return None
@@ -164,10 +180,76 @@ def _measure_phrase(mapping: Any, snapshot: ResultSnapshot, column: str) -> str:
     return f"{word} {subject}".strip()
 
 
+#: Month names for a period label. Short, because a headline is read at a
+#: glance and "December" earns no more trust than "Dec".
+_MONTHS = (
+    "Jan",
+    "Feb",
+    "Mar",
+    "Apr",
+    "May",
+    "Jun",
+    "Jul",
+    "Aug",
+    "Sep",
+    "Oct",
+    "Nov",
+    "Dec",
+)
+
+
+def period_label(value: Any, grain: str | None = None) -> str:
+    """A period a reader can read.
+
+    The engine stores periods as ISO timestamps, and a headline that says
+    "peaked in 2025-12-01T00:00:00" is showing a reader a serialisation
+    format. The midnight suffix carries no information at any grain this
+    product aggregates to -- a monthly bucket is a month, not an instant --
+    so it is never shown.
+
+    Anything that does not parse is returned unchanged. A period this does
+    not understand is still the engine's own value, and guessing at it
+    would be worse than printing it.
+    """
+    text = str(value if value is not None else "").strip()
+    if not text:
+        return text
+    head = text.split("T")[0]
+    parts = head.split("-")
+    try:
+        if len(parts) >= 3:
+            year, month, day = int(parts[0]), int(parts[1]), int(parts[2])
+        elif len(parts) == 2:
+            year, month, day = int(parts[0]), int(parts[1]), 1
+        else:
+            return text
+    except ValueError:
+        return text
+    if not 1 <= month <= 12:
+        return text
+    if grain in {"day", "week"}:
+        return f"{_MONTHS[month - 1]} {day}, {year}"
+    if grain == "year":
+        return str(year)
+    # Month and quarter both read as a month: the bucket's first day is an
+    # implementation detail of how it is stored.
+    return f"{_MONTHS[month - 1]} {year}"
+
+
+#: Units written before the number rather than after it. A currency symbol
+#: is a prefix in every locale this product renders, and "65,435.38 $" is
+#: not a price anyone writes.
+_PREFIX_UNITS = frozenset({"$", "£", "€", "¥"})
+
+
 def _with_unit(text: str, field: DisplayField | None) -> str:
-    if field is not None and field.unit:
-        return f"{text}{'' if field.unit == '%' else ' '}{field.unit}"
-    return text
+    if field is None or not field.unit:
+        return text
+    unit = field.unit
+    if unit in _PREFIX_UNITS:
+        return f"{unit}{text}"
+    # `%` sits tight against the number; a named unit takes a space.
+    return f"{text}{'' if unit == '%' else ' '}{unit}"
 
 
 def _value_of(
@@ -563,8 +645,9 @@ def _time_series(
     low_row, _ = min(rows, key=lambda pair: pair[1])
     high = _value_of(snapshot, high_row, column, measure_field)
     low = _value_of(snapshot, low_row, column, measure_field)
-    high_period = str(snapshot.cell(high_row, axis))
-    low_period = str(snapshot.cell(low_row, axis))
+    grain = str(getattr(mapping, "time_grain", "") or "") or None
+    high_period = period_label(snapshot.cell(high_row, axis), grain)
+    low_period = period_label(snapshot.cell(low_row, axis), grain)
 
     if whole:
         headline = (
