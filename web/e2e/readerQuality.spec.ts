@@ -212,6 +212,75 @@ test.describe("the report canvas is fit for a reader", () => {
     }
   });
 
+  test("a chart names its axes for a reader, on screen and on paper", async ({
+    demo: page,
+  }) => {
+    /*
+     * The surface the audit named.
+     *
+     * A published chart was titled "Rate effect by segment" with
+     * `rate_effect` down its y-axis. Both are a shift-share
+     * decomposition naming its own arithmetic, and neither tells a reader
+     * what moved. The titles are produced from one declared source --
+     * `analytics/labels.py` -- which the chart title, the axis, the
+     * legend, the tooltip and the table header all read, so they cannot
+     * disagree.
+     *
+     * Read out of the rendered SVG rather than out of the specification,
+     * because what a reader sees is what Vega painted. Print is asserted
+     * in the same test: it renders the same embedded chart, so a label
+     * that were reimplemented for paper would differ here.
+     */
+    await reportFor(
+      page,
+      "Which customer segment has the highest return rate, and are the " +
+        "differences statistically significant?",
+    );
+    const svg = onCanvas(page, ".chart-card .chart-host svg");
+    await expect(svg.first()).toBeVisible({ timeout: 20_000 });
+
+    const labels = async () =>
+      page.evaluate(() => {
+        const host = document.querySelector(".chart-card .chart-host svg");
+        if (!host) return [] as string[];
+        return [...host.querySelectorAll("text")].map((t) => t.textContent ?? "");
+      });
+
+    for (const medium of ["screen", "print"] as const) {
+      await page.emulateMedia({ media: medium });
+      const painted = (await labels()).join(" | ");
+      expect(painted.length, `the chart painted no text in ${medium}`).toBeGreaterThan(0);
+      const identifier = /\b[a-z][a-z0-9]*(?:_[a-z0-9]+)+\b/.exec(painted);
+      expect(
+        identifier,
+        `the chart labels an axis with an engine identifier in ${medium}: ` +
+          `${identifier?.[0] ?? ""}`,
+      ).toBeNull();
+    }
+    await page.emulateMedia({ media: "screen" });
+
+    // And the title says what the chart is, in words.
+    const heading = (await onCanvas(page, ".chart-card figcaption").first().textContent()) ?? "";
+    expect(heading).toMatch(/return rate/i);
+    expect(heading).not.toMatch(/_/);
+
+    /*
+     * What this test proves, and what it does not.
+     *
+     * It proves that no engine identifier reaches a painted axis, title or
+     * label, on screen or on paper. It does not prove which *phrase* a
+     * declared column gets: this chart's axes are the metric and the
+     * dimension, whose labels come from the conservative fallback, and the
+     * declared phrases for `rate_effect` and its siblings appear in
+     * tooltips, which Vega renders on hover and not into the DOM.
+     *
+     * `tests/unit/test_reader_labels.py` is what pins the phrases, and a
+     * mutation removing the declarations fails two of its cases. Splitting
+     * the claim this way is deliberate -- a test that asserted a phrase it
+     * cannot see would pass for the wrong reason.
+     */
+  });
+
   test("the composer, before anything has run", async ({ profiled: page }) => {
     // A dataset strip that named its columns in snake_case would fail
     // here, and the strip is the first thing a reader sees after upload.
