@@ -193,6 +193,22 @@ test.describe("uploading a file", () => {
     ).toBeVisible();
     await page.keyboard.press('Escape');
     await expect(page.getByTestId('schema-sheet')).toHaveCount(0);
+    /*
+     * And focus is back on the trigger before anything types.
+     *
+     * Closing the sheet is two things: the sheet leaves the document, and
+     * focus returns to the control that opened it. Waiting only for the
+     * first let the test type into the composer while the render that does
+     * the second was still pending -- and that render reverted the
+     * controlled textarea to its empty state. The failure read "the run
+     * button stayed disabled: field is empty, phase ready_to_ask", on
+     * WebKit in CI and on Firefox locally, and it passed in isolation
+     * because nothing was competing for the frame.
+     *
+     * The sheet's own contract says Escape gives focus back, so this is
+     * the assertion that was missing rather than a wait that was too short.
+     */
+    await expect(page.getByTestId('inspect-schema')).toBeFocused();
 
     await ask(page, "What is the total revenue by region?");
     await waitForReport(page);

@@ -86,12 +86,62 @@ const CANONICAL_FIELDS: Array<[string, (c: CanonicalContract) => string]> = [
 /** How many canonical fields are compared at all — the `m` in "n of m". */
 export const COMPARED_FIELD_COUNT = CANONICAL_FIELDS.length;
 
+/**
+ * What can honestly be said about two contracts.
+ *
+ * `identical` and `different` are claims about two things that exist.
+ * `not_recorded` is the absence of one or both, and it is a separate state
+ * because an absence is not an agreement -- a report that said
+ * `contracts: identical` over two panes whose own appendices each read "no
+ * contract was accepted" contradicted itself on the same page. That is the
+ * worst kind of defect in a product whose argument is that it does not
+ * overclaim.
+ *
+ * `not_comparable` is for a missing *run*: there is no second thing to
+ * compare at all.
+ */
+export type ComparisonState =
+  | "identical"
+  | "different"
+  | "not_recorded"
+  | "not_comparable";
+
+/** The reader-facing word for each state. */
+export const COMPARISON_LABEL: Record<ComparisonState, string> = {
+  identical: "identical",
+  different: "differ",
+  not_recorded: "not recorded",
+  not_comparable: "not comparable",
+};
+
+/**
+ * Whether two contracts agree, differ, or were never recorded.
+ *
+ * Separate from `contractDifferences` because the caller needs to know
+ * *why* a difference list is empty. An empty list used to mean both
+ * "these agree" and "there was nothing to compare", and the strip read the
+ * first meaning into both.
+ */
+export function contractComparison(
+  deterministic: QueryContract | null | undefined,
+  ai: QueryContract | null | undefined,
+  options: { bothRan: boolean } = { bothRan: true },
+): ComparisonState {
+  if (!options.bothRan) return "not_comparable";
+  const left = canonicalOf(deterministic);
+  const right = canonicalOf(ai);
+  if (!left || !right) return "not_recorded";
+  return contractDifferences(deterministic, ai).length > 0 ? "different" : "identical";
+}
+
 export function contractDifferences(
   deterministic: QueryContract | null | undefined,
   ai: QueryContract | null | undefined,
 ): ContractDifference[] {
   const left = canonicalOf(deterministic);
   const right = canonicalOf(ai);
+  // An absent contract yields no differences, and the caller must not read
+  // that as agreement -- `contractComparison` is what distinguishes them.
   if (!left || !right) return [];
 
   const out: ContractDifference[] = [];

@@ -316,6 +316,17 @@ export interface RunPayload {
    */
   outcome?: string;
   question_coverage?: QuestionCoverage | null;
+  /**
+   * What the planner understood the question to be asking.
+   *
+   * A contract is only accepted for uploaded data, so a run over the
+   * governed warehouse has none -- and the governed warehouse is what the
+   * public deployment serves. Everything that read intent from
+   * `query_contract` was therefore blind on that path: Compare had nothing
+   * to compare and called two absences identical, and the report could not
+   * tell a finding that answered the question from one that came first.
+   */
+  planner_interpretation?: PlannerInterpretation | null;
   /** The generation of the session schema this run executed against. */
   schema_revision?: number;
   /** Where the roles the accepted contract relied on came from. */
@@ -333,6 +344,17 @@ export interface RunPayload {
   presentation?: AnalysisPresentation | null;
   title?: string;
   demonstrates?: string;
+}
+
+/** The planner's own statement of what a question asked for. */
+export interface PlannerInterpretation {
+  analysis_type: string | null;
+  metrics: string[];
+  dimensions: string[];
+  period: string | null;
+  /** True when the planner had to leave something unresolved. */
+  ambiguous: boolean;
+  ambiguities: string[];
 }
 
 export interface QueryFilter {

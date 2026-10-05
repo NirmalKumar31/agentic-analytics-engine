@@ -131,10 +131,25 @@ class FakeProvider(LLMProvider):
         available: list[str] = list(ctx.get("metrics", []))
         available_dims: list[str] = list(ctx.get("dimensions", []))
 
+        # The subject of each matched hint, and the companions kept apart.
+        #
+        # A hint group may name more than one metric -- `return|refund` gives
+        # `return_rate` and `refund_amount` -- and the second exists so a
+        # relationship question has a second variable to correlate. Handing
+        # both to every analysis is how a question about return rate by
+        # customer segment came to lead with a refund trend. The first of
+        # each group is what the question is about; the rest are only
+        # offered to a correlation, below.
         metrics: list[str] = []
+        companions: list[str] = []
         for pattern, names in _METRIC_HINTS:
-            if _matches(pattern, question):
-                metrics.extend(n for n in names if n in available and n not in metrics)
+            if not _matches(pattern, question):
+                continue
+            usable = [n for n in names if n in available]
+            for position, name in enumerate(usable):
+                target = metrics if position == 0 else companions
+                if name not in metrics and name not in companions:
+                    target.append(name)
         if not metrics:
             metrics = [str(m) for m in ("revenue", "orders") if m in available][:2]
 
@@ -165,8 +180,38 @@ class FakeProvider(LLMProvider):
         elif years:
             time_scope = years[0]
 
-        if _matches(r"affect|impact|relate|associat|correlat|driv", question):
+        # A named grouping outranks a relationship verb.
+        #
+        # This branch used to be first and unconditional, so "Which customer
+        # segments are driving the increase in return rate?" -- the question
+        # the home page advertises as "Segmentation with a chi-square test
+        # of independence" -- matched `driv` and was planned as a
+        # correlation between two metrics. The second metric it reached for
+        # was `refund_amount`, so a question about attribution across
+        # customer segments was answered with a refund trend, and the
+        # segment comparison it did run was ranked second.
+        #
+        # A question that names a grouping is asking how one measure differs
+        # *between groups*. That is segmentation, and it is where the
+        # chi-square test belongs. The relationship branch still catches
+        # what it was written for: "Do shipping delays appear to affect
+        # repeat purchasing?" names no grouping, so it is still read as a
+        # relationship question -- and its causal claim is still rejected
+        # downstream, which is what that example exists to show.
+        relationship = _matches(r"affect|impact|relate|associat|correlat|driv", question)
+        names_groups = bool(dimensions) or bool(_NAMES_A_BREAKDOWN.search(question))
+        #: "Which segments", "what contributed most", "the highest region".
+        asks_about_groups = _matches(
+            r"\bwhich\b|\bwhat\b|\bwho\b|driv|contribut|most|highest|lowest|rank",
+            question,
+        )
+
+        if relationship and not names_groups:
             analysis_type = "correlation"
+            # A correlation needs two variables, so the companions rejoin.
+            metrics.extend(n for n in companions if n not in metrics)
+        elif names_groups and asks_about_groups:
+            analysis_type = "segmentation"
         elif len(quarters) >= 2 or _matches(
             r"percentage change|pct change|\bvs\b|versus", question
         ):
@@ -201,6 +246,39 @@ class FakeProvider(LLMProvider):
             # its reader that no time range was given is noise dressed as
             # a caveat -- it describes the question, not the answer.
             ambiguities.append("No explicit time range; the full dataset period is used.")
+        # A driver question with no period states what it is missing.
+        #
+        # "Which segments are driving the increase?" does not say which
+        # increase. It names no baseline and no comparison window, and
+        # "driving" has two readings that give different answers: the
+        # groups whose own rate rose most, and the groups that contributed
+        # most to the overall change through their rate *and* their share.
+        # Inventing a window would answer a question nobody asked, and
+        # inventing a reading would pick one of two defensible answers
+        # without saying so.
+        # `contribut` alone is too loose: "the weakest contribution margin"
+        # is a metric name, not an attribution question, and it was being
+        # told that "driving" had two readings it had never used.
+        asks_about_drivers = _matches(
+            r"\bdriv(?:e|es|ing|er|ers)\b|\bcontribut(?:e|ed|es|ing|ion)s?\s+(?:the\s+)?most\b"
+            r"|\bcontribut(?:e|ed|es|ing)\s+to\b",
+            question,
+        )
+        if asks_about_drivers and names_groups and not time_scope:
+            ambiguities.append(
+                "No baseline or comparison period was named, so the figures "
+                "below describe the whole dataset period rather than a "
+                "particular increase. Name two periods -- for example 'from "
+                "October to December 2025' -- to attribute a change between "
+                "them."
+            )
+            ambiguities.append(
+                "\u201cDriving\u201d has two readings here: the groups whose own "
+                "rate rose the most, and the groups that contributed most to "
+                "the overall change through both their rate and their share. "
+                "The breakdown below compares each group's own rate."
+            )
+
         if not dimensions and not _NAMES_A_BREAKDOWN.search(question):
             # `dimensions` is drawn from the warehouse's known dimensions,
             # so an uploaded column never appears in it. Claiming "no
@@ -359,9 +437,18 @@ class FakeProvider(LLMProvider):
                     {"time_grain": "quarter"},
                 )
 
-        # 5. A real statistical comparison when the question asks whether
-        #    one thing affects another.
-        if analysis.get("analysis_type") == "correlation":
+        # 5. A real statistical comparison -- when the question asks whether
+        #    one thing affects another, and when it compares groups.
+        #
+        # Segmentation was not in this gate, so reclassifying "Which
+        # customer segments are driving the increase in return rate?" from
+        # correlation to segmentation took its chi-square test away. That
+        # test is not incidental to a group comparison: saying one segment
+        # has the highest rate is a claim about a difference, and a
+        # difference worth reporting is one worth testing. The home page
+        # advertises this question as "Segmentation with a chi-square test
+        # of independence", and `tests/evaluation` asserts it.
+        if analysis.get("analysis_type") in {"correlation", "segmentation"}:
             stat = _statistical_task(ctx)
             if stat and len(tasks) < max_tasks:
                 stat["task_id"] = f"task_{len(tasks) + 1:02d}"
