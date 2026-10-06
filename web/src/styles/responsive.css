@@ -16,11 +16,38 @@
 /* Only the three elements that actually declare `overflow-x`. A flex or
    grid item defaults to `min-width: auto`, so a scroll container inside
    one expands to fit its content instead of scrolling.
-   Defensive rather than demonstrated: removing it does not currently fail
-   a test, because no committed fixture produces a table wide enough to
-   need it. It is kept because the alternative failure mode is the page
-   scrolling sideways, which is what the two rules below actually fixed. */
+
+   No longer defensive, and measured rather than argued. A segmentation
+   question over the demo warehouse publishes a five-column result table --
+   the group, the measure, share of the total, difference from the highest,
+   and rank. At 390px that table measures 678px and the page scrolled 304px
+   sideways, because `.table-wrap`'s own `overflow: auto` never engaged:
+   every ancestor had already agreed to be 678px wide. The three rules
+   below are what make this one able to do anything. */
 .table-wrap {
+  min-width: 0;
+}
+
+/* The report's own sections, which are grids.
+ *
+ * `.report-table` and `.report-visual` declare `display: grid` with no
+ * `grid-template-columns`, so the single implicit track is `auto` -- and an
+ * `auto` track resolves to its content's max-content width. A 678px table
+ * therefore sized the track to 678px inside a 358px section, and every
+ * descendant inherited the blown-out width. This is the same failure the
+ * technical audit had and is fixed the same way: `minmax(0, 1fr)` lets the
+ * track shrink to the container, which puts the scrolling back inside the
+ * table where it was designed to be. */
+.report-table,
+.report-visual {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+/* And the panel between the section and the scroll container. A grid item
+   defaults to `min-width: auto`, so without this it widens past the track
+   it was given and hands the old width straight back down. */
+.result-panel,
+.chart-card {
   min-width: 0;
 }
 

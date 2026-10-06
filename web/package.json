@@ -16,7 +16,9 @@
     "test:e2e:guard": "node scripts/e2eWrapper.check.mjs",
     "check:budget": "node scripts/check-resource-budget.mjs",
     "check:sources": "node scripts/check-e2e-sources.mjs",
-    "check:guards": "node scripts/e2eWrapper.check.mjs && node scripts/budgetGuard.check.mjs && node scripts/sourceGuard.check.mjs && node scripts/check-e2e-sources.mjs"
+    "check:guards": "node scripts/e2eWrapper.check.mjs && node scripts/budgetGuard.check.mjs && node scripts/sourceGuard.check.mjs && node scripts/check-e2e-sources.mjs && node scripts/hostedGuard.check.mjs",
+    "test:hosted": "playwright test --config hosted.config.ts",
+    "check:hosted": "node scripts/check-hosted-acceptance.mjs"
   },
   "dependencies": {
     "react": "^19.2.0",

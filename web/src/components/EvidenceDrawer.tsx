@@ -22,8 +22,8 @@
 import { useState } from "react";
 
 import { ActivityLog } from "./ActivityLog";
+import { ExecutionGraph } from "./ExecutionGraph";
 import { PlanningAudit } from "./PlanningAudit";
-import { RunTimeline } from "./RunTimeline";
 import { SideSheet } from "./SideSheet";
 import { resolutionOf } from "./PlanningRouteNote";
 import type { RunPayload } from "../lib/types";
@@ -41,7 +41,7 @@ export const EVIDENCE_SECTIONS = [
   "Limitations",
   "Activity trace",
   "Planning audit",
-  "Run progress",
+  "How this analysis ran",
 ] as const;
 
 function Row({
@@ -357,9 +357,9 @@ export function EvidenceBody({
           -- a streamed `contract_resolved` that never landed left the plan
           stage reading "active" under a published report.
       */}
-      <section className="evidence-timeline" aria-label="Run progress">
-        <h3 className="section-heading">Run progress</h3>
-        <RunTimeline events={run.events ?? []} titled={false} />
+      <section className="evidence-timeline" aria-label="How this analysis ran">
+        <h3 className="section-heading">How this analysis ran</h3>
+        <ExecutionGraph events={run.events ?? []} expanded={expanded} />
       </section>
 
       {/* The full typed-plan record. The brief places it inside this sheet

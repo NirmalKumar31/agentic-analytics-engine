@@ -27,6 +27,10 @@ web/playwright-results-*.json
 web/playwright-results.json
 web/blob-report/
 web/.playwright/
+# Hosted visual acceptance output: screenshots, traces and the run's own
+# machine-readable report. Evidence about one deployment at one moment, not
+# something the repository should carry.
+web/hosted-results/
 
 # Local Claude Code settings. Machine-specific and not part of the project.
 .claude/

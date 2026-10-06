@@ -29,9 +29,10 @@ export default defineConfig({
     environment: 'jsdom',
     setupFiles: ['./src/test/setup.ts'],
     css: false,
-    // The Playwright suite lives in `e2e/` and is driven by its own runner
-    // against a running server. Vitest picking it up loads `@playwright/test`
-    // outside a Playwright process, which fails before a single assertion.
-    exclude: ['e2e/**', 'node_modules/**', 'dist/**'],
+    // The Playwright suites live in `e2e/` and `hosted/`, each driven by its
+    // own runner against a running server. Vitest picking one up loads
+    // `@playwright/test` outside a Playwright process, which fails before a
+    // single assertion.
+    exclude: ['e2e/**', 'hosted/**', 'node_modules/**', 'dist/**'],
   },
 })
