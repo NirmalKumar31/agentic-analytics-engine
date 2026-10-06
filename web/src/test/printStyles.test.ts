@@ -15,7 +15,7 @@
 
 import { describe, expect, it } from "vitest";
 
-import { atRuleBlock, modules, stylesheet, withoutComments } from "./stylesheet";
+import { atRuleBlock, moduleSource, modules, stylesheet, withoutComments } from "./stylesheet";
 
 const css = stylesheet();
 
@@ -344,5 +344,50 @@ describe("no rule in the print cascade names a block that no longer exists", () 
     // would be a regression rather than a cleanup. It is not in use.
     const escaped = selector.replace(/[.[\]"=]/g, (c) => `\\${c}`);
     expect(sources).not.toMatch(new RegExp(`${escaped}(?![-\\w])\\s*[,{]`));
+  });
+});
+
+describe("the flowchart prints, and its control does not", () => {
+  // Absent is a failure rather than a skip: the module losing its print
+  // block is exactly the regression this file exists to catch.
+  const print = atRuleBlock(moduleSource("styles/print.css"), "@media print") ?? "";
+
+  it("names the control in the one chrome-off rule, in this module", () => {
+    /*
+     * In `print.css` because in `timeline.css` it did nothing:
+     * `[data-testid="run-flow-open"]` ties with `.btn` on specificity and
+     * `controls.css` loads after `timeline.css`, so `display: inline-flex`
+     * won and a printed sheet carried a button.
+     *
+     * This is the weaker of the two checks on purpose -- it cannot tell
+     * whether the rule wins, only that it is here. The hosted print cell
+     * reads the computed style, which is what caught the defect.
+     */
+    expect(print).toMatch(/\[data-testid="run-flow-open"\],/);
+    expect(print).toMatch(/\.run-flow-alternative,/);
+  });
+
+  it("leaves the spine a column on paper by scoping the row to screen", () => {
+    /*
+     * Not by overriding `grid-auto-flow` here, which was the first
+     * attempt and printed four arrowheads against the right margin: a
+     * printed sheet is laid out from the reader's viewport, so
+     * `@media (min-width: 1440px)` still matched and the row's
+     * *connectors* stayed applied to a column of full-width boxes. One
+     * word in the query takes the geometry with it.
+     */
+    const timeline = withoutComments(moduleSource("styles/timeline.css"));
+    expect(timeline).toMatch(/@media screen and \(min-width: 1440px\)/);
+    expect(
+      withoutComments(print),
+      "the print block overrides the spine's flow again",
+    ).not.toMatch(/\.run-flow-track/);
+  });
+
+  it("does not hide the flowchart itself", () => {
+    // The live timeline is hidden on paper because it is a progress
+    // indicator. The flowchart is a record, and a printed report that does
+    // not say what ran is the thing it exists to prevent.
+    expect(withoutComments(print)).not.toMatch(/\.run-flow\s*[,{]/);
   });
 });

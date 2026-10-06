@@ -16,6 +16,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from agentic_analytics.analytics.charts import TIME_AXIS_FORMAT as _TIME_FORMAT
 from agentic_analytics.analytics.results import ResultSnapshot
 from agentic_analytics.presentation.schemas import (
     DisplayField,
@@ -44,13 +45,15 @@ from agentic_analytics.presentation.schemas import (
 # than on every tick.
 
 #: How a date reads on an axis, per grain. d3-time-format.
-_TIME_FORMAT = {
-    "day": "%b %-d, %Y",
-    "week": "%b %-d, %Y",
-    "month": "%b %Y",
-    "quarter": "%b %Y",
-    "year": "%Y",
-}
+#:
+#: Imported from the engine's own chart builder rather than restated here.
+#: It was restated here, and the copies could not disagree only because
+#: the one in this file was never reached: the engine declared a period
+#: axis `ordinal`, this format is written on `temporal`, and a published
+#: trend carried `1264982400000` down its x axis with the title correctly
+#: set to "Period" beside it. One map, one place, and the builder is the
+#: place because its specification has to be right for the path that never
+#: reaches a presentation at all.
 
 #: Units d3-format writes itself. A currency prefix is one of them; `%` is
 #: not, because d3's `%` multiplies by a hundred and these values are

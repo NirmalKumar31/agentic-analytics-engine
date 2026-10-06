@@ -25,6 +25,7 @@ from agentic_analytics.presentation.schemas import (
     PresentationTable,
 )
 from agentic_analytics.presentation.summarize import (
+    THIN_GROUP_ROWS,
     date_range_label,
     describe_filter,
     detect_shape,
@@ -33,6 +34,7 @@ from agentic_analytics.presentation.summarize import (
     numbers_resolve,
     scope_for,
     summarize,
+    thin_named,
 )
 from agentic_analytics.verification.typing import as_number
 
@@ -341,6 +343,7 @@ def _caveats(
     chart: Any,
     *,
     planner_fallback: bool,
+    thin: list[tuple[str, int, int]],
 ) -> list[PresentationCaveat]:
     out: list[PresentationCaveat] = []
 
@@ -419,6 +422,33 @@ def _caveats(
                 ),
                 severity=CaveatSeverity.WARNING,
                 related_component="measure",
+            )
+        )
+
+    # An extreme whose own group holds almost nothing.
+    #
+    # The headline names the group and now states its population too (see
+    # `thin_extreme_note`), and this is the same fact under "What to be
+    # careful about" -- which is the one place in the report that is *for*
+    # things qualifying the answer. It is not a repeat of the no-chart
+    # wording problem: a missing chart is a fact about empty space and
+    # belongs in that space, while an estimate resting on two rows
+    # qualifies the answer itself.
+    if thin:
+        smallest = min(population for _role, _row, population in thin)
+        row_word = "row" if smallest == 1 else "rows"
+        out.append(
+            PresentationCaveat(
+                code="thin_group_extreme",
+                message=(
+                    f"A group named in the answer holds {smallest:,} {row_word}. "
+                    f"Fewer than {THIN_GROUP_ROWS} rows is too few for a rate or an "
+                    "average over that group to be a reliable estimate, and the "
+                    "highest and lowest groups of a fine breakdown are where the "
+                    "smallest populations collect."
+                ),
+                severity=CaveatSeverity.WARNING,
+                related_component="coverage",
             )
         )
 
@@ -501,6 +531,12 @@ def build_presentation(
     shape = detect_shape(mapping, snapshot, display_fields)
     headline, secondary, highlights, derived = summarize(mapping, snapshot, display_fields, shape)
     scope = scope_for(mapping, snapshot)
+    # Computed once and handed to both surfaces. `summarize` states this in
+    # the summary and `_caveats` states it under "What to be careful about";
+    # if each worked it out for itself they would name different groups on
+    # an ascending ranking.
+    measure_named = measure_column(snapshot, mapping)
+    thin = thin_named(mapping, snapshot, measure_named, shape) if measure_named is not None else []
 
     chart = presentation_chart(
         chart_decision,
@@ -606,7 +642,12 @@ def build_presentation(
         table=table,
         chart=chart,
         caveats=_caveats(
-            mapping, snapshot, question_coverage, chart, planner_fallback=planner_fallback
+            mapping,
+            snapshot,
+            question_coverage,
+            chart,
+            planner_fallback=planner_fallback,
+            thin=thin,
         ),
         provenance_refs=provenance,
     )

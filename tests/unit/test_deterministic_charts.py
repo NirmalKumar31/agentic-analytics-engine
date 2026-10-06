@@ -244,3 +244,185 @@ def test_too_many_categories_declines_rather_than_drawing_an_unreadable_chart() 
     assert "readable" in chart["no_chart_reason"]
     # And it points the reader at the complete answer rather than stopping.
     assert "table" in chart["no_chart_reason"]
+
+
+# ----------------------------------------------- a period is a date, drawn as one
+
+
+def trend(grain: str | None = "month") -> tuple[Mapping, ResultSnapshot]:
+    """A monthly trend, shaped exactly as the engine returns one.
+
+    The period values are ISO strings because that is what `_coerce` in
+    `analytics/execute.py` makes of a DuckDB `DATE_TRUNC`, and the whole
+    point of this fixture is that they are dates rather than labels.
+    """
+    mapping = Mapping("trend", (), "Weekly_Sales")
+    mapping.time_grain = grain  # type: ignore[attr-defined]
+    return mapping, snapshot(
+        ["period", "total_weekly_sales", "row_count"],
+        [
+            ["2010-02-01T00:00:00", 190332983.04, 180],
+            ["2010-03-01T00:00:00", 181919802.50, 180],
+            ["2010-12-01T00:00:00", 288760532.72, 225],
+        ],
+        "total_weekly_sales",
+    )
+
+
+class TestThePeriodAxisIsATimeAxis:
+    """A published monthly trend had `1264982400000` down its x axis.
+
+    That is the epoch millisecond for February 2010, and the table beside
+    it read "Feb 2010" for the same row. The cause was one word: the
+    period axis was declared `ordinal`, so neither formatter would write a
+    date format onto it -- the presentation layer keys its format on
+    `type == "temporal"`, found a category instead, and wrote only the
+    title. "Period" arrived; the ticks did not.
+
+    Nothing asserted the axis type before this, which is why a sweep that
+    rendered the chart, found its marks and measured its labels stayed
+    green across the defect.
+    """
+
+    def test_the_axis_is_temporal_and_not_a_category(self) -> None:
+        mapping, result = trend()
+        x = chart_for(mapping, result)["spec"]["encoding"]["x"]
+        assert x["field"] == "period"
+        assert x["type"] == "temporal", "a date drawn as an unordered category"
+
+    def test_it_carries_a_date_format_rather_than_leaving_the_ticks_raw(self) -> None:
+        mapping, result = trend()
+        x = chart_for(mapping, result)["spec"]["encoding"]["x"]
+        assert x["axis"]["format"] == "%b %Y"
+
+    def test_it_keeps_as_many_labels_as_fit_rather_than_dropping_them(self) -> None:
+        """Vega resolves a collision by dropping labels, and a 33-month
+        axis that silently loses most of its own is worse than a tight
+        one. The registry path sets this; the uploaded path did not."""
+        mapping, result = trend()
+        x = chart_for(mapping, result)["spec"]["encoding"]["x"]
+        assert x["axis"]["labelOverlap"] == "greedy"
+
+    def test_the_tooltip_says_the_same_thing_as_the_axis(self) -> None:
+        """The hover was the worst of the three surfaces: a reader asks for
+        it, so whatever it returns reads as the precise answer."""
+        mapping, result = trend()
+        tooltip = chart_for(mapping, result)["spec"]["encoding"]["tooltip"]
+        period = next(entry for entry in tooltip if entry["field"] == "period")
+        assert period["type"] == "temporal"
+        assert period["format"] == "%b %Y"
+
+    @pytest.mark.parametrize(
+        ("grain", "expected"),
+        [
+            ("day", "%b %-d, %Y"),
+            ("week", "%b %-d, %Y"),
+            ("month", "%b %Y"),
+            ("quarter", "%b %Y"),
+            ("year", "%Y"),
+        ],
+    )
+    def test_the_declared_grain_decides_how_much_of_the_date_is_shown(
+        self, grain: str, expected: str
+    ) -> None:
+        mapping, result = trend(grain)
+        x = chart_for(mapping, result)["spec"]["encoding"]["x"]
+        assert x["axis"]["format"] == expected
+
+    def test_an_undeclared_grain_still_formats_as_a_date(self) -> None:
+        """Every period column is a `DATE_TRUNC`, so the value is a date
+        whatever the grain. The fallback decides only how much is shown,
+        never whether to show a stored instant."""
+        mapping, result = trend(None)
+        x = chart_for(mapping, result)["spec"]["encoding"]["x"]
+        assert x["type"] == "temporal"
+        assert x["axis"]["format"] == "%b %Y"
+
+    def test_a_category_axis_is_still_a_category(self) -> None:
+        """The fix is about the period column, not about every line axis."""
+        mapping, result = CASES["bar"]
+        x = chart_for(mapping, result)["spec"]["encoding"]["x"]
+        assert x["type"] == "nominal"
+
+    def test_the_presentation_layer_reads_one_map_and_not_a_copy(self) -> None:
+        """Two copies of a time format is how an axis and a tooltip come to
+        disagree. The presentation layer imports this one."""
+        from agentic_analytics.analytics.charts import TIME_AXIS_FORMAT
+        from agentic_analytics.presentation import charts as presentation_charts
+
+        assert presentation_charts._TIME_FORMAT is TIME_AXIS_FORMAT
+
+
+class TestAResultCutMoreWaysThanACanvasCanSeparate:
+    """The absence of this branch was not an empty panel. It was a wrong
+    chart.
+
+    A result cut three ways fell through to the two-cut branch, where
+    `other = next(c for c in resolved if c != category)` takes the first
+    remaining cut and the third is never encoded. A 120-row
+    segment-by-channel-by-region cross-tab was drawn as twenty bars, each
+    holding six different regions stacked invisibly on one another, under
+    a title naming two of the three cuts.
+    """
+
+    @staticmethod
+    def cross_tab() -> tuple[Mapping, ResultSnapshot]:
+        rows = [
+            [segment, channel, region, 0.5, 2]
+            for segment in ("vip", "loyal", "new", "churn")
+            for channel in ("affiliate", "social", "search", "email", "direct")
+            for region in ("Midwest", "South", "East", "West", "North", "Central")
+        ]
+        return (
+            Mapping(
+                "aggregate",
+                ("customer_segment", "acquisition_channel", "region"),
+                "repeat_purchase_rate",
+            ),
+            snapshot(
+                [
+                    "customer_segment",
+                    "acquisition_channel",
+                    "region",
+                    "repeat_purchase_rate",
+                    "row_count",
+                ],
+                rows,
+                "repeat_purchase_rate",
+            ),
+        )
+
+    def test_it_is_declined_rather_than_drawn_without_one_of_its_cuts(self) -> None:
+        mapping, result = self.cross_tab()
+        chart = chart_for(mapping, result)
+        assert chart["kind"] == "none"
+
+    def test_the_reason_names_every_cut_the_result_actually_has(self) -> None:
+        """A reader has to be able to tell this from "too many categories"."""
+        mapping, result = self.cross_tab()
+        reason = chart_for(mapping, result)["no_chart_reason"]
+        for cut in ("customer segment", "acquisition channel", "region"):
+            assert cut in reason
+        assert "table" in reason
+
+    def test_no_specification_is_emitted_at_all(self) -> None:
+        """Not an unreadable chart with a warning: no chart."""
+        mapping, result = self.cross_tab()
+        assert chart_for(mapping, result).get("spec") is None
+
+    def test_two_cuts_are_still_drawn(self) -> None:
+        """The boundary, so the branch cannot drift into refusing everything."""
+        mapping, result = CASES["grouped_bar"]
+        assert chart_for(mapping, result)["kind"] == "grouped_bar"
+
+    def test_a_period_and_two_categories_is_also_three_cuts(self) -> None:
+        """Time is a cut like any other here: x is taken, colour is taken,
+        and a third has nowhere to go."""
+        rows = [["2024-01-01T00:00:00", "North", "Retail", 1.0, 2]]
+        result = snapshot(
+            ["period", "region", "business_type", "total_revenue", "row_count"],
+            rows,
+            "total_revenue",
+        )
+        mapping = Mapping("trend", ("region", "business_type"), "revenue")
+        assert chart_for(mapping, result)["kind"] == "none"

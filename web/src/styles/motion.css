@@ -220,10 +220,33 @@ table.data td.cited {
  */
 .timeline-mark,
 .graph-call-mark,
-.graph-summary-mark {
+.run-flow-mark {
   transition:
     background-color var(--motion-panel) var(--ease-out),
     border-color var(--motion-panel) var(--ease-out);
+}
+
+/* The flowchart's box and its connector, on the same rule and for the same
+   reason: both are coloured from `data-state`, and `data-state` moves only
+   when an event arrives. A stage that completes fills its own rule to the
+   next box, which is motion that *reports* rather than motion that
+   reassures. */
+.run-flow-box {
+  transition: border-color var(--motion-panel) var(--ease-out);
+}
+
+.run-flow-node::before,
+.run-flow-node::after {
+  transition:
+    background-color var(--motion-panel) var(--ease-out),
+    border-color var(--motion-panel) var(--ease-out);
+}
+
+/* A call chip arrives when its event does. One pass, `both`, no loop --
+   the same treatment `.graph-call` gets in the evidence sheet, because it
+   is the same fact: the node exists because an event created it. */
+.run-flow-call {
+  animation: node-arrive var(--motion-panel) var(--ease-out) both;
 }
 
 /* The connector fills as the stage behind it completes. Same rule: the

@@ -868,6 +868,32 @@ test.describe("hosted visual acceptance", () => {
     ).toBe(0);
 
     /*
+     * The flowchart prints and its control does not.
+     *
+     * It prints because on paper the run is over and the record of what
+     * the engine did is the document. Its control does not, and getting
+     * that rule to take effect meant moving it: declared in
+     * `timeline.css`, `[data-testid="run-flow-open"]` ties with `.btn` on
+     * specificity and `controls.css` loads afterwards, so
+     * `display: inline-flex` won and the sheet carried a grey button
+     * while the rule meant to hide it sat in the stylesheet, correct and
+     * outranked.
+     *
+     * Asserted here rather than against the CSS, because a static check
+     * on the selector would have passed throughout. Only the computed
+     * style knows who won.
+     */
+    await expect(page.getByTestId("run-flowchart")).toBeVisible();
+    expect(
+      await page.locator('[data-testid="run-flow-open"]:visible').count(),
+      `the flowchart's control printed at ${cell.name}`,
+    ).toBe(0);
+    expect(
+      await page.locator('[data-testid="run-flow-alternative"]:visible').count(),
+      `a disclosure nobody can open printed at ${cell.name}`,
+    ).toBe(0);
+
+    /*
      * No sideways-scroll assertion here, and that is deliberate.
      *
      * `expectNoOverflow` measures the document against the *screen*

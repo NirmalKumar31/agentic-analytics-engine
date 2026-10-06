@@ -24,6 +24,11 @@ from agentic_analytics.analytics.results import ResultSnapshot
 
 ChartKind = Literal["bar", "line", "grouped_bar", "ranked_bar", "kpi", "none"]
 
+#: The output column a trend's `DATE_TRUNC` lands in. Named because the
+#: axis type now depends on it: this one column is a date and is drawn on
+#: a time scale, and every other cut is an unordered category.
+PERIOD_COLUMN = "period"
+
 #: Categories a bar chart can show before it stops being readable. Above
 #: this the table is the honest presentation and the chart is declined.
 MAX_BAR_CATEGORIES = 60
@@ -31,6 +36,39 @@ MAX_BAR_CATEGORIES = 60
 MAX_SERIES = 8
 #: Cells in a grouped/stacked chart, as categories x series.
 MAX_GROUPED_CELLS = 240
+#: Cuts one specification can separate: one on an axis, one in the colour
+#: legend. A result cut more ways than this cannot be drawn here without
+#: leaving a cut out, and leaving a cut out draws a different result --
+#: see the third branch of `chart_for`.
+MAX_CUTS = 2
+
+#: How a period reads on an axis and in a tooltip, per time grain, as a
+#: d3-time-format string.
+#:
+#: Declared here rather than in the presentation layer, which imports it,
+#: because the engine's own specification has to carry a format for the
+#: path that never reaches a presentation -- and because two copies of this
+#: map is how an axis and a tooltip come to disagree about a date.
+#:
+#: Format strings only, never `labelExpr`: `expr` is on the forbidden-key
+#: list in `chartSafety.ts` and in the server's own validator, because a
+#: specification that can carry an expression can carry code.
+TIME_AXIS_FORMAT: dict[str, str] = {
+    "day": "%b %-d, %Y",
+    "week": "%b %-d, %Y",
+    "month": "%b %Y",
+    "quarter": "%b %Y",
+    "year": "%Y",
+}
+#: Monthly, for a period whose grain was not declared. Every period column
+#: the engine produces is a `DATE_TRUNC`, so the value is a date whatever
+#: the grain; the fallback decides only how much of it is shown.
+DEFAULT_TIME_FORMAT = "%b %Y"
+
+
+def time_format_for(grain: str | None) -> str:
+    """The axis format for a time grain, falling back to month."""
+    return TIME_AXIS_FORMAT.get(str(grain or ""), DEFAULT_TIME_FORMAT)
 
 
 def _numeric_column(snapshot: ResultSnapshot, exclude: set[str]) -> str | None:
@@ -87,12 +125,25 @@ def _measure_format(snapshot: ResultSnapshot, measure: str) -> str:
 
 
 def _tooltip(
-    fields: list[tuple[str, str]], measure: str, value_format: str
+    fields: list[tuple[str, str]],
+    measure: str,
+    value_format: str,
+    *,
+    time_format: str | None = None,
 ) -> list[dict[str, Any]]:
-    """Hover detail: the cuts that identify a mark, then its measured value."""
-    entries: list[dict[str, Any]] = [
-        {"field": field, "type": kind, "title": _label(field)} for field, kind in fields
-    ]
+    """Hover detail: the cuts that identify a mark, then its measured value.
+
+    A temporal field gets the same format as its axis. An unformatted
+    temporal tooltip is the worst of the three surfaces a date appears on:
+    a reader has to ask for it, so whatever it says reads as the precise
+    answer -- and what it said was the stored instant.
+    """
+    entries: list[dict[str, Any]] = []
+    for field, kind in fields:
+        entry: dict[str, Any] = {"field": field, "type": kind, "title": _label(field)}
+        if kind == "temporal" and time_format:
+            entry["format"] = time_format
+        entries.append(entry)
     entries.append(
         {
             "field": measure,
@@ -122,8 +173,9 @@ def chart_for(mapping: Any, snapshot: ResultSnapshot) -> dict[str, Any]:
         for column in snapshot.columns
         if column != "row_count" and column in {_alias_of(d) for d in dimensions} | {"period"}
     ]
-    has_period = "period" in snapshot.columns
-    measure = _numeric_column(snapshot, exclude=set(resolved) | {"period"})
+    has_period = PERIOD_COLUMN in snapshot.columns
+    grain = str(getattr(mapping, "time_grain", "") or "") or None
+    measure = _numeric_column(snapshot, exclude=set(resolved) | {PERIOD_COLUMN})
     rows = len(snapshot.rows)
 
     if measure is None:
@@ -142,11 +194,39 @@ def chart_for(mapping: Any, snapshot: ResultSnapshot) -> dict[str, Any]:
     if rows == 0:
         return {"kind": "none", "no_chart_reason": "no rows matched the requested population"}
 
+    # More cuts than one specification can separate.
+    #
+    # This branch did not exist, and its absence was not an empty panel --
+    # it was a wrong chart. A result cut three ways fell through to the
+    # two-cut branch below, where `other = next(c for c in resolved if c
+    # != category)` takes the *first* remaining cut and the third is never
+    # encoded at all. A 120-row segment-by-channel-by-region cross-tab was
+    # drawn as 4 x 5 = 20 bars, each of them six different regions stacked
+    # invisibly on one another: a chart of a result the engine did not
+    # compute, under a title that named two of the three cuts.
+    #
+    # Declining is the honest outcome, and it is also what the rest of the
+    # system was already relying on. `graph/relevance.py` gives a charted
+    # result a small bonus on the grounds that a presentable answer reads
+    # better than a number in an empty frame -- which is only true while
+    # "charted" means "drawn correctly". The cross-tab was collecting that
+    # bonus for a chart that misrepresented it.
+    if len(resolved) > MAX_CUTS:
+        cuts = ", ".join(_label(column) for column in resolved)
+        return {
+            "kind": "none",
+            "no_chart_reason": (
+                f"this result is cut {len(resolved)} ways ({cuts}); a chart here can "
+                f"separate {MAX_CUTS}, and leaving one out would draw a different "
+                "result. The complete result is in the table"
+            ),
+        }
+
     # One cut only.
     if len(resolved) == 1:
         column = resolved[0]
         if has_period:
-            return _line(column, measure, value_format)
+            return _line(column, measure, value_format, grain)
         if operation == "rank":
             return {
                 "kind": "ranked_bar",
@@ -183,7 +263,9 @@ def chart_for(mapping: Any, snapshot: ResultSnapshot) -> dict[str, Any]:
         return {
             "kind": "line",
             "title": f"{_label(measure)} over time by {_label(category)}",
-            "spec": _line_spec("period", measure, colour=category, value_format=value_format),
+            "spec": _line_spec(
+                PERIOD_COLUMN, measure, colour=category, value_format=value_format, grain=grain
+            ),
         }
 
     other = next(c for c in resolved if c != category)
@@ -203,11 +285,11 @@ def chart_for(mapping: Any, snapshot: ResultSnapshot) -> dict[str, Any]:
     }
 
 
-def _line(column: str, measure: str, value_format: str) -> dict[str, Any]:
+def _line(column: str, measure: str, value_format: str, grain: str | None) -> dict[str, Any]:
     return {
         "kind": "line",
         "title": f"{_label(measure)} over time",
-        "spec": _line_spec(column, measure, value_format=value_format),
+        "spec": _line_spec(column, measure, value_format=value_format, grain=grain),
     }
 
 
@@ -239,10 +321,41 @@ def _bar_spec(
 
 
 def _line_spec(
-    axis: str, measure: str, *, colour: str | None = None, value_format: str = ","
+    axis: str,
+    measure: str,
+    *,
+    colour: str | None = None,
+    value_format: str = ",",
+    grain: str | None = None,
 ) -> dict[str, Any]:
+    """A line over time.
+
+    **The time axis is `temporal`, and it was `ordinal`.** That one word
+    is why a published monthly trend had `1264982400000` down its x axis
+    while the table beside it said "Feb 2010". The period column is a
+    `DATE_TRUNC`, so its values are dates; declared as an unordered
+    category, nothing in either formatter would write a date format onto
+    it -- the presentation layer keys its format on `type == "temporal"`
+    and so skipped the axis, writing only the title. The title arrived and
+    the ticks did not, which is exactly what the artefact shows.
+
+    `temporal` is also simply what the field is: this is a line chart
+    through time, so the axis is a time scale, ticks thin instead of
+    colliding, and the grain decides how much of each date is shown.
+    """
+    kind = "temporal" if axis == PERIOD_COLUMN else "ordinal"
+    time_format = time_format_for(grain) if kind == "temporal" else None
+    x: dict[str, Any] = {"field": axis, "type": kind, "title": _label(axis)}
+    if time_format:
+        # `labelOverlap` for the same reason the registry path sets it:
+        # Vega resolves colliding tick labels by *dropping* them, and a
+        # time axis that silently loses most of its labels is worse than
+        # one that is tight. Greedy keeps as many as fit. Tick count is
+        # left to Vega, which has the width and this does not -- the
+        # report is laid out at six of them.
+        x["axis"] = {"format": time_format, "labelOverlap": "greedy"}
     encoding: dict[str, Any] = {
-        "x": {"field": axis, "type": "ordinal", "title": _label(axis)},
+        "x": x,
         "y": {
             "field": measure,
             "type": "quantitative",
@@ -250,11 +363,11 @@ def _line_spec(
             "axis": {"format": value_format},
         },
     }
-    fields = [(axis, "ordinal")]
+    fields = [(axis, kind)]
     if colour:
         encoding["color"] = {"field": colour, "type": "nominal", "title": _label(colour)}
         fields.append((colour, "nominal"))
-    encoding["tooltip"] = _tooltip(fields, measure, value_format)
+    encoding["tooltip"] = _tooltip(fields, measure, value_format, time_format=time_format)
     return {"mark": {"type": "line", "point": True}, "encoding": encoding}
 
 
