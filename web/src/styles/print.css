@@ -61,6 +61,20 @@
    * Everything that exists to be operated. A control printed as a grey
    * rounded rectangle is an artefact: it looks like part of the document
    * and does nothing.
+   *
+   * **The flowchart's control is in this list and not in `timeline.css`,
+   * where it was first.** There it had no effect:
+   * `[data-testid="run-flow-open"]` and `.btn` have the same specificity,
+   * `controls.css` loads *after* `timeline.css`, and `.btn { display:
+   * inline-flex }` therefore won -- the printed sheet carried a button.
+   * That is the trap `cssArchitecture.test.ts` names, a rule placed in
+   * the module that owns its topic rather than the one that owns its
+   * place in the cascade, and it is the whole reason `print.css` is last.
+   *
+   * Its text alternative joins it for a different reason: Chromium lays a
+   * closed `<details>` out and does not paint it, so no rule can open one
+   * on paper -- and the prose inside it prints anyway, in the appendix,
+   * where `ExecutionGraph` is rendered with `expanded`.
    */
   .topbar,
   .no-print,
@@ -85,6 +99,8 @@
    * the sentence explaining it was not. Any hint of this kind belongs with
    * the thing it describes. */
   .compare-action-note,
+  [data-testid="run-flow-open"],
+  .run-flow-alternative,
   .action-note {
     display: none !important;
   }
@@ -180,6 +196,15 @@
      do not: a printed report that cannot be traced back to the run that
      produced it is the thing the stamp exists to prevent. The row itself is
      therefore not in the chrome-off list above; its buttons are. */
+  /* The spine goes down the page on paper, so six boxes are not squeezed
+     across a sheet they share with the rest of the report. No `!important`:
+     no module after this one declares a flowchart rule, which is the
+     property that makes print.css last. */
+  .run-flow-track {
+    grid-auto-flow: row;
+    grid-template-columns: minmax(0, 1fr);
+  }
+
   .report-actions {
     display: block;
     border-top: 0.5pt solid #bbb;
@@ -600,4 +625,5 @@
   .print-appendix button {
     display: none !important;
   }
+
 }

@@ -195,12 +195,21 @@ describe("the engine's own words stay in the evidence", () => {
     expect(document.body.textContent).not.toContain("gross margin");
   });
 
-  it("says the stage stopped, and where to find why", () => {
-    render(<RunFlowchart events={refused} />);
+  it("says which stage stopped, and nothing it cannot say in its own words", () => {
+    /*
+     * "stopped here" and no more. A first version added "the reason is in
+     * the evidence" as the stage's note, and the refusal screenshot showed
+     * that for noise: the state line already said it stopped, the report's
+     * headline *is* the engine's reason -- a refusal's answer is why it
+     * refused -- and the section carries one control to the full record.
+     */
+    render(<RunFlowchart events={refused} onShowEvidence={() => undefined} />);
     const stopped = document.querySelector('.run-flow-node[data-state="stopped"]');
     expect(stopped).not.toBeNull();
     expect(stopped!.textContent).toMatch(/stopped here/);
-    expect(stopped!.textContent).toMatch(/evidence/);
+    expect(stopped!.querySelector(".run-flow-note")).toBeNull();
+    // And the way to the engine's own words is still on offer.
+    expect(screen.getByTestId("run-flow-open")).toBeInTheDocument();
   });
 
   it("does not print a refused call's reason either", () => {
@@ -220,7 +229,7 @@ describe("the engine's own words stay in the evidence", () => {
     render(<RunFlowchart events={refused} />);
     const narrative = screen.getByTestId("run-flow-narrative").textContent ?? "";
     expect(narrative).not.toContain("gross margin");
-    expect(narrative).toMatch(/stopped here/);
+    expect(narrative).toMatch(/compute — stopped here/);
   });
 
   it("still reports an authored stop reason, which is not engine text", () => {

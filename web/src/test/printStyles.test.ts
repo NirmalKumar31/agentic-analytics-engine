@@ -15,7 +15,7 @@
 
 import { describe, expect, it } from "vitest";
 
-import { atRuleBlock, modules, stylesheet, withoutComments } from "./stylesheet";
+import { atRuleBlock, moduleSource, modules, stylesheet, withoutComments } from "./stylesheet";
 
 const css = stylesheet();
 
@@ -344,5 +344,39 @@ describe("no rule in the print cascade names a block that no longer exists", () 
     // would be a regression rather than a cleanup. It is not in use.
     const escaped = selector.replace(/[.[\]"=]/g, (c) => `\\${c}`);
     expect(sources).not.toMatch(new RegExp(`${escaped}(?![-\\w])\\s*[,{]`));
+  });
+});
+
+describe("the flowchart prints, and its control does not", () => {
+  // Absent is a failure rather than a skip: the module losing its print
+  // block is exactly the regression this file exists to catch.
+  const print = atRuleBlock(moduleSource("styles/print.css"), "@media print") ?? "";
+
+  it("names the control in the one chrome-off rule, in this module", () => {
+    /*
+     * In `print.css` because in `timeline.css` it did nothing:
+     * `[data-testid="run-flow-open"]` ties with `.btn` on specificity and
+     * `controls.css` loads after `timeline.css`, so `display: inline-flex`
+     * won and a printed sheet carried a button.
+     *
+     * This is the weaker of the two checks on purpose -- it cannot tell
+     * whether the rule wins, only that it is here. The hosted print cell
+     * reads the computed style, which is what caught the defect.
+     */
+    expect(print).toMatch(/\[data-testid="run-flow-open"\],/);
+    expect(print).toMatch(/\.run-flow-alternative,/);
+  });
+
+  it("lays the spine down the page rather than across the sheet", () => {
+    expect(withoutComments(print)).toMatch(
+      /\.run-flow-track\s*\{[^}]*grid-auto-flow:\s*row/,
+    );
+  });
+
+  it("does not hide the flowchart itself", () => {
+    // The live timeline is hidden on paper because it is a progress
+    // indicator. The flowchart is a record, and a printed report that does
+    // not say what ran is the thing it exists to prevent.
+    expect(withoutComments(print)).not.toMatch(/\.run-flow\s*[,{]/);
   });
 });

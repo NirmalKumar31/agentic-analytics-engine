@@ -538,21 +538,6 @@
     display: block;
   }
 
-  /* The flowchart stays. On paper the run is over, and a record of what
-     the engine did is exactly what a printed report should carry -- which
-     is the same reason the graph is restored inside the appendix below.
-     Its control is not printable, and the spine goes back to a column so
-     six boxes are not squeezed across a page it has to share. */
-  .run-flow-open,
-  [data-testid="run-flow-open"] {
-    display: none;
-  }
-
-  .run-flow-track {
-    grid-auto-flow: row;
-    grid-template-columns: minmax(0, 1fr);
-  }
-
   /* A disclosure printed closed is a paragraph the reader cannot reach.
      The appendix passes `expanded`, which opens it in the markup; this
      covers the on-screen sheet being sent to paper directly. */
