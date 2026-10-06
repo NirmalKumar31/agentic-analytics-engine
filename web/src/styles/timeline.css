@@ -371,11 +371,21 @@
   min-width: 0;
 }
 
+/* Wide enough to be a line rather than a column.
+ *
+ * These sized to their content first, and at 360px three of them shared a
+ * row at 116, 143 and 145px -- which the hosted sweep failed at every one
+ * of the twelve cells, correctly: 180px is about four words at this type
+ * scale and a tool name wrapping over three lines in a 116px box is a
+ * column, not a label. `flex-basis` makes the row break instead of
+ * squeezing, `min-width` holds the floor, and `min(…, 100%)` keeps the
+ * floor from becoming an overflow in a container narrower than it. */
 .run-flow-call {
   display: grid;
   gap: 2px;
-  min-width: 0;
-  max-width: 100%;
+  flex: 1 1 180px;
+  min-width: min(180px, 100%);
+  max-width: 340px;
   padding: var(--space-2) var(--space-3);
   border: 1px solid var(--rule-hairline);
   border-radius: var(--radius-md);
