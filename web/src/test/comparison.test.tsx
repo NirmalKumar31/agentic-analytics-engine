@@ -3,6 +3,9 @@
  * comparison. These pin them apart.
  */
 
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+
 import { describe, expect, it } from "vitest";
 import { compareRuns } from "../lib/comparison";
 import type {
@@ -268,5 +271,40 @@ describe("a run that has not finished has not disagreed", () => {
       payload({ status: "completed", query_contract: contract }),
     );
     expect(state.verdict).not.toBe("not_comparable");
+  });
+});
+
+describe("the copy matches the layout it describes", () => {
+  /*
+   * Compare showed two reports side by side and called them panes. The
+   * panes are gone -- a full report in half a laptop's width is not a
+   * comparison -- and the verdict copy went on saying "These panes
+   * answered different questions" above a switcher with no panes in it.
+   *
+   * Found by reading a production screenshot, which is the only place a
+   * stale word like this shows up: every assertion about the verdict
+   * matched on the parts that had not changed.
+   */
+  it("says strategy, not pane, in every verdict sentence", () => {
+    const source = readFileSync(join(__dirname, "..", "lib", "comparison.ts"), "utf8");
+    // Comments may discuss the old layout; rendered strings may not.
+    const strings = source
+      .replace(/\/\*[\s\S]*?\*\//g, "")
+      .replace(/^\s*\/\/.*$/gm, "")
+      .match(/"(?:[^"\\]|\\.)*"/g) ?? [];
+    const offenders = strings.filter((text) => /\bpanes?\b/i.test(text));
+    expect(offenders, "verdict copy still calls a strategy a pane").toEqual([]);
+  });
+
+  it("and neither does the mode taxonomy", () => {
+    const source = readFileSync(
+      join(__dirname, "..", "components", "ModeSelector.tsx"),
+      "utf8",
+    );
+    const rendered = source
+      .replace(/\/\*[\s\S]*?\*\//g, "")
+      .replace(/\{\/\*[\s\S]*?\*\/\}/g, "")
+      .replace(/^\s*\/\/.*$/gm, "");
+    expect(/\bpanes\b/i.test(rendered)).toBe(false);
   });
 });

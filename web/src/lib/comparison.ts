@@ -43,7 +43,7 @@ export interface ComparisonState {
   tone: "supported" | "warn" | "error" | "neutral";
   /** Field-by-field, when the contracts differ. */
   differences: ContractDifference[];
-  /** Whether one shared answer may be rendered instead of two panes. */
+  /** Whether one shared answer may be rendered instead of one per strategy. */
   shareOneResult: boolean;
 }
 
@@ -91,7 +91,7 @@ export function compareRuns(
       verdict: "both_refused",
       headline: "Both modes refused",
       detail:
-        "Neither interpretation could be mapped to this dataset safely. Each pane gives its reason.",
+        "Neither interpretation could be mapped to this dataset safely. Each strategy gives its reason.",
       tone: "warn",
     };
   }
@@ -101,7 +101,7 @@ export function compareRuns(
       verdict: "one_failed",
       headline: "One mode failed to run",
       detail:
-        "The failure is shown in its own pane. The other result stands on its own.",
+        "The failure is shown with the strategy it belongs to. The other result stands on its own.",
       tone: "error",
     };
   }
@@ -111,7 +111,7 @@ export function compareRuns(
       verdict: "one_refused",
       headline: "One mode refused",
       detail:
-        "A refusal is not a failed comparison: the refusing pane explains what it could not map. The other pane answered.",
+        "A refusal is not a failed comparison: the refusing strategy explains what it could not map. The other one answered.",
       tone: "warn",
     };
   }
@@ -144,7 +144,7 @@ export function compareRuns(
       verdict: "contracts_differ",
       headline: "Different governed interpretations",
       detail:
-        "These panes answered different questions, so they are not a like-for-like comparison. The differing parts are below.",
+        "The two strategies answered different questions, so they are not a like-for-like comparison. The differing parts are below.",
       tone: "warn",
       differences,
     };
@@ -157,7 +157,7 @@ export function compareRuns(
       verdict: "inconsistent_results",
       headline: "Same interpretation, different results",
       detail:
-        "The same governed request produced different numbers in the two panes. That is an internal inconsistency in this engine, not a difference of opinion between the modes, and neither result should be relied on until it is explained.",
+        "The same governed request produced different numbers in the two strategies. That is an internal inconsistency in this engine, not a difference of opinion between the modes, and neither result should be relied on until it is explained.",
       tone: "error",
     };
   }
@@ -173,7 +173,7 @@ export function compareRuns(
       verdict: "agree_but_incomplete",
       headline: "Both modes agreed, but withheld different findings",
       detail:
-        "The two panes published the same values from the same contract, and they did not withhold the same things. Each pane lists what it withheld and why.",
+        "The two strategies published the same values from the same contract, and they did not withhold the same things. Each strategy lists what it withheld and why.",
       tone: "warn",
     };
   }
@@ -184,7 +184,7 @@ export function compareRuns(
       verdict: "agree_via_fallback",
       headline: "AI planner fell back to the rules contract",
       detail:
-        "The cloud planner did not return a usable contract, so the engine executed its own. The panes match because they ran the same contract -- not because the model independently agreed.",
+        "The cloud planner did not return a usable contract, so the engine executed its own. The two match because they ran the same contract -- not because the model independently agreed.",
       tone: "warn",
       shareOneResult: true,
     };
