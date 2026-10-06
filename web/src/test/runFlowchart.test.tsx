@@ -295,3 +295,38 @@ describe("the diagram has no glyphs a screen reader would read out", () => {
     }
   });
 });
+
+describe("the spine turns horizontal only where it fits as prose", () => {
+  const css = readFileSync(join(__dirname, "..", "styles", "timeline.css"), "utf8");
+
+  it("switches at 1440px, not at the usual 768", () => {
+    /*
+     * Measured, not chosen. A stage box holding a note -- "a model was
+     * consulted to plan", 29 characters -- has to clear the sweep's 180px
+     * floor for a box with a sentence in it. Six of those need 1080px of
+     * track; the track measures 704 at 768px, 960 at 1024 and 1304 from
+     * 1440 up, where the reading column caps. 768 and 1024 cannot hold
+     * the row.
+     *
+     * Pinned because the 768px breakpoint is the house default -- it is
+     * what `.timeline-track` uses -- and copying it here is the mistake
+     * this number exists to prevent. It failed two sweep cells doing
+     * exactly that.
+     */
+    const row = css.indexOf(".run-flow-track {\n    grid-auto-flow: column");
+    expect(row, "the horizontal spine rule is gone").toBeGreaterThan(-1);
+    const query = css.lastIndexOf("@media (min-width:", row);
+    expect(css.slice(query, css.indexOf(")", query) + 1)).toBe("@media (min-width: 1440px)");
+  });
+
+  it("is a width the acceptance matrix actually tests", () => {
+    /*
+     * A breakpoint at 1280 would put the behaviour on both sides of it
+     * outside every cell of the sweep, so neither side would ever be
+     * measured.
+     */
+    const matrix = readFileSync(join(__dirname, "..", "..", "hosted", "matrix.ts"), "utf8");
+    const widths = [...matrix.matchAll(/\b(\d{3,4})\b/g)].map((m) => Number(m[1]));
+    expect(widths).toContain(1440);
+  });
+});

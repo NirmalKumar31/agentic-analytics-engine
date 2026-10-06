@@ -448,10 +448,28 @@
 
 /* ----------------------------------------------------- the spine, across
  *
- * From 768px the stages run left to right. One grid declaration does it,
- * and the connectors move from below each box to beside it.
+ * The stages run left to right where six of them fit as prose, and down
+ * the page where they do not. One grid declaration does it, and the
+ * connectors move from below each box to beside it.
+ *
+ * **1440px, and the number is measured rather than chosen.** A stage box
+ * has to be at least 180px wide -- the hosted sweep's floor for a box
+ * holding a sentence, which the note on a stage is: "a model was
+ * consulted to plan" is 29 characters. Six of them plus the reading
+ * column's own padding needs 1080px of track, and the track measures 704
+ * at 768px, 960 at 1024 and 1304 from 1440 up, where the reading column
+ * caps. So 768 and 1024 cannot hold the row, and the first width that can
+ * is 1440.
+ *
+ * It is a width the acceptance matrix tests, which is the rest of the
+ * reason: a breakpoint at 1280 would put the behaviour either side of it
+ * outside every cell of the sweep. Both sides of this one are measured.
+ *
+ * Wrapping the row instead was the other option and is worse: a wrapped
+ * grid leaves an arrow at the end of every row pointing into the margin,
+ * and "the last item of each row" is not something CSS can select.
  */
-@media (min-width: 768px) {
+@media (min-width: 1440px) {
   .run-flow-track {
     grid-auto-flow: column;
     grid-auto-columns: minmax(0, 1fr);
