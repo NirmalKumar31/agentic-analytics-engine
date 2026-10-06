@@ -4,16 +4,16 @@
   "title": "Return rate by customer segment",
   "demonstrates": "Segmentation across several metrics, with a chi-square test of independence computed by the tool rather than asserted.",
   "order": 2,
-  "recorded_at": "2026-10-06T00:20:52Z",
+  "recorded_at": "2026-10-06T02:04:01Z",
   "provider": "fake",
   "provider_kind": "scripted-deterministic",
   "run_kind": "recorded deterministic engine run",
   "engine_version": "0.1.0",
-  "git_commit": "4e9a9ac6fb7a0f88432de76061c498b76fef80c0",
+  "git_commit": "f2c7a1c54458f21f212b4428e7a73a037b45b325",
   "git_dirty": true,
   "dataset_seed": 20260924,
   "metrics_definition_hash": "sha256:d0871593bfda4f61",
-  "run_id": "run_1a10e95acde",
+  "run_id": "run_1a10ef41c11",
   "task_count": 3,
   "mcp_tool_calls": 3,
   "published_findings": 3,
@@ -299,14 +299,14 @@
       {
         "heading": "What the numbers show",
         "finding_ids": [
-          "task_01:fin_9cf1d44c:0",
-          "task_02:fin_eb2771e1:0"
+          "task_01:fin_78466980:0",
+          "task_02:fin_b694907e:0"
         ]
       },
       {
         "heading": "Statistical comparisons",
         "finding_ids": [
-          "task_03:fin_0a8fa34e:0"
+          "task_03:fin_090215d4:0"
         ]
       }
     ],
@@ -321,23 +321,23 @@
   },
   "findings": [
     {
-      "finding_id": "task_01:fin_9cf1d44c:0",
+      "finding_id": "task_01:fin_78466980:0",
       "text": "return_rate fell from 8.51% in 2025-01-01 to 7.80% in 2025-02-01, a change of 0.71 percentage points.",
       "kind": "calculated_fact",
       "task_id": "task_01",
       "result_ids": [
-        "res_f11e390adb82"
+        "res_8eaf50a407d5"
       ],
       "evidence_cells": [
         {
-          "result_id": "res_f11e390adb82",
+          "result_id": "res_8eaf50a407d5",
           "row": 12,
           "column": "return_rate",
           "value": 8.512916610895463,
           "label": "return_rate at 2025-01-01"
         },
         {
-          "result_id": "res_f11e390adb82",
+          "result_id": "res_8eaf50a407d5",
           "row": 13,
           "column": "return_rate",
           "value": 7.800441014332966,
@@ -357,19 +357,19 @@
           {
             "stated": 8.51,
             "matched": true,
-            "source": "res_f11e390adb82[0].return_rate",
+            "source": "res_8eaf50a407d5[0].return_rate",
             "computed": 8.548009367681498
           },
           {
             "stated": 7.8,
             "matched": true,
-            "source": "res_f11e390adb82[13].return_rate",
+            "source": "res_8eaf50a407d5[13].return_rate",
             "computed": 7.800441014332966
           },
           {
             "stated": 0.71,
             "matched": true,
-            "source": "res_f11e390adb82[12].return_rate - res_f11e390adb82[13].return_rate",
+            "source": "res_8eaf50a407d5[12].return_rate - res_8eaf50a407d5[13].return_rate",
             "computed": 0.7124755965624967
           },
           {
@@ -392,23 +392,23 @@
       }
     },
     {
-      "finding_id": "task_02:fin_eb2771e1:0",
+      "finding_id": "task_02:fin_b694907e:0",
       "text": "Across customer_segment, new has the highest return_rate at 9.96% and loyal the lowest at 7.66%.",
       "kind": "calculated_fact",
       "task_id": "task_02",
       "result_ids": [
-        "res_1e80485a41e6"
+        "res_fb32e64db911"
       ],
       "evidence_cells": [
         {
-          "result_id": "res_1e80485a41e6",
+          "result_id": "res_fb32e64db911",
           "row": 0,
           "column": "return_rate",
           "value": 9.956508232370302,
           "label": "return_rate for new"
         },
         {
-          "result_id": "res_1e80485a41e6",
+          "result_id": "res_fb32e64db911",
           "row": 3,
           "column": "return_rate",
           "value": 7.658872077028886,
@@ -428,13 +428,13 @@
           {
             "stated": 9.96,
             "matched": true,
-            "source": "res_1e80485a41e6[0].return_rate",
+            "source": "res_fb32e64db911[0].return_rate",
             "computed": 9.956508232370302
           },
           {
             "stated": 7.66,
             "matched": true,
-            "source": "res_1e80485a41e6[2].return_rate",
+            "source": "res_fb32e64db911[2].return_rate",
             "computed": 7.691232646976614
           },
           {
@@ -457,12 +457,12 @@
       }
     },
     {
-      "finding_id": "task_03:fin_0a8fa34e:0",
+      "finding_id": "task_03:fin_090215d4:0",
       "text": "A chi-square test of independence on total=19,471 returned p = 2.62e-12 with Cramer's V = 0.039; the difference is statistically significant at the 5% level.",
       "kind": "statistical_result",
       "task_id": "task_03",
       "result_ids": [
-        "res_7a1f408e000d"
+        "res_e28062f8231b"
       ],
       "evidence_cells": [],
       "metric_ids": [
@@ -478,19 +478,19 @@
           {
             "stated": 19471.0,
             "matched": true,
-            "source": "res_7a1f408e000d.n[total]",
+            "source": "res_e28062f8231b.n[total]",
             "computed": 19471.0
           },
           {
             "stated": 2.62e-12,
             "matched": true,
-            "source": "res_7a1f408e000d.p_value",
+            "source": "res_e28062f8231b.p_value",
             "computed": 2.6189067689346327e-12
           },
           {
             "stated": 0.039,
             "matched": true,
-            "source": "res_7a1f408e000d.effect_size",
+            "source": "res_e28062f8231b.effect_size",
             "computed": 0.03875536323427254
           }
         ],
@@ -504,7 +504,7 @@
   ],
   "rejected": [
     {
-      "finding_id": "task_03:fin_4f0d83d0:1",
+      "finding_id": "task_03:fin_b9d327ca:1",
       "status": "unsupported",
       "reason": "The claim asserts causation from observational data. The groups were not randomly assigned, so the result supports an association only.",
       "rule": "causal_from_observational",
@@ -518,11 +518,11 @@
   ],
   "charts": [
     {
-      "chart_id": "cht_4d0ab506",
+      "chart_id": "cht_74b9ce2f",
       "title": "Return rate by month",
-      "result_id": "res_f11e390adb82",
+      "result_id": "res_8eaf50a407d5",
       "finding_ids": [
-        "task_01:fin_9cf1d44c:0"
+        "task_01:fin_78466980:0"
       ],
       "spec": {
         "$schema": "https://vega.github.io/schema/vega-lite/v5.json",
@@ -759,11 +759,11 @@
       }
     },
     {
-      "chart_id": "cht_3d27f5f9",
+      "chart_id": "cht_f5d82b3b",
       "title": "Return rate by customer segment",
-      "result_id": "res_1e80485a41e6",
+      "result_id": "res_fb32e64db911",
       "finding_ids": [
-        "task_02:fin_eb2771e1:0"
+        "task_02:fin_b694907e:0"
       ],
       "spec": {
         "$schema": "https://vega.github.io/schema/vega-lite/v5.json",
@@ -863,11 +863,11 @@
       }
     },
     {
-      "chart_id": "cht_e171167f",
+      "chart_id": "cht_fcf0906d",
       "title": "Arrived late by customer segment",
-      "result_id": "res_7a1f408e000d",
+      "result_id": "res_e28062f8231b",
       "finding_ids": [
-        "task_03:fin_0a8fa34e:0"
+        "task_03:fin_090215d4:0"
       ],
       "spec": {
         "$schema": "https://vega.github.io/schema/vega-lite/v5.json",
@@ -991,23 +991,23 @@
       "status": "succeeded",
       "findings": [
         {
-          "finding_id": "task_01:fin_9cf1d44c:0",
+          "finding_id": "task_01:fin_78466980:0",
           "text": "return_rate fell from 8.51% in 2025-01-01 to 7.80% in 2025-02-01, a change of 0.71 percentage points.",
           "kind": "calculated_fact",
           "task_id": "task_01",
           "result_ids": [
-            "res_f11e390adb82"
+            "res_8eaf50a407d5"
           ],
           "evidence_cells": [
             {
-              "result_id": "res_f11e390adb82",
+              "result_id": "res_8eaf50a407d5",
               "row": 12,
               "column": "return_rate",
               "value": 8.512916610895463,
               "label": "return_rate at 2025-01-01"
             },
             {
-              "result_id": "res_f11e390adb82",
+              "result_id": "res_8eaf50a407d5",
               "row": 13,
               "column": "return_rate",
               "value": 7.800441014332966,
@@ -1026,7 +1026,7 @@
         }
       ],
       "result_ids": [
-        "res_f11e390adb82"
+        "res_8eaf50a407d5"
       ],
       "tool_calls": 1,
       "error": null,
@@ -1047,23 +1047,23 @@
       "status": "succeeded",
       "findings": [
         {
-          "finding_id": "task_02:fin_eb2771e1:0",
+          "finding_id": "task_02:fin_b694907e:0",
           "text": "Across customer_segment, new has the highest return_rate at 9.96% and loyal the lowest at 7.66%.",
           "kind": "calculated_fact",
           "task_id": "task_02",
           "result_ids": [
-            "res_1e80485a41e6"
+            "res_fb32e64db911"
           ],
           "evidence_cells": [
             {
-              "result_id": "res_1e80485a41e6",
+              "result_id": "res_fb32e64db911",
               "row": 0,
               "column": "return_rate",
               "value": 9.956508232370302,
               "label": "return_rate for new"
             },
             {
-              "result_id": "res_1e80485a41e6",
+              "result_id": "res_fb32e64db911",
               "row": 3,
               "column": "return_rate",
               "value": 7.658872077028886,
@@ -1082,7 +1082,7 @@
         }
       ],
       "result_ids": [
-        "res_1e80485a41e6"
+        "res_fb32e64db911"
       ],
       "tool_calls": 1,
       "error": null,
@@ -1103,12 +1103,12 @@
       "status": "succeeded",
       "findings": [
         {
-          "finding_id": "task_03:fin_0a8fa34e:0",
+          "finding_id": "task_03:fin_090215d4:0",
           "text": "A chi-square test of independence on total=19,471 returned p = 2.62e-12 with Cramer's V = 0.039; the difference is statistically significant at the 5% level.",
           "kind": "statistical_result",
           "task_id": "task_03",
           "result_ids": [
-            "res_7a1f408e000d"
+            "res_e28062f8231b"
           ],
           "evidence_cells": [],
           "metric_ids": [
@@ -1117,12 +1117,12 @@
           "claimed_change": null
         },
         {
-          "finding_id": "task_03:fin_4f0d83d0:1",
+          "finding_id": "task_03:fin_b9d327ca:1",
           "text": "Being in the loyal group causes the observed difference versus new.",
           "kind": "interpretation",
           "task_id": "task_03",
           "result_ids": [
-            "res_7a1f408e000d"
+            "res_e28062f8231b"
           ],
           "evidence_cells": [],
           "metric_ids": [],
@@ -1130,7 +1130,7 @@
         }
       ],
       "result_ids": [
-        "res_7a1f408e000d"
+        "res_e28062f8231b"
       ],
       "tool_calls": 1,
       "error": null,
@@ -1148,8 +1148,75 @@
     }
   ],
   "results": {
-    "res_f11e390adb82": {
-      "result_id": "res_f11e390adb82",
+    "res_fb32e64db911": {
+      "result_id": "res_fb32e64db911",
+      "tool_name": "compare_segments",
+      "task_id": "task_02",
+      "sql": "WITH base AS (\nSELECT \"customer_segment\" AS \"customer_segment\", 100.0 * SUM(is_returned) / NULLIF(COUNT(*), 0) AS \"return_rate\"\nFROM (\nSELECT\n  o.order_id,\n  o.order_date,\n  o.customer_id,\n  o.channel            AS order_channel,\n  o.discount_rate,\n  o.shipping_cost,\n  o.status,\n  o.is_first_order,\n  i.order_item_id,\n  i.product_id,\n  i.quantity,\n  i.unit_price,\n  i.unit_cost,\n  i.list_price,\n  i.discount_amount,\n  p.category,\n  p.brand,\n  c.region,\n  c.customer_segment,\n  c.acquisition_channel,\n  CASE WHEN r.return_id IS NULL THEN 0 ELSE 1 END AS is_returned,\n  COALESCE(r.refund_amount, 0)                    AS refund_amount,\n  r.return_reason\nFROM orders o\nJOIN order_items i ON i.order_id = o.order_id\nJOIN products p    ON p.product_id = i.product_id\nJOIN customers c   ON c.customer_id = o.customer_id\nLEFT JOIN returns r ON r.order_item_id = i.order_item_id\n) AS m\nGROUP BY \"customer_segment\"\nORDER BY \"customer_segment\"\n)\nSELECT \"customer_segment\", \"return_rate\",\n  CASE WHEN MIN(\"return_rate\") OVER () >= 0 THEN\n    ROUND(100.0 * \"return_rate\" / NULLIF(SUM(\"return_rate\") OVER (), 0), 4)\n  END AS share_of_total_pct,\n  ROUND(\"return_rate\" - MAX(\"return_rate\") OVER (), 6) AS diff_vs_best,\n  ROW_NUMBER() OVER (ORDER BY \"return_rate\" DESC NULLS LAST) AS rank_desc\nFROM base\nORDER BY \"return_rate\" DESC NULLS LAST",
+      "columns": [
+        "customer_segment",
+        "return_rate",
+        "share_of_total_pct",
+        "diff_vs_best",
+        "rank_desc"
+      ],
+      "rows": [
+        [
+          "new",
+          9.956508232370302,
+          30.1248,
+          0.0,
+          1
+        ],
+        [
+          "vip",
+          7.744230435537046,
+          23.4313,
+          -2.212278,
+          2
+        ],
+        [
+          "returning",
+          7.691232646976614,
+          23.2709,
+          -2.265276,
+          3
+        ],
+        [
+          "loyal",
+          7.658872077028886,
+          23.173,
+          -2.297636,
+          4
+        ]
+      ],
+      "row_count": 4,
+      "truncated": false,
+      "dataset_fingerprint": "sha256:8e9ad9348f7dc18660d78ed3cd4d4b32",
+      "started_at": 1791252241.451924,
+      "duration_ms": 12.322,
+      "parameters": {
+        "metric": "return_rate",
+        "dimension": "customer_segment",
+        "segments": [],
+        "filters": []
+      },
+      "warnings": [],
+      "statistical_result": null,
+      "decomposition": null,
+      "withhold_cells": false,
+      "column_types": {
+        "customer_segment": "VARCHAR",
+        "return_rate": "DOUBLE",
+        "share_of_total_pct": "DOUBLE",
+        "diff_vs_best": "DOUBLE",
+        "rank_desc": "BIGINT"
+      },
+      "column_lineage": {},
+      "group_coverage": null
+    },
+    "res_8eaf50a407d5": {
+      "result_id": "res_8eaf50a407d5",
       "tool_name": "analyze_timeseries",
       "task_id": "task_01",
       "sql": "WITH base AS (\nSELECT date_trunc('month', order_date) AS period, 100.0 * SUM(is_returned) / NULLIF(COUNT(*), 0) AS \"return_rate\"\nFROM (\nSELECT\n  o.order_id,\n  o.order_date,\n  o.customer_id,\n  o.channel            AS order_channel,\n  o.discount_rate,\n  o.shipping_cost,\n  o.status,\n  o.is_first_order,\n  i.order_item_id,\n  i.product_id,\n  i.quantity,\n  i.unit_price,\n  i.unit_cost,\n  i.list_price,\n  i.discount_amount,\n  p.category,\n  p.brand,\n  c.region,\n  c.customer_segment,\n  c.acquisition_channel,\n  CASE WHEN r.return_id IS NULL THEN 0 ELSE 1 END AS is_returned,\n  COALESCE(r.refund_amount, 0)                    AS refund_amount,\n  r.return_reason\nFROM orders o\nJOIN order_items i ON i.order_id = o.order_id\nJOIN products p    ON p.product_id = i.product_id\nJOIN customers c   ON c.customer_id = o.customer_id\nLEFT JOIN returns r ON r.order_item_id = i.order_item_id\n) AS m\nGROUP BY date_trunc('month', order_date)\nORDER BY date_trunc('month', order_date)\n)\nSELECT period, \"return_rate\",\n  LAG(\"return_rate\") OVER (ORDER BY period) AS prev_period,\n  ROUND(\"return_rate\" - LAG(\"return_rate\") OVER (ORDER BY period), 6) AS change_abs,\n  ROUND(100.0 * (\"return_rate\" - LAG(\"return_rate\") OVER (ORDER BY period))\n        / NULLIF(ABS(LAG(\"return_rate\") OVER (ORDER BY period)), 0), 4) AS change_pct\nFROM base\nORDER BY period",
@@ -1333,8 +1400,8 @@
       "row_count": 24,
       "truncated": false,
       "dataset_fingerprint": "sha256:8e9ad9348f7dc18660d78ed3cd4d4b32",
-      "started_at": 1791246052.604994,
-      "duration_ms": 13.514,
+      "started_at": 1791252241.4519832,
+      "duration_ms": 25.316,
       "parameters": {
         "metric": "return_rate",
         "grain": "month",
@@ -1355,75 +1422,8 @@
       "column_lineage": {},
       "group_coverage": null
     },
-    "res_1e80485a41e6": {
-      "result_id": "res_1e80485a41e6",
-      "tool_name": "compare_segments",
-      "task_id": "task_02",
-      "sql": "WITH base AS (\nSELECT \"customer_segment\" AS \"customer_segment\", 100.0 * SUM(is_returned) / NULLIF(COUNT(*), 0) AS \"return_rate\"\nFROM (\nSELECT\n  o.order_id,\n  o.order_date,\n  o.customer_id,\n  o.channel            AS order_channel,\n  o.discount_rate,\n  o.shipping_cost,\n  o.status,\n  o.is_first_order,\n  i.order_item_id,\n  i.product_id,\n  i.quantity,\n  i.unit_price,\n  i.unit_cost,\n  i.list_price,\n  i.discount_amount,\n  p.category,\n  p.brand,\n  c.region,\n  c.customer_segment,\n  c.acquisition_channel,\n  CASE WHEN r.return_id IS NULL THEN 0 ELSE 1 END AS is_returned,\n  COALESCE(r.refund_amount, 0)                    AS refund_amount,\n  r.return_reason\nFROM orders o\nJOIN order_items i ON i.order_id = o.order_id\nJOIN products p    ON p.product_id = i.product_id\nJOIN customers c   ON c.customer_id = o.customer_id\nLEFT JOIN returns r ON r.order_item_id = i.order_item_id\n) AS m\nGROUP BY \"customer_segment\"\nORDER BY \"customer_segment\"\n)\nSELECT \"customer_segment\", \"return_rate\",\n  CASE WHEN MIN(\"return_rate\") OVER () >= 0 THEN\n    ROUND(100.0 * \"return_rate\" / NULLIF(SUM(\"return_rate\") OVER (), 0), 4)\n  END AS share_of_total_pct,\n  ROUND(\"return_rate\" - MAX(\"return_rate\") OVER (), 6) AS diff_vs_best,\n  ROW_NUMBER() OVER (ORDER BY \"return_rate\" DESC NULLS LAST) AS rank_desc\nFROM base\nORDER BY \"return_rate\" DESC NULLS LAST",
-      "columns": [
-        "customer_segment",
-        "return_rate",
-        "share_of_total_pct",
-        "diff_vs_best",
-        "rank_desc"
-      ],
-      "rows": [
-        [
-          "new",
-          9.956508232370302,
-          30.1248,
-          0.0,
-          1
-        ],
-        [
-          "vip",
-          7.744230435537046,
-          23.4313,
-          -2.212278,
-          2
-        ],
-        [
-          "returning",
-          7.691232646976614,
-          23.2709,
-          -2.265276,
-          3
-        ],
-        [
-          "loyal",
-          7.658872077028886,
-          23.173,
-          -2.297636,
-          4
-        ]
-      ],
-      "row_count": 4,
-      "truncated": false,
-      "dataset_fingerprint": "sha256:8e9ad9348f7dc18660d78ed3cd4d4b32",
-      "started_at": 1791246052.60506,
-      "duration_ms": 33.761,
-      "parameters": {
-        "metric": "return_rate",
-        "dimension": "customer_segment",
-        "segments": [],
-        "filters": []
-      },
-      "warnings": [],
-      "statistical_result": null,
-      "decomposition": null,
-      "withhold_cells": false,
-      "column_types": {
-        "customer_segment": "VARCHAR",
-        "return_rate": "DOUBLE",
-        "share_of_total_pct": "DOUBLE",
-        "diff_vs_best": "DOUBLE",
-        "rank_desc": "BIGINT"
-      },
-      "column_lineage": {},
-      "group_coverage": null
-    },
-    "res_7a1f408e000d": {
-      "result_id": "res_7a1f408e000d",
+    "res_e28062f8231b": {
+      "result_id": "res_e28062f8231b",
       "tool_name": "statistical_test",
       "task_id": "task_03",
       "sql": "SELECT * FROM (\nSELECT\n  o.order_id,\n  o.order_date,\n  o.customer_id,\n  o.channel            AS order_channel,\n  o.discount_rate,\n  o.shipping_cost,\n  o.status,\n  o.is_first_order,\n  i.order_item_id,\n  i.product_id,\n  i.quantity,\n  i.unit_price,\n  i.unit_cost,\n  i.list_price,\n  i.discount_amount,\n  p.category,\n  p.brand,\n  c.region,\n  c.customer_segment,\n  c.acquisition_channel,\n  CASE WHEN r.return_id IS NULL THEN 0 ELSE 1 END AS is_returned,\n  COALESCE(r.refund_amount, 0)                    AS refund_amount,\n  r.return_reason\nFROM orders o\nJOIN order_items i ON i.order_id = o.order_id\nJOIN products p    ON p.product_id = i.product_id\nJOIN customers c   ON c.customer_id = o.customer_id\nLEFT JOIN returns r ON r.order_item_id = i.order_item_id\n) AS r",
@@ -1477,7 +1477,7 @@
       "row_count": 4,
       "truncated": false,
       "dataset_fingerprint": "sha256:8e9ad9348f7dc18660d78ed3cd4d4b32",
-      "started_at": 1791246052.658585,
+      "started_at": 1791252241.4943979,
       "duration_ms": 0.0,
       "parameters": {
         "test_type": "chi_square",
@@ -1527,22 +1527,6 @@
   },
   "mcp_trace": [
     {
-      "tool_name": "analyze_timeseries",
-      "agent": "analysis_worker",
-      "task_id": "task_01",
-      "arguments": {
-        "metric": "return_rate",
-        "grain": "month",
-        "filters": [],
-        "task_id": "task_01"
-      },
-      "duration_ms": 26.69,
-      "result_id": "res_f11e390adb82",
-      "row_count": 24,
-      "ok": true,
-      "error": null
-    },
-    {
       "tool_name": "compare_segments",
       "agent": "analysis_worker",
       "task_id": "task_02",
@@ -1552,9 +1536,25 @@
         "filters": [],
         "task_id": "task_02"
       },
-      "duration_ms": 41.85,
-      "result_id": "res_1e80485a41e6",
+      "duration_ms": 19.46,
+      "result_id": "res_fb32e64db911",
       "row_count": 4,
+      "ok": true,
+      "error": null
+    },
+    {
+      "tool_name": "analyze_timeseries",
+      "agent": "analysis_worker",
+      "task_id": "task_01",
+      "arguments": {
+        "metric": "return_rate",
+        "grain": "month",
+        "filters": [],
+        "task_id": "task_01"
+      },
+      "duration_ms": 33.5,
+      "result_id": "res_8eaf50a407d5",
+      "row_count": 24,
       "ok": true,
       "error": null
     },
@@ -1572,8 +1572,8 @@
         "filters": [],
         "task_id": "task_03"
       },
-      "duration_ms": 59.29,
-      "result_id": "res_7a1f408e000d",
+      "duration_ms": 47.88,
+      "result_id": "res_e28062f8231b",
       "row_count": 4,
       "ok": true,
       "error": null
@@ -1581,22 +1581,22 @@
   ],
   "events": [
     {
-      "event_id": "ev_be2acd3cb74b",
+      "event_id": "ev_e6f0b0528918",
       "seq": 1,
       "type": "run_started",
-      "at": 1791246052.574836,
+      "at": 1791252241.425199,
       "data": {
-        "run_id": "run_1a10e95acde",
+        "run_id": "run_1a10ef41c11",
         "question": "Which customer segments are driving the increase in return rate?",
         "provider": "fake",
-        "session_id": "ses_-47zdFV57EBT6Q9R"
+        "session_id": "ses_lfhkR2v7xKctrS8H"
       }
     },
     {
-      "event_id": "ev_ef7cca6a1ca1",
+      "event_id": "ev_f837c578f4af",
       "seq": 2,
       "type": "dataset_loaded",
-      "at": 1791246052.5955179,
+      "at": 1791252241.443375,
       "data": {
         "dataset_kind": "demo",
         "source": "Commerce demo warehouse",
@@ -1656,10 +1656,10 @@
       }
     },
     {
-      "event_id": "ev_d4349de70080",
+      "event_id": "ev_1febcac9629a",
       "seq": 3,
       "type": "question_analyzed",
-      "at": 1791246052.5968919,
+      "at": 1791252241.444577,
       "data": {
         "intent": "Which customer segments are driving the increase in return rate?",
         "analysis_type": "segmentation",
@@ -1677,10 +1677,10 @@
       }
     },
     {
-      "event_id": "ev_3aafd12291ec",
+      "event_id": "ev_9abf9e7e1f0b",
       "seq": 4,
       "type": "plan_generated",
-      "at": 1791246052.600205,
+      "at": 1791252241.447399,
       "data": {
         "task_count": 3,
         "tasks": [
@@ -1725,10 +1725,10 @@
       }
     },
     {
-      "event_id": "ev_a86ccdd08117",
+      "event_id": "ev_e2209f9b5ba5",
       "seq": 5,
       "type": "analysis_task_started",
-      "at": 1791246052.6016052,
+      "at": 1791252241.4486861,
       "data": {
         "task_id": "task_01",
         "objective": "Track return_rate over time to locate when it moved",
@@ -1741,10 +1741,10 @@
       }
     },
     {
-      "event_id": "ev_ba64d7bcc4d9",
+      "event_id": "ev_439d1c3d6f5e",
       "seq": 6,
       "type": "mcp_tool_called",
-      "at": 1791246052.6021628,
+      "at": 1791252241.449234,
       "data": {
         "tool_name": "analyze_timeseries",
         "agent": "analysis_worker",
@@ -1764,10 +1764,10 @@
       }
     },
     {
-      "event_id": "ev_26c126184dc3",
+      "event_id": "ev_b57e685bd237",
       "seq": 7,
       "type": "analysis_task_started",
-      "at": 1791246052.6026392,
+      "at": 1791252241.4496691,
       "data": {
         "task_id": "task_02",
         "objective": "Compare return_rate across customer_segment to find where the change concentrates",
@@ -1782,10 +1782,10 @@
       }
     },
     {
-      "event_id": "ev_989f07bde3c2",
+      "event_id": "ev_814659476276",
       "seq": 8,
       "type": "mcp_tool_called",
-      "at": 1791246052.60307,
+      "at": 1791252241.450101,
       "data": {
         "tool_name": "compare_segments",
         "agent": "analysis_worker",
@@ -1805,10 +1805,10 @@
       }
     },
     {
-      "event_id": "ev_aac6ccdf5103",
+      "event_id": "ev_74cb04ad9410",
       "seq": 9,
       "type": "analysis_task_started",
-      "at": 1791246052.6039739,
+      "at": 1791252241.4509141,
       "data": {
         "task_id": "task_03",
         "objective": "Test whether return rate is independent of customer segment",
@@ -1823,10 +1823,10 @@
       }
     },
     {
-      "event_id": "ev_257d2de36cd4",
+      "event_id": "ev_0229d41bb1b1",
       "seq": 10,
       "type": "mcp_tool_called",
-      "at": 1791246052.6044328,
+      "at": 1791252241.451388,
       "data": {
         "tool_name": "statistical_test",
         "agent": "analysis_worker",
@@ -1850,63 +1850,10 @@
       }
     },
     {
-      "event_id": "ev_88d846474170",
+      "event_id": "ev_0dcbe3a44f49",
       "seq": 11,
       "type": "mcp_tool_completed",
-      "at": 1791246052.628932,
-      "data": {
-        "tool_name": "analyze_timeseries",
-        "agent": "analysis_worker",
-        "task_id": "task_01",
-        "arguments": {
-          "metric": "return_rate",
-          "grain": "month",
-          "filters": [],
-          "task_id": "task_01"
-        },
-        "duration_ms": 26.69,
-        "result_id": "res_f11e390adb82",
-        "row_count": 24,
-        "ok": true,
-        "error": null
-      }
-    },
-    {
-      "event_id": "ev_359a817b8198",
-      "seq": 12,
-      "type": "finding_proposed",
-      "at": 1791246052.632908,
-      "data": {
-        "finding_id": "task_01:fin_9cf1d44c:0",
-        "task_id": "task_01",
-        "kind": "calculated_fact",
-        "text": "return_rate fell from 8.51% in 2025-01-01 to 7.80% in 2025-02-01, a change of 0.71 percentage points.",
-        "result_ids": [
-          "res_f11e390adb82"
-        ]
-      }
-    },
-    {
-      "event_id": "ev_1e275fc6233d",
-      "seq": 13,
-      "type": "analysis_task_completed",
-      "at": 1791246052.6329339,
-      "data": {
-        "task_id": "task_01",
-        "objective": "Track return_rate over time to locate when it moved",
-        "status": "succeeded",
-        "findings": 1,
-        "tool_calls": 1,
-        "result_ids": [
-          "res_f11e390adb82"
-        ]
-      }
-    },
-    {
-      "event_id": "ev_a2a38a33390d",
-      "seq": 14,
-      "type": "mcp_tool_completed",
-      "at": 1791246052.6451242,
+      "at": 1791252241.469598,
       "data": {
         "tool_name": "compare_segments",
         "agent": "analysis_worker",
@@ -1917,33 +1864,33 @@
           "filters": [],
           "task_id": "task_02"
         },
-        "duration_ms": 41.85,
-        "result_id": "res_1e80485a41e6",
+        "duration_ms": 19.46,
+        "result_id": "res_fb32e64db911",
         "row_count": 4,
         "ok": true,
         "error": null
       }
     },
     {
-      "event_id": "ev_a354ee11d7dd",
-      "seq": 15,
+      "event_id": "ev_f4e4ec358efa",
+      "seq": 12,
       "type": "finding_proposed",
-      "at": 1791246052.647433,
+      "at": 1791252241.471457,
       "data": {
-        "finding_id": "task_02:fin_eb2771e1:0",
+        "finding_id": "task_02:fin_b694907e:0",
         "task_id": "task_02",
         "kind": "calculated_fact",
         "text": "Across customer_segment, new has the highest return_rate at 9.96% and loyal the lowest at 7.66%.",
         "result_ids": [
-          "res_1e80485a41e6"
+          "res_fb32e64db911"
         ]
       }
     },
     {
-      "event_id": "ev_1b85544f7633",
-      "seq": 16,
+      "event_id": "ev_f1db7db7cb95",
+      "seq": 13,
       "type": "analysis_task_completed",
-      "at": 1791246052.647455,
+      "at": 1791252241.4714801,
       "data": {
         "task_id": "task_02",
         "objective": "Compare return_rate across customer_segment to find where the change concentrates",
@@ -1951,15 +1898,68 @@
         "findings": 1,
         "tool_calls": 1,
         "result_ids": [
-          "res_1e80485a41e6"
+          "res_fb32e64db911"
         ]
       }
     },
     {
-      "event_id": "ev_f0e21480a260",
+      "event_id": "ev_7e6f4108c833",
+      "seq": 14,
+      "type": "mcp_tool_completed",
+      "at": 1791252241.482767,
+      "data": {
+        "tool_name": "analyze_timeseries",
+        "agent": "analysis_worker",
+        "task_id": "task_01",
+        "arguments": {
+          "metric": "return_rate",
+          "grain": "month",
+          "filters": [],
+          "task_id": "task_01"
+        },
+        "duration_ms": 33.5,
+        "result_id": "res_8eaf50a407d5",
+        "row_count": 24,
+        "ok": true,
+        "error": null
+      }
+    },
+    {
+      "event_id": "ev_f582424338a7",
+      "seq": 15,
+      "type": "finding_proposed",
+      "at": 1791252241.484853,
+      "data": {
+        "finding_id": "task_01:fin_78466980:0",
+        "task_id": "task_01",
+        "kind": "calculated_fact",
+        "text": "return_rate fell from 8.51% in 2025-01-01 to 7.80% in 2025-02-01, a change of 0.71 percentage points.",
+        "result_ids": [
+          "res_8eaf50a407d5"
+        ]
+      }
+    },
+    {
+      "event_id": "ev_f7b931cdea0c",
+      "seq": 16,
+      "type": "analysis_task_completed",
+      "at": 1791252241.484873,
+      "data": {
+        "task_id": "task_01",
+        "objective": "Track return_rate over time to locate when it moved",
+        "status": "succeeded",
+        "findings": 1,
+        "tool_calls": 1,
+        "result_ids": [
+          "res_8eaf50a407d5"
+        ]
+      }
+    },
+    {
+      "event_id": "ev_0ac7910779e7",
       "seq": 17,
       "type": "mcp_tool_completed",
-      "at": 1791246052.663761,
+      "at": 1791252241.499298,
       "data": {
         "tool_name": "statistical_test",
         "agent": "analysis_worker",
@@ -1974,48 +1974,48 @@
           "filters": [],
           "task_id": "task_03"
         },
-        "duration_ms": 59.29,
-        "result_id": "res_7a1f408e000d",
+        "duration_ms": 47.88,
+        "result_id": "res_e28062f8231b",
         "row_count": 4,
         "ok": true,
         "error": null
       }
     },
     {
-      "event_id": "ev_16ae00548a68",
+      "event_id": "ev_fe7c8ecb251e",
       "seq": 18,
       "type": "finding_proposed",
-      "at": 1791246052.6657221,
+      "at": 1791252241.5011609,
       "data": {
-        "finding_id": "task_03:fin_0a8fa34e:0",
+        "finding_id": "task_03:fin_090215d4:0",
         "task_id": "task_03",
         "kind": "statistical_result",
         "text": "A chi-square test of independence on total=19,471 returned p = 2.62e-12 with Cramer's V = 0.039; the difference is statistically significant at the 5% level.",
         "result_ids": [
-          "res_7a1f408e000d"
+          "res_e28062f8231b"
         ]
       }
     },
     {
-      "event_id": "ev_d98c89f38be7",
+      "event_id": "ev_0906c515bf63",
       "seq": 19,
       "type": "finding_proposed",
-      "at": 1791246052.6657321,
+      "at": 1791252241.50117,
       "data": {
-        "finding_id": "task_03:fin_4f0d83d0:1",
+        "finding_id": "task_03:fin_b9d327ca:1",
         "task_id": "task_03",
         "kind": "interpretation",
         "text": "Being in the loyal group causes the observed difference versus new.",
         "result_ids": [
-          "res_7a1f408e000d"
+          "res_e28062f8231b"
         ]
       }
     },
     {
-      "event_id": "ev_d43f993e1301",
+      "event_id": "ev_33c8d341f267",
       "seq": 20,
       "type": "analysis_task_completed",
-      "at": 1791246052.66575,
+      "at": 1791252241.5011892,
       "data": {
         "task_id": "task_03",
         "objective": "Test whether return rate is independent of customer segment",
@@ -2023,17 +2023,17 @@
         "findings": 2,
         "tool_calls": 1,
         "result_ids": [
-          "res_7a1f408e000d"
+          "res_e28062f8231b"
         ]
       }
     },
     {
-      "event_id": "ev_cb2d0935df09",
+      "event_id": "ev_39f03065387d",
       "seq": 21,
       "type": "finding_verified",
-      "at": 1791246052.668066,
+      "at": 1791252241.503248,
       "data": {
-        "finding_id": "task_01:fin_9cf1d44c:0",
+        "finding_id": "task_01:fin_78466980:0",
         "task_id": "task_01",
         "status": "supported",
         "reason": "The wording matches the values in the cited result.",
@@ -2041,12 +2041,12 @@
       }
     },
     {
-      "event_id": "ev_f106ba8ccfd4",
+      "event_id": "ev_6bda9d0edebc",
       "seq": 22,
       "type": "finding_verified",
-      "at": 1791246052.6688,
+      "at": 1791252241.5038972,
       "data": {
-        "finding_id": "task_02:fin_eb2771e1:0",
+        "finding_id": "task_02:fin_b694907e:0",
         "task_id": "task_02",
         "status": "supported",
         "reason": "The wording matches the values in the cited result.",
@@ -2054,12 +2054,12 @@
       }
     },
     {
-      "event_id": "ev_34414ee09b57",
+      "event_id": "ev_4097cfb6bf50",
       "seq": 23,
       "type": "finding_verified",
-      "at": 1791246052.669502,
+      "at": 1791252241.5045602,
       "data": {
-        "finding_id": "task_03:fin_0a8fa34e:0",
+        "finding_id": "task_03:fin_090215d4:0",
         "task_id": "task_03",
         "status": "supported",
         "reason": "The wording matches the values in the cited result.",
@@ -2067,12 +2067,12 @@
       }
     },
     {
-      "event_id": "ev_1fde6bc07ed6",
+      "event_id": "ev_53c8621b7d21",
       "seq": 24,
       "type": "finding_rejected",
-      "at": 1791246052.669543,
+      "at": 1791252241.504599,
       "data": {
-        "finding_id": "task_03:fin_4f0d83d0:1",
+        "finding_id": "task_03:fin_b9d327ca:1",
         "task_id": "task_03",
         "status": "unsupported",
         "reason": "The claim asserts causation from observational data. The groups were not randomly assigned, so the result supports an association only.",
@@ -2080,64 +2080,64 @@
       }
     },
     {
-      "event_id": "ev_57ef7a664ca0",
+      "event_id": "ev_a374892585ac",
       "seq": 25,
       "type": "chart_created",
-      "at": 1791246052.671018,
+      "at": 1791252241.506068,
       "data": {
-        "chart_id": "cht_4d0ab506",
-        "result_id": "res_f11e390adb82",
+        "chart_id": "cht_74b9ce2f",
+        "result_id": "res_8eaf50a407d5",
         "title": "Return rate by month",
         "mark": "line",
         "finding_ids": [
-          "task_01:fin_9cf1d44c:0"
+          "task_01:fin_78466980:0"
         ]
       }
     },
     {
-      "event_id": "ev_77608141d1bd",
+      "event_id": "ev_a271fc86f00d",
       "seq": 26,
       "type": "chart_created",
-      "at": 1791246052.6715379,
+      "at": 1791252241.506575,
       "data": {
-        "chart_id": "cht_3d27f5f9",
-        "result_id": "res_1e80485a41e6",
+        "chart_id": "cht_f5d82b3b",
+        "result_id": "res_fb32e64db911",
         "title": "Return rate by customer segment",
         "mark": "bar",
         "finding_ids": [
-          "task_02:fin_eb2771e1:0"
+          "task_02:fin_b694907e:0"
         ]
       }
     },
     {
-      "event_id": "ev_ec577adb9104",
+      "event_id": "ev_a1924d06ae77",
       "seq": 27,
       "type": "chart_created",
-      "at": 1791246052.672278,
+      "at": 1791252241.507261,
       "data": {
-        "chart_id": "cht_e171167f",
-        "result_id": "res_7a1f408e000d",
+        "chart_id": "cht_fcf0906d",
+        "result_id": "res_e28062f8231b",
         "title": "Arrived late by customer segment",
         "mark": "bar",
         "finding_ids": [
-          "task_03:fin_0a8fa34e:0"
+          "task_03:fin_090215d4:0"
         ]
       }
     },
     {
-      "event_id": "ev_95da76c6c598",
+      "event_id": "ev_09883e86d3af",
       "seq": 28,
       "type": "report_started",
-      "at": 1791246052.672708,
+      "at": 1791252241.507684,
       "data": {
         "finding_count": 3
       }
     },
     {
-      "event_id": "ev_5661e8856e79",
+      "event_id": "ev_7c2c927db6fc",
       "seq": 29,
       "type": "report_completed",
-      "at": 1791246052.674093,
+      "at": 1791252241.5090592,
       "data": {
         "finding_count": 3,
         "rejected_count": 1,
@@ -2149,13 +2149,13 @@
       }
     },
     {
-      "event_id": "ev_7fe36995e12c",
+      "event_id": "ev_5333b52033eb",
       "seq": 30,
       "type": "run_completed",
-      "at": 1791246052.6747808,
+      "at": 1791252241.509774,
       "data": {
-        "run_id": "run_1a10e95acde",
-        "runtime_seconds": 0.1,
+        "run_id": "run_1a10ef41c11",
+        "runtime_seconds": 0.085,
         "provider": "fake",
         "analysis_tasks": 3,
         "tasks_succeeded": 3,
@@ -2176,7 +2176,7 @@
     }
   ],
   "metrics": {
-    "runtime_seconds": 0.1,
+    "runtime_seconds": 0.085,
     "provider": "fake",
     "analysis_tasks": 3,
     "tasks_succeeded": 3,
@@ -2204,6 +2204,334 @@
     }
   },
   "stopped_reason": "",
+  "presentation": {
+    "schema_version": "1.0",
+    "shape": "categorical_breakdown",
+    "headline": "Return rate is highest for new, at 9.96%, and lowest for loyal, at 7.66%.",
+    "secondary_summary": "All groups are in the table below.",
+    "highlights": [
+      {
+        "highlight_id": "highest",
+        "label": "Highest: new",
+        "value": {
+          "raw_value": 9.956508232370302,
+          "formatted_value": "9.96%",
+          "unit": "%"
+        },
+        "comparison_value": null,
+        "delta": null,
+        "evidence_cells": [
+          {
+            "result_id": "res_fb32e64db911",
+            "row": 0,
+            "column": "return_rate",
+            "value": 9.956508232370302,
+            "label": "return rate, highest"
+          }
+        ],
+        "interpretation_level": "measured"
+      },
+      {
+        "highlight_id": "lowest",
+        "label": "Lowest: loyal",
+        "value": {
+          "raw_value": 7.658872077028886,
+          "formatted_value": "7.66%",
+          "unit": "%"
+        },
+        "comparison_value": null,
+        "delta": null,
+        "evidence_cells": [
+          {
+            "result_id": "res_fb32e64db911",
+            "row": 3,
+            "column": "return_rate",
+            "value": 7.658872077028886,
+            "label": "return rate, lowest"
+          }
+        ],
+        "interpretation_level": "measured"
+      }
+    ],
+    "scope": {
+      "rows_total": null,
+      "rows_matching": null,
+      "rows_represented": null,
+      "observations_matching": null,
+      "observations_represented": null,
+      "groups_returned": null,
+      "groups_total": null,
+      "complete": null,
+      "filters": [],
+      "period": null,
+      "ordering": null
+    },
+    "display_fields": [
+      {
+        "source_name": "return_rate",
+        "display_label": "Return rate",
+        "semantic_kind": "measure",
+        "unit": "%",
+        "precision": 2,
+        "boolean_labels": null,
+        "ordered": true,
+        "identifier": false,
+        "sensitive": false,
+        "time_grain": null
+      },
+      {
+        "source_name": "customer_segment",
+        "display_label": "Customer segment",
+        "semantic_kind": "category",
+        "unit": null,
+        "precision": null,
+        "boolean_labels": null,
+        "ordered": false,
+        "identifier": false,
+        "sensitive": false,
+        "time_grain": null
+      },
+      {
+        "source_name": "share_of_total_pct",
+        "display_label": "Share of the total",
+        "semantic_kind": "measure",
+        "unit": "%",
+        "precision": 2,
+        "boolean_labels": null,
+        "ordered": true,
+        "identifier": false,
+        "sensitive": false,
+        "time_grain": null
+      },
+      {
+        "source_name": "diff_vs_best",
+        "display_label": "Difference from the highest",
+        "semantic_kind": "measure",
+        "unit": "pp",
+        "precision": 2,
+        "boolean_labels": null,
+        "ordered": true,
+        "identifier": false,
+        "sensitive": false,
+        "time_grain": null
+      },
+      {
+        "source_name": "rank_desc",
+        "display_label": "Rank",
+        "semantic_kind": "ordered_numeric",
+        "unit": null,
+        "precision": 0,
+        "boolean_labels": null,
+        "ordered": true,
+        "identifier": false,
+        "sensitive": false,
+        "time_grain": null
+      }
+    ],
+    "table": {
+      "result_id": "res_fb32e64db911",
+      "visible_columns": [
+        "customer_segment",
+        "return_rate"
+      ],
+      "display_fields": [
+        {
+          "source_name": "return_rate",
+          "display_label": "Return rate",
+          "semantic_kind": "measure",
+          "unit": "%",
+          "precision": 2,
+          "boolean_labels": null,
+          "ordered": true,
+          "identifier": false,
+          "sensitive": false,
+          "time_grain": null
+        },
+        {
+          "source_name": "customer_segment",
+          "display_label": "Customer segment",
+          "semantic_kind": "category",
+          "unit": null,
+          "precision": null,
+          "boolean_labels": null,
+          "ordered": false,
+          "identifier": false,
+          "sensitive": false,
+          "time_grain": null
+        },
+        {
+          "source_name": "share_of_total_pct",
+          "display_label": "Share of the total",
+          "semantic_kind": "measure",
+          "unit": "%",
+          "precision": 2,
+          "boolean_labels": null,
+          "ordered": true,
+          "identifier": false,
+          "sensitive": false,
+          "time_grain": null
+        },
+        {
+          "source_name": "diff_vs_best",
+          "display_label": "Difference from the highest",
+          "semantic_kind": "measure",
+          "unit": "pp",
+          "precision": 2,
+          "boolean_labels": null,
+          "ordered": true,
+          "identifier": false,
+          "sensitive": false,
+          "time_grain": null
+        },
+        {
+          "source_name": "rank_desc",
+          "display_label": "Rank",
+          "semantic_kind": "ordered_numeric",
+          "unit": null,
+          "precision": 0,
+          "boolean_labels": null,
+          "ordered": true,
+          "identifier": false,
+          "sensitive": false,
+          "time_grain": null
+        }
+      ],
+      "default_sort": null,
+      "preview_limit": null,
+      "complete": null
+    },
+    "chart": {
+      "chart_id": "task_01:fin_78466980:0",
+      "result_id": "res_fb32e64db911",
+      "kind": "bar",
+      "title": "Return rate by customer segment",
+      "subtitle": null,
+      "x_field": "customer_segment",
+      "y_field": "return_rate",
+      "series_field": null,
+      "no_chart_reason": null,
+      "spec": {
+        "$schema": "https://vega.github.io/schema/vega-lite/v5.json",
+        "title": "Return rate by customer segment",
+        "mark": {
+          "type": "bar",
+          "tooltip": true
+        },
+        "encoding": {
+          "x": {
+            "field": "customer_segment",
+            "type": "nominal",
+            "title": "Customer segment",
+            "axis": {
+              "labelOverlap": "greedy",
+              "labelAngle": -30,
+              "labelLimit": 120
+            },
+            "scale": {
+              "paddingInner": 0.3,
+              "paddingOuter": 0.15
+            }
+          },
+          "y": {
+            "field": "return_rate",
+            "type": "quantitative",
+            "title": "Return rate (%)",
+            "axis": {
+              "format": ",.2f"
+            }
+          },
+          "tooltip": [
+            {
+              "field": "customer_segment",
+              "type": "nominal",
+              "title": "Customer segment"
+            },
+            {
+              "field": "return_rate",
+              "type": "quantitative",
+              "title": "Return rate (%)",
+              "format": ",.2f"
+            },
+            {
+              "field": "share_of_total_pct",
+              "type": "quantitative",
+              "title": "Share of the total (%)",
+              "format": ",.2f"
+            },
+            {
+              "field": "diff_vs_best",
+              "type": "quantitative",
+              "title": "Difference from the highest (pp)",
+              "format": ",.2f"
+            },
+            {
+              "field": "rank_desc",
+              "type": "quantitative",
+              "title": "Rank",
+              "format": ",d"
+            }
+          ]
+        },
+        "width": "container",
+        "height": 240,
+        "padding": {
+          "left": 4,
+          "right": 8,
+          "top": 4,
+          "bottom": 4
+        }
+      }
+    },
+    "caveats": [],
+    "provenance_refs": [
+      {
+        "finding_id": "task_01:fin_78466980:0",
+        "result_id": "res_fb32e64db911",
+        "evidence_cells": [
+          {
+            "result_id": "res_8eaf50a407d5",
+            "row": 12,
+            "column": "return_rate",
+            "value": 8.512916610895463,
+            "label": "return_rate at 2025-01-01"
+          },
+          {
+            "result_id": "res_8eaf50a407d5",
+            "row": 13,
+            "column": "return_rate",
+            "value": 7.800441014332966,
+            "label": "return_rate at 2025-02-01"
+          }
+        ]
+      },
+      {
+        "finding_id": "task_02:fin_b694907e:0",
+        "result_id": "res_fb32e64db911",
+        "evidence_cells": [
+          {
+            "result_id": "res_fb32e64db911",
+            "row": 0,
+            "column": "return_rate",
+            "value": 9.956508232370302,
+            "label": "return_rate for new"
+          },
+          {
+            "result_id": "res_fb32e64db911",
+            "row": 3,
+            "column": "return_rate",
+            "value": 7.658872077028886,
+            "label": "return_rate for loyal"
+          }
+        ]
+      },
+      {
+        "finding_id": "task_03:fin_090215d4:0",
+        "result_id": "res_fb32e64db911",
+        "evidence_cells": []
+      }
+    ],
+    "compatibility_derived": false
+  },
   "query_contract": null,
   "question_coverage": null,
   "planner_interpretation": {

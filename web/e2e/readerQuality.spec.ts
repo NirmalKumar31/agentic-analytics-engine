@@ -82,14 +82,18 @@ function assertFitForAReader(where: string, text: string): void {
    * engine wrote ("Aggregate" no longer appears, but a finding may say
    * "snapshot" of a dataset). The four rules asserted are the ones with no
    * honest reading on a primary surface: a float tail, a stored timestamp,
-   * an engine identifier, and a value that never arrived.
+   * an engine identifier, a value that never arrived, and a serialised
+   * collection.
    */
   const defects = readerDefects(text).filter(
     (found) =>
       found.defect === "excess_precision" ||
       found.defect === "iso_timestamp" ||
       found.defect === "snake_case" ||
-      found.defect === "missing_value",
+      found.defect === "missing_value" ||
+      // Both halves of what the scope line under every filtered headline
+      // published: `Order date None ['2025-01-01', '2025-12-31']`.
+      found.defect === "serialised_collection",
   );
   expect(defects, describeDefects(where, defects)).toEqual([]);
 }

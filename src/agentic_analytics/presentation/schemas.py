@@ -125,6 +125,13 @@ class DisplayField(Strict):
     identifier: bool = False
     #: Whether values should be withheld from non-provenance surfaces.
     sensitive: bool = False
+    #: The grain a TIME column buckets to, when the contract declared one.
+    #:
+    #: Carried on the field rather than looked up by each caller, because
+    #: that lookup is what the table skipped: the headline resolved the
+    #: grain and wrote "Oct 2025", the table did not and wrote
+    #: "2025-01-01T00:00:00", from the same cell.
+    time_grain: str | None = None
 
     @model_validator(mode="after")
     def _labels_only_for_booleans(self) -> DisplayField:

@@ -164,6 +164,8 @@ export interface DisplayField {
   ordered: boolean;
   identifier: boolean;
   sensitive: boolean;
+  /** The grain a `time` column buckets to, when the contract declared one. */
+  time_grain?: string | null;
 }
 
 export interface PresentationHighlight {

@@ -120,7 +120,10 @@ function assertFitForAReader(where: string, text: string): void {
       found.defect === "excess_precision" ||
       found.defect === "iso_timestamp" ||
       found.defect === "snake_case" ||
-      found.defect === "missing_value",
+      found.defect === "missing_value" ||
+      // Both halves of what the scope line published:
+      // `Order date None ['2025-01-01', '2025-12-31']`.
+      found.defect === "serialised_collection",
   );
   expect(defects, describeDefects(where, defects)).toEqual([]);
 }
@@ -205,48 +208,22 @@ test.describe("hosted visual acceptance", () => {
     await expect(panel.getByTestId("direct-answer")).toBeVisible();
 
     /*
-     * Reader quality on a recorded run, stated exactly.
+     * Reader quality on a recorded run, with no allowance.
      *
-     * A recording carries no presentation snapshot, so the whole report --
-     * headline, finding list, chart title and table headers -- falls back
-     * to the engine's own words and the result's own column names:
-     * "return_rate fell from 8.51% in 2025-01-01". On an uploaded run the
-     * presentation layer owns all of that and it reads as English. The
-     * three published recordings are the only thing a visitor without a
-     * credential can open, so this is the labelling a visitor meets.
+     * There used to be one. A recording carried no presentation snapshot,
+     * so the whole report -- headline, findings, chart title, table
+     * headers -- fell back to the engine's own words and the result's own
+     * column names: `return_rate fell from 8.51% in 2025-01-01`. The
+     * sweep bounded that to two defect kinds rather than ignoring it.
      *
-     * That is a real defect. It is reported as one and it is not fixed
-     * here: both available fixes cost more than they save, and
-     * `recordings/record.py` and the pull request say why.
-     *
-     * Bounded rather than excused. The gap is exactly two kinds -- an
-     * engine column name and a stored instant -- so a third kind, or the
-     * same two spreading past the report, fails this cell. The exact list
-     * is written into the run's own record, so the size of the gap is
-     * evidence rather than a remark.
+     * It is fixed rather than bounded now. The presentation layer types
+     * every derived column from what it derives from, recordings carry
+     * the snapshot, and a replayed report reads exactly as the run that
+     * produced it did. So the exemption is gone, and this is the same
+     * assertion `e2e/readerQuality.spec.ts` makes of a live run.
      */
-    const KNOWN_IN_A_RECORDED_RUN = ["snake_case", "iso_timestamp"];
     const prose = await proseOf(page, '[data-testid="report-panel"]');
-    expect(prose.trim().length, "the report rendered nothing to read")
-      .toBeGreaterThan(0);
-
-    const found = readerDefects(prose);
-    const widened = found.filter(
-      (defect) => !KNOWN_IN_A_RECORDED_RUN.includes(defect.defect),
-    ).filter(
-      (defect) =>
-        defect.defect === "excess_precision" || defect.defect === "missing_value",
-    );
-    expect(
-      widened,
-      describeDefects(`report prose at ${cell.name}`, widened),
-    ).toEqual([]);
-    info.annotations.push({
-      type: "known-gap",
-      description:
-        `recorded report prose at ${cell.name}: ` +
-        (found.map((d) => `${d.defect} (${d.evidence})`).join("; ") || "none"),
-    });
+    assertFitForAReader(`recorded report at ${cell.name}`, prose);
 
     // The chart, if the recording produced one, stays inside the column.
     const chart = panel.locator(".chart-host").first();

@@ -22,10 +22,16 @@ and they have no way to tell.
 
 from __future__ import annotations
 
+from decimal import Decimal, InvalidOperation
 from typing import Any
 
-from agentic_analytics.analytics.labels import column_label
+from agentic_analytics.analytics.labels import (
+    Derivation,
+    column_label,
+    derived_unit,
+)
 from agentic_analytics.presentation.schemas import DisplayField, SemanticKind
+from agentic_analytics.verification.canonical import format_number
 
 #: Column-name tokens that suggest a percentage. Necessary, never
 #: sufficient: the observed values must also sit in a percentage range.
@@ -124,11 +130,55 @@ def _looks_percentage(name: str, field: Any) -> bool:
     return 0.0 <= low <= high <= 100.0 and high > 1.0
 
 
+#: What each derivation looks like on screen. `precision` of 0 means a
+#: whole number: a count stored as `4.0` is four things, not 4.00.
+_DERIVED_DISPLAY: dict[Derivation, tuple[SemanticKind, int | None, bool]] = {
+    Derivation.SAME_AS_MEASURE: (SemanticKind.MEASURE, MEASURE_PRECISION, True),
+    Derivation.DELTA_OF_MEASURE: (SemanticKind.MEASURE, MEASURE_PRECISION, True),
+    Derivation.PROPORTION: (SemanticKind.MEASURE, MEASURE_PRECISION, True),
+    Derivation.PERIOD: (SemanticKind.TIME, None, True),
+    Derivation.COUNT: (SemanticKind.COUNT, 0, True),
+    Derivation.RANK: (SemanticKind.ORDERED_NUMERIC, 0, True),
+}
+
+
+def _derived_field(
+    field: Any,
+    derivation: Derivation,
+    measure_unit: str | None,
+    time_grain: str | None,
+) -> DisplayField:
+    """A column the analytics tools computed, described from what it is.
+
+    No evidence from the column's own values is consulted, deliberately.
+    `diff_vs_best` on a four-row breakdown holds values from -2.30 to 0,
+    and every rule in this module that reads a range would describe that as
+    something other than "a difference of two rates". The contract already
+    says what it is.
+    """
+    name = str(getattr(field, "name", "") or "")
+    kind, precision, ordered = _DERIVED_DISPLAY[derivation]
+    return DisplayField(
+        source_name=name,
+        display_label=humanize(name),
+        semantic_kind=kind,
+        unit=derived_unit(derivation, measure_unit),
+        precision=precision,
+        ordered=ordered,
+        identifier=False,
+        sensitive=False,
+        time_grain=time_grain if derivation is Derivation.PERIOD else None,
+    )
+
+
 def display_field_for(
     field: Any,
     *,
     observed_values: set[str] | None = None,
     unit: str | None = None,
+    derivation: Derivation | None = None,
+    measure_unit: str | None = None,
+    time_grain: str | None = None,
 ) -> DisplayField:
     """One column's presentation metadata.
 
@@ -136,7 +186,19 @@ def display_field_for(
     the same attributes, so a governed metric column can be described the
     same way. `unit` is only ever passed in from a source that actually
     declared one; this function never invents it.
+
+    `derivation` says the column is one the analytics tools computed, and
+    what it is relative to the measure. That is declared knowledge rather
+    than evidence about the column itself, so it wins: `period` has no
+    entry in the upload profile -- it did not exist before the query --
+    and inferring from what is left made it a CATEGORY, which is how a
+    stored instant reached a reader. `measure_unit` is the measure's own
+    unit, and a difference of two rates becomes percentage points rather
+    than inheriting the `%`.
     """
+    if derivation is not None:
+        return _derived_field(field, derivation, measure_unit, time_grain)
+
     name = str(getattr(field, "name", "") or "")
     role = str(getattr(field, "role", "") or "")
     boolean = _looks_boolean(field, observed_values)
@@ -181,7 +243,127 @@ def display_field_for(
         ordered=bool(ordered),
         identifier=kind is SemanticKind.IDENTIFIER,
         sensitive=False,
+        time_grain=time_grain if kind is SemanticKind.TIME else None,
     )
+
+
+#: Month abbreviations. Short enough for a chart axis, unambiguous in
+#: every locale this product renders.
+_MONTHS = (
+    "Jan",
+    "Feb",
+    "Mar",
+    "Apr",
+    "May",
+    "Jun",
+    "Jul",
+    "Aug",
+    "Sep",
+    "Oct",
+    "Nov",
+    "Dec",
+)
+
+
+def period_label(value: Any, grain: str | None = None) -> str:
+    """A period a reader can read.
+
+    The engine stores periods as ISO timestamps, and a headline that says
+    "peaked in 2025-12-01T00:00:00" is showing a reader a serialisation
+    format. The midnight suffix carries no information at any grain this
+    product aggregates to -- a monthly bucket is a month, not an instant --
+    so it is never shown.
+
+    Anything that does not parse is returned unchanged. A period this does
+    not understand is still the engine's own value, and guessing at it
+    would be worse than printing it.
+    """
+    text = str(value if value is not None else "").strip()
+    if not text:
+        return text
+    head = text.split("T")[0]
+    parts = head.split("-")
+    try:
+        if len(parts) >= 3:
+            year, month, day = int(parts[0]), int(parts[1]), int(parts[2])
+        elif len(parts) == 2:
+            year, month, day = int(parts[0]), int(parts[1]), 1
+        else:
+            return text
+    except ValueError:
+        return text
+    if not 1 <= month <= 12:
+        return text
+    if grain in {"day", "week"}:
+        return f"{_MONTHS[month - 1]} {day}, {year}"
+    if grain == "year":
+        return str(year)
+    # Month and quarter both read as a month: the bucket's first day is an
+    # implementation detail of how it is stored.
+    return f"{_MONTHS[month - 1]} {year}"
+
+
+#: Units written before the number rather than after it. A currency symbol
+#: is a prefix in every locale this product renders, and "65,435.38 $" is
+#: not a price anyone writes.
+_PREFIX_UNITS = frozenset({"$", "£", "€", "¥"})
+
+
+def with_unit(text: str, field: DisplayField | None) -> str:
+    """A formatted number, carrying the unit its field declares."""
+    if field is None or not field.unit:
+        return text
+    unit = field.unit
+    if unit in _PREFIX_UNITS:
+        return f"{unit}{text}"
+    # `%` sits tight against the number; a named unit -- `pp` -- takes a
+    # space, because "0.71pp" reads as a typo and "0.71 pp" reads as a
+    # measurement.
+    return f"{text}{'' if unit == '%' else ' '}{unit}"
+
+
+def _number(value: Any) -> Decimal | None:
+    try:
+        return Decimal(str(value))
+    except (TypeError, ValueError, ArithmeticError, InvalidOperation):
+        return None
+
+
+def display_value(value: Any, field: DisplayField | None) -> str:
+    """**The** string a reader sees for one cell. One function, everywhere.
+
+    The headline, the highlights, the scope line, the table, the chart axis
+    and its tooltip, the printed page and the PDF all resolve a cell
+    through this. There used to be several: the headline formatted a period
+    through `period_label` and said "Oct 2025", while the table beside it
+    printed the stored value and said "2025-01-01T00:00:00". The same
+    number was written two ways on one screen, and neither surface was
+    wrong on its own terms.
+
+    Everything it needs is on the `DisplayField`, which is why that type
+    carries the grain and the unit rather than leaving each caller to find
+    them. A `None` field means no metadata was derived for the column, and
+    the value is then shown as stored -- which is the old behaviour, kept
+    for the columns this layer still declines to describe.
+    """
+    if value is None:
+        return "—"
+
+    if field is not None and field.boolean_labels:
+        return label_value(value, field)
+
+    if field is not None and field.semantic_kind is SemanticKind.TIME:
+        return period_label(value, field.time_grain)
+
+    number = _number(value) if not isinstance(value, bool) else None
+    if number is None:
+        return label_value(value, field)
+
+    if field is not None and field.precision == 0:
+        text = f"{int(number.to_integral_value()):,}"
+    else:
+        text = format_number(number)
+    return with_unit(text, field)
 
 
 def label_value(value: Any, field: DisplayField | None) -> str:

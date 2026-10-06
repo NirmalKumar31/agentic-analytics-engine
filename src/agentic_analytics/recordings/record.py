@@ -119,25 +119,15 @@ def build_recording(
         # drawer, which read "not recorded" against Route, Accepted
         # contract, Coverage and Timings for every recorded run.
         #
-        # `presentation` is deliberately **not** here, and the reason is
-        # worth stating because the omission looks like the same oversight.
-        #
-        # Without it a replayed report renders the engine's own finding
-        # prose -- `return_rate fell from 8.51% in 2025-01-01` -- which
-        # carries a raw column name and a stored instant, and the three
-        # published recordings are the only thing a visitor without a
-        # credential can open. That is a real defect and it is recorded as
-        # one.
-        #
-        # Carrying the snapshot does not fix it; it trades it. A recorded
-        # run then renders through the presentation path, where the scope
-        # line reads `Order date None ['2025-01-01', '2025-12-31']` and the
-        # period column reads `2025-01-01T00:00:00` -- two prose defects
-        # for one -- and the report falls back to two highlights where the
-        # engine published six findings, which removes the only committed
-        # payload that exercises the long-report fold. Fixing the
-        # presentation path's own prose is the change that makes this
-        # worth doing, and it is a separate change with its own evidence.
+        # `presentation` among them, now that the layer it comes from is
+        # correct. It was held back while a replayed report rendered
+        # `Order date None ['2025-01-01', '2025-12-31']` as its scope line
+        # and `2025-01-01T00:00:00` in its period column -- carrying the
+        # snapshot then would have traded one reader-facing defect for
+        # two. Those are fixed at the presentation layer, for live runs and
+        # replays alike, so the snapshot is now the better artefact: a
+        # replayed report reads exactly as the run that produced it did.
+        "presentation": payload["presentation"],
         "query_contract": payload["query_contract"],
         "question_coverage": payload["question_coverage"],
         "planner_interpretation": payload["planner_interpretation"],
