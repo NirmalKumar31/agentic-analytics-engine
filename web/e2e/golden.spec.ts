@@ -227,7 +227,7 @@ test.describe("touch targets on a phone", () => {
     // report behind it, so this does not need an admission of its own.
     await page.setViewportSize({ width: 390, height: 844 });
     await reportFor(page, "What is the total revenue by region?");
-    await page.getByTestId("show-work").click();
+    await page.getByTestId("inspect-evidence").click();
     await expect(page.getByTestId("evidence-drawer")).toBeVisible();
 
     const standalone = await page.evaluate(() =>

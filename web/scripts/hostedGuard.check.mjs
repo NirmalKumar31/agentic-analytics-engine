@@ -28,6 +28,8 @@ const THEMES = ["light", "dark"];
 const STATES = [
   "landing",
   "composer",
+  "layout",
+  "focus-visible",
   "report",
   "execution-graph",
   "evidence-drawer",

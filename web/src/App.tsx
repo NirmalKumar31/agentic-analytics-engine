@@ -252,7 +252,7 @@ export function App() {
           is no longer the thing on screen -- the answer is -- so it moves
           into the evidence drawer with the rest of the technical record.
         */}
-        {hasRun && !run && <RunProgress events={recordedEvents} replay={replay} />}
+        {hasRun && !run && <RunProgress events={recordedEvents} replay={replay} mode={uiMode} />}
         <ReportWorkspace comparison={comparison} run={run} aiRun={aiRun} aiError={aiError} config={config} deterministicPending={Boolean(runId) && !finished} onShowEvidence={() => setEvidenceOpen(true)} />
       </div>
       {evidenceOpen && run && (

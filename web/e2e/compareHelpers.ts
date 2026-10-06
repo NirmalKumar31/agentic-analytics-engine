@@ -360,7 +360,7 @@ export async function startCompare(page: Page, question: string) {
    */
   await page.getByLabel("Business question").fill(question);
   await selectMode(page, "compare");
-  await page.getByRole("button", { name: /Compare strategies/ }).click();
+  await page.getByTestId("run").click();
   await expect(page.getByTestId("compare-workspace")).toBeVisible({
     timeout: 90_000,
   });
@@ -397,4 +397,27 @@ export async function settle(page: Page) {
 export async function openDemo(page: Page) {
   await page.getByRole("button", { name: /Commerce demo warehouse/ }).click();
   await expect(page.getByTestId("composer")).toBeVisible();
+}
+
+/**
+ * One strategy's full report, selected first.
+ *
+ * Compare used to render both reports at once, side by side, each a
+ * labelled `role="region"`. A full report in half a laptop's width is not
+ * a comparison, so there is a switcher now and one report at full width.
+ *
+ * Selecting is part of reading: the panel that comes back is the one for
+ * `role`, and it says which strategy it is showing in `data-strategy`, so
+ * a test cannot assert against the wrong side by accident.
+ */
+export async function strategyReport(
+  page: Page,
+  role: "deterministic" | "ai",
+): Promise<ReturnType<Page["getByTestId"]>> {
+  const tab = page.getByTestId(`compare-tab-${role}`);
+  await expect(tab).toBeVisible({ timeout: 90_000 });
+  await tab.click();
+  const panel = page.getByTestId("compare-report-panel");
+  await expect(panel).toHaveAttribute("data-strategy", role);
+  return panel;
 }

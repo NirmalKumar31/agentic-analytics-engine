@@ -859,7 +859,17 @@ export async function ask(page: Page, question: string): Promise<void> {
     )
     .toBe(question)
 
-  const run = page.getByRole('button', { name: /^(Run analysis|Run with AI)/ })
+  /*
+   * By test id, not by label.
+   *
+   * The action is named per mode now -- "Run governed analysis",
+   * "Run deterministic analysis", "Run with AI", "Compare both
+   * planners" -- so a name regex here would have to be kept in step with
+   * four strings in a component, in every spec that drives a run.
+   * `composer.spec.ts` asserts the accessible name per mode, which is the
+   * assertion that belongs to a test rather than to navigation.
+   */
+  const run = page.getByTestId('run')
   try {
     await expect(run).toBeEnabled({ timeout: 10_000 })
   } catch {

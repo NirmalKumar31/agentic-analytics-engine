@@ -300,7 +300,7 @@ test.describe("settling a close call", () => {
     const started = page.waitForResponse(
       (r) => r.url().includes("/api/analyses") && r.request().method() === "POST",
     );
-    await page.getByRole("button", { name: "Run analysis" }).click();
+    await page.getByTestId("run").click();
     const runId = (await (await started).json()).run_id as string;
     expect(runId).toBeTruthy();
     await waitForReport(page);
@@ -355,7 +355,7 @@ test.describe("what the engine then does with it", () => {
     // The audit is in the evidence drawer now, and is still a closed
     // `<details>` inside it: its body is hidden from the accessibility tree
     // and from `toBeVisible` until a reader opens it.
-    await page.getByTestId("show-work").click();
+    await page.getByTestId("inspect-evidence").click();
     const audit = inDrawer(page, "planning-audit");
     await expect(audit).toBeVisible();
     await audit.locator("summary").first().click();

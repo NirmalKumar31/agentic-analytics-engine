@@ -384,12 +384,47 @@
 
   /* ----------------------------------------------------------- compare */
 
-  .compare-grid {
-    display: block;
+  /* On paper there is no switcher: a tab is not a thing that exists on a
+     printed page, so both strategies print, one after the other, each at
+     full width. The appendix already renders both; this is the on-screen
+     panel, which prints as whichever strategy was selected. */
+  .compare-tabs {
+    display: none;
   }
 
-  .compare-pane {
+  /* ------------------------------------------------------- pagination
+   *
+   * The comparison is a summary followed by two reports, and on paper it
+   * was breaking in the middle of each.
+   *
+   * The verdict -- the headline, the sentence under it and the four facts
+   * -- is one claim and read as one thing, so it must not split. The
+   * difference table and the strategy report each begin a section a
+   * reader navigates to, so each gets a heading that cannot be orphaned
+   * at the foot of a page from the content it introduces. And a report is
+   * allowed to run across pages, because a long one has to: what is not
+   * allowed is its heading landing alone.
+   */
+  .compare-verdict {
+    break-inside: avoid;
+    break-after: avoid;
+  }
+
+  .compare-routes,
+  .compare-diff-section > .section-heading,
+  .compare-reports > .section-heading,
+  .compare-report > .compare-pane-sub {
+    break-after: avoid;
+  }
+
+  .compare-reports,
+  .compare-diff-section {
+    break-before: auto;
+  }
+
+  .compare-report {
     break-inside: auto;
+    break-before: avoid;
     margin-bottom: 6mm;
   }
 
@@ -406,8 +441,47 @@
     margin-right: 8mm;
   }
 
+  /* A long difference table may break; a row may not, and the header
+     repeats so a continued table is still readable. */
   .contract-diff {
     break-inside: auto;
+  }
+
+  .contract-diff thead {
+    display: table-header-group;
+  }
+
+  .contract-diff caption {
+    break-after: avoid;
+  }
+
+  /* ----------------------------------------- the report's own bands
+   *
+   * Each band is a label over content. A label at the foot of a page with
+   * its content on the next is the one break that reads as a mistake, so
+   * every band heading declines to be the last thing on a sheet.
+   */
+  .report .section-heading {
+    break-after: avoid;
+  }
+
+  .report .findings,
+  .report .report-notes {
+    break-before: avoid;
+  }
+
+  .finding-list {
+    break-before: avoid;
+  }
+
+  /* A result table is allowed to run on -- a 25-row preview often must --
+     with its header repeated on each sheet. */
+  .report-table > .section-heading + * {
+    break-before: avoid;
+  }
+
+  table.data thead {
+    display: table-header-group;
   }
 
   /* ---------------------------------------------------------- appendix

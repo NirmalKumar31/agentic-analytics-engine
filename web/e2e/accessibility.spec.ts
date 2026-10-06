@@ -1,7 +1,13 @@
 import AxeBuilder from "@axe-core/playwright";
 import { type Page, type Route } from "@playwright/test";
 
-import { advertiseAi, compareWith, openDemo, startCompare } from "./compareHelpers";
+import {
+  advertiseAi,
+  compareWith,
+  openDemo,
+  startCompare,
+  strategyReport,
+} from "./compareHelpers";
 import { expect, freshComposer, reportFor, test } from "./fixtures";
 
 import { ask, inDrawer, onCanvas, openApp, waitForReport } from "./helpers";
@@ -250,7 +256,7 @@ test.describe("accessibility", () => {
     // Unconditional. This was wrapped in `if (count > 0)`, so an audit that
     // stopped rendering would have left the scan passing over a page that no
     // longer contained the thing the test is named for.
-    await page.getByTestId("show-work").click();
+    await page.getByTestId("inspect-evidence").click();
     await expect(page.getByTestId("evidence-drawer")).toBeVisible();
     await scan(page, "evidence drawer open");
 
@@ -294,9 +300,9 @@ test.describe("accessibility", () => {
     await openDemo(page);
     await startCompare(page, "What is the total revenue by region?");
 
-    await expect(
-      page.getByRole("region", { name: "Deterministic Analytics", exact: true }),
-    ).toBeVisible({ timeout: 90_000 });
+    // One report at a time now, behind a switcher. Selecting is part of
+    // reading it.
+    await strategyReport(page, "deterministic");
     // The surfaces this scan exists for: the route disclosure, and a state
     // card for the refused lane.
     await expect(page.getByTestId("auto-route-note")).toBeVisible();
@@ -502,7 +508,7 @@ test.describe("keyboard operation", () => {
     // Unconditional: a `return` here would have turned a missing control
     // into a silent pass, which is how a drawer that stopped opening would
     // have kept this test green.
-    const opener = page.getByTestId("show-work");
+    const opener = page.getByTestId("inspect-evidence");
     await expect(opener).toBeVisible();
 
     // Opened from the keyboard, not with a click.

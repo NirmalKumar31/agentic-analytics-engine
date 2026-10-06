@@ -47,55 +47,86 @@ test.describe("the composer, on a dataset with two clocks", () => {
   test("the question field is the focal control on the screen", async ({
     twoClocks: page,
   }) => {
-    // Measured, not asserted. The strategy selector used to be four
-    // bordered cards carrying four paragraphs, occupying more of the screen
-    // than the field they qualify.
-    //
-    // Both measurements are of *interactive surface*: the question field
-    // against the segmented control, which is the comparison that means
-    // something. An earlier version measured the whole `.mode-selector`
-    // block, prose included, which is not a like-for-like comparison -- a
-    // one-sentence description is explanation a reader wants, not control
-    // chrome competing with the field.
-    const field = await page.locator("#composer-field").boundingBox();
-    const modes = await page.locator(".mode-options").boundingBox();
-    expect(field).not.toBeNull();
-    expect(modes).not.toBeNull();
+    /*
+     * The mode choices are four cards now, and that changes what this test
+     * can honestly measure.
+     *
+     * It used to compare the question field's area against the segmented
+     * control's. Cards are deliberately larger than a pill strip -- that is
+     * the point of making them look selectable -- so the old comparison
+     * would now fail for a design that was chosen on purpose, which makes
+     * it a measurement of the wrong thing rather than a guard.
+     *
+     * What still has to hold, and is what the original was protecting:
+     * the field comes first, no single card competes with it for width, and
+     * the explanations are *not resident*. That last one is the assertion
+     * that would have failed on the four-paragraph layout this test was
+     * written against -- it is kept, and strengthened from "one description"
+     * to "none on screen until asked for".
+     */
+    const field = page.locator("#composer-field");
+    const cards = page.locator(".mode-cards");
+    await expect(field).toBeVisible();
+    await expect(cards).toBeVisible();
 
-    const area = (b: { width: number; height: number }) => b.width * b.height;
-    expect(
-      area(field!),
-      "the strategy control is larger than the question field",
-    ).toBeGreaterThan(area(modes!));
+    const fieldBox = (await field.boundingBox())!;
+    const order = await page.evaluate(() => {
+      const f = document.querySelector("#composer-field");
+      const m = document.querySelector(".mode-cards");
+      if (!f || !m) return 0;
+      // 4 === DOCUMENT_POSITION_FOLLOWING: the cards come after the field.
+      return f.compareDocumentPosition(m) & 4;
+    });
+    expect(order, "the mode cards come before the question field").toBe(4);
 
-    // And the explanation it carries stays bounded: one description, not
-    // one per strategy. This is the assertion that would have failed on the
-    // layout this test was written against.
-    expect(await page.locator(".mode-description").count()).toBe(1);
+    for (const card of await page.locator(".mode-option label").all()) {
+      const box = (await card.boundingBox())!;
+      expect(
+        box.width,
+        "a single mode card is wider than the question field",
+      ).toBeLessThanOrEqual(fieldBox.width);
+    }
+
+    // No prose about the modes on screen. One sentence per card is the
+    // card's own purpose; the descriptions, the taxonomy and the quota
+    // note are all behind the disclosure.
+    for (const testId of ["mode-description", "mode-taxonomy"]) {
+      expect(
+        await page.locator(`[data-testid="${testId}"]:visible`).count(),
+        `${testId} is resident beside the composer`,
+      ).toBe(0);
+    }
   });
 
-  test("only the selected strategy explains itself", async ({ twoClocks: page }) => {
+  test("each card states its purpose, and the full text is one click away", async ({
+    twoClocks: page,
+  }) => {
+    // Every card says what it is for, in a sentence, without being
+    // selected first. Three of the four used to say nothing until chosen.
+    const purposes = page.locator(".mode-option-purpose");
+    expect(await purposes.count()).toBeGreaterThanOrEqual(3);
+    for (const purpose of await purposes.all()) {
+      await expect(purpose).toBeVisible();
+      expect((await purpose.textContent())?.trim().length ?? 0).toBeGreaterThan(10);
+    }
+
+    // And the full description follows the selection, inside the
+    // disclosure. Asserted as a change rather than as an initial value:
+    // the shared session is reset to Deterministic and the default
+    // otherwise depends on what the deployment advertises.
+    const explainer = page.getByTestId("mode-explainer");
+    await explainer.locator("summary").click();
     const description = page.getByTestId("mode-description");
     await expect(description).toBeVisible();
-
-    // One description, not four. Four asked a reader to compare four
-    // paragraphs before asking their first question.
     await expect(description).toHaveCount(1);
 
-    /*
-     * Which strategy is selected on arrival is not this test's subject --
-     * the shared session is reset to Deterministic, and the default
-     * otherwise depends on what the deployment advertises. What is being
-     * tested is that the description follows the selection, so it is
-     * asserted as a change rather than as an initial value.
-     */
     await selectMode(page, "deterministic");
     await expect(description).toContainText(/scripted provider/i);
 
     const other = page.getByRole("radio", { name: /Compare planning strategies/ });
     if (await other.isEnabled()) {
       await other.check();
-      await expect(description).toContainText(/side by side/i);
+      await expect(description).toContainText(/one full report at a time/i);
       await expect(description).not.toContainText(/scripted provider/i);
     }
   });

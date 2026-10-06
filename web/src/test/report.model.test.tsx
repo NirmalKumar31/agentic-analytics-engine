@@ -117,7 +117,7 @@ describe("every real payload renders an answer-first report", () => {
     ).toBeTruthy();
 
     // Exactly one evidence trigger for the whole report.
-    expect(screen.getAllByTestId("show-work")).toHaveLength(1);
+    expect(screen.getAllByTestId("inspect-evidence")).toHaveLength(1);
   });
 });
 

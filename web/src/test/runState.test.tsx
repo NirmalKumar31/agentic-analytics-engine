@@ -6,7 +6,7 @@
  * rendered a report only for the literal string `completed`.
  */
 
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { CompareWorkspace } from "../components/CompareWorkspace";
 import { runState } from "../lib/runState";
@@ -126,6 +126,20 @@ describe("Compare Both terminal states", () => {
       .getAllByTestId("pane-status")
       .map((n) => n.getAttribute("data-state"));
 
+  /*
+   * The full reports are behind a strategy switcher now -- one at a time,
+   * at full width, rather than two in half a laptop's width each. So a
+   * state card that belongs to a strategy is read by selecting it.
+   *
+   * `pane-status` is unaffected: the per-strategy status sits in the
+   * verdict block above the switcher, where both are always visible. The
+   * card is the *explanation*, and it lives with the report it explains.
+   */
+  const strategy = (role: "deterministic" | "ai") => {
+    fireEvent.click(screen.getByTestId(`compare-tab-${role}`));
+    return screen.getByTestId("compare-report-panel");
+  };
+
   it("deterministic completes and AI refuses", () => {
     render(
       <CompareWorkspace
@@ -143,10 +157,9 @@ describe("Compare Both terminal states", () => {
       />,
     );
     expect(paneStates()).toEqual(["completed_verified", "refused"]);
-    // The reason is on screen, not only in the activity log.
-    expect(screen.getByTestId("run-state-card")).toHaveTextContent(
-      /could not be mapped/i,
-    );
+    // The reason is on screen, not only in the activity log -- and it is
+    // attributed to the strategy that refused.
+    expect(strategy("ai")).toHaveTextContent(/could not be mapped/i);
     expect(screen.queryByTestId("pane-placeholder")).toBeNull();
   });
 
@@ -172,9 +185,7 @@ describe("Compare Both terminal states", () => {
       />,
     );
     expect(paneStates()).toEqual(["completed_verified", "execution_failed"]);
-    expect(screen.getByTestId("run-state-card")).toHaveTextContent(
-      /could not be started/i,
-    );
+    expect(strategy("ai")).toHaveTextContent(/could not be started/i);
   });
 
   it("both refuse", () => {
@@ -186,7 +197,14 @@ describe("Compare Both terminal states", () => {
       />,
     );
     expect(paneStates()).toEqual(["refused", "refused"]);
-    expect(screen.getAllByTestId("run-state-card")).toHaveLength(2);
+    // One card on screen at a time, and a card on each strategy: neither
+    // refusal is dropped because the other one happened too.
+    for (const role of ["deterministic", "ai"] as const) {
+      expect(
+        within(strategy(role)).getByTestId("run-state-card"),
+        `the ${role} refusal has no card of its own`,
+      ).toBeInTheDocument();
+    }
   });
 
   it("verification publishes zero findings", () => {
@@ -202,7 +220,7 @@ describe("Compare Both terminal states", () => {
     // Neither side withheld anything, so both found nothing to claim.
     expect(paneStates()).toEqual(["no_findings", "no_findings"]);
     // The copy must say nothing was withheld, not blame a verifier.
-    expect(screen.getAllByTestId("run-state-card")[0]).toHaveTextContent(
+    expect(strategy("deterministic")).toHaveTextContent(
       /found nothing it could claim/i,
     );
     expect(screen.getAllByTestId("run-state-card")[0]).not.toHaveTextContent(

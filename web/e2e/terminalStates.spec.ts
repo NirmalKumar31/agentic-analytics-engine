@@ -243,7 +243,7 @@ test.describe("a refusal leads with what to do about it", () => {
     expect(canvas.includes(raw)).toBe(false);
 
     // In the drawer, verbatim.
-    await page.getByTestId("show-work").click();
+    await page.getByTestId("inspect-evidence").click();
     await expect(inDrawer(page, "raw-stop-reason")).toContainText(raw);
   });
 });

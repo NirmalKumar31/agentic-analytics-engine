@@ -128,6 +128,109 @@ function assertFitForAReader(where: string, text: string): void {
   expect(defects, describeDefects(where, defects)).toEqual([]);
 }
 
+/* -------------------------------------------------------- bounding boxes
+ *
+ * The sweep already catches a page that scrolls sideways. These catch the
+ * two failures that fit *inside* the viewport and are still broken: boxes
+ * that sit on top of each other, and boxes squeezed below the width a word
+ * needs.
+ *
+ * Both are measured from the rendered layout rather than asserted about
+ * the stylesheet, because that is the only place they exist. A grid that
+ * collapses to four 70px columns is valid CSS.
+ */
+
+/** Siblings that overlap each other by more than a hairline. */
+async function overlappingSiblings(page: Page, selector: string): Promise<string[]> {
+  return page.evaluate((target) => {
+    const found: string[] = [];
+    const groups = new Map<Element, Element[]>();
+    for (const node of document.querySelectorAll(target)) {
+      if (!node.parentElement) continue;
+      const siblings = groups.get(node.parentElement) ?? [];
+      siblings.push(node);
+      groups.set(node.parentElement, siblings);
+    }
+    const name = (node: Element) =>
+      `${node.tagName.toLowerCase()}.${String(node.className || "").split(" ")[0]}`;
+
+    for (const siblings of groups.values()) {
+      for (let i = 0; i < siblings.length; i += 1) {
+        for (let j = i + 1; j < siblings.length; j += 1) {
+          const a = siblings[i]!.getBoundingClientRect();
+          const b = siblings[j]!.getBoundingClientRect();
+          if (a.width === 0 || b.width === 0 || a.height === 0 || b.height === 0) continue;
+          const across = Math.min(a.right, b.right) - Math.max(a.left, b.left);
+          const down = Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top);
+          // One pixel of shared edge is a border, not an overlap.
+          if (across > 1 && down > 1) {
+            found.push(
+              `${name(siblings[i]!)} over ${name(siblings[j]!)} by ` +
+                `${Math.round(across)}x${Math.round(down)}px`,
+            );
+          }
+        }
+      }
+    }
+    return found;
+  }, selector);
+}
+
+/**
+ * Boxes whose own content does not fit inside them.
+ *
+ * Measured against the content, not against a pixel threshold. A first
+ * attempt asserted a 40px minimum and flagged the result table's
+ * row-number column -- `#`, then `0`, `1`, `2`, `3` -- at 27px, which is
+ * exactly as wide as it should be. "Too narrow" only means anything
+ * relative to what a box is holding.
+ */
+async function clipped(page: Page, selector: string): Promise<string[]> {
+  return page.evaluate(
+    (target) =>
+      [...document.querySelectorAll(target)]
+        .filter((node) => (node.textContent ?? "").trim().length > 0)
+        .filter((node) => {
+          const box = node.getBoundingClientRect();
+          if (box.height === 0 || box.width === 0) return false;
+          const style = getComputedStyle(node);
+          // A deliberate scroll container is not a clipped box; it is a
+          // box that said it would scroll.
+          if (style.overflowX === "auto" || style.overflowX === "scroll") return false;
+          return node.scrollWidth > node.clientWidth + 1;
+        })
+        .map(
+          (node) =>
+            `${node.tagName.toLowerCase()}.${String(node.className || "").split(" ")[0]} ` +
+            `holds ${node.scrollWidth}px in ${node.clientWidth}px`,
+        ),
+    selector,
+  );
+}
+
+/** Prose boxes narrower than a line of text needs. */
+async function unreadableProse(
+  page: Page,
+  selector: string,
+  least: number,
+): Promise<string[]> {
+  return page.evaluate(
+    ({ target, least: minimum }) =>
+      [...document.querySelectorAll(target)]
+        .filter((node) => (node.textContent ?? "").trim().length > 24)
+        .filter((node) => {
+          const box = node.getBoundingClientRect();
+          return box.height > 0 && box.width > 0 && box.width < minimum;
+        })
+        .map(
+          (node) =>
+            `${node.tagName.toLowerCase()}.${String(node.className || "").split(" ")[0]} ` +
+            `at ${Math.round(node.getBoundingClientRect().width)}px`,
+        ),
+    { target: selector, least },
+  );
+}
+
 async function shot(page: Page, info: TestInfo, state: string): Promise<void> {
   const file = info.outputPath(`${state}.png`);
   await page.screenshot({ path: file, fullPage: true });
@@ -175,15 +278,152 @@ test.describe("hosted visual acceptance", () => {
     await openComposer(page);
 
     await expect(page.getByTestId("mode-selector")).toBeVisible();
-    // What the modes *are*. A visitor who cannot tell them apart cannot
-    // choose, and on this deployment the explanation is the only thing
-    // that says why one of them is a rule-based stand-in rather than a
-    // model.
+
+    // Four selectable cards, each saying what it is for without being
+    // chosen first, and exactly one of them marked as chosen.
+    const cards = page.locator(".mode-option");
+    await expect(cards).toHaveCount(4);
+    await expect(page.locator(".mode-option.selected")).toHaveCount(1);
+    for (const purpose of await page.locator(".mode-option-purpose").all()) {
+      await expect(purpose).toBeVisible();
+    }
+
+    // Governed is the default. On a credential-free deployment it is also
+    // the only one that can run, which is exactly when a reader most needs
+    // the others to explain why they cannot.
+    await expect(page.locator("#mode-auto")).toBeChecked();
+
+    // The explanation is one control away, not resident. A visitor who
+    // cannot tell the modes apart has somewhere to go; a visitor who can
+    // is not made to scroll past three paragraphs first.
+    await expect(page.getByTestId("mode-taxonomy")).toBeHidden();
+    await page.getByTestId("mode-explainer").locator("summary").click();
     await expect(page.getByTestId("mode-taxonomy")).toBeVisible();
     await expect(page.getByTestId("mode-description")).toBeVisible();
 
     await expectNoOverflow(page, `composer at ${cell.name}`);
     await shot(page, info, "composer");
+  });
+
+
+  test("layout: nothing overlaps, and no text box is narrower than a word", async ({
+    page,
+    cell,
+  }, info) => {
+    await openApp(page);
+    const recording = await readRecording(page, RECORDING_ID);
+    await openRecordedReport(page, String(recording.title));
+
+    /*
+     * The sibling groups that actually lay out beside each other, and are
+     * therefore the ones a narrow viewport can collide: the report's
+     * bands, the highlight list, the table's cells, the header controls
+     * and the action row. A blanket sweep of every element reports every
+     * parent as overlapping its children, which is not a defect.
+     */
+    const groups = [
+      ".report > *",
+      ".finding-list > .finding-item",
+      "table.data tr > *",
+      ".report-actions > *",
+      ".topbar > *",
+      ".composer-chips > *",
+    ];
+    for (const group of groups) {
+      expect(
+        await overlappingSiblings(page, group),
+        `${group} overlaps at ${cell.name}`,
+      ).toEqual([]);
+    }
+
+    // No box holds more than it can show. The row-number column is 27px
+    // wide and correct at that width, because it holds one digit; what is
+    // wrong is a box whose own content does not fit.
+    expect(
+      await clipped(page, ".report p, .report li, .report td, .report th, .mode-option label"),
+      `clipped boxes at ${cell.name}`,
+    ).toEqual([]);
+
+    // And a sentence has a line to sit on. 180px is about four words at
+    // this type scale; narrower than that is a column, not prose.
+    expect(
+      await unreadableProse(page, ".report p, .report li", 180),
+      `prose squeezed below a readable width at ${cell.name}`,
+    ).toEqual([]);
+
+    // And the prose column itself stays readable rather than collapsing
+    // next to the chart.
+    const answer = await page.getByTestId("direct-answer").boundingBox();
+    expect(
+      answer!.width,
+      `the answer is ${Math.round(answer!.width)}px wide at ${cell.name}`,
+    ).toBeGreaterThanOrEqual(Math.min(260, cell.width - 32));
+
+    await expectNoOverflow(page, `layout at ${cell.name}`);
+    await shot(page, info, "layout");
+  });
+
+  test("focus-visible: every stop on the keyboard tour is visible and on screen", async ({
+    page,
+    cell,
+  }, info) => {
+    await openApp(page);
+    const recording = await readRecording(page, RECORDING_ID);
+    await openRecordedReport(page, String(recording.title));
+
+    /*
+     * Tabbed, not queried.
+     *
+     * `:focus-visible` only matches when the browser decides focus should
+     * be shown, which a script setting `.focus()` does not always
+     * trigger. Pressing Tab is what a keyboard user does, so it is what
+     * this does -- and it also exercises the order, which is the other
+     * half of focus safety.
+     */
+    const seen: string[] = [];
+    const invisible: string[] = [];
+    const offscreen: string[] = [];
+
+    for (let step = 0; step < 25; step += 1) {
+      await page.keyboard.press("Tab");
+      const stop = await page.evaluate(() => {
+        const node = document.activeElement;
+        if (!node || node === document.body) return null;
+        const style = getComputedStyle(node);
+        const box = node.getBoundingClientRect();
+        return {
+          name:
+            `${node.tagName.toLowerCase()}.${String(node.className || "").split(" ")[0]}`,
+          outline: Number.parseFloat(style.outlineWidth) || 0,
+          outlineStyle: style.outlineStyle,
+          shadow: style.boxShadow,
+          left: box.left,
+          right: box.right,
+          width: box.width,
+          height: box.height,
+          viewport: document.documentElement.clientWidth,
+        };
+      });
+      if (!stop) break;
+      if (seen.includes(`${step}:${stop.name}`)) continue;
+      seen.push(`${step}:${stop.name}`);
+
+      const ringed =
+        (stop.outline > 0 && stop.outlineStyle !== "none") ||
+        (stop.shadow !== "none" && stop.shadow !== "");
+      if (!ringed) invisible.push(stop.name);
+
+      // A focus ring on a control the reader cannot see is not a ring.
+      if (stop.width > 0 && (stop.right < 0 || stop.left > stop.viewport)) {
+        offscreen.push(stop.name);
+      }
+    }
+
+    expect(seen.length, `nothing was focusable at ${cell.name}`).toBeGreaterThan(2);
+    expect(invisible, `focused with no visible ring at ${cell.name}`).toEqual([]);
+    expect(offscreen, `focused off screen at ${cell.name}`).toEqual([]);
+
+    await shot(page, info, "focus-visible");
   });
 
   test("report: a recorded run reads as a document, in labels a reader owns", async ({
@@ -259,7 +499,7 @@ test.describe("hosted visual acceptance", () => {
       "the execution graph is resident on the canvas",
     ).toBe(0);
 
-    await page.getByTestId("show-work").click();
+    await page.getByTestId("inspect-evidence").click();
     const drawer = page.getByTestId("evidence-drawer");
     await expect(drawer).toBeVisible();
 
@@ -308,7 +548,7 @@ test.describe("hosted visual acceptance", () => {
     await openApp(page);
     const recording = await readRecording(page, RECORDING_ID);
     await openRecordedReport(page, String(recording.title));
-    await page.getByTestId("show-work").click();
+    await page.getByTestId("inspect-evidence").click();
 
     const drawer = page.getByTestId("evidence-drawer");
     await expect(drawer).toBeVisible();
@@ -330,7 +570,7 @@ test.describe("hosted visual acceptance", () => {
     const recording = await readRecording(page, RECORDING_ID);
     await openRecordedReport(page, String(recording.title));
 
-    const trigger = page.getByTestId("show-work");
+    const trigger = page.getByTestId("inspect-evidence");
     await trigger.click();
     await expect(page.getByTestId("evidence-drawer")).toBeVisible();
 
@@ -418,7 +658,7 @@ test.describe("hosted visual acceptance", () => {
     await openApp(page);
     const recording = await readRecording(page, RECORDING_ID);
     await openRecordedReport(page, String(recording.title));
-    await page.getByTestId("show-work").click();
+    await page.getByTestId("inspect-evidence").click();
     // Scoped to the drawer: the print appendix holds a second copy of the
     // graph, hidden on screen but present in the document.
     await expect(

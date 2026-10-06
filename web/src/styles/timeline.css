@@ -332,3 +332,58 @@
   font-size: var(--text-xs);
   color: var(--ink-secondary);
 }
+
+/* ------------------------------------------------------ a run in flight
+ *
+ * The stage sequence alone was enough for a deterministic run and not for
+ * an AI one: the engine can sit on one stage for half a minute while a
+ * provider thinks, and an unchanged picture is what a hung request looks
+ * like too. These three lines are the difference -- the stage in words,
+ * the elapsed wall clock, and the work that has finished.
+ *
+ * Nothing here animates. There is no bar to animate: a percentage would
+ * need a denominator the planner has not decided yet, so what is shown are
+ * counts and a clock, both of which are facts. The reduced-motion
+ * rendering is the rendering.
+ */
+
+.run-progress {
+  min-width: 0;
+}
+
+.run-progress-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.run-progress-stage {
+  margin: 0;
+  font-size: var(--text-md);
+  font-weight: var(--weight-medium);
+  color: var(--ink-primary);
+}
+
+/* A measurement, so it is tabular: the figure must not jitter sideways
+   once a second. */
+.run-progress-elapsed {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--ink-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.run-progress-work,
+.run-progress-note {
+  margin: var(--space-3) 0 0;
+  font-size: var(--text-sm);
+  color: var(--ink-secondary);
+  line-height: var(--leading-normal);
+  max-width: 68ch;
+}
+
+.run-progress-note {
+  color: var(--ink-muted);
+}

@@ -57,6 +57,52 @@
   max-width: 68ch;
 }
 
+/* ------------------------------------------------------------ hierarchy
+ *
+ * Three tiers, and they were two.
+ *
+ * The answer is `.display`. Everything under it -- the chart, the
+ * highlights, the notes, the result table -- is supporting detail, and
+ * each band was labelled with `.section-heading` at `--text-md` semibold
+ * in primary ink. That is the same size and weight as `.report-summary`
+ * and heavier than the finding text it sits above, so four band labels
+ * competed with the content inside them and with each other. A reader
+ * scanning the page met five things of roughly equal weight and had to
+ * read to find out which was the answer.
+ *
+ * So inside the report a band label is a *label*: small, medium weight,
+ * secondary ink, over a hairline. The answer keeps display scale, the
+ * content keeps its own, and the labels stop arguing with both. Scoped to
+ * `.report` -- the drawer and the Compare verdict have their own layouts
+ * and their headings are doing a different job there.
+ */
+.report .section-heading {
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+  color: var(--ink-secondary);
+}
+
+/* The bands themselves, separated by a rule rather than by a heavier
+   heading. `report-table` already has one; this gives the others the same
+   treatment so the sequence reads as bands of one document. */
+.report .report-visual,
+.report .findings,
+.report .report-notes {
+  margin-block-start: var(--space-7);
+  padding-block-start: var(--space-5);
+  border-block-start: 1px solid var(--rule-hairline);
+}
+
+/* A Compare pane is already inside a panel with its own strategy heading,
+   and a second set of rules inside it reads as a nested document. */
+.report--compact .report-visual,
+.report--compact .findings,
+.report--compact .report-notes {
+  margin-block-start: var(--space-4);
+  padding-block-start: 0;
+  border-block-start: 0;
+}
+
 /* ---------------------------------------------------------------- chart
  *
  * On the canvas, not in a card. `.chart-card` paints an inset surface and
@@ -354,19 +400,60 @@
   border-block-start: 1px solid var(--rule-hairline);
 }
 
-.compare-grid {
-  display: grid;
-  gap: var(--space-6);
+/* ------------------------------------------------- one report at a time
+ *
+ * The two-column grid that stood here is gone. Above 900px it put two full
+ * reports -- each with a headline, a chart, highlights and a result table
+ * -- into half a laptop's width; below it, they stacked into two long
+ * documents a reader had to scroll between. Neither arrangement lets you
+ * put one number beside another, which is the only thing a comparison is
+ * for.
+ *
+ * The side-by-side view that *is* readable is the contract difference
+ * table above, which shows only the fields that differ. These are the
+ * backing reports, one at full width, chosen by a tab.
+ */
+.compare-reports {
   margin-block-start: var(--space-6);
+  min-width: 0;
 }
 
-@media (min-width: 900px) {
-  .compare-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
+.compare-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  margin-block: var(--space-3);
+  padding: 2px;
+  border: 1px solid var(--rule-hairline);
+  border-radius: var(--radius-md);
+  background: var(--surface-inset);
 }
 
-.compare-pane {
+.compare-tab {
+  flex: 1 1 10rem;
+  padding: var(--space-2) var(--space-3);
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  font: inherit;
+  font-size: var(--text-sm);
+  color: var(--ink-secondary);
+  cursor: pointer;
+}
+
+.compare-tab.is-active {
+  background: var(--surface-raised);
+  color: var(--ink-primary);
+  font-weight: var(--weight-medium);
+  box-shadow: var(--shadow-raised);
+}
+
+.compare-tab:focus-visible {
+  outline: 2px solid var(--signal);
+  outline-offset: 2px;
+}
+
+.compare-report {
   min-width: 0;
 }
 

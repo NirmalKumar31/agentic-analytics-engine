@@ -3,7 +3,15 @@ import { type Page } from "@playwright/test";
 import { closeAnySheet, expect, test as base } from "./fixtures";
 
 import { endSession, openApp, sampleCsv, uploadFile } from "./helpers";
-import { advertiseAi, compareWith, openDemo, SAMPLE_CSV_DATASET, settle, startCompare } from "./compareHelpers";
+import {
+  advertiseAi,
+  compareWith,
+  openDemo,
+  SAMPLE_CSV_DATASET,
+  settle,
+  startCompare,
+  strategyReport,
+} from "./compareHelpers";
 
 /**
  * Compare, over real runs.
@@ -142,7 +150,9 @@ test.describe("Compare over an uploaded dataset", () => {
     // Rendered once. Two identical tables and two identical charts read as
     // two independent confirmations of the same number.
     expect(await page.getByTestId("compare-report").count()).toBe(1);
-    expect(await page.locator(".compare-pane").count()).toBe(0);
+    // And no switcher: there is one answer, so there is nothing to switch
+    // between.
+    expect(await page.locator(".compare-tabs").count()).toBe(0);
     expect(await page.locator(".chart-host").count()).toBeLessThanOrEqual(1);
 
     // And the reclaimed space says what agreement was measured over.
@@ -187,7 +197,7 @@ test.describe("Compare over an uploaded dataset", () => {
     // what a reader opened Compare for.
     const order = await page.evaluate(() => {
       const diffEl = document.querySelector('[data-testid="contract-diff"]');
-      const pane = document.querySelector(".compare-pane");
+      const pane = document.querySelector(".compare-reports");
       if (!diffEl || !pane) return null;
       return Boolean(
         diffEl.compareDocumentPosition(pane) &
@@ -218,7 +228,21 @@ test.describe("Compare over an uploaded dataset", () => {
     await settle(page);
 
     await expect(page.getByTestId("shared-result")).toHaveCount(0);
-    expect(await page.locator(".compare-pane").count()).toBe(2);
+    /*
+     * Two strategies, one report on screen.
+     *
+     * They were two panes side by side; a full report in half a laptop's
+     * width is not a comparison, so there is a switcher and one report at
+     * full width. "Two results kept" is now: two tabs, and the one that is
+     * not shown is one press away rather than discarded.
+     */
+    await expect(page.getByRole("tab")).toHaveCount(2);
+    await expect(page.getByTestId("compare-report-panel")).toHaveCount(1);
+    await page.getByTestId("compare-tab-ai").click();
+    await expect(page.getByTestId("compare-report-panel")).toHaveAttribute(
+      "data-strategy",
+      "ai",
+    );
   });
 
   test("keeps the finished side when the other refuses", async ({ comparable: page }) => {
@@ -232,10 +256,11 @@ test.describe("Compare over an uploaded dataset", () => {
     }), SAMPLE_CSV_DATASET);
     await startCompare(page, "What is the total revenue by region?");
 
-    // The refusal's reason is on screen, not only in the trace.
-    await expect(page.getByTestId("run-state-card").first()).toContainText(
-      /could not be mapped safely/i,
-    );
+    // The refusal's reason is on screen, not only in the trace -- and it
+    // is attributed to the strategy that refused.
+    await expect(
+      (await strategyReport(page, "ai")).getByTestId("run-state-card"),
+    ).toContainText(/could not be mapped safely/i);
 
     // Each side's own status, machine-readable and distinct.
     const states = await page
@@ -243,8 +268,12 @@ test.describe("Compare over an uploaded dataset", () => {
       .evaluateAll((nodes) => nodes.map((n) => n.getAttribute("data-state")));
     expect(new Set(states).size, `both sides read ${states.join(" / ")}`).toBe(2);
 
-    // And the side that finished still shows what it found.
-    expect(await page.locator(".compare-pane").count()).toBe(2);
+    // And the side that finished still shows what it found: both
+    // strategies are offered, and the one that answered has its answer.
+    await expect(page.getByRole("tab")).toHaveCount(2);
+    await expect(
+      (await strategyReport(page, "deterministic")).getByTestId("direct-answer"),
+    ).toBeVisible({ timeout: 60_000 });
   });
 });
 
