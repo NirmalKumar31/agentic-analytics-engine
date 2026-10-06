@@ -31,9 +31,11 @@ from agentic_analytics.presentation.summarize import (
     detect_shape,
     dimension_columns,
     measure_column,
+    named_rows,
     numbers_resolve,
     scope_for,
     summarize,
+    thin_elsewhere,
     thin_named,
 )
 from agentic_analytics.verification.typing import as_number
@@ -344,6 +346,7 @@ def _caveats(
     *,
     planner_fallback: bool,
     thin: list[tuple[str, int, int]],
+    thin_other: list[tuple[int, int]],
 ) -> list[PresentationCaveat]:
     out: list[PresentationCaveat] = []
 
@@ -452,6 +455,35 @@ def _caveats(
             )
         )
 
+    # And groups the answer does not name.
+    #
+    # The caveat above fires on the population of the group the headline
+    # quotes. That is not the only way a thin group changes how a result
+    # should be read: on a fine breakdown the reader is shown a *range*,
+    # and a range whose members rest on 29 rows and on 363 is not the
+    # like-for-like comparison it looks like. Separate code, because it is
+    # a different fact and a reader who sees both should be able to tell
+    # that they are two.
+    if thin_other:
+        smallest = min(population for _row, population in thin_other)
+        count = len(thin_other)
+        group_word = "group" if count == 1 else "groups"
+        verb = "holds" if count == 1 else "hold"
+        out.append(
+            PresentationCaveat(
+                code="thin_groups_elsewhere",
+                message=(
+                    f"{count:,} {group_word} in this result {verb} fewer than "
+                    f"{THIN_GROUP_ROWS} rows, the smallest {smallest:,}. Those "
+                    "figures are in the range the answer reports and are weaker "
+                    "estimates than the groups beside them, so the spread across "
+                    "this breakdown is partly the spread of its sample sizes."
+                ),
+                severity=CaveatSeverity.WARNING,
+                related_component="coverage",
+            )
+        )
+
     # No `no_chart` caveat. It used to be here *as well as* inline where the
     # chart would be, so a reader was told the same thing twice -- once
     # under the answer and once under "What to be careful about", which is
@@ -537,6 +569,11 @@ def build_presentation(
     # an ascending ranking.
     measure_named = measure_column(snapshot, mapping)
     thin = thin_named(mapping, snapshot, measure_named, shape) if measure_named is not None else []
+    thin_other = (
+        thin_elsewhere(snapshot, named_rows(mapping, snapshot, measure_named, shape))
+        if measure_named is not None
+        else []
+    )
 
     chart = presentation_chart(
         chart_decision,
@@ -648,6 +685,7 @@ def build_presentation(
             chart,
             planner_fallback=planner_fallback,
             thin=thin,
+            thin_other=thin_other,
         ),
         provenance_refs=provenance,
     )

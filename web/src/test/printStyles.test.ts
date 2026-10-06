@@ -385,9 +385,31 @@ describe("the flowchart prints, and its control does not", () => {
   });
 
   it("does not hide the flowchart itself", () => {
-    // The live timeline is hidden on paper because it is a progress
-    // indicator. The flowchart is a record, and a printed report that does
-    // not say what ran is the thing it exists to prevent.
-    expect(withoutComments(print)).not.toMatch(/\.run-flow\s*[,{]/);
+    /*
+     * The live timeline is hidden on paper because it is a progress
+     * indicator. The flowchart is a record, and a printed report that does
+     * not say what ran is the thing it exists to prevent.
+     *
+     * This asserted that `print.css` carried *no* `.run-flow` rule at all,
+     * which stood in for "is not hidden" only while there was nothing
+     * legitimate to say about it on paper. There is now -- a Compare
+     * prints one spine per strategy and each has to stay whole across a
+     * page break -- so the check names what it actually forbids: a rule
+     * that takes the flowchart off the page. A proxy that fails on a rule
+     * it was never aimed at teaches the next person to delete the test.
+     */
+    const source = withoutComments(print);
+    const hiding = /([^{}]+)\{([^}]*)\}/g;
+    for (const rule of source.matchAll(hiding)) {
+      const selectors = rule[1] ?? "";
+      const body = rule[2] ?? "";
+      if (!/(display\s*:\s*none|visibility\s*:\s*hidden)/.test(body)) continue;
+      expect(
+        selectors,
+        `a print rule hides the flowchart: ${selectors.trim()}`,
+        // `.run-flow-open` and `.run-flow-alternative` are *meant* to be
+        // in a hiding rule, so this matches the section itself only.
+      ).not.toMatch(/\.run-flow(?![\w-])/);
+    }
   });
 });

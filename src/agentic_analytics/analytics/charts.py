@@ -21,6 +21,7 @@ from typing import Any, Literal
 
 from agentic_analytics.analytics.labels import output_label
 from agentic_analytics.analytics.results import ResultSnapshot
+from agentic_analytics.analytics.semantic import NUMERIC_TYPES
 
 ChartKind = Literal["bar", "line", "grouped_bar", "ranked_bar", "kpi", "none"]
 
@@ -32,6 +33,15 @@ PERIOD_COLUMN = "period"
 #: Categories a bar chart can show before it stops being readable. Above
 #: this the table is the honest presentation and the chart is declined.
 MAX_BAR_CATEGORIES = 60
+#: Distinct values an *ordered numeric* cut can show as bars before the
+#: bars stop being the readable form.
+#:
+#: Above this it is drawn as the sequence it is -- see the single-cut
+#: branch of `chart_for`. Twelve is a bar chart's comfortable label budget
+#: at a reading column's width, and the number only decides which of two
+#: honest drawings is used: it never declines a chart and never changes a
+#: value.
+MAX_ORDERED_BARS = 12
 #: Series in a multi-series line. More lines than this is a tangle.
 MAX_SERIES = 8
 #: Cells in a grouped/stacked chart, as categories x series.
@@ -80,6 +90,24 @@ def _numeric_column(snapshot: ResultSnapshot, exclude: set[str]) -> str | None:
         if column not in exclude and column != "row_count":
             return column
     return None
+
+
+def _ordered_numeric(snapshot: ResultSnapshot, column: str) -> bool:
+    """Whether a cut is a numeric sequence rather than a set of labels.
+
+    Read from the column's **declared type**, never from its values. The
+    same rule `presentation/fields.py` uses to reach
+    `SemanticKind.ORDERED_NUMERIC`, and the same principle the planner's
+    relevance scoring follows: a declared signal is evidence, a guess
+    from the data is not. `DECIMAL(10,2)` carries its precision in the
+    name, so the parameters come off before the lookup.
+
+    A result written before the engine recorded column types declares
+    nothing, which reads as "not known to be ordered" -- the direction
+    that leaves the drawing as it was.
+    """
+    declared = (snapshot.declared_type(column) or "").upper()
+    return declared.split("(")[0].strip() in NUMERIC_TYPES
 
 
 def _label(column: str) -> str:
@@ -241,6 +269,41 @@ def chart_for(mapping: Any, snapshot: ResultSnapshot) -> dict[str, Any]:
                     "the complete result is in the table"
                 ),
             }
+
+        # An ordered numeric cut is a sequence, so it is drawn as one.
+        #
+        # `PERIOD_COLUMN`'s comment above says "every other cut is an
+        # unordered category", and for a cut like `age` that is simply not
+        # true. `presentation/fields.py` already knows it -- it resolves
+        # such a column to `SemanticKind.ORDERED_NUMERIC` and its own
+        # comment says plotting one on a categorical axis "is what made a
+        # 48-age breakdown unreadable". The chart builder had not been
+        # told, so it kept drawing them as labels.
+        #
+        # A published report is what showed it: "the average bedtime phone
+        # minutes by age" over 8,500 rows came back as 48 nominal bars.
+        # Forty-eight tick labels collided along the foot of the chart, and
+        # because a nominal axis sorts its values as strings their order
+        # was a coincidence of every age having two digits.
+        #
+        # **The y axis keeps its zero.** Suppressing it was the first
+        # instinct, because the values span 51.70 to 65.49 and a zero
+        # baseline presses them into the top fifth of the frame. It is also
+        # the one change here that would have been dishonest: that spread
+        # is about a tenth of the mean, the thin-group note beside it says
+        # some of those groups rest on 29 rows, and a zoomed axis would
+        # draw a decisive pattern over a result whose own shape is "nearly
+        # flat, with noise". The axis type was the defect. The baseline was
+        # not.
+        if _ordered_numeric(snapshot, column) and rows > MAX_ORDERED_BARS:
+            return {
+                "kind": "line",
+                "title": f"{_label(measure)} by {_label(column)}",
+                "spec": _line_spec(
+                    column, measure, value_format=value_format, axis_type="quantitative"
+                ),
+            }
+
         return {
             "kind": "bar",
             "title": f"{_label(measure)} by {_label(column)}",
@@ -327,6 +390,7 @@ def _line_spec(
     colour: str | None = None,
     value_format: str = ",",
     grain: str | None = None,
+    axis_type: str | None = None,
 ) -> dict[str, Any]:
     """A line over time.
 
@@ -343,7 +407,11 @@ def _line_spec(
     through time, so the axis is a time scale, ticks thin instead of
     colliding, and the grain decides how much of each date is shown.
     """
-    kind = "temporal" if axis == PERIOD_COLUMN else "ordinal"
+    # `axis_type` is passed for an ordered numeric cut, which is
+    # `quantitative`: declared `ordinal`, Vega gives a 48-age axis
+    # forty-eight discrete ticks and crowds them exactly as the bar chart
+    # did. A number line spaces them and thins the labels itself.
+    kind = axis_type or ("temporal" if axis == PERIOD_COLUMN else "ordinal")
     time_format = time_format_for(grain) if kind == "temporal" else None
     x: dict[str, Any] = {"field": axis, "type": kind, "title": _label(axis)}
     if time_format:

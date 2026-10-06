@@ -101,6 +101,20 @@ function formatFixed(value: number, places: number): string {
   });
 }
 
+/**
+ * The same number at exactly the places its field declares.
+ *
+ * `formatFixed` minus the two integer short-circuits, and it rounds
+ * through `toFixed` for the same reason that one does: so a figure at a
+ * rounding boundary is not written one way here and another there.
+ */
+function formatPinned(value: number, places: number): string {
+  return Number(value.toFixed(places)).toLocaleString("en-US", {
+    minimumFractionDigits: places,
+    maximumFractionDigits: places,
+  });
+}
+
 /** A formatted number carrying the unit its field declares. */
 export function withUnit(text: string, field?: DisplayField | null): string {
   if (!field?.unit) return text;
@@ -161,9 +175,19 @@ export function displayValue(value: unknown, field?: DisplayField | null): strin
    */
   const scaled = field?.scale && field.scale !== 1 ? number * field.scale : number;
 
+  /*
+   * A declared precision is a pin, not a hint. Mirrors
+   * `fields.py:display_value`, where the reasoning is written out: a
+   * column of means printed `61.08`, `62.94`, `59.48` and then `59`,
+   * because `formatFixed` decides from the value and 59.0033 rounds to a
+   * whole number. A field that says how many places it has gets them.
+   */
+  const places = field?.precision ?? null;
   const text =
-    field?.precision === 0
+    places === 0
       ? Math.trunc(scaled).toLocaleString("en-US")
-      : formatFixed(scaled, DISPLAY_PLACES);
+      : places
+        ? formatPinned(scaled, places)
+        : formatFixed(scaled, DISPLAY_PLACES);
   return withUnit(text, field);
 }

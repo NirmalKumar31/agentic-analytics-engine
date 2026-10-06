@@ -434,11 +434,24 @@
     break-after: avoid;
   }
 
-  .compare-routes,
+  /* The heading, not the whole section.
+     `.compare-routes` carried `break-after: avoid` while it held a heading
+     and one short table, to stop the heading landing alone at a page
+     foot. It now also holds one flowchart per strategy, so asking the
+     printer never to break after the whole section is asking it to keep a
+     page and a half together -- and the rule it was written for is served
+     by naming the heading. */
+  .compare-routes > .section-heading,
   .compare-diff-section > .section-heading,
   .compare-reports > .section-heading,
   .compare-report > .compare-pane-sub {
     break-after: avoid;
+  }
+
+  /* One strategy's spine, kept whole. Split across a page break, a stage
+     diagram reads as two diagrams of a run that had neither shape. */
+  .run-flow {
+    break-inside: avoid;
   }
 
   .compare-reports,
