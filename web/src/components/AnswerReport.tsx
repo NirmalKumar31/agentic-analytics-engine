@@ -28,7 +28,7 @@
 
 import { Chart } from "./Chart";
 import { EvidenceBody } from "./EvidenceDrawer";
-import { ExecutionGraphSummary } from "./ExecutionGraphSummary";
+import { RunFlowchart } from "./RunFlowchart";
 import { opensSheet } from "./SideSheet";
 import { ResultPanel } from "./ResultPanel";
 import type { ReportModel } from "../lib/reportModel";
@@ -263,10 +263,7 @@ export function AnswerReport({
         strategies and two summaries would be two more things to read.
       */}
       {!compact && run?.events && run.events.length > 0 && (
-        <ExecutionGraphSummary
-          events={run.events}
-          onShowEvidence={onShowEvidence}
-        />
+        <RunFlowchart events={run.events} onShowEvidence={onShowEvidence} />
       )}
 
       {/*

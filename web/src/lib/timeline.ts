@@ -52,6 +52,21 @@ export interface Stage {
   state: StageState;
   /** What happened, when there is something true to say. */
   detail?: string;
+  /**
+   * The detail quotes the engine verbatim and has not been edited for a
+   * reader.
+   *
+   * Only `stoppedDetail` sets this, and only because it passes
+   * `data.reason` straight through: "stopped: the question could not be
+   * mapped safely: the question asks about 'gross margin', which is not a
+   * column of this table". That belongs in the evidence sheet, where an
+   * auditor wants the engine's exact words -- and not on the report
+   * canvas, which is the one surface that carries no unedited engine
+   * text. A surface that cannot take it has to be able to *tell*, which
+   * is what this flag is for; the alternative was matching on the
+   * `"stopped: "` prefix, and a prefix match is not a contract.
+   */
+  unedited?: boolean;
 }
 
 const LABELS: Record<StageId, string> = {
@@ -157,8 +172,12 @@ export function timelineOf(events: RunEvent[]): Stage[] {
   const withAi = modelPlanned(ordered);
 
   const stages: Stage[] = [];
-  const add = (id: StageId, state: StageState, detail?: string) =>
-    stages.push({ id, label: LABELS[id], state, detail });
+  const add = (
+    id: StageId,
+    state: StageState,
+    detail?: string,
+    unedited = false,
+  ) => stages.push({ id, label: LABELS[id], state, detail, unedited });
 
   add(
     "understand",
@@ -190,7 +209,8 @@ export function timelineOf(events: RunEvent[]): Stage[] {
         : computing
           ? "active"
           : "waiting",
-    computeStopped ? stoppedDetail(taskFailed!) : undefined,
+    computeStopped ? stoppedDetail(taskFailed!).detail : undefined,
+    computeStopped ? stoppedDetail(taskFailed!).unedited : false,
   );
 
   // Verified, or ran and withheld everything. "Withheld" is not a failure
@@ -243,10 +263,12 @@ export function timelineOf(events: RunEvent[]): Stage[] {
     // still in progress.
     const at = stages.findIndex((stage) => stage.state !== "complete");
     if (at >= 0) {
+      const stop = stoppedDetail(reason);
       stages[at] = {
         ...stages[at]!,
         state: "stopped",
-        detail: stoppedDetail(reason),
+        detail: stop.detail,
+        unedited: stop.unedited,
       };
       for (let i = at + 1; i < stages.length; i += 1) {
         if (stages[i]!.state === "complete") continue;
@@ -280,9 +302,21 @@ function publishedFindings(events: RunEvent[]): number | null {
   return null;
 }
 
-function stoppedDetail(event: RunEvent): string {
-  if (event.type === "budget_exceeded") return "stopped: budget reached";
-  if (event.type === "run_cancelled") return "cancelled";
+/**
+ * What stopped the run, and whether the words are the engine's own.
+ *
+ * Two of the three are authored here and safe anywhere. The third passes
+ * `data.reason` through verbatim, which is right for an audit and wrong
+ * for the report canvas, so it says which it is rather than leaving every
+ * caller to guess from the string.
+ */
+function stoppedDetail(event: RunEvent): { detail: string; unedited: boolean } {
+  if (event.type === "budget_exceeded") {
+    return { detail: "stopped: budget reached", unedited: false };
+  }
+  if (event.type === "run_cancelled") return { detail: "cancelled", unedited: false };
   const reason = (event.data ?? {}).reason;
-  return typeof reason === "string" && reason ? `stopped: ${reason}` : "stopped";
+  return typeof reason === "string" && reason
+    ? { detail: `stopped: ${reason}`, unedited: true }
+    : { detail: "stopped", unedited: false };
 }

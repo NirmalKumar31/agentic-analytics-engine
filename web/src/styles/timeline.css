@@ -168,6 +168,314 @@
   }
 }
 
+
+/* ============================================= the run flowchart
+ *
+ * On the report canvas, under the answer. It replaces a row of six
+ * unlabelled dots -- honest, derived from events, and not a diagram: a
+ * reader could not tell which stage was which or what followed what.
+ *
+ * Two parts, and the split is a layout decision with a reason. The spine
+ * is a grid that runs as a column on a phone and as a row from 768px, the
+ * same proven arrangement `.timeline-track` uses, with `minmax(0, 1fr)`
+ * throughout because an implicit `auto` track is what put 304px of
+ * sideways scroll on a 390px report once already. The fan of tool calls is
+ * a block *under* the spine rather than nested in one of its columns: a
+ * sixth of the track is too narrow to read a tool name in, and an
+ * absolutely positioned fan broke at every width the spine reflows at.
+ *
+ * Connectors are pseudo-elements with `content: ""` -- geometry, not
+ * glyphs -- so nothing is announced to a screen reader, which reads the
+ * ordered list and the text alternative instead.
+ */
+.run-flow {
+  margin-block-start: var(--space-7);
+  padding-block-start: var(--space-5);
+  border-block-start: 1px solid var(--rule-hairline);
+  min-width: 0;
+}
+
+.run-flow-track {
+  list-style: none;
+  margin: var(--space-4) 0 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-5);
+}
+
+.run-flow-node {
+  position: relative;
+  min-width: 0;
+}
+
+.run-flow-box {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-areas:
+    "mark label"
+    "mark state"
+    "note note";
+  column-gap: var(--space-3);
+  align-items: center;
+  min-width: 0;
+  padding: var(--space-3);
+  border: 1px solid var(--rule-hairline);
+  border-radius: var(--radius-md);
+  background: var(--surface-paper);
+}
+
+.run-flow-mark {
+  grid-area: mark;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  border: 2px solid var(--rule-strong);
+  background: var(--surface-canvas);
+}
+
+.run-flow-label {
+  grid-area: label;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+  color: var(--ink-primary);
+  overflow-wrap: anywhere;
+}
+
+.run-flow-state {
+  grid-area: state;
+  font-size: var(--text-xs);
+  color: var(--ink-muted);
+}
+
+.run-flow-note {
+  grid-area: note;
+  margin-block-start: var(--space-2);
+  font-size: var(--text-xs);
+  color: var(--ink-muted);
+  overflow-wrap: anywhere;
+}
+
+/* The connector, and the arrowhead on it. Below each box on a phone,
+   beside it from 768px. Drawn on the node rather than the box so the last
+   stage has no stub running off the end of the sequence. */
+.run-flow-node::before,
+.run-flow-node::after {
+  content: "";
+  position: absolute;
+  background: var(--rule-hairline);
+}
+
+/* Aligned under the centre of the mark: the box pads by `--space-3` and
+   the mark is 10px, so its centre sits 17px in. The rule is 2px wide, so
+   it starts 1px before that. */
+.run-flow-node::before {
+  inset-inline-start: 16px;
+  inset-block-start: 100%;
+  width: 2px;
+  height: var(--space-5);
+}
+
+/* The head: two borders on an empty box, turned 45 degrees. No glyph, so
+   nothing is read out and nothing depends on a font. */
+.run-flow-node::after {
+  inset-inline-start: 14px;
+  inset-block-start: calc(100% + var(--space-5) - 7px);
+  width: 6px;
+  height: 6px;
+  background: none;
+  border-inline-end: 2px solid var(--rule-hairline);
+  border-block-end: 2px solid var(--rule-hairline);
+  /* The two borders meet at the bottom-right corner; turning the box a
+     quarter-turn clockwise points that corner straight down, which is the
+     way the column flows. */
+  transform: rotate(45deg);
+}
+
+.run-flow-node:last-child::before,
+.run-flow-node:last-child::after {
+  display: none;
+}
+
+/* --------------------------------------------------------------- states
+ *
+ * Fill, weight and the state's own words -- never colour alone.
+ */
+.run-flow-node[data-state="complete"] .run-flow-mark,
+.run-flow-node[data-state="active"] .run-flow-mark {
+  border-color: var(--signal);
+  background: var(--signal);
+}
+
+.run-flow-node[data-state="active"] .run-flow-box {
+  border-color: var(--signal);
+}
+
+.run-flow-node[data-state="withheld"] .run-flow-mark {
+  border-color: var(--ink-muted);
+  background: var(--ink-muted);
+}
+
+.run-flow-node[data-state="skipped"] .run-flow-mark {
+  border-color: var(--rule-hairline);
+  background: var(--surface-canvas);
+}
+
+.run-flow-node[data-state="stopped"] .run-flow-mark {
+  border-color: var(--warning);
+  background: var(--warning);
+}
+
+.run-flow-node[data-state="stopped"] .run-flow-box {
+  border-color: var(--warning);
+}
+
+.run-flow-node[data-state="stopped"] .run-flow-state,
+.run-flow-node[data-state="stopped"] .run-flow-note {
+  color: var(--warning-text);
+  font-weight: var(--weight-medium);
+}
+
+/* A completed stage fills the rule to the next one. Driven by
+   `data-state`, which only an event changes. */
+.run-flow-node[data-state="complete"]::before {
+  background: var(--signal);
+}
+
+.run-flow-node[data-state="complete"]::after {
+  border-color: var(--signal);
+}
+
+/* ------------------------------------------------------------ the fan */
+
+.run-flow-branch {
+  margin-block-start: var(--space-5);
+  padding-inline-start: var(--space-4);
+  border-inline-start: 2px solid var(--rule-hairline);
+  min-width: 0;
+}
+
+.run-flow-branch-label {
+  margin: 0 0 var(--space-3);
+  font-size: var(--text-xs);
+  color: var(--ink-muted);
+}
+
+.run-flow-calls {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.run-flow-call {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+  max-width: 100%;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--rule-hairline);
+  border-radius: var(--radius-md);
+  background: var(--surface-paper);
+}
+
+.run-flow-call-label {
+  font-size: var(--text-sm);
+  color: var(--ink-primary);
+  overflow-wrap: anywhere;
+}
+
+.run-flow-call-note {
+  font-size: var(--text-xs);
+  color: var(--ink-muted);
+  overflow-wrap: anywhere;
+}
+
+/* The four outcomes, each already named in its own text. A refused call is
+   a guardrail working and is not coloured as a failure. */
+.run-flow-call[data-call-state="completed"] {
+  border-color: var(--signal);
+}
+
+.run-flow-call[data-call-state="failed"] {
+  border-color: var(--warning);
+}
+
+.run-flow-call[data-call-state="failed"] .run-flow-call-note {
+  color: var(--warning-text);
+}
+
+.run-flow-call[data-call-state="refused"],
+.run-flow-call[data-call-state="suppressed"] {
+  border-color: var(--rule-strong);
+}
+
+/* --------------------------------------------------------- under it all */
+
+.run-flow-counts {
+  margin: var(--space-4) 0 0;
+  font-size: var(--text-sm);
+  color: var(--ink-secondary);
+  max-width: 68ch;
+}
+
+.run-flow-alternative > summary {
+  margin-block-start: var(--space-3);
+  cursor: pointer;
+  font-size: var(--text-xs);
+  color: var(--ink-muted);
+}
+
+.run-flow-alternative > p {
+  margin: var(--space-2) 0 0;
+  font-size: var(--text-xs);
+  color: var(--ink-muted);
+  max-width: 68ch;
+}
+
+/* ----------------------------------------------------- the spine, across
+ *
+ * From 768px the stages run left to right. One grid declaration does it,
+ * and the connectors move from below each box to beside it.
+ */
+@media (min-width: 768px) {
+  .run-flow-track {
+    grid-auto-flow: column;
+    grid-auto-columns: minmax(0, 1fr);
+    gap: var(--space-5);
+  }
+
+  .run-flow-box {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas:
+      "mark"
+      "label"
+      "state"
+      "note";
+    row-gap: var(--space-1);
+    height: 100%;
+  }
+
+  .run-flow-node::before {
+    inset-block-start: 16px;
+    inset-inline-start: 100%;
+    width: var(--space-5);
+    height: 2px;
+  }
+
+  .run-flow-node::after {
+    inset-block-start: 14px;
+    inset-inline-start: calc(100% + var(--space-5) - 7px);
+    /* The other way, so the same corner points along the row. A
+       quarter-turn clockwise would leave the arrowheads pointing at the
+       floor on a layout that reads left to right. */
+    transform: rotate(-45deg);
+  }
+}
+
 @media print {
   /* The timeline is a record of a run in progress. On paper the run is
      over, and what it produced is the document. Its content belongs in the
@@ -182,6 +490,21 @@
      all, so the printed page carries the sequence rather than a gap. */
   .execution-graph .timeline {
     display: block;
+  }
+
+  /* The flowchart stays. On paper the run is over, and a record of what
+     the engine did is exactly what a printed report should carry -- which
+     is the same reason the graph is restored inside the appendix below.
+     Its control is not printable, and the spine goes back to a column so
+     six boxes are not squeezed across a page it has to share. */
+  .run-flow-open,
+  [data-testid="run-flow-open"] {
+    display: none;
+  }
+
+  .run-flow-track {
+    grid-auto-flow: row;
+    grid-template-columns: minmax(0, 1fr);
   }
 
   /* A disclosure printed closed is a paragraph the reader cannot reach.
@@ -388,67 +711,3 @@
   color: var(--ink-muted);
 }
 
-/* ------------------------------------------------ the canvas summary
- *
- * The marks the graph draws, on the report, under the answer. Not a
- * second timeline: no labels, no per-call rows, and `aria-hidden` on the
- * track because the counts beside it and the full graph inside it both
- * say this in words.
- *
- * Its motion lives in `motion.css` with the rest, and is bound to
- * `data-state` -- which only an event changes.
- */
-.graph-summary {
-  margin-block-start: var(--space-7);
-  padding-block-start: var(--space-5);
-  border-block-start: 1px solid var(--rule-hairline);
-  min-width: 0;
-}
-
-.graph-summary-track {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  list-style: none;
-  margin: var(--space-3) 0 0;
-  padding: 0;
-}
-
-.graph-summary-mark {
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  border: 2px solid var(--rule-hairline);
-  background: var(--surface-canvas);
-  flex: 0 0 auto;
-}
-
-.graph-summary-mark[data-state="complete"],
-.graph-summary-mark[data-state="active"] {
-  border-color: var(--signal);
-  background: var(--signal);
-}
-
-.graph-summary-mark[data-state="withheld"] {
-  border-color: var(--ink-muted);
-  background: var(--ink-muted);
-}
-
-.graph-summary-mark[data-state="stopped"] {
-  border-color: var(--warning);
-  background: var(--warning);
-}
-
-.graph-summary-line {
-  margin: var(--space-2) 0 0;
-  font-size: var(--text-sm);
-  color: var(--ink-secondary);
-  max-width: 68ch;
-}
-
-.graph-summary-more > summary {
-  margin-block-start: var(--space-3);
-  cursor: pointer;
-  font-size: var(--text-sm);
-  color: var(--ink-secondary);
-}

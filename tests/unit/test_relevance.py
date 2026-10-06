@@ -358,3 +358,238 @@ def test_every_relationship_type_promotes_a_test(kind: str) -> None:
         shipping_results(), analysis_type=kind, target_metrics=SHIPPING["metrics"]
     )
     assert chosen is not None and chosen.tool_name == "statistical_test"
+
+
+# ------------------------------------- the cut a question did not name
+
+
+#: The AI run's own candidate set for the shipping question, reconstructed
+#: from its activity trace: fifteen calls, no statistical test, and five
+#: breakdowns of the subject metric by five different cuts. The whole
+#: defect is visible in this list -- one of these is the answer and
+#: nothing in the old scoring could tell which.
+def ai_shipping_candidates() -> list[ResultSnapshot]:
+    return [
+        breakdown("repeat_purchase_rate", "customer_segment", rid="res_segment"),
+        wide(
+            "repeat_purchase_rate",
+            ["customer_segment", "acquisition_channel", "region"],
+            rid="res_crosstab",
+        ),
+        breakdown("repeat_purchase_rate", "first_delivery_status", rows=2, rid="res_delay"),
+        breakdown("repeat_purchase_rate", "first_carrier", rid="res_carrier"),
+        breakdown("repeat_purchase_rate", "acquisition_channel", rows=6, rid="res_channel"),
+    ]
+
+
+def shipping_rank(
+    results: list[ResultSnapshot], charted: frozenset[str] = frozenset()
+) -> list[ResultSnapshot]:
+    return relevance.rank(
+        results,
+        analysis_type=SHIPPING["analysis_type"],
+        target_metrics=SHIPPING["metrics"],
+        target_dimensions=SHIPPING["dimensions"],
+        charted=charted,
+    )
+
+
+class TestACutIsReadAgainstTheCompanionMetrics:
+    """The gap that survived the first fix, and it was exact.
+
+    Where the interpretation declares no dimensions, the dimension term
+    contributes nothing either way -- by design, so the planner is not
+    punished for choosing a cut the question left open. The consequence
+    was that it contributed nothing *to telling the cuts apart*: on the
+    shipping question five breakdowns scored within half a point and the
+    headline was decided by the chart bonus and the tool tie-break.
+
+    `first_delivery_status` is the delay cut. The signal saying so was
+    already declared -- `late_delivery_rate` and `avg_delivery_days` are
+    the question's companion metrics and share the word `delivery` with it
+    -- and was not being read.
+    """
+
+    def test_the_delay_cut_is_chosen_over_four_rivals(self) -> None:
+        ranked = shipping_rank(ai_shipping_candidates())
+        assert ranked[0].result_id == "res_delay"
+
+    def test_it_wins_on_relevance_and_not_on_a_tie_break(self) -> None:
+        """The margin is the claim.
+
+        Asserting only the winner would pass again the moment the term is
+        removed and the tie-break happens to favour the right result. What
+        has to hold is that relevance *separates* them: the gap must be
+        larger than everything the tie-breaks can contribute, which is the
+        chart bonus plus the whole tool-order range.
+        """
+        tie_break_range = 0.5 + 0.1 * len(relevance.DEFAULT_TOOL_ORDER)
+        scored = [
+            relevance.score(
+                snapshot,
+                analysis_type="correlation",
+                target_metrics=SHIPPING["metrics"],
+                target_dimensions=(),
+                charted=frozenset(),
+            )
+            for snapshot in ai_shipping_candidates()
+        ]
+        best, *rest = sorted(scored, reverse=True)
+        assert best - max(rest) > tie_break_range
+
+    def test_a_chart_on_a_rival_does_not_take_it_back(self) -> None:
+        """The answer-bearing result is allowed to be the unchartable one."""
+        ranked = shipping_rank(
+            ai_shipping_candidates(),
+            charted=frozenset({"res_segment", "res_carrier", "res_channel", "res_crosstab"}),
+        )
+        assert ranked[0].result_id == "res_delay"
+
+    def test_the_term_reads_the_companions_and_not_every_metric(self) -> None:
+        """Asserted on the term, because the total cannot witness it.
+
+        With cuts declared the +3-per-match term is four times this one,
+        so a mutation here changes no ordering and a test written against
+        `score` passes. Both conditions of this term are pinned directly.
+        """
+        companions = ("repeat_purchase_rate", "late_delivery_rate", "avg_delivery_days")
+        assert (
+            relevance.companion_bonus(("first_delivery_status",), companions)
+            == relevance.COMPANION_OVERLAP
+        )
+        # Named after the subject, not a companion: the same quantity twice.
+        assert relevance.companion_bonus(("repeat_purchase_band",), companions) == 0.0
+        # A single-metric question has no companions and so no signal here.
+        assert relevance.companion_bonus(("first_delivery_status",), ("return_rate",)) == 0.0
+        # No cut at all.
+        assert relevance.companion_bonus((), companions) == 0.0
+
+    def test_the_subject_metric_is_not_a_companion(self) -> None:
+        """Only the metrics the question related the subject *to* count.
+
+        A cut named after the metric being measured says nothing about a
+        relationship -- it is the same quantity twice -- so the term reads
+        `target_metrics[1:]`, and a single-metric question has no
+        companions and gets no bonus from this term at all.
+        """
+        one_metric = relevance.score(
+            breakdown("repeat_purchase_rate", "purchase_region"),
+            analysis_type="correlation",
+            target_metrics=("repeat_purchase_rate",),
+            target_dimensions=(),
+            charted=frozenset(),
+        )
+        plain = relevance.score(
+            breakdown("repeat_purchase_rate", "region"),
+            analysis_type="correlation",
+            target_metrics=("repeat_purchase_rate",),
+            target_dimensions=(),
+            charted=frozenset(),
+        )
+        assert one_metric == plain
+
+    def test_a_declared_cut_still_outranks_a_merely_overlapping_one(self) -> None:
+        """The companion term sits below the cut the question actually named."""
+        ranked = relevance.rank(
+            [
+                breakdown("repeat_purchase_rate", "first_delivery_status", rid="res_overlap"),
+                breakdown("repeat_purchase_rate", "customer_segment", rid="res_declared"),
+            ],
+            analysis_type="correlation",
+            target_metrics=SHIPPING["metrics"],
+            target_dimensions=("customer_segment",),
+        )
+        assert ranked[0].result_id == "res_declared"
+
+
+class TestStructuralWordsDoNotMatch:
+    """A name match on a unit or a schema word is a false signal.
+
+    `late_delivery_rate` is two subject words and a unit. If `rate`
+    counted, every `*_rate` column in the file would look like an answer
+    to every question with a rate in it -- which is the failure mode of
+    name matching, and the reason the list is generous rather than minimal.
+    """
+
+    @pytest.mark.parametrize(
+        "name",
+        ["late_delivery_rate", "avg_delivery_days", "total_order_count", "first_carrier_name"],
+    )
+    def test_no_unit_or_structural_word_survives_tokenising(self, name: str) -> None:
+        assert relevance.subject_tokens(name) <= frozenset({"late", "delivery", "order", "carrier"})
+
+    def test_a_shared_unit_alone_earns_nothing(self) -> None:
+        """`refund_rate` and `return_rate` share only `rate`."""
+        shared_unit = relevance.score(
+            breakdown("refund_rate", "delivery_rate_band"),
+            analysis_type="correlation",
+            target_metrics=("refund_rate", "return_rate"),
+            target_dimensions=(),
+            charted=frozenset(),
+        )
+        unrelated = relevance.score(
+            breakdown("refund_rate", "store"),
+            analysis_type="correlation",
+            target_metrics=("refund_rate", "return_rate"),
+            target_dimensions=(),
+            charted=frozenset(),
+        )
+        assert shared_unit == unrelated
+
+
+class TestFewerCutsWhereNoneWasNamed:
+    """A 120-row three-way cross-tab was one tie-break from the headline.
+
+    Each further cut narrows the claim and multiplies the groups. On a
+    question that named no breakdown, the coarsest result that still says
+    something is the one to lead with; a segment-by-channel-by-region
+    cross-tab answers a far more specific question that nobody asked.
+    """
+
+    def test_the_cross_tab_ranks_last_of_the_candidates(self) -> None:
+        ranked = shipping_rank(ai_shipping_candidates())
+        assert ranked[-1].result_id == "res_crosstab"
+
+    def test_a_single_cut_outranks_a_cross_tab_of_the_same_metric(self) -> None:
+        ranked = shipping_rank(
+            [
+                wide("repeat_purchase_rate", ["a_region", "b_channel", "c_segment"], rid="res_3"),
+                breakdown("repeat_purchase_rate", "store", rid="res_1"),
+            ]
+        )
+        assert ranked[0].result_id == "res_1"
+
+    def test_but_three_declared_cuts_are_not_demoted(self) -> None:
+        """A question that asked for all three must get all three.
+
+        Asserted on the term rather than on an ordering, and the reason is
+        the finding that made it a term: with cuts declared, the
+        +3-per-match and -2-per-mismatch weights are large enough that
+        dropping this guard reorders nothing anywhere, so a test written
+        against `rank` passes while the guard is gone. Mutating
+        `if target_dimensions: return 0.0` now fails here instead.
+        """
+        declared = ("customer_segment", "acquisition_channel", "region")
+        assert relevance.extra_cut_penalty(declared, declared) == 0.0
+        # Only one of the three named, and still no demerit for the others:
+        # this term is about what the question *asked for*, not about how
+        # well the cuts match -- that is the dimension term's business.
+        assert relevance.extra_cut_penalty(declared, ("region",)) == 0.0
+        # Nothing named: each cut past the first is docked.
+        assert relevance.extra_cut_penalty(declared, ()) == relevance.EXTRA_CUT * 2
+        assert relevance.extra_cut_penalty(("region",), ()) == 0.0
+        assert relevance.extra_cut_penalty((), ()) == 0.0
+
+    def test_the_ordering_still_holds_through_the_aggregate(self) -> None:
+        """And the term is wired into `score`, not merely defined."""
+        dimensions = ("customer_segment", "acquisition_channel", "region")
+        ranked = relevance.rank(
+            [
+                breakdown("repeat_purchase_rate", "customer_segment", rid="res_1"),
+                wide("repeat_purchase_rate", list(dimensions), rid="res_3"),
+            ],
+            analysis_type="segmentation",
+            target_metrics=("repeat_purchase_rate",),
+            target_dimensions=dimensions,
+        )
+        assert ranked[0].result_id == "res_3"

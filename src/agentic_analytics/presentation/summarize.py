@@ -124,6 +124,139 @@ def _values(snapshot: ResultSnapshot, column: str) -> list[tuple[int, Decimal]]:
     return out
 
 
+# --------------------------------------------------- a thinly populated extreme
+#
+# "Repeat purchase rate is highest for vip / affiliate / Midwest, at 100%."
+#
+# That was published, and every part of it was arithmetically true. The
+# cell held 1.0 and the group behind it held two customers. A 120-cell
+# cross-tab divides a population until some of its cells hold almost
+# nothing, and the extremes of such a result are exactly the cells where
+# that has happened -- a superlative *selects* for the thinnest cell,
+# because a small denominator is what makes 100% reachable at all.
+#
+# What is published is the number with its population beside it. The group
+# is not dropped and the figure is not changed: it is the maximum, and a
+# presentation layer that quietly answered with the second-highest group
+# would be substituting a result the engine did not compute. The defect
+# was never the number. It was stating the number alone.
+
+#: Rows a named extreme needs behind it before its figure is quoted
+#: without comment.
+#:
+#: A convention, not a derivation, and it is written down here so it can
+#: be argued with: thirty is the usual floor for treating a sample
+#: proportion or mean as a stable estimate. It decides **only when the
+#: population is said out loud** -- never which group is named, never what
+#: the figure is -- so getting it wrong costs a sentence a reader did not
+#: need, in the direction of saying more rather than less.
+THIN_GROUP_ROWS = 30
+
+
+def group_population(snapshot: ResultSnapshot, row: int) -> int | None:
+    """Rows behind one group, from the result's own `row_count` column.
+
+    `None` when the result does not carry one, which is not the same as
+    zero: a result that never counted its rows cannot be said to have
+    counted few.
+    """
+    if "row_count" not in snapshot.columns:
+        return None
+    value = as_number(snapshot.cell(row, "row_count"))
+    return None if value is None else int(value)
+
+
+def named_extreme_rows(
+    snapshot: ResultSnapshot,
+    column: str,
+    shape: PresentationShape,
+    *,
+    ascending: bool = False,
+) -> list[tuple[str, int]]:
+    """The rows the headline is about to name, with the words for each.
+
+    Shape-aware, and it has to be. A first version took the maximum and
+    the minimum for every shape and so described, on a ranking, the
+    population of a group the headline does not mention -- `_ranking`
+    reports one end *because* claiming the other was a published
+    falsehood built from a real cell, and a note about it would have
+    reintroduced that by the back door.
+
+    Empty for the shapes that name no group extreme at all: a statistical
+    test states its own sample sizes, and a scalar has one population
+    which the scope line already gives.
+    """
+    if shape in (PresentationShape.STATISTICAL_TEST, PresentationShape.SCALAR):
+        return []
+    rows = _values(snapshot, column)
+    if not rows:
+        return []
+
+    if shape is PresentationShape.RANKING:
+        # Row 0 is the end the question asked for; the result is ordered.
+        return [(f"the {'lowest' if ascending else 'highest'} group", 0)]
+
+    high_row, _ = max(rows, key=lambda pair: pair[1])
+    low_row, _ = min(rows, key=lambda pair: pair[1])
+    if shape is PresentationShape.TIME_SERIES:
+        if high_row == low_row:
+            return [("this period", high_row)]
+        return [("the peak period", high_row), ("the lowest period", low_row)]
+    if high_row == low_row:
+        # One group, so neither "highest" nor "lowest" is a claim that was
+        # made: there was no comparison.
+        return [("this group", high_row)]
+    return [("the highest group", high_row), ("the lowest group", low_row)]
+
+
+def thin_of(snapshot: ResultSnapshot, named: list[tuple[str, int]]) -> list[tuple[str, int, int]]:
+    """Those of `named` whose own populations are below the floor.
+
+    Returns `(role, row, population)`. Empty is the ordinary case and
+    means every group the answer names rests on enough rows to quote
+    without comment.
+    """
+    out: list[tuple[str, int, int]] = []
+    for role, row in named:
+        population = group_population(snapshot, row)
+        if population is not None and population < THIN_GROUP_ROWS:
+            out.append((role, row, population))
+    return out
+
+
+def thin_extreme_note(snapshot: ResultSnapshot, thin: list[tuple[str, int, int]]) -> str:
+    """The sentence that puts a thin group's population beside its figure.
+
+    Empty when there is nothing to say. No semicolons: the presentation
+    contract rejects a second one, because a semicolon run repeating a
+    grouped table is one of the two prose failures it exists to stop, and
+    this sentence is appended to a summary that may already carry one.
+    """
+    if not thin:
+        return ""
+    coverage = snapshot.group_coverage
+    total = coverage.rows_matching if coverage is not None else None
+
+    def quantity(population: int) -> str:
+        word = "row" if population == 1 else "rows"
+        if total is not None:
+            return f"{population:,} of {total:,} matching {word}"
+        return f"{population:,} {word}"
+
+    if len(thin) == 1:
+        role, _row, population = thin[0]
+        return (
+            f"{role.capitalize()} covers {quantity(population)}, too few for "
+            "that figure to be a reliable estimate."
+        )
+    first, second = thin[0], thin[1]
+    return (
+        f"{first[0].capitalize()} covers {quantity(first[2])} and "
+        f"{second[0]} covers {quantity(second[2])}, too few for either "
+        "figure to be a reliable estimate."
+    )
+
+
 def detect_shape(
     mapping: Any,
     snapshot: ResultSnapshot,
@@ -897,43 +1030,76 @@ def summarize(
     display_fields: list[DisplayField],
     shape: PresentationShape,
 ) -> tuple[str, str | None, list[PresentationHighlight], list[Decimal]]:
-    """Headline, secondary summary, highlights and any derived figures."""
+    """Headline, secondary summary, highlights and any derived figures.
+
+    One exit, and it is deliberate. Each shape builds its own sentences and
+    then the thin-group note is appended here, because appending it inside
+    the builders put it where a later line could take it away:
+    `_small_breakdown` calls `_extremes` and then *overwrites* the summary
+    with "All groups are in the table below." -- so on a breakdown of four
+    groups or fewer, which is exactly where a thin group is most likely,
+    the note was computed, returned, and silently discarded. Found by a
+    test asserting the sentence rather than the function.
+    """
     by_name = fields_by_name(display_fields)
     column = measure_column(snapshot, mapping)
     dimensions = dimension_columns(snapshot, mapping)
     if column is None or not snapshot.rows:
         return ("", None, [], [])
 
+    derived: list[Decimal] = []
+
     if shape is PresentationShape.STATISTICAL_TEST:
         headline, secondary, highlights = _statistical(
             mapping, snapshot, column, dimensions, by_name
         )
-        return headline, secondary, highlights, []
-
-    if shape is PresentationShape.SCALAR:
+    elif shape is PresentationShape.SCALAR:
         headline, secondary, highlights = _scalar(mapping, snapshot, column, by_name)
-        return headline, secondary, highlights, []
-
-    if shape is PresentationShape.BOOLEAN_COMPARISON and dimensions:
-        return _boolean_comparison(mapping, snapshot, column, dimensions[0], by_name)
-
-    if shape is PresentationShape.RANKING:
+    elif shape is PresentationShape.BOOLEAN_COMPARISON and dimensions:
+        headline, secondary, highlights, derived = _boolean_comparison(
+            mapping, snapshot, column, dimensions[0], by_name
+        )
+    elif shape is PresentationShape.RANKING:
         headline, secondary, highlights = _ranking(mapping, snapshot, column, dimensions, by_name)
-        return headline, secondary, highlights, []
-
-    if shape is PresentationShape.TIME_SERIES:
+    elif shape is PresentationShape.TIME_SERIES:
         headline, secondary, highlights = _time_series(
             mapping, snapshot, column, dimensions, by_name
         )
-        return headline, secondary, highlights, []
-
-    if shape is PresentationShape.CATEGORICAL_BREAKDOWN:
+    elif shape is PresentationShape.CATEGORICAL_BREAKDOWN:
         headline, secondary, highlights = _small_breakdown(
             mapping, snapshot, column, dimensions, by_name
         )
-        return headline, secondary, highlights, []
+    else:
+        headline, secondary, highlights = _extremes(
+            mapping, snapshot, column, dimensions, by_name, shape=shape
+        )
 
-    headline, secondary, highlights = _extremes(
-        mapping, snapshot, column, dimensions, by_name, shape=shape
+    # A superlative selects for the thinnest cell, so the population of a
+    # group the answer names goes with it. Appended rather than replacing
+    # anything: the reader still needs to know whether the breakdown was
+    # complete, and now also what the extreme rests on.
+    note = thin_extreme_note(snapshot, thin_named(mapping, snapshot, column, shape))
+    if note:
+        secondary = f"{secondary} {note}" if secondary else note
+
+    return headline, secondary, highlights, derived
+
+
+def thin_named(
+    mapping: Any,
+    snapshot: ResultSnapshot,
+    column: str,
+    shape: PresentationShape,
+) -> list[tuple[str, int, int]]:
+    """The thinly populated groups this shape's answer names.
+
+    The one definition, so the sentence in the summary and the caveat in
+    `build._caveats` cannot describe different groups -- which they would,
+    on an ascending ranking, if each worked it out for itself.
+    """
+    return thin_of(
+        snapshot,
+        named_extreme_rows(
+            snapshot, column, shape, ascending=bool(getattr(mapping, "ascending", False))
+        ),
     )
-    return headline, secondary, highlights, []
