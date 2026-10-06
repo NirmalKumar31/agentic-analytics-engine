@@ -60,8 +60,22 @@ _COMPARISON = {
     "row_count": "Rows counted",
 }
 
+#: `statistical_test` output columns. `group` is the two group names, and
+#: `rate` is the share of each group for which the indicator held.
+_STATISTICAL = {
+    "group": "Group",
+    "n": "Observations",
+    "successes": "Matching observations",
+    "rate": "Share",
+}
+
 #: Every analytical output column with a reader-facing name.
-OUTPUT_COLUMN_LABELS: dict[str, str] = {**_SHIFT_SHARE, **_ADDITIVE, **_COMPARISON}
+OUTPUT_COLUMN_LABELS: dict[str, str] = {
+    **_SHIFT_SHARE,
+    **_ADDITIVE,
+    **_COMPARISON,
+    **_STATISTICAL,
+}
 
 
 def output_label(column: str) -> str | None:
@@ -139,6 +153,16 @@ class Derivation(StrEnum):
     #: An ordinal position. A whole number, and never a quantity.
     RANK = "rank"
 
+    #: A proportion on a **0-1** scale, written as a percentage.
+    #:
+    #: The only column that is one is `rate` from a proportion test, where
+    #: it is `successes / n`. That is not inferred from seeing 0.5045:
+    #: `stats.py:_require_binary` refuses any value column that is not an
+    #: indicator, so the tool's own contract guarantees the range. The
+    #: hundred is carried on the field as `scale`, where a reader of the
+    #: presentation can see it, rather than applied silently somewhere.
+    PROPORTION_0_1 = "proportion_0_1"
+
 
 #: Every column the analytics tools derive, and what it is.
 #:
@@ -158,6 +182,10 @@ DERIVED_COLUMNS: dict[str, Derivation] = {
     "rank_desc": Derivation.RANK,
     "row_count": Derivation.COUNT,
     "value_count": Derivation.COUNT,
+    # statistical_test, two-proportion z
+    "rate": Derivation.PROPORTION_0_1,
+    "successes": Derivation.COUNT,
+    "n": Derivation.COUNT,
     # decompose_change, additive
     "baseline": Derivation.SAME_AS_MEASURE,
     "current": Derivation.SAME_AS_MEASURE,
@@ -192,7 +220,7 @@ def derived_unit(derivation: Derivation, measure_unit: str | None) -> str | None
     percentages because our own tools computed them as percentages -- that
     is declared knowledge, not a guess from a name.
     """
-    if derivation is Derivation.PROPORTION:
+    if derivation in (Derivation.PROPORTION, Derivation.PROPORTION_0_1):
         return "%"
     if derivation in (Derivation.COUNT, Derivation.RANK, Derivation.PERIOD):
         return None

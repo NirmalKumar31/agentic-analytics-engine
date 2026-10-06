@@ -125,6 +125,14 @@ class DisplayField(Strict):
     identifier: bool = False
     #: Whether values should be withheld from non-provenance surfaces.
     sensitive: bool = False
+    #: What a stored value is multiplied by before it is written.
+    #:
+    #: One for everything except a proportion on a 0-1 scale, which is
+    #: written as a percentage. It is carried here rather than applied
+    #: somewhere in the formatter so that a reader of the presentation can
+    #: see that a hundred was involved, and so the browser's formatter and
+    #: the server's cannot disagree about whether it was.
+    scale: float = 1.0
     #: The grain a TIME column buckets to, when the contract declared one.
     #:
     #: Carried on the field rather than looked up by each caller, because

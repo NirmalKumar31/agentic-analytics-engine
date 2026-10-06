@@ -730,19 +730,41 @@ test.describe("hosted visual acceptance", () => {
      * product cannot afford to get wrong.
      */
     expect(await page.locator('[role="progressbar"], progress').count()).toBe(0);
-    const before = await progress.innerText();
-    const elapsedBefore = await page
-      .getByTestId("run-progress-elapsed")
-      .textContent();
-    await page.waitForTimeout(3500);
-    const after = await progress.innerText();
-    const elapsedAfter = await page.getByTestId("run-progress-elapsed").textContent();
 
-    expect(elapsedAfter, "the elapsed clock did not advance").not.toBe(elapsedBefore);
+    /*
+     * The figures named, not the whole block minus a substring.
+     *
+     * A first version compared `innerText()` before and after with the
+     * elapsed string removed by `String.replace`, which replaces only the
+     * first occurrence -- so once the clock read a value that also appeared
+     * elsewhere in the block the subtraction took out the wrong text and
+     * the comparison failed on one cell in twelve. The assertion was
+     * fragile; the product was not. Naming the two figures that must not
+     * move says what the claim is and cannot misfire.
+     */
+    const stageBefore = await page.getByTestId("run-progress-stage").textContent();
+    const workBefore = await page.getByTestId("run-progress-work").textContent();
+    const marksBefore = await progress.locator('[data-state="complete"]').count();
+    const elapsedBefore = await page.getByTestId("run-progress-elapsed").textContent();
+
+    await page.waitForTimeout(3500);
+
     expect(
-      after.replace(elapsedAfter ?? "", ""),
-      `a figure moved while only time passed at ${cell.name}`,
-    ).toBe(before.replace(elapsedBefore ?? "", ""));
+      await page.getByTestId("run-progress-elapsed").textContent(),
+      "the elapsed clock did not advance",
+    ).not.toBe(elapsedBefore);
+    expect(
+      await page.getByTestId("run-progress-stage").textContent(),
+      `the stage moved while only time passed at ${cell.name}`,
+    ).toBe(stageBefore);
+    expect(
+      await page.getByTestId("run-progress-work").textContent(),
+      `the work count moved while only time passed at ${cell.name}`,
+    ).toBe(workBefore);
+    expect(
+      await progress.locator('[data-state="complete"]').count(),
+      `a stage completed while only time passed at ${cell.name}`,
+    ).toBe(marksBefore);
 
     // The answer is not on screen, because there is not one yet.
     await expect(page.getByTestId("report-panel")).toHaveCount(0);

@@ -148,9 +148,22 @@ export function displayValue(value: unknown, field?: DisplayField | null): strin
     return labelValue(value, field);
   }
 
+  /*
+   * The declared scale, before formatting.
+   *
+   * A two-proportion test's `rate` is `successes / n` -- stored as
+   * 0.5045 and written as 50.46%. The backend applied it and this did
+   * not, so one report said "Repeat purchase rate is 50.46% for late" in
+   * the headline and "0.50%" in the table two inches below. That is the
+   * exact defect the shared contract exists to prevent, and it got
+   * through because the contract had no case with a scale in it. It has
+   * four now.
+   */
+  const scaled = field?.scale && field.scale !== 1 ? number * field.scale : number;
+
   const text =
     field?.precision === 0
-      ? Math.trunc(number).toLocaleString("en-US")
-      : formatFixed(number, DISPLAY_PLACES);
+      ? Math.trunc(scaled).toLocaleString("en-US")
+      : formatFixed(scaled, DISPLAY_PLACES);
   return withUnit(text, field);
 }

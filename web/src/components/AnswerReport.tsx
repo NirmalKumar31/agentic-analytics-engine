@@ -28,6 +28,7 @@
 
 import { Chart } from "./Chart";
 import { EvidenceBody } from "./EvidenceDrawer";
+import { ExecutionGraphSummary } from "./ExecutionGraphSummary";
 import { opensSheet } from "./SideSheet";
 import { ResultPanel } from "./ResultPanel";
 import type { ReportModel } from "../lib/reportModel";
@@ -250,6 +251,22 @@ export function AnswerReport({
             displayFields={model.displayFields ?? undefined}
           />
         </section>
+      )}
+
+      {/*
+        The run's shape, under the answer.
+
+        The full graph is in the evidence sheet and stays there; behind one
+        control it was invisible, so a reader who wanted to know whether
+        anything ran had no sign that there was anything to open. Absent in
+        a Compare pane: the comparison has one evidence control for both
+        strategies and two summaries would be two more things to read.
+      */}
+      {!compact && run?.events && run.events.length > 0 && (
+        <ExecutionGraphSummary
+          events={run.events}
+          onShowEvidence={onShowEvidence}
+        />
       )}
 
       {/*

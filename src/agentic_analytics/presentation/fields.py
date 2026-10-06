@@ -139,7 +139,12 @@ _DERIVED_DISPLAY: dict[Derivation, tuple[SemanticKind, int | None, bool]] = {
     Derivation.PERIOD: (SemanticKind.TIME, None, True),
     Derivation.COUNT: (SemanticKind.COUNT, 0, True),
     Derivation.RANK: (SemanticKind.ORDERED_NUMERIC, 0, True),
+    Derivation.PROPORTION_0_1: (SemanticKind.MEASURE, MEASURE_PRECISION, True),
 }
+
+#: Derivations whose stored value is not the value a reader sees. Only one,
+#: and it is written down rather than special-cased at the point of render.
+_SCALE: dict[Derivation, float] = {Derivation.PROPORTION_0_1: 100.0}
 
 
 def _derived_field(
@@ -164,6 +169,7 @@ def _derived_field(
         semantic_kind=kind,
         unit=derived_unit(derivation, measure_unit),
         precision=precision,
+        scale=_SCALE.get(derivation, 1.0),
         ordered=ordered,
         identifier=False,
         sensitive=False,
@@ -176,6 +182,7 @@ def display_field_for(
     *,
     observed_values: set[str] | None = None,
     unit: str | None = None,
+    scale: float = 1.0,
     derivation: Derivation | None = None,
     measure_unit: str | None = None,
     time_grain: str | None = None,
@@ -239,6 +246,7 @@ def display_field_for(
         semantic_kind=kind,
         unit=resolved_unit,
         precision=precision,
+        scale=scale,
         boolean_labels=dict(BOOLEAN_LABELS) if boolean else None,
         ordered=bool(ordered),
         identifier=kind is SemanticKind.IDENTIFIER,
@@ -358,6 +366,13 @@ def display_value(value: Any, field: DisplayField | None) -> str:
     number = _number(value) if not isinstance(value, bool) else None
     if number is None:
         return label_value(value, field)
+
+    # A 0-1 proportion is written as a percentage. The multiplier is on the
+    # field, declared by the derivation, so the browser's formatter applies
+    # the same one -- see `web/src/lib/displayValue.ts` and the contract
+    # both are held to.
+    if field is not None and field.scale != 1.0:
+        number = number * Decimal(str(field.scale))
 
     if field is not None and field.precision == 0:
         text = f"{int(number.to_integral_value()):,}"

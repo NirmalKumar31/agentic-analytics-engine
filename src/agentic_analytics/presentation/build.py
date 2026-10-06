@@ -142,7 +142,20 @@ def _profile_fields(schema: Any) -> list[Any]:
 #: The unit a declared metric format implies. `number` and `ratio` imply
 #: none: a bare number has no unit, and a ratio's unit depends on what it
 #: is a ratio of, which the registry does not say.
-_UNIT_FOR_FORMAT = {"percent": "%", "currency": "$", "integer": None, "number": None}
+_UNIT_FOR_FORMAT = {
+    "percent": "%",
+    "currency": "$",
+    "integer": None,
+    "number": None,
+    # A proportion on a 0-1 scale, which a two-proportion test's `rate`
+    # column is by construction. Declared by the contract, never inferred
+    # from seeing 0.5045.
+    "proportion": "%",
+}
+
+#: What a declared format multiplies a stored value by before it is
+#: written. Only one format does: see `Derivation.PROPORTION_0_1`.
+_SCALE_FOR_FORMAT = {"proportion": 100.0}
 
 
 def display_fields_for(
@@ -170,6 +183,7 @@ def display_fields_for(
     # because it happens to be small.
     declared_format = str(getattr(mapping, "measure_format", "") or "")
     measure_unit = _UNIT_FOR_FORMAT.get(declared_format)
+    measure_scale = _SCALE_FOR_FORMAT.get(declared_format, 1.0)
     time_grain = str(getattr(mapping, "time_grain", "") or "") or None
 
     out: list[DisplayField] = []
@@ -232,6 +246,7 @@ def display_fields_for(
                 field,
                 observed_values=_observed(snapshot, resolved) if resolved else None,
                 unit=measure_unit if name == measure else None,
+                scale=measure_scale if name == measure else 1.0,
                 time_grain=time_grain,
             )
         )
@@ -268,6 +283,7 @@ def display_fields_for(
                 field,
                 observed_values=_observed(snapshot, name),
                 unit=measure_unit if name == measure else None,
+                scale=measure_scale if name == measure else 1.0,
                 time_grain=time_grain,
             )
         )
@@ -406,15 +422,12 @@ def _caveats(
             )
         )
 
-    if chart is not None and chart.kind == "none" and chart.no_chart_reason:
-        out.append(
-            PresentationCaveat(
-                code="no_chart",
-                message=chart.no_chart_reason,
-                severity=CaveatSeverity.NOTE,
-                related_component="chart",
-            )
-        )
+    # No `no_chart` caveat. It used to be here *as well as* inline where the
+    # chart would be, so a reader was told the same thing twice -- once
+    # under the answer and once under "What to be careful about", which is
+    # for things that qualify the answer. A missing chart does not qualify
+    # an answer; it is a fact about the space where a chart is not. That
+    # fact belongs in that space, and `AnswerReport` renders it there.
 
     if planner_fallback:
         out.append(
@@ -496,6 +509,9 @@ def build_presentation(
         # The same display metadata the table and the headline use, so the
         # axis cannot say `2025-01` under a headline that says "Oct 2025".
         fields=display_fields,
+        # What kind of answer this is, so an absent chart can say why in
+        # terms of the result rather than in terms of the engine's record.
+        shape=shape,
     )
 
     if not headline:
@@ -546,7 +562,7 @@ def build_presentation(
     # The prose is checked, not trusted. A figure that is not a cell, a
     # recorded count or a declared difference does not go out.
     for text in (headline, secondary or ""):
-        unresolved = numbers_resolve(text, snapshot, scope, derived=derived)
+        unresolved = numbers_resolve(text, snapshot, scope, derived=derived, fields=display_fields)
         if unresolved:
             raise ValueError(
                 f"presentation states {unresolved} which the cited result does not hold"

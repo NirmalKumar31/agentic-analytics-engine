@@ -387,3 +387,68 @@
 .run-progress-note {
   color: var(--ink-muted);
 }
+
+/* ------------------------------------------------ the canvas summary
+ *
+ * The marks the graph draws, on the report, under the answer. Not a
+ * second timeline: no labels, no per-call rows, and `aria-hidden` on the
+ * track because the counts beside it and the full graph inside it both
+ * say this in words.
+ *
+ * Its motion lives in `motion.css` with the rest, and is bound to
+ * `data-state` -- which only an event changes.
+ */
+.graph-summary {
+  margin-block-start: var(--space-7);
+  padding-block-start: var(--space-5);
+  border-block-start: 1px solid var(--rule-hairline);
+  min-width: 0;
+}
+
+.graph-summary-track {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  list-style: none;
+  margin: var(--space-3) 0 0;
+  padding: 0;
+}
+
+.graph-summary-mark {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  border: 2px solid var(--rule-hairline);
+  background: var(--surface-canvas);
+  flex: 0 0 auto;
+}
+
+.graph-summary-mark[data-state="complete"],
+.graph-summary-mark[data-state="active"] {
+  border-color: var(--signal);
+  background: var(--signal);
+}
+
+.graph-summary-mark[data-state="withheld"] {
+  border-color: var(--ink-muted);
+  background: var(--ink-muted);
+}
+
+.graph-summary-mark[data-state="stopped"] {
+  border-color: var(--warning);
+  background: var(--warning);
+}
+
+.graph-summary-line {
+  margin: var(--space-2) 0 0;
+  font-size: var(--text-sm);
+  color: var(--ink-secondary);
+  max-width: 68ch;
+}
+
+.graph-summary-more > summary {
+  margin-block-start: var(--space-3);
+  cursor: pointer;
+  font-size: var(--text-sm);
+  color: var(--ink-secondary);
+}
