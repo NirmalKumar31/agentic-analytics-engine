@@ -1,4 +1,9 @@
-import { advertiseAi, compareWith, startCompare } from "./compareHelpers";
+import {
+  advertiseAi,
+  compareWith,
+  startCompare,
+  strategyReport,
+} from "./compareHelpers";
 import { expect, reportFor, test } from "./fixtures";
 
 /** One question for every comparison here, so the job admits it once. */
@@ -170,7 +175,7 @@ test.describe("a deterministic run", () => {
 });
 
 test.describe("AI and Compare, with the API intercepted", () => {
-  test("Compare Both shows two independent panes", async ({ page }) => {
+  test("Compare Both offers both strategies, one report at a time", async ({ page }) => {
     /*
      * Through `compareHelpers`, which owns the comparison route.
      *
@@ -193,18 +198,19 @@ test.describe("AI and Compare, with the API intercepted", () => {
     await openDemo(page);
     await startCompare(page, COMPARE_QUESTION);
 
-    // Two labelled panes.
-    await expect(
-      page.getByRole("region", {
-        name: "Deterministic Analytics",
-        exact: true,
-      }),
-    ).toBeVisible({
-      timeout: 60_000,
-    });
-    await expect(
-      page.getByRole("region", { name: "AI Analytics", exact: true }),
-    ).toBeVisible();
+    /*
+     * Two strategies, one report on screen.
+     *
+     * They were two labelled regions side by side. A full report -- a
+     * headline, a chart, highlights and a result table -- in half a
+     * laptop's width is not a comparison, so there is a switcher and one
+     * report at full width. Each tab is independently identifiable, which
+     * is what the two regions were for.
+     */
+    await expect(page.getByRole("tab")).toHaveCount(2, { timeout: 60_000 });
+    await expect(page.getByTestId("compare-tab-deterministic")).toBeVisible();
+    await expect(page.getByTestId("compare-tab-ai")).toBeVisible();
+    await expect(page.getByRole("tabpanel")).toHaveCount(1);
 
     // The AI side failed; the deterministic side still produced a report.
     //
@@ -216,14 +222,10 @@ test.describe("AI and Compare, with the API intercepted", () => {
     // becomes computable. Naming the element is both stable and a stronger
     // claim than "some alert somewhere says this".
     await expect(
-      page
-        .getByRole("region", { name: "AI Analytics", exact: true })
-        .getByTestId("run-state-card"),
+      (await strategyReport(page, "ai")).getByTestId("run-state-card"),
     ).toContainText(/public demo usage limit/i);
     await expect(
-      page
-        .getByRole("region", { name: "Deterministic Analytics", exact: true })
-        .getByTestId("direct-answer"),
+      (await strategyReport(page, "deterministic")).getByTestId("direct-answer"),
     ).toBeVisible({ timeout: 60_000 });
 
     // No winner, anywhere.
@@ -257,8 +259,7 @@ test.describe("AI and Compare, with the API intercepted", () => {
     await openDemo(page);
     await startCompare(page, COMPARE_QUESTION);
 
-    const ai = page.getByRole("region", { name: "AI Analytics", exact: true });
-    await expect(ai).toBeVisible({ timeout: 60_000 });
+    const ai = await strategyReport(page, "ai");
 
     // The status moved from a pane header into the row of the table that
     // compares the two strategies. The claim is unchanged -- the AI side's
@@ -279,13 +280,13 @@ test.describe("AI and Compare, with the API intercepted", () => {
     await expect(card).toContainText(/could not be mapped safely/i);
     await expect(ai.getByTestId("pane-placeholder")).toHaveCount(0);
 
-    await expect(
-      page
-        .getByRole("region", { name: "Deterministic Analytics", exact: true })
-        .getByTestId("direct-answer"),
-    ).toBeVisible({ timeout: 60_000 });
-
+    // The AI panel wears no Complete badge -- asserted before switching
+    // away, because the panel shows one strategy at a time.
     await expect(ai.getByText(/\bComplete\b/)).toHaveCount(0);
+
+    await expect(
+      (await strategyReport(page, "deterministic")).getByTestId("direct-answer"),
+    ).toBeVisible({ timeout: 60_000 });
   });
 
   test("an AI run refused by quota is reported without leaking anything", async ({
@@ -311,7 +312,7 @@ test.describe("AI and Compare, with the API intercepted", () => {
     await openDemo(page);
     await selectMode(page, "ai");
     await page.getByLabel("Business question").fill("What is total revenue?");
-    await page.getByRole("button", { name: /Run with AI/ }).click();
+    await page.getByTestId("run").click();
 
     await expect(page.getByText(/public demo usage limit/i)).toBeVisible();
     const text = (await page.locator("body").textContent()) ?? "";

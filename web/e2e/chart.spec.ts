@@ -161,7 +161,7 @@ test.describe("the run timeline, on real runs", () => {
      */
     await reportFor(page, "What is the total revenue by region?");
 
-    await page.getByTestId("show-work").click();
+    await page.getByTestId("inspect-evidence").click();
     const timeline = inDrawer(page, "run-timeline");
     await expect(timeline).toBeVisible();
     expect(await timeline.locator('[data-state="stopped"]').count()).toBe(0);
@@ -172,7 +172,7 @@ test.describe("the run timeline, on real runs", () => {
   test("a successful uploaded run reaches publish", async ({ profiled: page }) => {
     await reportFor(page, "What is the total revenue by region?");
 
-    await page.getByTestId("show-work").click();
+    await page.getByTestId("inspect-evidence").click();
     const timeline = inDrawer(page, "run-timeline");
     await expect(timeline).toBeVisible();
     // Five stages for a deterministic run, every one of them reached.

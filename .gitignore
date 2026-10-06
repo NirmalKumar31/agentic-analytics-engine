@@ -11,7 +11,9 @@ build/
 coverage.xml
 htmlcov/
 .DS_Store
-web/node_modules/
+# Anywhere, not only under web/: a stray `npx --prefix` leaves a vitest
+# cache in a root `node_modules/`, which is not something to commit.
+node_modules/
 web/dist/
 *.tsbuildinfo
 # Generated demo warehouse and per-session scratch databases.

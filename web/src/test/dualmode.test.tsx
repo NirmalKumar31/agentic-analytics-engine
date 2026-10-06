@@ -1,4 +1,4 @@
-import { render, screen, within } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
@@ -183,7 +183,17 @@ describe("CompareWorkspace", () => {
     children: <p>left result</p>,
   });
 
-  it("shows both panes with independent labels", () => {
+  it("shows one strategy's report at a time, with a tab for each", () => {
+    /*
+     * Both reports used to render at once, side by side above 900px.
+     * That is where Compare stopped being readable: two full reports --
+     * headline, chart, highlights, result table -- in half a laptop's
+     * width, then stacked into two long documents at narrower ones.
+     *
+     * One at full width now, chosen by a tab. The difference a reader
+     * opened Compare for is the contract table above, which is already a
+     * side-by-side view of the part that differs.
+     */
     render(
       <CompareWorkspace
         question="Why did margin fall?"
@@ -191,14 +201,27 @@ describe("CompareWorkspace", () => {
         ai={side({ children: <p>right result</p> })}
       />,
     );
-    expect(
-      screen.getByRole("region", { name: "Deterministic Analytics" }),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByRole("region", { name: "AI Analytics" }),
-    ).toBeInTheDocument();
+    const tabs = screen.getAllByRole("tab");
+    expect(tabs.map((tab) => tab.textContent)).toEqual([
+      "Deterministic Analytics",
+      "AI Analytics",
+    ]);
+    expect(screen.getAllByRole("tabpanel")).toHaveLength(1);
+
+    // The deterministic side is shown first: it is the one that always
+    // runs, so it is the one that is always there to show.
+    expect(tabs[0]).toHaveAttribute("aria-selected", "true");
     expect(screen.getByText("left result")).toBeInTheDocument();
+    expect(screen.queryByText("right result")).toBeNull();
+
+    // And switching shows the other, without running anything.
+    fireEvent.click(tabs[1]!);
     expect(screen.getByText("right result")).toBeInTheDocument();
+    expect(screen.queryByText("left result")).toBeNull();
+    expect(
+      screen.getByRole("tabpanel"),
+      "the panel does not say which strategy it is showing",
+    ).toHaveAttribute("data-strategy", "ai");
   });
 
   it("keeps the deterministic result when the AI side failed", () => {
@@ -211,7 +234,14 @@ describe("CompareWorkspace", () => {
         })}
       />,
     );
+    // The result that arrived is shown first and is not withheld because
+    // its counterpart failed.
     expect(screen.getByText("left result")).toBeInTheDocument();
+
+    // The failure belongs to the AI strategy, so it is in that strategy's
+    // panel rather than above both. A reader has to be able to attribute
+    // it without counting which card came first.
+    fireEvent.click(screen.getByTestId("compare-tab-ai"));
     const alert = screen.getByRole("alert");
     expect(alert).toHaveTextContent(/public demo usage limit/i);
   });
@@ -336,7 +366,7 @@ describe("CompareWorkspace", () => {
     // itself has not gone anywhere -- it is a column in the table that
     // compares the two strategies, where both sides now read "Complete",
     // which is more informative than two panes that are not rendered.
-    expect(document.querySelectorAll(".compare-pane")).toHaveLength(0);
+    expect(document.querySelectorAll(".compare-report")).toHaveLength(0);
     expect(screen.getAllByTestId("pane-status")).toHaveLength(2);
 
     // The planning comparison stays, because that is what differed. It was
@@ -370,8 +400,14 @@ describe("CompareWorkspace", () => {
         })}
       />,
     );
+    // Not one shared answer, and both results reachable -- each in its own
+    // strategy's panel. "Not collapsed" is about neither being discarded or
+    // presented as the answer, which the switcher preserves: one is shown,
+    // the other is one tab away, and neither is called the result.
     expect(screen.queryByTestId("shared-result")).not.toBeInTheDocument();
     expect(screen.getByText("left result")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByTestId("compare-tab-ai"));
     expect(screen.getByText("right result")).toBeInTheDocument();
   });
 
@@ -444,7 +480,7 @@ describe("the mode taxonomy", () => {
     );
     const note = screen.getByTestId("mode-taxonomy");
     expect(note).toHaveTextContent(/chooses between two planners/i);
-    expect(note).toHaveTextContent(/two panes and not three/i);
+    expect(note).toHaveTextContent(/two reports and not three/i);
   });
 
   it("says it whichever mode is selected, because the question is about all of them", () => {

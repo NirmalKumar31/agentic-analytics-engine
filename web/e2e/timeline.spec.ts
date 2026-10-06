@@ -66,7 +66,7 @@ test.describe("the run timeline", () => {
   }) => {
     // In the evidence drawer: once the report exists the answer is the
     // thing on screen, so the timeline moves behind "Show work".
-    await page.getByTestId("show-work").click();
+    await page.getByTestId("inspect-evidence").click();
     const timeline = inDrawer(page, "run-timeline");
     await expect(timeline).toBeVisible();
 
@@ -84,7 +84,7 @@ test.describe("the run timeline", () => {
   test("every stage reached is marked from the engine's own events", async ({
     demo: page,
   }) => {
-    await page.getByTestId("show-work").click();
+    await page.getByTestId("inspect-evidence").click();
     // A finished run has finished stages. Read from `data-state`, which is
     // what the stylesheet colours from, so a stage cannot look complete
     // while reporting something else.
@@ -120,7 +120,7 @@ test.describe("the run timeline", () => {
     await expect(page.getByTestId("report-panel")).toBeVisible({
       timeout: 90_000,
     });
-    await page.getByTestId("show-work").click();
+    await page.getByTestId("inspect-evidence").click();
 
     const drawerTimeline = inDrawer(page, "run-timeline");
     await expect(drawerTimeline.locator('[data-state="stopped"]')).toHaveCount(1);

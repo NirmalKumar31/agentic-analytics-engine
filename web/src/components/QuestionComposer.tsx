@@ -16,7 +16,7 @@
  * chooses one -- "I want a trend" rather than "I want the second item".
  */
 
-import { ModeSelector } from "./ModeSelector";
+import { ModeSelector, RUN_LABELS } from "./ModeSelector";
 import { PlanningMethodDisclosure } from "./PlanningMethodDisclosure";
 import { groupedSuggestions } from "./DatasetSummary";
 import type {
@@ -77,12 +77,14 @@ export function QuestionComposer({
       }));
 
   const clocks = summary?.time_fields ?? [];
-  const label =
-    uiMode === "compare"
-      ? "Compare strategies"
-      : uiMode === "ai"
-        ? "Run with AI"
-        : "Run analysis";
+  /*
+   * What the button will do, named per mode.
+   *
+   * "Run analysis" stood for both Governed and Deterministic, so the one
+   * control that commits a reader to a planner did not say which planner
+   * it would use. `RUN_LABELS` is declared beside the choices themselves.
+   */
+  const label = RUN_LABELS[uiMode];
 
   return (
     <section className="composer" data-testid="composer">
@@ -131,6 +133,7 @@ export function QuestionComposer({
         <button
           type="button"
           className="btn primary"
+          data-testid="run"
           onClick={onAsk}
           disabled={busy || !question.trim()}
         >

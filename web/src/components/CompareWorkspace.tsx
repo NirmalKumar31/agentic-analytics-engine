@@ -102,6 +102,15 @@ export function CompareWorkspace({
   ai: CompareSide;
 }) {
   const [evidenceOpen, setEvidenceOpen] = useState(false);
+  /*
+   * Which strategy's full report is shown.
+   *
+   * Zero, which is the deterministic side: it is the one that always runs,
+   * so it is the one that is always there to show. Switching runs nothing
+   * -- both payloads are in memory and the tab chooses which finished
+   * record is displayed.
+   */
+  const [shown, setShown] = useState(0);
 
   const comparison = compareRuns(deterministic.run, ai.run);
   const left = stateOf(deterministic);
@@ -159,6 +168,13 @@ export function CompareWorkspace({
       warn: comparable && !comparison.shareOneResult,
     },
   ];
+
+  /** The two strategies, in the order they are offered. */
+  const sides = [
+    { role: "deterministic", side: deterministic },
+    { role: "ai", side: ai },
+  ];
+  const current = sides[shown] ?? sides[0]!;
 
   return (
     <div className="compare" data-testid="compare-workspace">
@@ -403,51 +419,98 @@ export function CompareWorkspace({
             </p>
           ) : null}
 
-          {/* Both results, below the difference rather than beside it: the
-              difference is what a reader opened Compare for. */}
           {/*
-            Both sides, below the difference rather than beside it: the
-            difference is what a reader opened Compare for.
+            Both results, below the difference and **one at a time**.
+
+            They were side by side in a two-column grid above 900px, and
+            that is where Compare stopped being readable: two full reports
+            -- each with a headline, a chart, highlights and a result table
+            -- in half a laptop's width, then stacked into two long
+            documents a reader has to scroll between to compare anything.
+            Neither arrangement lets you put one number beside another.
+
+            A switcher instead. The difference that a reader opened Compare
+            for is the table above, which is already a side-by-side view of
+            the part that differs; the full reports are the backing detail,
+            and one of them at full width is readable at every viewport in
+            the sweep.
+
+            Switching runs nothing. Both payloads are in memory, and the
+            tab chooses which finished record is shown -- the same
+            arrangement `CompareEvidenceDrawer` uses for the traces.
 
             Rendered whenever there is not one shared answer -- including
-            while the two are *not yet comparable*. An earlier version gated
-            this on `comparable`, so a run that had finished was hidden
-            because the other side was still going or had failed. A result
-            on hand is not withheld because its counterpart is missing.
+            while the two are *not yet comparable*. An earlier version
+            gated this on `comparable`, so a run that had finished was
+            hidden because the other side was still going or had failed. A
+            result on hand is not withheld because its counterpart is
+            missing.
           */}
-          <div className="compare-grid">
-            {[
-              { side: deterministic, role: "deterministic" },
-              { side: ai, role: "ai" },
-            ].map(({ side, role }) => (
-              <article
-                key={role}
-                className="compare-pane"
-                // A labelled region: each side is independently identifiable
-                // to a screen reader, which is what stops two panes of
-                // similar numbers becoming one undifferentiated block.
-                role="region"
-                aria-label={side.title}
-              >
-                <h3 className="section-heading">{side.title}</h3>
-                <p className="compare-pane-sub">{side.subtitle}</p>
-                {/*
-                  Inside the side's own block, not above both of them.
-                  A refusal, a quota stop or a failed start belongs to one
-                  strategy, and a reader has to be able to attribute it
-                  without counting which card came first. `RunStateCard`
-                  renders nothing for a verified answer, so a clean side
-                  carries no card at all.
-                */}
-                <RunStateCard state={stateOf(side)} />
-                {side.children ?? (
-                  <p className="compare-pane-empty" aria-live="polite">
-                    {stateOf(side).reason || stateOf(side).label}
-                  </p>
-                )}
-              </article>
-            ))}
-          </div>
+          <section className="compare-reports" aria-label="Each strategy's report">
+            <h3 className="section-heading">Each strategy in full</h3>
+
+            <div
+              className="compare-tabs"
+              role="tablist"
+              aria-label="Which strategy's report to show"
+            >
+              {sides.map((entry, index) => (
+                <button
+                  key={entry.role}
+                  type="button"
+                  role="tab"
+                  id={`compare-tab-${entry.role}`}
+                  aria-selected={index === shown}
+                  aria-controls="compare-report-panel"
+                  // Only the selected tab is a tab stop; the arrow keys
+                  // move between them. That is the tablist pattern, and it
+                  // is what stops a two-tab control costing a keyboard user
+                  // two presses to get past.
+                  tabIndex={index === shown ? 0 : -1}
+                  className={`compare-tab${index === shown ? " is-active" : ""}`}
+                  data-testid={`compare-tab-${entry.role}`}
+                  onClick={() => setShown(index)}
+                  onKeyDown={(event) => {
+                    if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
+                    event.preventDefault();
+                    const next =
+                      event.key === "ArrowRight"
+                        ? (shown + 1) % sides.length
+                        : (shown - 1 + sides.length) % sides.length;
+                    setShown(next);
+                    document.getElementById(`compare-tab-${sides[next]!.role}`)?.focus();
+                  }}
+                >
+                  {entry.side.title}
+                </button>
+              ))}
+            </div>
+
+            <article
+              className="compare-report"
+              id="compare-report-panel"
+              role="tabpanel"
+              aria-labelledby={`compare-tab-${current.role}`}
+              data-testid="compare-report-panel"
+              data-strategy={current.role}
+            >
+              <p className="compare-pane-sub">{current.side.subtitle}</p>
+              {/*
+                Inside the strategy's own panel, not above both of them.
+                A refusal, a quota stop or a failed start belongs to one
+                strategy, and a reader has to be able to attribute it
+                without counting which card came first. `RunStateCard`
+                renders nothing for a verified answer, so a clean side
+                carries no card at all.
+              */}
+              <RunStateCard state={stateOf(current.side)} />
+              {current.side.children ?? (
+                <p className="compare-pane-empty" aria-live="polite">
+                  {stateOf(current.side).reason || stateOf(current.side).label}
+                </p>
+              )}
+            </article>
+          </section>
         </section>
       )}
 

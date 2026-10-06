@@ -213,22 +213,14 @@ table.data .tag {
 
 /* ------------------------------------------------------- comparison */
 
-.compare-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 16px;
-  align-items: start;
-}
+/* The two-column grid and its stacking rule are gone with the panes.
+ *
+ * Both reports rendered at once, side by side above 900px and stacked
+ * below it. A full report in half a laptop's width is not a comparison, and
+ * two of them stacked is two documents. `answer.css` has the switcher that
+ * replaced them: one report, full width, chosen by a tab. */
 
-/* Narrow screens stack in a defined order rather than shrinking two
-   columns into unreadable ones. */
-@media (max-width: 900px) {
-  .compare-grid {
-    grid-template-columns: 1fr;
-  }
-}
-
-.compare-pane {
+.compare-report {
   border: 1px solid var(--rule-hairline);
   border-radius: 10px;
   padding: 12px 14px;

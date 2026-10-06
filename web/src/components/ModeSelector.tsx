@@ -19,10 +19,41 @@ interface Props {
 interface Choice {
   mode: UiMode;
   label: string;
+  /** The full explanation. Lives in the disclosure and in `aria-describedby`. */
   description: string;
   available: boolean;
   unavailableMessage: string;
 }
+
+/**
+ * The purpose a card shows, which is the description's first sentence.
+ *
+ * Derived rather than written separately on purpose. A second, shorter
+ * blurb beside the server's own description is two statements about one
+ * mode that can disagree, and the server is the authority on what a mode
+ * does. Taking the first sentence keeps the card to one line and keeps the
+ * full text one disclosure away.
+ */
+function purposeOf(description: string): string {
+  const trimmed = description.trim();
+  const end = trimmed.search(/\.\s|\.$/);
+  return end === -1 ? trimmed : trimmed.slice(0, end + 1);
+}
+
+/**
+ * What pressing the button will do, per mode.
+ *
+ * The action used to read "Run analysis" for both Governed and
+ * Deterministic, so the one control that commits a reader to a planner did
+ * not say which planner it would use. Exported so the composer and its
+ * tests name the same thing.
+ */
+export const RUN_LABELS: Record<UiMode, string> = {
+  auto: "Run governed analysis",
+  deterministic: "Run deterministic analysis",
+  ai: "Run with AI",
+  compare: "Compare planning strategies",
+};
 
 export function ModeSelector({
   capabilities,
@@ -68,7 +99,7 @@ export function ModeSelector({
       mode: "compare",
       label: "Compare planning strategies",
       description:
-        "Runs the same question through each decision path and shows the two results side by side.",
+        "Runs the same question through each planner and shows one full report at a time, with a switcher between them. Narrow columns are not used: a comparison of two reports is unreadable at half a phone's width.",
       available: capabilities.compare_available,
       unavailableMessage:
         ai?.available === false
@@ -81,14 +112,20 @@ export function ModeSelector({
   const selected = choices.find((choice) => choice.mode === value) ?? primary;
 
   /*
-   * A compact control, not four cards.
+   * Four cards, each selectable and each saying what it is for.
    *
-   * Every choice used to be a bordered card carrying its full description,
-   * in a bordered fieldset, below the composer: four paragraphs of
-   * explanatory prose, occupying more of the screen than the question field
-   * they modify. The strategy is a *qualifier* on the run button -- most
-   * readers will never change it from Governed -- so it is sized like one,
-   * and only the chosen strategy explains itself.
+   * This was a compact segmented control: four labels in a pill strip,
+   * with only the selected one explaining itself. It read as a row of
+   * headings rather than as a choice -- nothing about it said "pick one",
+   * the selected state was a background tint, and three of the four modes
+   * were unlabelled as to purpose until you selected them.
+   *
+   * The earlier objection to cards was real and is answered rather than
+   * reversed: the version before the pill strip put four full paragraphs
+   * on screen, occupying more room than the question field they modify.
+   * A card now carries **one sentence** -- the description's first, so it
+   * cannot disagree with the full text -- and the full explanations, the
+   * taxonomy and the AI quota note all sit behind one disclosure.
    *
    * The radiogroup, the per-option `aria-describedby`, the capability
    * gating and the disabled-with-reason behaviour are unchanged: what a
@@ -98,17 +135,18 @@ export function ModeSelector({
   return (
     <div className="mode-selector" data-testid="mode-selector">
       <div
-        className="mode-options"
+        className="mode-cards"
         role="radiogroup"
         aria-label="Analysis mode"
       >
         {choices.map((choice) => {
           const id = `mode-${choice.mode}`;
           const describedBy = `${id}-description`;
+          const chosen = value === choice.mode;
           return (
             <span
               key={choice.mode}
-              className={`mode-option${value === choice.mode ? " selected" : ""}${
+              className={`mode-option${chosen ? " selected" : ""}${
                 choice.available ? "" : " unavailable"
               }`}
             >
@@ -117,65 +155,98 @@ export function ModeSelector({
                 id={id}
                 name="analysis-mode"
                 value={choice.mode}
-                checked={value === choice.mode}
+                checked={chosen}
                 disabled={!choice.available || disabled}
                 aria-describedby={describedBy}
                 onChange={() => onChange(choice.mode)}
               />
               <label htmlFor={id}>
+                {/* The selected state in a mark, not in colour alone: a
+                    reader who cannot separate the hues still has to be
+                    able to see which one is chosen. */}
+                <span className="mode-option-mark" aria-hidden="true">
+                  {chosen ? "\u25cf" : "\u25cb"}
+                </span>
                 <span className="mode-option-label">{choice.label}</span>
-                {/* Visually hidden, not removed: the description is what
-                    tells a screen-reader user what they are choosing, and
-                    it must not depend on which option happens to be
-                    selected. */}
-                <span className="sr-only" id={describedBy}>
+                {/*
+                  One sentence, visible. When the mode cannot run, this is
+                  the reason instead -- and it carries `describedBy` itself,
+                  so a disabled card states its reason exactly once. The
+                  earlier markup put the same message in a visible span and
+                  again in a hidden one, which a screen reader reads twice.
+                */}
+                <span
+                  className="mode-option-purpose"
+                  id={choice.available ? undefined : describedBy}
+                >
                   {choice.available
-                    ? choice.description
+                    ? purposeOf(choice.description)
                     : choice.unavailableMessage}
                 </span>
               </label>
+              {/*
+                The full text, outside the label on purpose.
+                
+                Inside it, it joined the radio's accessible *name*, so the
+                name repeated the first sentence that is already visible on
+                the card. As a sibling it is the accessible *description*,
+                which is what `aria-describedby` is for.
+              */}
+              {choice.available && (
+                <span className="sr-only" id={describedBy}>
+                  {choice.description}
+                </span>
+              )}
             </span>
           );
         })}
       </div>
 
-      <p className="mode-description" data-testid="mode-description">
-        {selected.available ? selected.description : selected.unavailableMessage}
-      </p>
-
       {/*
-        What the four choices are, in one sentence.
+        Everything that is not the choice itself, behind one control.
 
-        A reader asked why Compare shows two panes when the selector offers
-        three modes, and the answer is not discoverable from the selector:
-        Governed Analysis is a *router* that picks one of the two planners,
-        so comparing it against them would duplicate whichever it chose.
-        Said once, here, rather than left to be inferred.
+        Three paragraphs used to be resident here: the selected mode's full
+        description, a taxonomy explaining why Compare has two panes and
+        not three, and an AI quota note that appeared on two of the four
+        modes. Together they were taller than the cards they explained.
       */}
-      <p className="mode-taxonomy small dim" data-testid="mode-taxonomy">
-        Governed Analysis chooses between two planners: Deterministic
-        Analytics plans by rule, AI Analytics plans with a cloud model.
-        Compare runs both and shows them side by side, which is why it has
-        two panes and not three.
-      </p>
+      <details className="mode-explainer" data-testid="mode-explainer">
+        <summary>How these differ, and what AI costs</summary>
 
-      {value === "ai" || value === "compare" ? (
+        <p className="mode-description" data-testid="mode-description">
+          {selected.available
+            ? selected.description
+            : selected.unavailableMessage}
+        </p>
+
+        {/*
+          What the four choices are, in one sentence.
+
+          A reader asked why Compare shows two reports when the selector
+          offers three modes, and the answer is not discoverable from the
+          cards: Governed Analysis is a *router* that picks one of the two
+          planners, so comparing it against them would duplicate whichever
+          it chose.
+        */}
+        <p className="mode-taxonomy small dim" data-testid="mode-taxonomy">
+          Governed Analysis chooses between two planners: Deterministic
+          Analytics plans by rule, AI Analytics plans with a cloud model.
+          Compare runs both, which is why it has two reports and not three.
+        </p>
+
         <p className="mode-note">
-          AI Analytics uses a limited public quota and can fail if the provider
-          is unavailable. Only governed analytics context — schema, profiles and
-          aggregates — is sent. Findings that the publication checks do not
-          accept are withheld.
+          AI Analytics uses a limited public quota and can fail if the
+          provider is unavailable. Only governed analytics context — schema,
+          profiles and aggregates — is sent. Findings that the publication
+          checks do not accept are withheld.
           {capabilities.ai_limits
             ? ` Up to ${capabilities.ai_limits.runs_per_session} AI runs per dataset session.`
             : ""}
         </p>
-      ) : null}
 
-      <details className="disclosure planning-audit">
-        <summary>Planning audit</summary>
         <p className="small dim">
-          Rules only, AI-assisted planning, and comparing the two are diagnostic
-          paths. Governed Analysis is the default product path.
+          Rules only, AI-assisted planning, and comparing the two are
+          diagnostic paths. Governed Analysis is the default product path.
         </p>
       </details>
     </div>

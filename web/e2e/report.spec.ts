@@ -227,7 +227,7 @@ test.describe("the report canvas is only what the brief allows", () => {
     // thing on screen, and the timeline is in the evidence drawer.
     await expect(canvasTestId(page, "run-timeline")).toHaveCount(0);
 
-    await page.getByTestId("show-work").click();
+    await page.getByTestId("inspect-evidence").click();
     await expect(
       page.getByTestId("evidence-drawer").getByTestId("run-timeline"),
     ).toBeVisible();
@@ -243,7 +243,7 @@ test.describe("the report canvas is only what the brief allows", () => {
      * reading "active" underneath a published report.
      */
     await wideReport(page);
-    await page.getByTestId("show-work").click();
+    await page.getByTestId("inspect-evidence").click();
 
     const drawer = page.getByTestId("evidence-drawer");
     await expect(drawer.getByTestId("run-timeline")).toBeVisible();

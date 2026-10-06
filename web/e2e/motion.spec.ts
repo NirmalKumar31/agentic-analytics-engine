@@ -187,7 +187,7 @@ test.describe("with reduced motion asked for", () => {
       shared: true,
       reach: async (page: Page) => {
         await reportFor(page, REPORT_QUESTION, { media: { reducedMotion: "reduce" } });
-        await page.getByTestId("show-work").click();
+        await page.getByTestId("inspect-evidence").click();
         await expect(page.getByTestId("evidence-drawer")).toBeVisible();
       },
     },

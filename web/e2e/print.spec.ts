@@ -248,7 +248,7 @@ test.describe("the print cascade, applied to a live page", () => {
      * added to one and forgotten in the other fails.
      */
     await reach(page, "successful");
-    await page.getByTestId("show-work").click();
+    await page.getByTestId("inspect-evidence").click();
     const drawer = page.getByTestId("evidence-drawer");
     await expect(drawer).toBeVisible();
     const sections = await drawer
@@ -356,7 +356,7 @@ test.describe("the print cascade, applied to a live page", () => {
     // sheet with a panel floating over a dimmed page. The evidence is in
     // the appendix either way.
     await reach(page, "successful");
-    await page.getByTestId("show-work").click();
+    await page.getByTestId("inspect-evidence").click();
     await expect(page.getByTestId("evidence-drawer")).toBeVisible();
 
     await page.emulateMedia({ media: "print" });

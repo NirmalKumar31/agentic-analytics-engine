@@ -355,9 +355,9 @@ export async function openComposer(page: Page): Promise<void> {
   });
 }
 
-/** The product's own run control, named the way the product names it. */
+/** The product's own run control. By test id: the label is per mode. */
 export function runButton(page: Page) {
-  return page.getByRole("button", { name: /^(Run analysis|Run with AI|Compare)/ });
+  return page.getByTestId("run");
 }
 
 /** Ask, and let a staged fixture answer. Nothing is started on the host. */

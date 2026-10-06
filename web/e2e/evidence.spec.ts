@@ -51,15 +51,15 @@ test.describe("the evidence drawer", () => {
     await expect(page.getByTestId("evidence-drawer")).toHaveCount(0);
     // Exactly one trigger for the whole report. The old report put a
     // "Show work →" on every finding card.
-    await expect(page.getByTestId("show-work")).toHaveCount(1);
+    await expect(page.getByTestId("inspect-evidence")).toHaveCount(1);
 
-    await page.getByTestId("show-work").click();
+    await page.getByTestId("inspect-evidence").click();
     await expect(page.getByTestId("evidence-drawer")).toBeVisible();
   });
 
   test("carries every technical datum the canvas gave up", async ({ profiled: page }) => {
     await openReport(page);
-    await page.getByTestId("show-work").click();
+    await page.getByTestId("inspect-evidence").click();
 
     const drawer = page.getByTestId("evidence-drawer");
     await expect(drawer).toBeVisible();
@@ -74,7 +74,7 @@ test.describe("the evidence drawer", () => {
     // "not reached" is information. Its absence is ambiguous, and a reader
     // cannot tell a run that did not fall back from a field nobody rendered.
     await openReport(page);
-    await page.getByTestId("show-work").click();
+    await page.getByTestId("inspect-evidence").click();
     await expect(page.getByTestId("evidence-drawer")).toContainText(
       /planner fall|no planner fallback/i,
     );
@@ -82,7 +82,7 @@ test.describe("the evidence drawer", () => {
 
   test("names the cited cells that link a sentence to its number", async ({ profiled: page }) => {
     await openReport(page);
-    await page.getByTestId("show-work").click();
+    await page.getByTestId("inspect-evidence").click();
     const drawer = page.getByTestId("evidence-drawer");
     // Either real references or an explicit "none cited" -- never blank.
     const text = (await drawer.textContent()) ?? "";
@@ -94,7 +94,7 @@ test.describe("the evidence drawer", () => {
 test.describe("the evidence drawer's focus behaviour", () => {
   test("moves focus into the drawer on open", async ({ profiled: page }) => {
     await openReport(page);
-    await page.getByTestId("show-work").click();
+    await page.getByTestId("inspect-evidence").click();
 
     const inside = await page.evaluate(() => {
       const drawer = document.querySelector('[data-testid="evidence-drawer"]');
@@ -105,7 +105,7 @@ test.describe("the evidence drawer's focus behaviour", () => {
 
   test("traps Tab inside the drawer", async ({ profiled: page }) => {
     await openReport(page);
-    await page.getByTestId("show-work").click();
+    await page.getByTestId("inspect-evidence").click();
 
     // More tabs than the drawer has stops. The page behind is under a
     // scrim, so focus landing there simply disappears.
@@ -137,7 +137,7 @@ test.describe("the evidence drawer's focus behaviour", () => {
 
   test("Escape closes it and returns focus to the trigger", async ({ profiled: page }) => {
     await openReport(page);
-    const trigger = page.getByTestId("show-work");
+    const trigger = page.getByTestId("inspect-evidence");
     await trigger.click();
     await expect(page.getByTestId("evidence-drawer")).toBeVisible();
 
@@ -149,7 +149,7 @@ test.describe("the evidence drawer's focus behaviour", () => {
 
   test("the Close control also returns focus to the trigger", async ({ profiled: page }) => {
     await openReport(page);
-    const trigger = page.getByTestId("show-work");
+    const trigger = page.getByTestId("inspect-evidence");
     await trigger.click();
     await page
       .getByTestId("evidence-drawer")

@@ -54,7 +54,7 @@ test.describe("a recorded run", () => {
     // Provenance: one drawer, carrying the contract, the verification
     // outcomes, the cited cells and the MCP trace. It used to be a
     // per-finding drawer reached from a button on every card.
-    await page.getByTestId("show-work").click();
+    await page.getByTestId("inspect-evidence").click();
     const drawer = page.getByTestId("evidence-drawer");
     await expect(drawer).toBeVisible();
     await expect(drawer).toContainText("Accepted contract");
@@ -133,7 +133,7 @@ test.describe("the demo warehouse", () => {
     await page.route("**/api/analyses/*", slowPoll);
 
     await suggestedQuestions(page).first().click();
-    await page.getByRole("button", { name: "Run analysis" }).click();
+    await page.getByTestId("run").click();
 
     try {
       // Progress is visible while it runs. The ANALYSIS panel heading is
@@ -161,7 +161,7 @@ test.describe("the demo warehouse", () => {
       /\d+ verified, \d+ withheld/,
     );
 
-    await page.getByTestId("show-work").click();
+    await page.getByTestId("inspect-evidence").click();
     await expect(page.getByTestId("evidence-drawer")).toBeVisible();
     await expect(page.getByTestId("evidence-drawer")).toContainText(
       "Verification",
@@ -224,7 +224,7 @@ test.describe("uploading a file", () => {
     // The audit is in the evidence drawer rather than resident under the
     // report. It records the governed contract and coverage, not a provider
     // prompt or hidden reasoning.
-    await page.getByTestId("show-work").click();
+    await page.getByTestId("inspect-evidence").click();
     const audit = inDrawer(page, "planning-audit");
     await expect(audit).toBeVisible();
     await audit.locator("summary").click();
@@ -275,7 +275,7 @@ test.describe("uploading a file", () => {
       "a refusal is stated once, not repeated in several phrasings",
     ).toBe(1);
 
-    await page.getByTestId("show-work").click();
+    await page.getByTestId("inspect-evidence").click();
     await expect(inDrawer(page, "raw-stop-reason")).toContainText(
       /could not be mapped safely/i,
     );
@@ -451,7 +451,7 @@ test.describe("the public MCP endpoint", () => {
     await openApp(page);
     await page.getByRole("button", { name: /Commerce demo warehouse/ }).click();
     await suggestedQuestions(page).first().click();
-    await page.getByRole("button", { name: "Run analysis" }).click();
+    await page.getByTestId("run").click();
     await waitForReport(page);
     expect(await page.locator(".finding-item").count()).toBeGreaterThan(0);
   });

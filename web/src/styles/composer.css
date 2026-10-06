@@ -266,28 +266,40 @@
 .mode-selector {
   display: flex;
   flex-direction: column;
-  gap: var(--space-2);
+  gap: var(--space-3);
   min-width: 0;
   margin-block-start: var(--space-4);
 }
 
-.mode-options {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-1);
-  padding: 2px;
-  border: 1px solid var(--rule-hairline);
-  border-radius: var(--radius-md);
-  background: var(--surface-inset);
+/* ------------------------------------------------------------ the cards
+ *
+ * Four of them, each a selectable surface rather than a label in a strip.
+ *
+ * The pill strip this replaces read as a row of headings: nothing about it
+ * said "pick one", the selected state was a background tint, and three of
+ * the four purposes were invisible until selected. The version before
+ * *that* was four paragraphs taller than the question field. A card
+ * carries one sentence, and the full text is behind the disclosure below.
+ *
+ * `auto-fit` with a readable minimum, so the row becomes two and then one
+ * as the viewport narrows rather than squeezing four columns of prose into
+ * a phone.
+ */
+.mode-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr));
+  gap: var(--space-2);
+  min-width: 0;
 }
 
 .mode-option {
-  display: inline-flex;
+  display: flex;
+  min-width: 0;
 }
 
-/* The radio itself is the control; the label is its visible surface. It is
-   not `display: none`, which removes it from the accessibility tree and
-   from the tab order -- it is positioned under the label it labels. */
+/* The radio is the control; the card is its visible surface. Not
+   `display: none`, which removes it from the accessibility tree and from
+   the tab order -- positioned under the label it labels. */
 .mode-option input {
   position: absolute;
   width: 1px;
@@ -296,27 +308,74 @@
 }
 
 .mode-option label {
-  display: block;
-  padding: var(--space-2) var(--space-3);
-  border-radius: var(--radius-sm);
-  font-size: var(--text-sm);
-  color: var(--ink-secondary);
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-areas:
+    "mark name"
+    "mark purpose";
+  column-gap: var(--space-2);
+  row-gap: 2px;
+  width: 100%;
+  min-width: 0;
+  padding: var(--space-3);
+  border: 1px solid var(--rule-hairline);
+  border-radius: var(--radius-md);
+  background: var(--surface-canvas);
   cursor: pointer;
-  white-space: nowrap;
+  transition: border-color var(--motion-feedback) var(--ease-out);
 }
 
-.mode-option.selected label {
-  background: var(--surface-raised);
-  color: var(--ink-primary);
+.mode-option label:hover {
+  border-color: var(--rule-strong);
+}
+
+.mode-option-mark {
+  grid-area: mark;
+  align-self: start;
+  margin-block-start: 1px;
+  font-size: var(--text-sm);
+  line-height: var(--leading-normal);
+  color: var(--ink-muted);
+}
+
+.mode-option-label {
+  grid-area: name;
+  font-size: var(--text-sm);
   font-weight: var(--weight-medium);
-  box-shadow: var(--shadow-raised);
+  color: var(--ink-secondary);
 }
 
-/* Availability is carried by the disabled control and by the description
-   below, not by colour alone. */
+.mode-option-purpose {
+  grid-area: purpose;
+  font-size: var(--text-xs);
+  color: var(--ink-muted);
+  line-height: var(--leading-normal);
+}
+
+/* Chosen. Three signals, not one: the mark is filled, the border takes the
+   action colour, and the name goes to primary ink. A tint alone is not a
+   selected state for a reader who cannot separate the hues. */
+.mode-option.selected label {
+  border-color: var(--signal);
+  background: var(--surface-raised);
+  box-shadow: inset 0 0 0 1px var(--signal);
+}
+
+.mode-option.selected .mode-option-mark,
+.mode-option.selected .mode-option-label {
+  color: var(--ink-primary);
+}
+
+/* Availability is carried by the disabled control and by the reason on the
+   card, not by colour alone. No `opacity`: the muted ink clears 4.5:1 with
+   nothing to spare, and dimming it drops it under the threshold. */
 .mode-option.unavailable label {
-  opacity: 0.55;
+  border-style: dashed;
   cursor: not-allowed;
+}
+
+.mode-option.unavailable .mode-option-label {
+  color: var(--ink-muted);
 }
 
 .mode-option input:focus-visible + label {
@@ -324,11 +383,22 @@
   outline-offset: 2px;
 }
 
-.mode-option-label {
-  display: inline;
+/* ------------------------------------------------------ the explanation */
+
+.mode-explainer > summary {
+  cursor: pointer;
+  font-size: var(--text-sm);
+  color: var(--ink-secondary);
 }
 
-/* The one description on screen: whichever strategy is selected. */
+.mode-explainer[open] > summary {
+  margin-block-end: var(--space-3);
+}
+
+.mode-explainer > p + p {
+  margin-block-start: var(--space-3);
+}
+
 .mode-description,
 .mode-taxonomy,
 .mode-note {
@@ -344,10 +414,10 @@
 }
 
 @media (max-width: 640px) {
+  /* A thumb needs 44px on the shorter side; a card clears that already,
+     and this keeps it true if the purpose wraps to nothing. */
   .mode-option label {
     min-height: 44px;
-    display: flex;
-    align-items: center;
   }
 }
 

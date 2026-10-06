@@ -252,16 +252,25 @@ export function AnswerReport({
         </section>
       )}
 
-      {/* One control. Everything technical is behind it. */}
+      {/*
+        One control. Everything technical is behind it.
+
+        It said "Show work", which reads as an offer to explain the answer
+        -- and what is behind it is the audit: the route, the accepted
+        contract, the coverage, the timings, the execution graph and the
+        activity trace. "Inspect evidence" says what it is, and says the
+        same thing Compare's control says ("Inspect both traces"), so the
+        two surfaces no longer name one idea two ways.
+      */}
       {!compact && onShowEvidence && (
       <div className="report-actions">
         <button
           type="button"
           className="btn"
           {...opensSheet(onShowEvidence)}
-          data-testid="show-work"
+          data-testid="inspect-evidence"
         >
-          Show work <span aria-hidden="true">→</span>
+          Inspect evidence <span aria-hidden="true">→</span>
         </button>
         <button
           type="button"

@@ -253,7 +253,7 @@ export function Chart({ chart, snapshot, onOpenProvenance }: Props) {
             className="btn ghost small"
             onClick={() => onOpenProvenance(chart.finding_ids[0]!)}
           >
-            Show work
+            Inspect evidence
           </button>
         </div>
       )}

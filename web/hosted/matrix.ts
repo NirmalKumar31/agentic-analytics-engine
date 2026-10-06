@@ -22,6 +22,8 @@ export const THEMES = ["light", "dark"] as const;
 export const STATES = [
   "landing",
   "composer",
+  "layout",
+  "focus-visible",
   "report",
   "execution-graph",
   "evidence-drawer",
