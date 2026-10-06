@@ -44,9 +44,13 @@ REQUIRED_TOP_LEVEL = (
     # Version 4. A recording is replayed through the live report
     # components, so a key the API serves and the recording omits is a
     # feature the replay loses without saying so -- silently, because the
-    # report still renders. These three are required by name for that
-    # reason. `presentation` is not among them; see `record.py` for what
-    # carrying it would cost.
+    # report still renders. Required by name for that reason.
+    #
+    # `presentation` is the one that mattered: without it a replayed report
+    # fell back to the engine's own sentences, which name columns as the
+    # engine stores them, and the three published recordings are the only
+    # thing a visitor without a credential can open.
+    "presentation",
     "query_contract",
     "question_coverage",
     "timings",

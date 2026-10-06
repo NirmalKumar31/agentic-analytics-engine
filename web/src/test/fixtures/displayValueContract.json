@@ -1,0 +1,181 @@
+{
+  "what_this_is": "The display contract for one cell. Hand-written, not generated: if either side generated it, that side's test would be checking itself. Read by tests/unit/test_display_value_contract.py and src/test/displayValue.test.ts, so a formatter that drifts fails in one of the two suites and is named there.",
+  "field_defaults": {
+    "source_name": "value",
+    "display_label": "Value",
+    "semantic_kind": "measure",
+    "unit": null,
+    "precision": null,
+    "boolean_labels": null,
+    "ordered": false,
+    "identifier": false,
+    "sensitive": false,
+    "time_grain": null
+  },
+  "cases": [
+    {
+      "name": "a currency measure carries its symbol as a prefix",
+      "field": { "source_name": "revenue", "unit": "$", "precision": 2 },
+      "raw": 1050312.9099999913,
+      "expected": "$1,050,312.91"
+    },
+    {
+      "name": "a whole currency amount carries no decimals",
+      "field": { "source_name": "revenue", "unit": "$", "precision": 2 },
+      "raw": 1050312,
+      "expected": "$1,050,312"
+    },
+    {
+      "name": "a percentage sits tight against its number",
+      "field": { "source_name": "return_rate", "unit": "%", "precision": 2 },
+      "raw": 9.956508232370302,
+      "expected": "9.96%"
+    },
+    {
+      "name": "a difference of two rates is percentage points, not a percentage",
+      "field": { "source_name": "diff_vs_best", "unit": "pp", "precision": 2 },
+      "raw": -2.2976361553414163,
+      "expected": "-2.30 pp"
+    },
+    {
+      "name": "and percentage points take a space, because 0.71pp reads as a typo",
+      "field": { "source_name": "change_abs", "unit": "pp", "precision": 2 },
+      "raw": 0.71,
+      "expected": "0.71 pp"
+    },
+    {
+      "name": "a difference of two currency amounts stays currency",
+      "field": { "source_name": "change_abs", "unit": "$", "precision": 2 },
+      "raw": 361921.95,
+      "expected": "$361,921.95"
+    },
+    {
+      "name": "a monthly period reads as a month, never as a stored instant",
+      "field": {
+        "source_name": "period",
+        "semantic_kind": "time",
+        "time_grain": "month"
+      },
+      "raw": "2025-01-01T00:00:00",
+      "expected": "Jan 2025"
+    },
+    {
+      "name": "a quarterly period also reads as a month: the bucket's first day is storage",
+      "field": {
+        "source_name": "period",
+        "semantic_kind": "time",
+        "time_grain": "quarter"
+      },
+      "raw": "2025-10-01T00:00:00",
+      "expected": "Oct 2025"
+    },
+    {
+      "name": "a daily period names the day",
+      "field": {
+        "source_name": "period",
+        "semantic_kind": "time",
+        "time_grain": "day"
+      },
+      "raw": "2024-01-05T00:00:00",
+      "expected": "Jan 5, 2024"
+    },
+    {
+      "name": "a yearly period is the year alone",
+      "field": {
+        "source_name": "period",
+        "semantic_kind": "time",
+        "time_grain": "year"
+      },
+      "raw": "2025-01-01",
+      "expected": "2025"
+    },
+    {
+      "name": "a period with no declared grain still drops the midnight suffix",
+      "field": { "source_name": "period", "semantic_kind": "time" },
+      "raw": "2025-12-01T00:00:00",
+      "expected": "Dec 2025"
+    },
+    {
+      "name": "a period that does not parse is returned as the engine stored it",
+      "field": {
+        "source_name": "period",
+        "semantic_kind": "time",
+        "time_grain": "month"
+      },
+      "raw": "FY2025-Q3",
+      "expected": "FY2025-Q3"
+    },
+    {
+      "name": "a count is a whole number of things, even stored as a float",
+      "field": { "source_name": "row_count", "semantic_kind": "count", "precision": 0 },
+      "raw": 19471.0,
+      "expected": "19,471"
+    },
+    {
+      "name": "a rank is an ordinal, with no unit and no decimals",
+      "field": {
+        "source_name": "rank_desc",
+        "semantic_kind": "ordered_numeric",
+        "precision": 0
+      },
+      "raw": 1,
+      "expected": "1"
+    },
+    {
+      "name": "a measure with no declared unit carries none: revenue does not say which currency",
+      "field": { "source_name": "net_value", "precision": 2 },
+      "raw": 4312.5,
+      "expected": "4,312.50"
+    },
+    {
+      "name": "a flag reads as its state",
+      "field": {
+        "source_name": "is_holiday",
+        "semantic_kind": "boolean",
+        "boolean_labels": { "0": "Off", "1": "On", "false": "Off", "true": "On" }
+      },
+      "raw": 1,
+      "expected": "On"
+    },
+    {
+      "name": "and so does the same flag stored as a float",
+      "field": {
+        "source_name": "is_holiday",
+        "semantic_kind": "boolean",
+        "boolean_labels": { "0": "Off", "1": "On", "false": "Off", "true": "On" }
+      },
+      "raw": 0.0,
+      "expected": "Off"
+    },
+    {
+      "name": "a dimension value is the visitor's own data, shown as stored",
+      "field": { "source_name": "customer_segment", "semantic_kind": "category" },
+      "raw": "vip",
+      "expected": "vip"
+    },
+    {
+      "name": "a missing value is an em dash, never the word None or null",
+      "field": { "source_name": "prev_period", "unit": "$", "precision": 2 },
+      "raw": null,
+      "expected": "—"
+    },
+    {
+      "name": "a column with no metadata is shown as stored, which is the honest fallback",
+      "field": null,
+      "raw": "West",
+      "expected": "West"
+    },
+    {
+      "name": "a float tail is never published at full precision",
+      "field": { "source_name": "revenue", "unit": "$", "precision": 2 },
+      "raw": 10087379.470000014,
+      "expected": "$10,087,379.47"
+    },
+    {
+      "name": "a negative currency delta keeps the sign inside the reading",
+      "field": { "source_name": "change_abs", "unit": "$", "precision": 2 },
+      "raw": -924435.25,
+      "expected": "$-924,435.25"
+    }
+  ]
+}

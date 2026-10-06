@@ -254,44 +254,80 @@ test.describe("the report canvas is only what the brief allows", () => {
   });
 });
 
-test.describe("a long report on a phone", () => {
-  test("shows one finding and folds the rest", async ({ page }) => {
+test.describe("a recorded report on a phone", () => {
+  test("shows every highlight it has, and the fold is not reached", async ({
+    page,
+  }) => {
     /*
-     * The brief's requirement, against the payload it was written for: a
-     * recorded run publishes six full-sentence findings, and at 390px they
-     * push the result table a long way below the fold.
+     * This test used to assert the fold itself, against a recording that
+     * published six full-sentence findings at 390px.
      *
-     * A recording rather than an upload, because the uploaded path
-     * publishes one-line label/value rows -- two of them -- which is the
-     * case the fold deliberately leaves alone.
+     * It could only ever do that because the recording carried **no
+     * presentation snapshot**, so the report fell back to the engine's own
+     * finding prose -- which is the defect `presentation/fields.py` and
+     * `recordings/record.py` were corrected for. With the snapshot carried,
+     * a recorded run renders the way a live one does: a headline, at most
+     * two highlights, and the table.
+     *
+     * The presentation layer emits two highlights for every shape it
+     * builds -- highest and lowest -- and the fold's threshold was three,
+     * so the branch never ran in product output. It has been **removed**
+     * rather than kept for a constructed test model, which would have left
+     * dead markup and a disclosure a keyboard user could reach.
+     * `src/test/highlightsAreNotFolded.test.tsx` asserts the cap and the
+     * absence of the control over every committed payload.
+     *
+     * So this asserts what the phone report actually does, which is the
+     * thing that was never checked: every highlight is present, none is
+     * hidden behind a disclosure, and the table is still reachable below
+     * them.
      */
     await page.setViewportSize({ width: 390, height: 844 });
     await openApp(page);
     await recordingButtons(page).first().click();
     await waitForReport(page);
 
-    // Asserted, not skipped on. A conditional `test.skip` here would be
-    // counted by the report guard as a declared skip, and a recording that
-    // stopped publishing enough findings would quietly stop exercising the
-    // fold while the run still looked clean.
-    const total = await page.locator(".finding-item").count();
+    const highlights = page.locator(".finding-item");
+    const total = await highlights.count();
     expect(
       total,
-      "this recording publishes too few findings to fold",
-    ).toBeGreaterThan(3);
+      "a recorded report published no highlights at all",
+    ).toBeGreaterThan(0);
 
-    const fold = page.locator(".findings-more");
-    await expect(fold).toHaveCount(1);
+    // Nothing folded, and nothing lost: the count on screen is the count
+    // in the report.
+    await expect(page.locator(".findings-more")).toHaveCount(0);
+    await expect(
+      page.locator(".findings > .finding-list > .finding-item"),
+    ).toHaveCount(total);
+    for (const highlight of await highlights.all()) {
+      await expect(highlight).toBeVisible();
+    }
 
-    // One above the fold, the rest inside it.
-    const above = page.locator(".findings > .finding-list > .finding-item");
-    await expect(above).toHaveCount(1);
-    await expect(fold.locator(".finding-item")).toHaveCount(total - 1);
+    // The table is below the answer, not pushed off the end of it.
+    await expect(page.getByTestId("result-panel")).toBeVisible();
+  });
 
-    // And it opens, rather than being a label over hidden content.
-    await fold.locator("summary").click();
-    await expect(fold).toHaveAttribute("open", "");
-    await expect(fold.locator(".finding-item").first()).toBeVisible();
+  test("renders the period column as months, not as stored instants", async ({
+    page,
+  }) => {
+    /*
+     * The parity defect, at the surface it was visible on.
+     *
+     * The headline resolved a period through its grain and said
+     * "Oct 2025"; the table beside it formatted the same cell with no
+     * field metadata and said "2025-01-01T00:00:00". Both are in this
+     * report, so one test can hold them to each other.
+     */
+    await page.setViewportSize({ width: 390, height: 844 });
+    await openApp(page);
+    await recordingButtons(page).first().click();
+    await waitForReport(page);
+
+    const table = await page.getByTestId("result-panel").innerText();
+    expect(table, "the result table published a stored instant").not.toMatch(
+      /\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/,
+    );
   });
 
   test("and shows all of them on a desktop", async ({ page }) => {

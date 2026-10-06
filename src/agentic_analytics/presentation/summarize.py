@@ -18,11 +18,19 @@ the words are as constrained as the figures.
 
 from __future__ import annotations
 
+import re
 from decimal import Decimal
 from typing import Any
 
 from agentic_analytics.analytics.results import EvidenceCell, ResultSnapshot
-from agentic_analytics.presentation.fields import fields_by_name, humanize, label_value
+from agentic_analytics.presentation.fields import (
+    display_value,
+    fields_by_name,
+    humanize,
+    label_value,
+    period_label,
+    with_unit,
+)
 from agentic_analytics.presentation.schemas import (
     DisplayField,
     InterpretationLevel,
@@ -180,87 +188,19 @@ def _measure_phrase(mapping: Any, snapshot: ResultSnapshot, column: str) -> str:
     return f"{word} {subject}".strip()
 
 
-#: Month names for a period label. Short, because a headline is read at a
-#: glance and "December" earns no more trust than "Dec".
-_MONTHS = (
-    "Jan",
-    "Feb",
-    "Mar",
-    "Apr",
-    "May",
-    "Jun",
-    "Jul",
-    "Aug",
-    "Sep",
-    "Oct",
-    "Nov",
-    "Dec",
-)
-
-
-def period_label(value: Any, grain: str | None = None) -> str:
-    """A period a reader can read.
-
-    The engine stores periods as ISO timestamps, and a headline that says
-    "peaked in 2025-12-01T00:00:00" is showing a reader a serialisation
-    format. The midnight suffix carries no information at any grain this
-    product aggregates to -- a monthly bucket is a month, not an instant --
-    so it is never shown.
-
-    Anything that does not parse is returned unchanged. A period this does
-    not understand is still the engine's own value, and guessing at it
-    would be worse than printing it.
-    """
-    text = str(value if value is not None else "").strip()
-    if not text:
-        return text
-    head = text.split("T")[0]
-    parts = head.split("-")
-    try:
-        if len(parts) >= 3:
-            year, month, day = int(parts[0]), int(parts[1]), int(parts[2])
-        elif len(parts) == 2:
-            year, month, day = int(parts[0]), int(parts[1]), 1
-        else:
-            return text
-    except ValueError:
-        return text
-    if not 1 <= month <= 12:
-        return text
-    if grain in {"day", "week"}:
-        return f"{_MONTHS[month - 1]} {day}, {year}"
-    if grain == "year":
-        return str(year)
-    # Month and quarter both read as a month: the bucket's first day is an
-    # implementation detail of how it is stored.
-    return f"{_MONTHS[month - 1]} {year}"
-
-
-#: Units written before the number rather than after it. A currency symbol
-#: is a prefix in every locale this product renders, and "65,435.38 $" is
-#: not a price anyone writes.
-_PREFIX_UNITS = frozenset({"$", "£", "€", "¥"})
-
-
-def _with_unit(text: str, field: DisplayField | None) -> str:
-    if field is None or not field.unit:
-        return text
-    unit = field.unit
-    if unit in _PREFIX_UNITS:
-        return f"{unit}{text}"
-    # `%` sits tight against the number; a named unit takes a space.
-    return f"{text}{'' if unit == '%' else ' '}{unit}"
-
-
 def _value_of(
     snapshot: ResultSnapshot, row: int, column: str, field: DisplayField | None
 ) -> PresentationValue:
+    """One cell, as stored and as written.
+
+    The written form comes from `display_value` -- the same function the
+    table and the chart resolve a cell through -- so a figure cannot be
+    worded one way in the headline and another in the table beneath it.
+    """
     raw = snapshot.cell(row, column)
-    number = as_number(raw, declared_type=snapshot.declared_type(column))
-    formatted = format_number(number) if number is not None else str(raw)
     return PresentationValue(
         raw_value=raw,
-        formatted_value=_with_unit(formatted, field),
+        formatted_value=display_value(raw, field),
         unit=field.unit if field else None,
     )
 
@@ -275,29 +215,165 @@ def _cell(snapshot: ResultSnapshot, row: int, column: str, label: str) -> Eviden
     )
 
 
+#: How an operator reads in a sentence. A reader is being told what was
+#: excluded, not shown a predicate.
+_OPERATORS = {
+    "=": "is",
+    "==": "is",
+    "eq": "is",
+    "!=": "is not",
+    "ne": "is not",
+    ">": "is over",
+    "gt": "is over",
+    ">=": "is at least",
+    "gte": "is at least",
+    "<": "is under",
+    "lt": "is under",
+    "<=": "is at most",
+    "lte": "is at most",
+    "in": "is one of",
+    "not_in": "is none of",
+    "between": "",
+    "range": "",
+}
+
+
+def date_range_label(start: Any, end: Any) -> str:
+    """A date window a reader can read.
+
+    `Jan 1 - Dec 31, 2025` within one year, and both years when it spans
+    two. The endpoints go through `period_label` at day grain, so a stored
+    `2025-01-01T00:00:00` is never one of them.
+    """
+    first = period_label(start, "day")
+    last = period_label(end, "day")
+    if not first or not last:
+        return " to ".join(part for part in (first, last) if part)
+    # `Jan 1, 2025` and `Dec 31, 2025` share a year: say it once.
+    head, _, year = first.rpartition(", ")
+    tail_head, _, tail_year = last.rpartition(", ")
+    if year and year == tail_year and head and tail_head:
+        return f"{head} - {tail_head}, {year}"
+    return f"{first} - {last}"
+
+
+def _filter_parts(entry: Any) -> tuple[str, str, Any]:
+    """Column, operator and value, from either shape the contract uses.
+
+    Filters arrive as dictionaries from a governed contract and as tuples
+    from a mapping built in code. The tuple branch used to unpack into
+    three names with `(*list(entry), None, None)[:3]`, and the dictionary
+    branch read an `operator` key that a range filter does not carry -- so
+    a date window published the literal string
+    ``Order date None ['2025-01-01', '2025-12-31']`` as the scope line
+    under the headline. Both the `None` and the Python list repr were being
+    shown to a reader.
+    """
+    if hasattr(entry, "as_dict") and callable(entry.as_dict):
+        # A resolved `Filter`. Its own serialisation names the operator,
+        # including the ones it computes from `negated`.
+        try:
+            entry = entry.as_dict()
+        except Exception:  # pragma: no cover - a filter that cannot describe itself
+            return "", "", None
+
+    if isinstance(entry, dict):
+        column = str(entry.get("column") or entry.get("field") or "")
+        operator = str(entry.get("operator") or entry.get("op") or entry.get("comparison") or "")
+        value = entry.get("value", entry.get("values"))
+        if not operator and isinstance(value, list | tuple) and len(tuple(value)) == 2:
+            operator = "between"
+        return column, operator, value
+
+    parts = tuple(entry) if isinstance(entry, list | tuple) else (entry,)
+    column = str(parts[0]) if parts else ""
+    if len(parts) >= 3:
+        return column, str(parts[1]), parts[2]
+    if len(parts) == 2:
+        value = parts[1]
+        operator = "between" if isinstance(value, list | tuple) and len(tuple(value)) == 2 else "is"
+        return column, operator, value
+    return column, "", None
+
+
+def describe_filter(entry: Any) -> str:
+    """One filter, in words, with its endpoints formatted.
+
+    Returns `""` for an entry with no column, which is a filter this layer
+    cannot describe; the caller drops it rather than publishing a sentence
+    about nothing. A dropped filter is still in the accepted contract in
+    the evidence drawer, where the raw predicate belongs.
+    """
+    # A resolved `Filter` already writes its own sentence, and that sentence
+    # is part of its contract -- `row_filters.py` keeps one per kind so the
+    # provenance and the prose cannot drift. Preferred over anything derived
+    # here.
+    #
+    # Without this, the object fell through to the "not a dict, not a tuple"
+    # branch, `str(entry)` became the column name, and the scope line under
+    # a refused run published
+    # `CategoryFilter(column='region', value='Atlantis', negated=False, ...)`
+    # -- a dataclass repr, as prose, to a reader.
+    own = getattr(entry, "describe", None)
+    if callable(own):
+        try:
+            described = str(own()).strip()
+        except Exception:  # pragma: no cover - a filter that cannot describe itself
+            described = ""
+        if described:
+            return described[0].upper() + described[1:]
+
+    column, operator, value = _filter_parts(entry)
+    if not column:
+        return ""
+
+    label = humanize(column)
+    word = _OPERATORS.get(operator.lower().strip(), operator.strip())
+
+    if isinstance(value, list | tuple):
+        items = list(value)
+        if operator.lower().strip() in {"between", "range"} and len(items) == 2:
+            return f"{label}: {date_range_label(items[0], items[1])}"
+        written = ", ".join(_filter_value(item) for item in items)
+        return f"{label} {word} {written}".strip() if word else f"{label}: {written}"
+
+    if value is None:
+        # Nothing to compare against. "Order date is" is not a sentence, so
+        # the predicate is named without one rather than printed with a
+        # `None` where the value should be.
+        return f"{label} {word}".strip() if word else label
+
+    return f"{label} {word} {_filter_value(value)}".strip()
+
+
+def _filter_value(value: Any) -> str:
+    """One filter endpoint. A stored instant is written as a date."""
+    text = str(value).strip()
+    if _LOOKS_ISO.match(text):
+        return period_label(text, "day")
+    return text
+
+
+#: A stored date or instant, which a filter endpoint often is.
+_LOOKS_ISO = re.compile(r"^\d{4}-\d{2}(-\d{2})?([T ].*)?$")
+
+
 def scope_for(
     mapping: Any, snapshot: ResultSnapshot, *, rows_total: int | None = None
 ) -> PresentationScope:
     """The recorded population, carried through rather than recomputed."""
     coverage = snapshot.group_coverage
-    filters = []
-    for entry in getattr(mapping, "filters", ()) or ():
-        if isinstance(entry, dict):
-            column, operator, value = (
-                entry.get("column"),
-                entry.get("operator"),
-                entry.get("value"),
-            )
-        else:
-            column, operator, value = (*list(entry), None, None)[:3]
-        if column:
-            filters.append(f"{humanize(str(column))} {operator} {value}")
+    filters = [
+        described
+        for entry in (getattr(mapping, "filters", ()) or ())
+        if (described := describe_filter(entry))
+    ]
 
     period = None
     window = getattr(mapping, "period", None)
     if window and len(tuple(window)) == 2:
         start, end = tuple(window)
-        period = f"{start} to {end}"
+        period = f"{date_range_label(start, end)}"
 
     return PresentationScope(
         rows_total=coverage.rows_total if coverage else rows_total,
@@ -441,7 +517,7 @@ def _boolean_comparison(
         derived.append(difference)
         delta_value = PresentationValue(
             raw_value=float(difference),
-            formatted_value=_with_unit(format_number(difference), measure_field),
+            formatted_value=with_unit(format_number(difference), measure_field),
             unit=measure_field.unit if measure_field else None,
         )
         secondary = (

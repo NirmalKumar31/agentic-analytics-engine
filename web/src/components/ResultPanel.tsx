@@ -14,7 +14,8 @@
  */
 
 import { useMemo, useState } from "react";
-import { formatCell } from "../lib/format";
+
+import { displayValue } from "../lib/displayValue";
 import { csvFilename, resultToCsv } from "../lib/resultCsv";
 import type { Cell, DisplayField, EvidenceCell, ResultSnapshot } from "../lib/types";
 
@@ -58,10 +59,19 @@ export function ResultPanel({
     .map((column, index) => ({ column, index }))
     .filter(({ column }) => !INTERNAL_EVIDENCE_COLUMNS.has(column));
   const labelFor = (column: string) => fields.get(column)?.display_label ?? column.replaceAll("_", " ");
-  const valueFor = (column: string, value: Cell) => {
-    const labels = fields.get(column)?.boolean_labels;
-    return labels?.[String(value)] ?? formatCell(value);
-  };
+  /*
+   * One formatter, shared with the backend.
+   *
+   * This used to read `boolean_labels` and then fall through to
+   * `formatCell`, which sees no field metadata at all -- so a `$` measure
+   * printed "1,050,312.91", a `%` measure printed "9.96", and a period
+   * printed "2025-01-01T00:00:00" directly beneath a headline that said
+   * "Oct 2025". `displayValue` honours the semantic kind, the unit, the
+   * precision and the grain, and is held to the same hand-written contract
+   * as `presentation/fields.py:display_value`.
+   */
+  const valueFor = (column: string, value: Cell) =>
+    displayValue(value, fields.get(column) ?? null);
 
   const ordered = useMemo(() => {
     const indexed = snapshot.rows.map((row, index) => ({ row, index }));

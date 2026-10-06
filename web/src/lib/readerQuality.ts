@@ -26,6 +26,7 @@ export type ReaderDefect =
   | "iso_timestamp"
   | "snake_case"
   | "missing_value"
+  | "serialised_collection"
   | "planner_vocabulary"
   | "malformed_punctuation";
 
@@ -59,8 +60,27 @@ const ISO_TIMESTAMP = /\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/;
  */
 const SNAKE_CASE = /\b[a-z][a-z0-9]*(?:_[a-z0-9]+)+\b/;
 
-/** A value that did not arrive, rendered as the absence of one. */
-const MISSING_VALUE = /\b(?:undefined|null|NaN|\[object Object\])\b/;
+/**
+ * A value that did not arrive, rendered as the absence of one.
+ *
+ * `None` is in here because it reached a reader. The scope line under
+ * every headline with a date filter read
+ * ``Order date None ['2025-01-01', '2025-12-31']``: a Python `None` where
+ * the operator belonged, published as prose. The em dash is the product's
+ * own mark for a missing cell and is deliberately not matched.
+ */
+const MISSING_VALUE = /\b(?:undefined|null|None|NaN|\[object Object\])\b/;
+
+/**
+ * A serialised collection where a sentence belongs.
+ *
+ * The other half of the same defect: the filter's two endpoints arrived as
+ * a Python list and were interpolated straight into the scope line, so a
+ * reader was shown ``['2025-01-01', '2025-12-31']``. A bracket has no
+ * honest reading on a primary surface, and the engine's own predicates
+ * live in the evidence drawer where brackets are correct.
+ */
+const SERIALISED_COLLECTION = /\[[^\]]*[,'"][^\]]*\]|\{\s*['"]/;
 
 /**
  * Words from the planner's own vocabulary.
@@ -80,6 +100,7 @@ const RULES: Array<[ReaderDefect, RegExp]> = [
   ["iso_timestamp", ISO_TIMESTAMP],
   ["snake_case", SNAKE_CASE],
   ["missing_value", MISSING_VALUE],
+  ["serialised_collection", SERIALISED_COLLECTION],
   ["planner_vocabulary", PLANNER_VOCABULARY],
   ["malformed_punctuation", MALFORMED],
 ];

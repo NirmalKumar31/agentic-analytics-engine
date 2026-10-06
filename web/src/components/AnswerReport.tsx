@@ -26,18 +26,12 @@
  * and a loss.
  */
 
-import { useMediaQuery } from "../lib/useMediaQuery";
 import { Chart } from "./Chart";
 import { EvidenceBody } from "./EvidenceDrawer";
 import { opensSheet } from "./SideSheet";
 import { ResultPanel } from "./ResultPanel";
 import type { ReportModel } from "../lib/reportModel";
 import type { RunPayload } from "../lib/types";
-
-/** The phone widths the brief names: 360 and 390 are both below this. */
-const FOLD_BELOW = 640;
-/** Below this many, folding hides a line to save a line. */
-const FOLD_ABOVE = 3;
 
 function Finding({
   highlight,
@@ -134,20 +128,28 @@ export function AnswerReport({
   compact?: boolean;
 }) {
   /*
-   * Requirement: exactly one finding expanded on arrival at phone widths.
+   * The phone-width fold is gone, and it is worth saying why rather than
+   * leaving a gap where it was.
    *
-   * Only where there is something to fold, and only on the report itself
-   * -- a Compare pane is already two columns of summary and folding inside
-   * one would bury the comparison. `useMediaQuery` rather than a CSS rule
-   * because the fold is a change of markup, not of layout: a `<details>`
-   * forced open by a media query still carries a summary nobody wants on a
-   * desktop, and a reader tabbing past it finds a control that does
-   * nothing.
+   * It showed one highlight on arrival below 640px and hid the rest behind
+   * a `<details>`, above a threshold of three. **The presentation contract
+   * emits at most two highlights for every shape it builds** -- highest
+   * and lowest -- so the threshold was never met and the branch never ran
+   * in product output. It appeared to work only because the published
+   * recordings carried no presentation snapshot and the report fell back
+   * to listing the engine's own findings, which is the defect
+   * `presentation/fields.py` and `recordings/record.py` were corrected
+   * for.
+   *
+   * So the fold was kept alive by a bug, and keeping it for a constructed
+   * test model would have left dead markup, a dead constant, a dead media
+   * query and a disclosure control a keyboard user could reach.
+   *
+   * If the contract later emits more than three reader-facing highlights,
+   * a fold is the right answer again -- and the order is: raise the cap,
+   * produce a recording through the normal pipeline that reaches it, then
+   * build the fold against that.
    */
-  const narrow = useMediaQuery(`(max-width: ${FOLD_BELOW}px)`);
-  const folds = !compact && narrow && model.highlights.length > FOLD_ABOVE;
-  const shown = folds ? model.highlights.slice(0, 1) : model.highlights;
-  const folded = folds ? model.highlights.slice(1) : [];
 
   return (
     <article
@@ -218,38 +220,12 @@ export function AnswerReport({
       {model.highlights.length > 0 && (
         <section className="findings" aria-label="What the numbers show">
           <h2 className="section-heading">What the numbers show</h2>
+          {/* Every highlight the run published. No fold: see above. */}
           <ol className="finding-list">
-            {shown.map((highlight, index) => (
+            {model.highlights.map((highlight, index) => (
               <Finding key={highlight.id} highlight={highlight} rank={index + 1} />
             ))}
           </ol>
-          {folded.length > 0 && (
-            /*
-             * One finding on arrival at phone widths, which is the brief's
-             * requirement and only makes sense where there is something to
-             * fold: an engine that published two one-line rows has nothing
-             * to hide, and hiding one to save a line would be worse than
-             * showing it.
-             *
-             * A `<details>`, so it is open to the keyboard and to a reader
-             * who prints -- the print cascade expands every disclosure, so
-             * the paper copy is never the folded one.
-             */
-            <details className="findings-more">
-              <summary>
-                {folded.length} more {folded.length === 1 ? "finding" : "findings"}
-              </summary>
-              <ol className="finding-list" start={shown.length + 1}>
-                {folded.map((highlight, index) => (
-                  <Finding
-                    key={highlight.id}
-                    highlight={highlight}
-                    rank={shown.length + index + 1}
-                  />
-                ))}
-              </ol>
-            </details>
-          )}
         </section>
       )}
 

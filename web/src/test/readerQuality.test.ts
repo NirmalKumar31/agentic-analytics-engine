@@ -84,3 +84,39 @@ describe("the reader-facing gate", () => {
     expect(found.length).toBeGreaterThanOrEqual(3);
   });
 });
+
+describe("the two forms a filter published", () => {
+  it("catches a Python None in prose", () => {
+    // The scope line, verbatim, as it shipped.
+    const found = readerDefects("Order date None ['2025-01-01', '2025-12-31']");
+    expect(found.map((f) => f.defect)).toContain("missing_value");
+  });
+
+  it("catches the serialised list beside it", () => {
+    const found = readerDefects("Order date None ['2025-01-01', '2025-12-31']");
+    expect(found.map((f) => f.defect)).toContain("serialised_collection");
+  });
+
+  it("passes the sentence that replaced it", () => {
+    expect(readerDefects("Order date: Jan 1 - Dec 31, 2025")).toEqual([]);
+  });
+
+  it("leaves the em dash alone, which is the product's own mark", () => {
+    expect(readerDefects("Previous period —")).toEqual([]);
+  });
+
+  it("does not fire on a prose sentence that happens to contain a bracket", () => {
+    // A single bracketed aside is not a serialisation: the rule wants a
+    // delimiter inside the brackets, which is what a collection has.
+    expect(readerDefects("Revenue rose [see note] in Q3.")).toEqual([]);
+  });
+
+  it("catches percentage points written as a percentage", () => {
+    // Not a reader-quality rule -- this is here to record that it is not
+    // one. The two readings differ by two orders of magnitude and no
+    // pattern over the rendered string can tell them apart; the unit has
+    // to be right at the presentation layer, which is where
+    // `test_presentation_semantics.py` holds it.
+    expect(readerDefects("Difference from the highest -2.30%")).toEqual([]);
+  });
+});
