@@ -1,5 +1,9 @@
 # Motion and visual signature — storyboard
 
+**Historical design specification.** This storyboard guided the redesign; it
+is not a current acceptance report. Current production evidence is in
+[`../RELEASE-EVIDENCE-production-2026-10-06.md`](../RELEASE-EVIDENCE-production-2026-10-06.md).
+
 Every effect below is **state feedback**. None of it is decoration, and each
 has a reduced-motion equivalent that is not simply "nothing happens" where
 that would remove meaning.

@@ -74,9 +74,9 @@ Uploaded files are handled as a separate, bounded capability:
 - The engine infers conservative column roles. Unsupported questions and
   incomplete results refuse instead of silently dropping a filter, grouping or
   period.
-- A cloud planner sees schema information and allowed aggregate labels, not
-  unaggregated uploaded rows. A near-unique text column is withheld from
-  grouping because group labels may reach a remote planner.
+- A cloud planner sees the question, schema information and allowed aggregate
+  labels, not unaggregated uploaded rows. A near-unique text column is withheld
+  from grouping because group labels may reach a remote planner.
 
 ### When the data cannot settle a column's role
 
@@ -133,23 +133,25 @@ HTTP transport for external callers and is withdrawn on the public deployment.
 
 ## Verification evidence
 
-The exact counts vary as the suite grows, so release evidence—not this
-introduction—is the source of record. On the current `main`:
+Test counts change as the suite grows, so this introduction does not freeze
+them. CI publishes the count for the exact commit it checks and reconciles
+every discovered browser test, declared skip and retry across Chromium,
+Firefox and WebKit.
 
-- Python: **2,226 passing tests**, 89% branch coverage.
-- Frontend: **457 passing tests**.
-- Browser: Chromium **96/96**, Firefox **95/96** and WebKit **95/96**; the
-  latter two have one declared Chromium-only PDF skip. The harness reconciles
-  every discovered test and fails on a retry-rescued flake.
-- CI: ten jobs, including Docker and all three browser engines, green on the
-  merge SHA.
-- Browser tests preflight a fake provider and make no provider requests.
+The production audit on 6 October 2026 checked the exact deployed commit:
+
+- all ten CI jobs, including Docker and the three browser engines, passed;
+- the credential-free API acceptance script passed 60 checks;
+- the hosted browser sweep passed 156 of 156 width, theme and state cells and
+  made no upload, analysis, comparison or provider request; and
+- one separately authorised Compare canary passed 41 checks and cost
+  **$0.000158**.
 
 These are engineering checks, not a claim of universal dataset coverage or
-WCAG conformance. See [release evidence](docs/RELEASE-EVIDENCE-governed-analytics.md),
-[frontend evidence](docs/RELEASE-EVIDENCE-frontend-programme.md), and
-[schema-confirmation closeout evidence](docs/RELEASE-EVIDENCE-schema-confirmation.md),
-and [limitations](docs/LIMITATIONS.md).
+WCAG conformance. See the [production audit](docs/RELEASE-EVIDENCE-production-2026-10-06.md),
+the [historical release evidence](docs/RELEASE-EVIDENCE-v0.1.0.md), and the
+[limitations](docs/LIMITATIONS.md). The [documentation map](docs/README.md)
+separates current operating material from historical evidence.
 
 ## Repository map
 

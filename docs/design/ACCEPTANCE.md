@@ -1,5 +1,10 @@
 # Visual acceptance — `feat/visual-redesign`
 
+**Historical implementation record.** This document reconciles the original
+redesign branch. Later interaction, presentation and hosted-acceptance work is
+recorded in
+[`../RELEASE-EVIDENCE-production-2026-10-06.md`](../RELEASE-EVIDENCE-production-2026-10-06.md).
+
 Written for: the reviewer of this PR, and for whoever next changes one of
 these surfaces.
 

@@ -141,7 +141,9 @@ describe("ModeSelector", () => {
     );
     expect(screen.getByText(/limited public quota/i)).toBeInTheDocument();
     expect(
-      screen.getByText(/schema, profiles and aggregates/i),
+      screen.getByText(
+        /The question, column names, inferred column types, summary profiles and aggregate results are sent/i,
+      ),
     ).toBeInTheDocument();
     expect(
       screen.getByText(/3 AI runs per dataset session/i),

@@ -389,10 +389,15 @@ were silently ignored, which is worse than setting none.
 ## 11. Events and the UI
 
 One closed `EventType` enum drives the recorder, the SSE stream and the
-frontend. The execution-flow diagram derives every node and edge state from
-events: a branch exists because the planner emitted that task and lights up
-because that task started. The dash animation on an edge is present only while
-a task is actually in flight. Nothing is on a timer.
+frontend. During a run, five broad stages derive their state from those
+events. The interface shows elapsed wall time but no percentage or estimated
+finish, because the planner has not declared how much work remains.
+
+Afterward, the evidence view draws one node for each tool call the engine
+actually proposed. Calls are paired with their outcomes by `task_id`, not by
+arrival order. Completed, failed, refused-before-execution and suppressed
+retry outcomes are stated in words. The graph is static; motion never implies
+that work completed or that two strategies agreed.
 
 The `EventBus` replays history on subscribe, so a client connecting mid-run
 sees a complete timeline, and each subscriber owns a bounded queue — a slow
@@ -410,9 +415,10 @@ a Starlette mount only matches `/mcp/...`, so a bare `/mcp` would depend on a
 slash redirect that the single-page fallback shadows. A regression test posts
 to `/mcp` and asserts it is neither 404 nor 405.
 
-`render.yaml` deploys recorded mode and needs no secret of any kind.
-`deploy/render-live.yaml` enables live analysis with tighter ceilings, still
-with no secret unless a cloud provider is explicitly selected.
+`render.yaml` is the only deployment blueprint. Its repository defaults keep
+AI off; the hosted service enables live analysis and AI with dashboard secrets
+and the bounded Redis-backed usage ledger described in
+[DEPLOYMENT.md](DEPLOYMENT.md).
 
 
 ---

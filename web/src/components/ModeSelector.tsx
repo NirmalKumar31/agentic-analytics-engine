@@ -236,9 +236,9 @@ export function ModeSelector({
 
         <p className="mode-note">
           AI Analytics uses a limited public quota and can fail if the
-          provider is unavailable. Only governed analytics context — schema,
-          profiles and aggregates — is sent. Findings that the publication
-          checks do not accept are withheld.
+          provider is unavailable. The question, column names, inferred column
+          types, summary profiles and aggregate results are sent. Findings
+          that the publication checks do not accept are withheld.
           {capabilities.ai_limits
             ? ` Up to ${capabilities.ai_limits.runs_per_session} AI runs per dataset session.`
             : ""}
