@@ -220,8 +220,21 @@
   align-items: center;
   min-width: 0;
   padding: var(--space-3);
+  /* Square, and that is a budget rather than a taste.
+   *
+   * `visualReview.spec.ts` allows a report **twelve** rounded containers,
+   * measured from what renders, and the reason it is a measure at all is
+   * "rounded containers creeping back as each new control brings its
+   * own". A spine of six boxes and a fan of chips is nine of them: the
+   * sweep failed every cell at 15.
+   *
+   * Rounding the chips alone would have landed on exactly 12, with no
+   * headroom -- and an AI run draws a sixth stage, so the next real
+   * payload would have failed. Square corners cost the diagram nothing;
+   * a flowchart of square boxes joined by arrows is if anything the more
+   * conventional one, and the report's own language is hairlines and
+   * whitespace rather than cards. */
   border: 1px solid var(--rule-hairline);
-  border-radius: var(--radius-md);
   background: var(--surface-paper);
 }
 
@@ -387,8 +400,8 @@
   min-width: min(180px, 100%);
   max-width: 340px;
   padding: var(--space-2) var(--space-3);
+  /* Square, for the same budget as the stage boxes above. */
   border: 1px solid var(--rule-hairline);
-  border-radius: var(--radius-md);
   background: var(--surface-paper);
 }
 
