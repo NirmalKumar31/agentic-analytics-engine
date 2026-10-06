@@ -455,7 +455,21 @@
   .run-flow-track {
     grid-auto-flow: column;
     grid-auto-columns: minmax(0, 1fr);
-    gap: var(--space-5);
+    /* No gap, and the connector lives in the node's own padding instead.
+     *
+     * With a gap, the arrow was drawn from `inset-inline-start: 100%`
+     * into the space between the columns -- outside the node's padding
+     * box, which puts it in `scrollWidth` and nowhere in `clientWidth`.
+     * The hosted sweep failed eight cells on "li.run-flow-node holds
+     * 148px in 122px": a box reported as holding more than it can show,
+     * which is the same signature as clipped text and has to stay that
+     * way. `.timeline-stage` already solved this by reserving the space
+     * as padding; this is the same arrangement. */
+    gap: 0;
+  }
+
+  .run-flow-node {
+    padding-inline-end: var(--space-5);
   }
 
   .run-flow-box {
@@ -469,16 +483,20 @@
     height: 100%;
   }
 
+  /* From the right edge of the box to the right edge of the node, which is
+     where the next box begins. */
   .run-flow-node::before {
     inset-block-start: 16px;
-    inset-inline-start: 100%;
-    width: var(--space-5);
+    inset-inline-start: calc(100% - var(--space-5));
+    inset-inline-end: 0;
+    width: auto;
     height: 2px;
   }
 
   .run-flow-node::after {
     inset-block-start: 14px;
-    inset-inline-start: calc(100% + var(--space-5) - 7px);
+    inset-inline-start: auto;
+    inset-inline-end: 2px;
     /* The other way, so the same corner points along the row. A
        quarter-turn clockwise would leave the arrowheads pointing at the
        floor on a layout that reads left to right. */
