@@ -18,6 +18,7 @@ the words are as constrained as the figures.
 
 from __future__ import annotations
 
+import math
 import re
 from decimal import Decimal
 from typing import Any
@@ -186,6 +187,96 @@ def _measure_phrase(mapping: Any, snapshot: ResultSnapshot, column: str) -> str:
         "trend": "total",
     }.get(operation, operation)
     return f"{word} {subject}".strip()
+
+
+def _statistical(
+    mapping: Any,
+    snapshot: ResultSnapshot,
+    column: str,
+    dimensions: list[str],
+    by_name: dict[str, DisplayField],
+) -> tuple[str, str | None, list[PresentationHighlight]]:
+    """A test, as the answer to the question that asked for it.
+
+    This branch did not exist. `detect_shape` has returned
+    `STATISTICAL_TEST` for a long time and nothing ever selected a test to
+    present, so the code path was unreachable -- see `graph/relevance.py`
+    for how a relationship question ended up headlined with an unrelated
+    breakdown instead.
+
+    **The headline states the association and the secondary line refuses
+    the causal reading.** Not a caveat a reader may or may not reach: the
+    sentence that would be wrong is the one a reader takes away, so the
+    correction travels with it. The engine already withholds a *finding*
+    that asserts causation; this is the same rule applied to the headline.
+    """
+    stats = snapshot.statistical_result
+    field = by_name.get(column)
+    dimension = dimensions[0] if dimensions else "group"
+
+    # Every group the test measured, in the order the result holds them.
+    groups = [
+        (
+            label_value(snapshot.cell(row, dimension), by_name.get(dimension)),
+            _value_of(snapshot, row, column, field),
+        )
+        for row in range(len(snapshot.rows))
+    ]
+    if not groups or stats is None:
+        return ("", None, [])
+
+    subject = str(getattr(mapping, "subject", "") or "")
+    phrase = humanize(subject).lower() if subject else _measure_phrase(mapping, snapshot, column)
+    stated = " and ".join(f"{value.formatted_value} for {name}" for name, value in groups)
+    headline = f"{phrase[0].upper()}{phrase[1:]} is {stated}."
+
+    # What the test found, in the words a reader can act on, and what it
+    # does not establish. `p_value_adjusted` is what the publication gate
+    # reads when a family of tests was corrected, so it is what is quoted.
+    adjusted = getattr(stats, "p_value_adjusted", None)
+    p_value = adjusted if isinstance(adjusted, float) else stats.p_value
+    observations = sum(int(n) for n in (stats.sample_sizes or {}).values())
+    grouping = str(getattr(mapping, "grouping", "") or dimension)
+    secondary = (
+        f"A {stats.test_name} across {observations:,} observations, grouped by "
+        f"{humanize(grouping).lower()}, puts the difference at "
+        f"{format_p_value(p_value)}. That is an association, not a cause: the "
+        "groups were not assigned at random, so something else may explain both."
+    )
+
+    group_label = by_name[dimension].display_label if dimension in by_name else "Group"
+    highlights = [
+        PresentationHighlight(
+            highlight_id=f"group_{index}",
+            label=f"{group_label}: {name}",
+            value=value,
+            evidence_cells=[_cell(snapshot, index, column, f"{phrase} for {name}")],
+        )
+        for index, (name, value) in enumerate(groups)
+    ]
+    return headline, secondary, highlights
+
+
+def format_p_value(p: float) -> str:
+    """A p-value a reader can act on.
+
+    Below a thousandth it is written as a bound rather than as
+    `2.15e-122`: the exponent is precision about how unlikely chance is,
+    and no decision turns on the difference between that and `< 0.001`.
+    """
+    try:
+        value = float(p)
+    except (TypeError, ValueError):
+        return "an unreported p-value"
+    # `nan < 0.001` is False, so a non-finite value fell straight through to
+    # the format string and published "p = nan". A reader cannot act on
+    # that, and `readerQuality` counts `NaN` as a value that never arrived
+    # -- correctly.
+    if not math.isfinite(value):
+        return "an unreported p-value"
+    if value < 0.001:
+        return "p < 0.001"
+    return f"p = {value:.3f}"
 
 
 def _value_of(
@@ -396,28 +487,50 @@ def numbers_resolve(
     scope: PresentationScope,
     *,
     derived: list[Decimal] | None = None,
+    fields: list[DisplayField] | None = None,
 ) -> list[float]:
     """Figures in `text` that the engine did not record. Empty is correct.
 
-    A number in a published sentence must be traceable. Three sources
+    A number in a published sentence must be traceable. Four sources
     count, and each is an engine-computed record rather than a guess:
 
     * a numeric cell of the cited result, or its row count;
     * a recorded coverage count, which is data the engine measured and the
       reason `GroupCoverage` keeps the four meanings of "limit" apart;
-    * a declared difference, recomputed here from two cells.
+    * a declared difference, recomputed here from two cells;
+    * a cell restated in the unit its column declares. A proportion stored
+      as `0.5045` and written as `50.46%` is the same figure in the unit
+      the presentation declared for it, and the scale is on the field where
+      both formatters can see it. Only a *declared* scale counts, so this
+      admits no number the contract did not say was the same one.
+    * a figure of the cited result's own `statistical_result` -- the
+      statistic, the p-value, the effect size, the group sizes and their
+      total. These are **in** the result; they are simply not in its rows,
+      and this function used to read only the rows. The first attempt at a
+      statistical headline was refused for stating the 30,000 observations
+      the test itself reported, which is the guard working correctly on an
+      incomplete list of sources rather than on a false sentence.
 
     Anything else is a number nobody can check, which is how a sentence
     with two real cells in it managed to be false.
     """
+    scales: dict[int, Decimal] = {}
+    for field in fields or []:
+        if field.scale != 1.0 and field.source_name in snapshot.columns:
+            scales[snapshot.columns.index(field.source_name)] = Decimal(str(field.scale))
+
     allowed: list[Decimal] = [Decimal(snapshot.row_count)]
     for row in snapshot.rows:
-        for value in row:
+        for index, value in enumerate(row):
             if isinstance(value, bool):
                 continue
             number = as_number(value)
-            if number is not None:
-                allowed.append(number)
+            if number is None:
+                continue
+            allowed.append(number)
+            scale = scales.get(index)
+            if scale is not None:
+                allowed.append(number * scale)
     for count in (
         scope.rows_total,
         scope.rows_matching,
@@ -429,6 +542,29 @@ def numbers_resolve(
     ):
         if count is not None:
             allowed.append(Decimal(count))
+    stats = snapshot.statistical_result
+    if stats is not None:
+        sizes = [int(n) for n in (stats.sample_sizes or {}).values()]
+        for figure in (
+            stats.statistic,
+            stats.p_value,
+            getattr(stats, "p_value_adjusted", None),
+            stats.effect_size,
+            stats.confidence_level,
+            *sizes,
+            sum(sizes) if sizes else None,
+        ):
+            if figure is None:
+                continue
+            number = as_number(figure)
+            if number is not None:
+                allowed.append(number)
+        if stats.confidence_interval:
+            for bound in stats.confidence_interval:
+                number = as_number(bound)
+                if number is not None:
+                    allowed.append(number)
+
     allowed.extend(derived or [])
 
     unresolved: list[float] = []
@@ -767,6 +903,12 @@ def summarize(
     dimensions = dimension_columns(snapshot, mapping)
     if column is None or not snapshot.rows:
         return ("", None, [], [])
+
+    if shape is PresentationShape.STATISTICAL_TEST:
+        headline, secondary, highlights = _statistical(
+            mapping, snapshot, column, dimensions, by_name
+        )
+        return headline, secondary, highlights, []
 
     if shape is PresentationShape.SCALAR:
         headline, secondary, highlights = _scalar(mapping, snapshot, column, by_name)

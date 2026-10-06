@@ -20,6 +20,7 @@ from agentic_analytics.analytics.results import ResultSnapshot
 from agentic_analytics.presentation.schemas import (
     DisplayField,
     PresentationChart,
+    PresentationShape,
     SemanticKind,
 )
 
@@ -149,12 +150,57 @@ def _axis_field(spec: dict[str, Any], channel: str) -> str | None:
     return None
 
 
+#: Why there is no chart, in terms of the answer rather than of the
+#: engine's bookkeeping.
+#:
+#: "no chart decision was recorded for this result" is what this used to
+#: say, on the canvas and again as a caveat. It describes the absence of an
+#: internal record, which tells a reader nothing they can act on and reads
+#: as a fault. A two-group significance test has no chart because a chart
+#: of two numbers is not worth the space, and that is a sentence.
+_NO_CHART_FOR_SHAPE: dict[PresentationShape, str] = {
+    PresentationShape.STATISTICAL_TEST: (
+        "No chart: this is a comparison of two groups, and the figures above are the whole of it."
+    ),
+    PresentationShape.SCALAR: ("No chart: the answer is a single figure, which is above."),
+    PresentationShape.FAILURE: ("No chart: there is no result to draw."),
+    PresentationShape.REFUSAL: ("No chart: the analysis did not run."),
+}
+
+#: The fallback, for a shape that could have had a chart and did not get
+#: one. Still a reader's sentence, and still honest about not knowing why.
+_NO_CHART_DEFAULT = "No chart was drawn for this result; the table is below."
+
+
+def _no_chart_reason(shape: PresentationShape | None, recorded: Any) -> str:
+    """The reason a reader is given.
+
+    A reason the *engine* recorded is preferred when there is one --
+    "48 categories is more than a readable bar chart shows" is better than
+    anything derivable here, because it names the actual cause. What is
+    replaced is the placeholder that means "nothing was recorded", which is
+    not a reason at all.
+    """
+    stated = str(recorded or "").strip()
+    internal = (
+        not stated
+        or stated == "no chart decision was recorded for this result"
+        or stated == "a chart would not help read this result"
+    )
+    if not internal:
+        return stated
+    if shape is not None and shape in _NO_CHART_FOR_SHAPE:
+        return _NO_CHART_FOR_SHAPE[shape]
+    return _NO_CHART_DEFAULT
+
+
 def presentation_chart(
     decision: dict[str, Any] | None,
     snapshot: ResultSnapshot | None,
     *,
     chart_id: str | None = None,
     fields: list[DisplayField] | None = None,
+    shape: PresentationShape | None = None,
 ) -> PresentationChart:
     """Restate one chart decision in the presentation contract's terms.
 
@@ -166,7 +212,8 @@ def presentation_chart(
     if not decision:
         return PresentationChart(
             kind="none",
-            no_chart_reason="no chart decision was recorded for this result",
+            result_id=snapshot.result_id if snapshot else None,
+            no_chart_reason=_no_chart_reason(shape, None),
         )
 
     kind = str(decision.get("kind") or "none")
@@ -175,7 +222,7 @@ def presentation_chart(
         return PresentationChart(
             kind="none",
             result_id=snapshot.result_id if snapshot else None,
-            no_chart_reason=str(reason or "a chart would not help read this result"),
+            no_chart_reason=_no_chart_reason(shape, reason),
         )
 
     spec = decision.get("spec")

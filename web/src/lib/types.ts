@@ -164,6 +164,14 @@ export interface DisplayField {
   ordered: boolean;
   identifier: boolean;
   sensitive: boolean;
+  /**
+   * What a stored value is multiplied by before it is written.
+   *
+   * One for everything except a proportion on a 0-1 scale, which is
+   * written as a percentage. Carried on the field so both formatters see
+   * the same multiplier.
+   */
+  scale?: number;
   /** The grain a `time` column buckets to, when the contract declared one. */
   time_grain?: string | null;
 }

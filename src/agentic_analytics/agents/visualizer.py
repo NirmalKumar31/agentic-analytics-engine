@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Literal
+
 from pydantic import BaseModel
 
 from agentic_analytics.agents.base import ask_into
@@ -17,16 +19,33 @@ from agentic_analytics.verification.charts import ChartError, ChartRequest, buil
 log = get_logger(__name__)
 
 
+#: The marks and encoding types a chart may use.
+#:
+#: Declared as `Literal` rather than as `str`, so the provider's structured
+#: output is constrained to them and a model cannot return a value the
+#: validator will refuse.
+#:
+#: It did. A live run's visualiser chose `categorical` -- a reasonable word
+#: for a nominal axis, and not one Vega-Lite has -- and
+#: `verification/charts.py` rejected the specification:
+#: "encoding type 'categorical' is not allowed". The refusal was correct;
+#: the chart was still lost. Constraining the schema prevents the mistake
+#: instead of repairing its output, which is the same rule `preflight`
+#: follows for tool arguments.
+ChartMark = Literal["bar", "line", "area", "point", "scatter"]
+EncodingType = Literal["quantitative", "nominal", "ordinal", "temporal"]
+
+
 class ChartChoice(BaseModel):
     """The encoding a model is allowed to choose."""
 
     skip: bool = False
     title: str = ""
-    mark: str = "bar"
+    mark: ChartMark = "bar"
     x: str = ""
-    x_type: str = "nominal"
+    x_type: EncodingType = "nominal"
     y: str = ""
-    y_type: str = "quantitative"
+    y_type: EncodingType = "quantitative"
 
 
 async def build_charts(

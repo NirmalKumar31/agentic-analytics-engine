@@ -601,7 +601,20 @@ def test_a_declined_chart_explains_itself_to_the_reader() -> None:
     assert presentation.chart is not None
     assert presentation.chart.kind == "none"
     assert "readable" in (presentation.chart.no_chart_reason or "")
-    assert "no_chart" in {c.code for c in presentation.caveats}
+
+    # And **once**. The reason used to be here *and* as a `no_chart`
+    # caveat, so a reader was told the same thing twice -- once where the
+    # chart would be and again under "What to be careful about", which is
+    # for things that qualify the answer. A missing chart does not qualify
+    # an answer; it is a fact about the space where a chart is not, and it
+    # belongs in that space.
+    assert "no_chart" not in {c.code for c in presentation.caveats}
+
+    # The engine's own reason survives. It names the actual cause -- 200
+    # categories -- which is better than anything the presentation layer
+    # could derive, so only the "nothing was recorded" placeholder is
+    # replaced.
+    assert "200 categories" in (presentation.chart.no_chart_reason or "")
 
 
 def test_chart_axes_are_named_so_the_frontend_need_not_parse_the_spec() -> None:

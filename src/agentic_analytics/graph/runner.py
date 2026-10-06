@@ -17,6 +17,7 @@ from agentic_analytics.agents.schemas import (
 from agentic_analytics.analytics.results import QuestionCoverage, ResultSnapshot
 from agentic_analytics.config import Settings, get_settings
 from agentic_analytics.events import EventBus, EventType
+from agentic_analytics.graph import relevance
 from agentic_analytics.graph.build import RunContext, build_graph
 from agentic_analytics.graph.state import AnalysisState
 from agentic_analytics.llm.base import LLMProvider
@@ -290,6 +291,13 @@ class _MetricContract:
     #: `ratio` or `number` -- read from the registry, never inferred from a
     #: value's magnitude.
     measure_format: str | None = None
+    #: For a statistical test: the metric the question was about, and the
+    #: column it grouped by. Both are declared -- the first from the
+    #: planner's own interpretation, the second from the test's parameters
+    #: -- and both exist because `rate` and `group` do not say, on their
+    #: own, what was measured or what it was measured across.
+    subject: str = ""
+    grouping: str = ""
 
 
 #: Metric-layer tools whose results describe an answer, per analysis type.
@@ -300,53 +308,112 @@ class _MetricContract:
 #: the planner had dispatched both and the breakdown came first in the
 #: list. The planner already recorded what it read the question as, so that
 #: is what chooses.
-_METRIC_RESULT_TOOLS: dict[str, tuple[str, ...]] = {
-    "timeseries": ("analyze_timeseries", "compute_metric", "compare_segments"),
-    "segmentation": ("compare_segments", "compute_metric", "analyze_timeseries"),
-}
-_DEFAULT_METRIC_RESULT_TOOLS = ("compute_metric", "compare_segments", "analyze_timeseries")
-
-
-def _metric_presentation_inputs(
+def _presentation_inputs(
     result: RunResult,
     registry: Any | None = None,
     analysis_type: str | None = None,
+    target_metrics: tuple[str, ...] = (),
+    target_dimensions: tuple[str, ...] = (),
 ) -> tuple[ResultSnapshot | None, _MetricContract | None]:
-    """A metric-layer result and the contract it amounts to, if there is one.
+    """The result that answers the question, and the contract it amounts to.
 
-    The registry is consulted for the metric's declared format, so a rate
-    renders as a rate. It is never guessed from the magnitude of a value:
-    `10.97` is a percentage because the metric says
+    This used to pick by tool name -- `compute_metric`, then
+    `compare_segments`, then `analyze_timeseries`, first match wins -- and
+    skip anything without a `metric` parameter. Two defects followed, and
+    `graph/relevance.py` has the full account:
+
+    * a statistical test could never be the headline, because it carries no
+      `metric`; and a relationship question's answer *is* a statistical
+      test. "Do shipping delays appear to affect repeat purchasing?" was
+      answered with "repeat purchase rate is highest for social".
+    * the two planning strategies looked like they disagreed, when the only
+      difference was which tools each happened to run.
+
+    The registry is still consulted for the metric's declared format, so a
+    rate renders as a rate. It is never guessed from the magnitude of a
+    value: `10.97` is a percentage because the metric says
     `format: percent`, not because it happens to be small.
     """
-    preference = _METRIC_RESULT_TOOLS.get(str(analysis_type or ""), _DEFAULT_METRIC_RESULT_TOOLS)
-    for tool in preference:
-        snapshot = next((s for s in result.results.values() if s.tool_name == tool), None)
-        if snapshot is None:
-            continue
-        parameters = dict(snapshot.parameters or {})
-        metric = str(parameters.get("metric") or "")
-        if not metric:
-            continue
-        dimensions = parameters.get("dimensions")
-        if dimensions is None:
-            # `compare_segments` names one cut in the singular.
-            single = parameters.get("dimension")
-            dimensions = [single] if single else []
-        declared = None
-        if registry is not None:
-            try:
-                declared = registry.metric(metric).format
-            except Exception:  # pragma: no cover - an unknown metric has no format
-                declared = None
-        return snapshot, _MetricContract(
-            measure=metric,
-            dimensions=tuple(str(d) for d in dimensions if d),
-            filters=tuple(parameters.get("filters") or ()),
-            time_grain=(str(parameters.get("time_grain") or parameters.get("grain") or "") or None),
-            measure_format=declared,
-        )
+    charted = frozenset(chart.result_id for chart in result.charts)
+    ranked = relevance.rank(
+        result.results,
+        analysis_type=analysis_type,
+        target_metrics=target_metrics,
+        target_dimensions=target_dimensions,
+        charted=charted,
+    )
+
+    for snapshot in ranked:
+        contract = _contract_for(snapshot, registry, target_metrics)
+        if contract is not None:
+            return snapshot, contract
     return None, None
+
+
+def _contract_for(
+    snapshot: ResultSnapshot,
+    registry: Any | None,
+    target_metrics: tuple[str, ...],
+) -> _MetricContract | None:
+    """What this result amounts to, as a contract the presentation can read."""
+    if snapshot.statistical_result is not None:
+        return _statistical_contract(snapshot, registry, target_metrics)
+
+    metric = relevance.metric_of(snapshot)
+    if not metric:
+        return None
+    parameters = dict(snapshot.parameters or {})
+    return _MetricContract(
+        measure=metric,
+        dimensions=relevance.dimensions_of(snapshot),
+        filters=tuple(parameters.get("filters") or ()),
+        time_grain=(str(parameters.get("time_grain") or parameters.get("grain") or "") or None),
+        measure_format=_declared_format(registry, metric),
+    )
+
+
+def _statistical_contract(
+    snapshot: ResultSnapshot,
+    registry: Any | None,
+    target_metrics: tuple[str, ...],
+) -> _MetricContract:
+    """A test, as a contract.
+
+    Its measure is the `rate` column -- `successes / n`, which
+    `stats.py:_require_binary` guarantees is a proportion in [0, 1] by
+    refusing any value column that is not an indicator. So the format is
+    declared by the tool's own contract rather than inferred from the
+    magnitude of 0.5045.
+
+    The dimension is `group`, which is what the result calls the column
+    holding the two group names. What the grouping *means* -- the visitor's
+    `first_delivery_status` -- reaches the reader through the scope line.
+    """
+    # The question's own subject metric, which is what a reader asked
+    # about. The test's `value_column` is the indicator it summed --
+    # `is_repeat` -- and humanising that produced the headline "Is repeat
+    # is 50.46% for late", which is the engine's column name read aloud.
+    subject = target_metrics[0] if target_metrics else relevance.value_column_of(snapshot)
+    return _MetricContract(
+        measure="rate",
+        dimensions=("group",),
+        filters=tuple(dict(snapshot.parameters or {}).get("filters") or ()),
+        time_grain=None,
+        # Declared by the tool, not read from the registry: `rate` is not a
+        # governed metric, it is this test's own output column.
+        measure_format="proportion",
+        subject=str(subject or ""),
+        grouping=relevance.grouping_of(snapshot),
+    )
+
+
+def _declared_format(registry: Any | None, metric: str) -> str | None:
+    if registry is None:
+        return None
+    try:
+        return registry.metric(metric).format
+    except Exception:  # pragma: no cover - an unknown metric has no format
+        return None
 
 
 def _chart_decision_for(result: RunResult, snapshot: ResultSnapshot) -> dict[str, Any]:
@@ -762,10 +829,18 @@ def _presentation_for(result: RunResult, state: Any, session: Any | None = None)
         # which metric, which cuts and which grain it was computed at, so a
         # contract-shaped view of it drives the same builder.
         interpretation = result.planner_interpretation or {}
-        metric_snapshot, metric_mapping = _metric_presentation_inputs(
+        metric_snapshot, metric_mapping = _presentation_inputs(
             result,
             getattr(session, "registry", None),
             analysis_type=interpretation.get("analysis_type"),
+            # `planner_interpretation` carries these as `metrics` and
+            # `dimensions`. A first attempt read a `target_metrics` key that
+            # does not exist, so every signal was empty: the subject fell
+            # back to the test's raw indicator column and the headline read
+            # "Is repeat is 50.46% for late", which is a column name spoken
+            # aloud.
+            target_metrics=tuple(str(m) for m in (interpretation.get("metrics") or ()) if m),
+            target_dimensions=tuple(str(d) for d in (interpretation.get("dimensions") or ()) if d),
         )
         if metric_snapshot is not None:
             snapshot = metric_snapshot
