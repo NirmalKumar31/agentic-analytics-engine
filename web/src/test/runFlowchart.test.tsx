@@ -324,8 +324,28 @@ describe("the spine turns horizontal only where it fits as prose", () => {
      */
     const row = css.indexOf(".run-flow-track {\n    grid-auto-flow: column");
     expect(row, "the horizontal spine rule is gone").toBeGreaterThan(-1);
-    const query = css.lastIndexOf("@media (min-width:", row);
-    expect(css.slice(query, css.indexOf(")", query) + 1)).toBe("@media (min-width: 1440px)");
+    const query = css.lastIndexOf("@media", row);
+    expect(css.slice(query, css.indexOf("{", query)).trim()).toBe(
+      "@media screen and (min-width: 1440px)",
+    );
+  });
+
+  it("stays a column on paper, geometry and all", () => {
+    /*
+     * `screen and` is one word and it is load-bearing. A printed sheet is
+     * about 816px of paper laid out from whatever viewport the reader
+     * printed from, so without it this query still matched on paper --
+     * and a first fix that overrode `grid-auto-flow` in the print block
+     * left the row's *connectors* applied to a column of full-width
+     * boxes, printing four arrowheads against the right margin. Found by
+     * opening the artefact, not by a failing assertion.
+     */
+    const query = "@media screen and (min-width: 1440px)";
+    const block = css.slice(css.indexOf(query) + query.length);
+    const scoped = block.slice(0, block.indexOf("\n}\n"));
+    // Both halves of the row treatment are inside the screen-only query.
+    expect(scoped).toMatch(/grid-auto-flow: column/);
+    expect(scoped).toMatch(/\.run-flow-node::after \{[^}]*rotate\(-45deg\)/);
   });
 
   it("is a width the acceptance matrix actually tests", () => {

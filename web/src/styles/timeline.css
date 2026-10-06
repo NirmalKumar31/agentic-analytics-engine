@@ -468,8 +468,17 @@
  * Wrapping the row instead was the other option and is worse: a wrapped
  * grid leaves an arrow at the end of every row pointing into the margin,
  * and "the last item of each row" is not something CSS can select.
+ *
+ * **`screen and`, which is load-bearing.** A printed sheet is around
+ * 816px of paper laid out from whatever viewport the reader printed from,
+ * so at 1440px this query still matched on paper while `print.css` had
+ * turned the track back into a column -- a column of full-width boxes
+ * with the *row* connectors still applied, which printed four arrowheads
+ * floating against the right margin. Scoping it here is one word and it
+ * takes the matching connector geometry with it, which overriding
+ * `grid-auto-flow` in the print block did not.
  */
-@media (min-width: 1440px) {
+@media screen and (min-width: 1440px) {
   .run-flow-track {
     grid-auto-flow: column;
     grid-auto-columns: minmax(0, 1fr);

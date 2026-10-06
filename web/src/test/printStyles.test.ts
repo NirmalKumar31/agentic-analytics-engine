@@ -367,10 +367,21 @@ describe("the flowchart prints, and its control does not", () => {
     expect(print).toMatch(/\.run-flow-alternative,/);
   });
 
-  it("lays the spine down the page rather than across the sheet", () => {
-    expect(withoutComments(print)).toMatch(
-      /\.run-flow-track\s*\{[^}]*grid-auto-flow:\s*row/,
-    );
+  it("leaves the spine a column on paper by scoping the row to screen", () => {
+    /*
+     * Not by overriding `grid-auto-flow` here, which was the first
+     * attempt and printed four arrowheads against the right margin: a
+     * printed sheet is laid out from the reader's viewport, so
+     * `@media (min-width: 1440px)` still matched and the row's
+     * *connectors* stayed applied to a column of full-width boxes. One
+     * word in the query takes the geometry with it.
+     */
+    const timeline = withoutComments(moduleSource("styles/timeline.css"));
+    expect(timeline).toMatch(/@media screen and \(min-width: 1440px\)/);
+    expect(
+      withoutComments(print),
+      "the print block overrides the spine's flow again",
+    ).not.toMatch(/\.run-flow-track/);
   });
 
   it("does not hide the flowchart itself", () => {
