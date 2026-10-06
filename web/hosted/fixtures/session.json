@@ -1,0 +1,685 @@
+{
+  "catalog": {
+    "dataset_fingerprint": "sha256:8e9ad9348f7dc18660d78ed3cd4d4b32",
+    "dataset_kind": "demo",
+    "dataset_seed": 20260924,
+    "metrics_available": [
+      "average_order_value",
+      "avg_delivery_days",
+      "avg_discount_rate",
+      "cogs",
+      "contribution_margin",
+      "contribution_margin_pct",
+      "customer_count",
+      "discount_amount",
+      "gross_margin_pct",
+      "gross_profit",
+      "late_delivery_rate",
+      "marketing_spend",
+      "orders",
+      "refund_amount",
+      "repeat_purchase_rate",
+      "return_rate",
+      "revenue",
+      "roas",
+      "shipments",
+      "units"
+    ],
+    "source": "Commerce demo warehouse",
+    "tables": [
+      {
+        "columns": [
+          {
+            "name": "customer_id",
+            "type": "BIGINT"
+          },
+          {
+            "name": "signup_date",
+            "type": "DATE"
+          },
+          {
+            "name": "customer_segment",
+            "type": "VARCHAR"
+          },
+          {
+            "name": "region",
+            "type": "VARCHAR"
+          },
+          {
+            "name": "acquisition_channel",
+            "type": "VARCHAR"
+          }
+        ],
+        "name": "customers",
+        "row_count": 30000
+      },
+      {
+        "columns": [
+          {
+            "name": "product_id",
+            "type": "BIGINT"
+          },
+          {
+            "name": "product_name",
+            "type": "VARCHAR"
+          },
+          {
+            "name": "category",
+            "type": "VARCHAR"
+          },
+          {
+            "name": "brand",
+            "type": "VARCHAR"
+          },
+          {
+            "name": "list_price",
+            "type": "DOUBLE"
+          },
+          {
+            "name": "unit_cost",
+            "type": "DOUBLE"
+          }
+        ],
+        "name": "products",
+        "row_count": 800
+      },
+      {
+        "columns": [
+          {
+            "name": "order_id",
+            "type": "BIGINT"
+          },
+          {
+            "name": "customer_id",
+            "type": "BIGINT"
+          },
+          {
+            "name": "order_date",
+            "type": "DATE"
+          },
+          {
+            "name": "channel",
+            "type": "VARCHAR"
+          },
+          {
+            "name": "discount_rate",
+            "type": "DOUBLE"
+          },
+          {
+            "name": "shipping_cost",
+            "type": "DOUBLE"
+          },
+          {
+            "name": "status",
+            "type": "VARCHAR"
+          },
+          {
+            "name": "is_first_order",
+            "type": "BOOLEAN"
+          }
+        ],
+        "name": "orders",
+        "row_count": 104915
+      },
+      {
+        "columns": [
+          {
+            "name": "order_item_id",
+            "type": "BIGINT"
+          },
+          {
+            "name": "order_id",
+            "type": "BIGINT"
+          },
+          {
+            "name": "product_id",
+            "type": "BIGINT"
+          },
+          {
+            "name": "quantity",
+            "type": "BIGINT"
+          },
+          {
+            "name": "unit_price",
+            "type": "DOUBLE"
+          },
+          {
+            "name": "unit_cost",
+            "type": "DOUBLE"
+          },
+          {
+            "name": "list_price",
+            "type": "DOUBLE"
+          },
+          {
+            "name": "discount_amount",
+            "type": "DOUBLE"
+          }
+        ],
+        "name": "order_items",
+        "row_count": 239794
+      },
+      {
+        "columns": [
+          {
+            "name": "return_id",
+            "type": "BIGINT"
+          },
+          {
+            "name": "order_id",
+            "type": "BIGINT"
+          },
+          {
+            "name": "order_item_id",
+            "type": "BIGINT"
+          },
+          {
+            "name": "product_id",
+            "type": "BIGINT"
+          },
+          {
+            "name": "customer_id",
+            "type": "BIGINT"
+          },
+          {
+            "name": "return_date",
+            "type": "DATE"
+          },
+          {
+            "name": "return_reason",
+            "type": "VARCHAR"
+          },
+          {
+            "name": "refund_amount",
+            "type": "DOUBLE"
+          }
+        ],
+        "name": "returns",
+        "row_count": 19471
+      },
+      {
+        "columns": [
+          {
+            "name": "order_id",
+            "type": "BIGINT"
+          },
+          {
+            "name": "carrier",
+            "type": "VARCHAR"
+          },
+          {
+            "name": "region",
+            "type": "VARCHAR"
+          },
+          {
+            "name": "shipped_date",
+            "type": "DATE"
+          },
+          {
+            "name": "promised_days",
+            "type": "BIGINT"
+          },
+          {
+            "name": "delivered_date",
+            "type": "DATE"
+          },
+          {
+            "name": "delivery_days",
+            "type": "BIGINT"
+          },
+          {
+            "name": "is_late",
+            "type": "BOOLEAN"
+          }
+        ],
+        "name": "shipping_events",
+        "row_count": 104915
+      },
+      {
+        "columns": [
+          {
+            "name": "date",
+            "type": "DATE"
+          },
+          {
+            "name": "channel",
+            "type": "VARCHAR"
+          },
+          {
+            "name": "campaign",
+            "type": "VARCHAR"
+          },
+          {
+            "name": "spend",
+            "type": "DOUBLE"
+          },
+          {
+            "name": "impressions",
+            "type": "BIGINT"
+          },
+          {
+            "name": "clicks",
+            "type": "BIGINT"
+          }
+        ],
+        "name": "marketing_daily",
+        "row_count": 2924
+      }
+    ]
+  },
+  "expires_in_seconds": 1800,
+  "metrics": [
+    {
+      "description": "Revenue divided by distinct orders.",
+      "expression": "SUM(quantity * unit_price) / NULLIF(COUNT(DISTINCT order_id), 0)",
+      "format": "currency",
+      "name": "average_order_value",
+      "time_field": "order_date",
+      "valid_dimensions": [
+        "acquisition_channel",
+        "brand",
+        "category",
+        "customer_segment",
+        "is_first_order",
+        "order_channel",
+        "region",
+        "return_reason",
+        "status"
+      ]
+    },
+    {
+      "description": "Mean days from ship to delivery.",
+      "expression": "AVG(delivery_days)",
+      "format": "number",
+      "name": "avg_delivery_days",
+      "time_field": "shipped_date",
+      "valid_dimensions": [
+        "acquisition_channel",
+        "carrier",
+        "customer_segment",
+        "region"
+      ]
+    },
+    {
+      "description": "Discount as a share of list price value.",
+      "expression": "100.0 * SUM(discount_amount) / NULLIF(SUM(quantity * list_price), 0)",
+      "format": "percent",
+      "name": "avg_discount_rate",
+      "time_field": "order_date",
+      "valid_dimensions": [
+        "acquisition_channel",
+        "brand",
+        "category",
+        "customer_segment",
+        "is_first_order",
+        "order_channel",
+        "region",
+        "return_reason",
+        "status"
+      ]
+    },
+    {
+      "description": "Cost of goods sold.",
+      "expression": "SUM(quantity * unit_cost)",
+      "format": "currency",
+      "name": "cogs",
+      "time_field": "order_date",
+      "valid_dimensions": [
+        "acquisition_channel",
+        "brand",
+        "category",
+        "customer_segment",
+        "is_first_order",
+        "order_channel",
+        "region",
+        "return_reason",
+        "status"
+      ]
+    },
+    {
+      "description": "Gross profit less shipping cost, refunds and marketing spend. This is the channel profitability measure; gross margin alone ignores what a channel costs to acquire and to serve.",
+      "expression": "SUM(revenue) - SUM(cogs) - SUM(shipping_cost) - SUM(refund_amount) - SUM(spend)",
+      "format": "currency",
+      "name": "contribution_margin",
+      "time_field": "date",
+      "valid_dimensions": [
+        "acquisition_channel"
+      ]
+    },
+    {
+      "description": "Contribution margin as a percentage of revenue.",
+      "expression": "100.0 * (SUM(revenue) - SUM(cogs) - SUM(shipping_cost) - SUM(refund_amount) - SUM(spend)) / NULLIF(SUM(revenue), 0)",
+      "format": "percent",
+      "name": "contribution_margin_pct",
+      "time_field": "date",
+      "valid_dimensions": [
+        "acquisition_channel"
+      ]
+    },
+    {
+      "description": "Distinct customers who placed an order.",
+      "expression": "COUNT(DISTINCT customer_id)",
+      "format": "integer",
+      "name": "customer_count",
+      "time_field": "order_date",
+      "valid_dimensions": [
+        "acquisition_channel",
+        "brand",
+        "category",
+        "customer_segment",
+        "is_first_order",
+        "order_channel",
+        "region",
+        "return_reason",
+        "status"
+      ]
+    },
+    {
+      "description": "Total money given away as discount against list price.",
+      "expression": "SUM(discount_amount)",
+      "format": "currency",
+      "name": "discount_amount",
+      "time_field": "order_date",
+      "valid_dimensions": [
+        "acquisition_channel",
+        "brand",
+        "category",
+        "customer_segment",
+        "is_first_order",
+        "order_channel",
+        "region",
+        "return_reason",
+        "status"
+      ]
+    },
+    {
+      "description": "Gross profit as a percentage of revenue. A ratio of sums, never an average of per-row margins.",
+      "expression": "100.0 * (SUM(quantity * unit_price) - SUM(quantity * unit_cost)) / NULLIF(SUM(quantity * unit_price), 0)",
+      "format": "percent",
+      "name": "gross_margin_pct",
+      "time_field": "order_date",
+      "valid_dimensions": [
+        "acquisition_channel",
+        "brand",
+        "category",
+        "customer_segment",
+        "is_first_order",
+        "order_channel",
+        "region",
+        "return_reason",
+        "status"
+      ]
+    },
+    {
+      "description": "Revenue minus cost of goods sold.",
+      "expression": "SUM(quantity * unit_price) - SUM(quantity * unit_cost)",
+      "format": "currency",
+      "name": "gross_profit",
+      "time_field": "order_date",
+      "valid_dimensions": [
+        "acquisition_channel",
+        "brand",
+        "category",
+        "customer_segment",
+        "is_first_order",
+        "order_channel",
+        "region",
+        "return_reason",
+        "status"
+      ]
+    },
+    {
+      "description": "Share of shipments delivered later than promised.",
+      "expression": "100.0 * SUM(is_late_int) / NULLIF(COUNT(*), 0)",
+      "format": "percent",
+      "name": "late_delivery_rate",
+      "time_field": "shipped_date",
+      "valid_dimensions": [
+        "acquisition_channel",
+        "carrier",
+        "customer_segment",
+        "region"
+      ]
+    },
+    {
+      "description": "Paid marketing spend.",
+      "expression": "SUM(spend)",
+      "format": "currency",
+      "name": "marketing_spend",
+      "time_field": "date",
+      "valid_dimensions": [
+        "acquisition_channel"
+      ]
+    },
+    {
+      "description": "Distinct order count.",
+      "expression": "COUNT(DISTINCT order_id)",
+      "format": "integer",
+      "name": "orders",
+      "time_field": "order_date",
+      "valid_dimensions": [
+        "acquisition_channel",
+        "brand",
+        "category",
+        "customer_segment",
+        "is_first_order",
+        "order_channel",
+        "region",
+        "return_reason",
+        "status"
+      ]
+    },
+    {
+      "description": "Total refunded value.",
+      "expression": "SUM(refund_amount)",
+      "format": "currency",
+      "name": "refund_amount",
+      "time_field": "order_date",
+      "valid_dimensions": [
+        "acquisition_channel",
+        "brand",
+        "category",
+        "customer_segment",
+        "is_first_order",
+        "order_channel",
+        "region",
+        "return_reason",
+        "status"
+      ]
+    },
+    {
+      "description": "Share of customers with more than one order.",
+      "expression": "100.0 * SUM(is_repeat) / NULLIF(COUNT(*), 0)",
+      "format": "percent",
+      "name": "repeat_purchase_rate",
+      "time_field": "signup_date",
+      "valid_dimensions": [
+        "acquisition_channel",
+        "customer_segment",
+        "first_carrier",
+        "first_delivery_status",
+        "region"
+      ]
+    },
+    {
+      "description": "Share of order items that were returned.",
+      "expression": "100.0 * SUM(is_returned) / NULLIF(COUNT(*), 0)",
+      "format": "percent",
+      "name": "return_rate",
+      "time_field": "order_date",
+      "valid_dimensions": [
+        "acquisition_channel",
+        "brand",
+        "category",
+        "customer_segment",
+        "is_first_order",
+        "order_channel",
+        "region",
+        "return_reason",
+        "status"
+      ]
+    },
+    {
+      "description": "Net merchandise revenue after discount, excluding shipping and refunds.",
+      "expression": "SUM(quantity * unit_price)",
+      "format": "currency",
+      "name": "revenue",
+      "time_field": "order_date",
+      "valid_dimensions": [
+        "acquisition_channel",
+        "brand",
+        "category",
+        "customer_segment",
+        "is_first_order",
+        "order_channel",
+        "region",
+        "return_reason",
+        "status"
+      ]
+    },
+    {
+      "description": "Revenue divided by marketing spend for the same channel and day.",
+      "expression": "SUM(revenue) / NULLIF(SUM(spend), 0)",
+      "format": "ratio",
+      "name": "roas",
+      "time_field": "date",
+      "valid_dimensions": [
+        "acquisition_channel"
+      ]
+    },
+    {
+      "description": "Shipment count.",
+      "expression": "COUNT(*)",
+      "format": "integer",
+      "name": "shipments",
+      "time_field": "shipped_date",
+      "valid_dimensions": [
+        "acquisition_channel",
+        "carrier",
+        "customer_segment",
+        "region"
+      ]
+    },
+    {
+      "description": "Total item quantity sold.",
+      "expression": "SUM(quantity)",
+      "format": "integer",
+      "name": "units",
+      "time_field": "order_date",
+      "valid_dimensions": [
+        "acquisition_channel",
+        "brand",
+        "category",
+        "customer_segment",
+        "is_first_order",
+        "order_channel",
+        "region",
+        "return_reason",
+        "status"
+      ]
+    }
+  ],
+  "session_id": "ses_hosted_acceptance",
+  "summary": {
+    "aggregatable_if_named": [
+      "customer_id"
+    ],
+    "ambiguities": [],
+    "confirmed_role_count": 0,
+    "dimensions": [
+      "customer_segment",
+      "region",
+      "acquisition_channel"
+    ],
+    "fields": [
+      {
+        "additive": "unknown",
+        "allowed_confirmed_roles": [],
+        "ambiguous": false,
+        "data_type": "BIGINT",
+        "distinct_count": 30000,
+        "inferred_role": "identifier",
+        "max_value": "30000",
+        "min_value": "1",
+        "name": "customer_id",
+        "null_pct": 0.0,
+        "reason": "numeric, and the name reads as a key",
+        "role": "identifier",
+        "role_source": "inferred"
+      },
+      {
+        "additive": "unknown",
+        "allowed_confirmed_roles": [],
+        "ambiguous": false,
+        "data_type": "DATE",
+        "distinct_count": 1241,
+        "inferred_role": "time",
+        "max_value": "2025-12-02",
+        "min_value": "2022-07-11",
+        "name": "signup_date",
+        "null_pct": 0.0,
+        "reason": "temporal type",
+        "role": "time",
+        "role_source": "inferred"
+      },
+      {
+        "additive": "unknown",
+        "allowed_confirmed_roles": [],
+        "ambiguous": false,
+        "data_type": "VARCHAR",
+        "distinct_count": 4,
+        "inferred_role": "dimension",
+        "max_value": null,
+        "min_value": null,
+        "name": "customer_segment",
+        "null_pct": 0.0,
+        "reason": "4 distinct values",
+        "role": "dimension",
+        "role_source": "inferred"
+      },
+      {
+        "additive": "unknown",
+        "allowed_confirmed_roles": [],
+        "ambiguous": false,
+        "data_type": "VARCHAR",
+        "distinct_count": 5,
+        "inferred_role": "dimension",
+        "max_value": null,
+        "min_value": null,
+        "name": "region",
+        "null_pct": 0.0,
+        "reason": "5 distinct values",
+        "role": "dimension",
+        "role_source": "inferred"
+      },
+      {
+        "additive": "unknown",
+        "allowed_confirmed_roles": [],
+        "ambiguous": false,
+        "data_type": "VARCHAR",
+        "distinct_count": 6,
+        "inferred_role": "dimension",
+        "max_value": null,
+        "min_value": null,
+        "name": "acquisition_channel",
+        "null_pct": 0.0,
+        "reason": "6 distinct values",
+        "role": "dimension",
+        "role_source": "inferred"
+      }
+    ],
+    "headline": "30,000 rows, 5 columns (0 measures, 3 dimensions, 1 time fields)",
+    "identifiers": [
+      "customer_id"
+    ],
+    "measures": [],
+    "row_count": 30000,
+    "schema_revision": 0,
+    "status": "inferred",
+    "table": "customers",
+    "time_fields": [
+      "signup_date"
+    ],
+    "unresolved_ambiguity_count": 0
+  }
+}

@@ -329,6 +329,28 @@ describe("rules stay in the module that owns their place in the cascade", () => 
     expect(withoutComments(moduleSource("styles/foundation.css"))).toMatch(
       /\.scroll-x\s*\{[^}]*overflow-x:\s*auto;[^}]*min-width:\s*0/,
     );
+
+    /*
+     * And the chain above it, which is what lets `min-width: 0` matter.
+     *
+     * `.report-table` and `.report-visual` declare `display: grid` with no
+     * columns, so the implicit track is `auto` -- and an `auto` track takes
+     * its content's max-content width. A five-column result table sized the
+     * track to 678px inside a 358px section and the page scrolled 304px
+     * sideways at 390px; the scroll container three levels down had already
+     * been handed the blown-out width and could never engage.
+     *
+     * Pinned here rather than in the browser suite because reproducing it
+     * costs a real analysis against a container with no budget left for
+     * one, and because the failure is a rule going missing rather than a
+     * value drifting.
+     */
+    expect(responsive).toMatch(
+      /\.report-table,\s*\.report-visual\s*\{\s*grid-template-columns:\s*minmax\(0,\s*1fr\)/,
+    );
+    expect(responsive).toMatch(
+      /\.result-panel,\s*\.chart-card\s*\{\s*min-width:\s*0/,
+    );
   });
 
   it("wraps the topbar in responsive.css", () => {

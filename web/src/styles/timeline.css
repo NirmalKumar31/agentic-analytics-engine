@@ -175,6 +175,25 @@
   .timeline {
     display: none;
   }
+
+  /* Except inside the execution graph, where the same sequence is no
+     longer a progress indicator but the record of a finished run -- which
+     is exactly what the appendix is for. Restored static, connectors and
+     all, so the printed page carries the sequence rather than a gap. */
+  .execution-graph .timeline {
+    display: block;
+  }
+
+  /* A disclosure printed closed is a paragraph the reader cannot reach.
+     The appendix passes `expanded`, which opens it in the markup; this
+     covers the on-screen sheet being sent to paper directly. */
+  .graph-alternative[open] > summary {
+    list-style: none;
+  }
+
+  .graph-call {
+    break-inside: avoid;
+  }
 }
 
 /* Which recording this is, when the run is a replay rather than live. */
@@ -182,4 +201,134 @@
   margin: 0 0 var(--space-4);
   font-size: var(--text-xs);
   color: var(--ink-muted);
+}
+
+/* ------------------------------------------------------- execution graph
+ *
+ * The tool-call layer below the stage sequence: one node per call the
+ * engine actually proposed, in the order it proposed them.
+ *
+ * **State is in the words, not only in the mark.** Each node prints its
+ * own outcome -- "returned 24 rows", "refused before execution: …" -- so a
+ * monochrome print, a reader who cannot separate the hues, and a screen
+ * reader all get the same four distinctions the colours draw.
+ *
+ * Nothing here animates. A node appears when an event says the call
+ * happened; there is no entrance easing to make a finished run look like
+ * it is still arriving, and no looping mark to suggest work that is not
+ * going on. The global reduced-motion rule in `motion.css` therefore has
+ * nothing to withdraw here, which is the intended relationship: the
+ * reduced-motion rendering is the rendering.
+ */
+
+.graph-calls {
+  list-style: none;
+  margin: var(--space-4) 0 0;
+  padding: 0;
+  display: grid;
+  gap: var(--space-2);
+}
+
+.graph-call {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-areas:
+    "mark tool"
+    "mark outcome"
+    "mark agent";
+  column-gap: var(--space-3);
+  row-gap: 2px;
+  padding-block: var(--space-2);
+  border-top: 1px solid var(--rule-hairline);
+}
+
+.graph-call:first-child {
+  border-top: 0;
+}
+
+.graph-call-mark {
+  grid-area: mark;
+  align-self: start;
+  margin-block-start: 4px;
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  border: 2px solid var(--rule-strong);
+  background: var(--surface-canvas);
+}
+
+.graph-call-tool {
+  grid-area: tool;
+  font-size: var(--text-sm);
+  color: var(--ink-primary);
+}
+
+.graph-call-outcome {
+  grid-area: outcome;
+  font-size: var(--text-xs);
+  color: var(--ink-secondary);
+}
+
+.graph-call-agent {
+  grid-area: agent;
+  font-size: var(--text-xs);
+  color: var(--ink-muted);
+}
+
+/* Ran and returned. */
+.graph-call[data-call-state="completed"] .graph-call-mark {
+  border-color: var(--signal);
+  background: var(--signal);
+}
+
+/* Ran and errored. The warning colour, and the word "failed". */
+.graph-call[data-call-state="failed"] .graph-call-mark {
+  border-color: var(--warning);
+  background: var(--warning);
+}
+
+.graph-call[data-call-state="failed"] .graph-call-outcome {
+  color: var(--warning-text);
+  font-weight: var(--weight-medium);
+}
+
+/* Declined by preflight, never dispatched.
+   Deliberately *not* the warning colour: a refused call is a guardrail
+   doing its job, and colouring it as a failure tells the reader the
+   analysis broke when the engine was being careful. A hollow square in
+   the ordinary ink, with the words carrying the fact. */
+.graph-call[data-call-state="refused"] .graph-call-mark,
+.graph-call[data-call-state="suppressed"] .graph-call-mark {
+  border-color: var(--rule-strong);
+  background: var(--surface-canvas);
+  border-style: dashed;
+}
+
+.graph-call[data-call-state="refused"] .graph-call-outcome,
+.graph-call[data-call-state="suppressed"] .graph-call-outcome {
+  color: var(--ink-secondary);
+  font-weight: var(--weight-medium);
+}
+
+/* Dispatched, nothing back yet. Only reachable mid-run, and still static:
+   a pulsing mark would be a claim about elapsed time, not about an event. */
+.graph-call[data-call-state="running"] .graph-call-mark {
+  border-color: var(--signal);
+  background: var(--surface-canvas);
+}
+
+.graph-alternative {
+  margin-block-start: var(--space-4);
+}
+
+.graph-alternative > summary {
+  cursor: pointer;
+  font-size: var(--text-xs);
+  color: var(--ink-secondary);
+}
+
+.graph-narrative {
+  margin: var(--space-2) 0 0;
+  font-size: var(--text-xs);
+  color: var(--ink-secondary);
 }

@@ -14,7 +14,7 @@ from typing import Any
 
 from agentic_analytics.verification.sql import is_read_only
 
-RECORDING_VERSION = 3
+RECORDING_VERSION = 4
 
 REQUIRED_TOP_LEVEL = (
     "recording_version",
@@ -41,6 +41,15 @@ REQUIRED_TOP_LEVEL = (
     "mcp_trace",
     "events",
     "metrics",
+    # Version 4. A recording is replayed through the live report
+    # components, so a key the API serves and the recording omits is a
+    # feature the replay loses without saying so -- silently, because the
+    # report still renders. These three are required by name for that
+    # reason. `presentation` is not among them; see `record.py` for what
+    # carrying it would cost.
+    "query_contract",
+    "question_coverage",
+    "timings",
 )
 
 # Anything that would be a secret, a host path, or a raw provider error.
