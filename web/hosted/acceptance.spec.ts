@@ -36,6 +36,7 @@ import {
   stageAiAvailable,
   stageComparison,
   stageRun,
+  stageRunInFlight,
   stageSession,
   terminalFixture,
   test,
@@ -231,6 +232,44 @@ async function unreadableProse(
   );
 }
 
+/**
+ * Wait for the chart to actually paint, and prove it did.
+ *
+ * Vega is a lazily-loaded 860 kB chunk, so a report is interactive and
+ * readable well before its chart exists. Every screenshot of a report in
+ * the first production sweep showed a **blank 320px band** where the chart
+ * belongs -- the page was fine, the capture was early.
+ *
+ * That is two defects in one. The artefacts were not faithful evidence of
+ * the thing they were filed as evidence of; and the `report` case's only
+ * chart assertion was that its box is no wider than the column, which an
+ * empty box satisfies. So this waits, and then asserts the mark is really
+ * there -- a chart that silently stops drawing now fails the cell instead
+ * of passing it at full width.
+ *
+ * Returns false when the result legitimately has no chart, which is a
+ * decision the engine records and states.
+ */
+async function chartPainted(page: Page, where: string): Promise<boolean> {
+  const host = page.locator(".chart-host").first();
+  if ((await host.count()) === 0) return false;
+
+  const svg = host.locator("svg").first();
+  await expect(svg, `${where}: the chart never painted`).toBeVisible({
+    timeout: 30_000,
+  });
+
+  // An <svg> with no marks is still an <svg>. Vega draws the axes as path
+  // and text nodes, so a drawn chart has both.
+  const drawn = await host.evaluate((node) => ({
+    paths: node.querySelectorAll("svg path").length,
+    labels: node.querySelectorAll("svg text").length,
+  }));
+  expect(drawn.paths, `${where}: the chart drew no marks`).toBeGreaterThan(0);
+  expect(drawn.labels, `${where}: the chart drew no labels`).toBeGreaterThan(0);
+  return true;
+}
+
 async function shot(page: Page, info: TestInfo, state: string): Promise<void> {
   const file = info.outputPath(`${state}.png`);
   await page.screenshot({ path: file, fullPage: true });
@@ -359,6 +398,7 @@ test.describe("hosted visual acceptance", () => {
       `the answer is ${Math.round(answer!.width)}px wide at ${cell.name}`,
     ).toBeGreaterThanOrEqual(Math.min(260, cell.width - 32));
 
+    await chartPainted(page, `layout at ${cell.name}`);
     await expectNoOverflow(page, `layout at ${cell.name}`);
     await shot(page, info, "layout");
   });
@@ -465,9 +505,11 @@ test.describe("hosted visual acceptance", () => {
     const prose = await proseOf(page, '[data-testid="report-panel"]');
     assertFitForAReader(`recorded report at ${cell.name}`, prose);
 
-    // The chart, if the recording produced one, stays inside the column.
+    // The chart, if the recording produced one: painted, then inside the
+    // column. Measured after it has drawn -- an empty host is the right
+    // width and the wrong picture.
     const chart = panel.locator(".chart-host").first();
-    if (await chart.count()) {
+    if (await chartPainted(page, `report at ${cell.name}`)) {
       const [box, column] = await Promise.all([
         chart.boundingBox(),
         panel.boundingBox(),
@@ -625,8 +667,88 @@ test.describe("hosted visual acceptance", () => {
       ).toHaveCount(1);
     }
 
+    await chartPainted(page, `compare at ${cell.name}`);
     await expectNoOverflow(page, `compare at ${cell.name}`);
     await shot(page, info, "compare");
+  });
+
+  test("ai-in-progress: a waiting run says what it has done, and never fakes a bar", async ({
+    page,
+    cell,
+  }, info) => {
+    /*
+     * The state a reader spends the longest in and the one the sweep could
+     * not reach until now.
+     *
+     * An AI run can sit on one stage for half a minute while a provider
+     * thinks, and an unchanged picture is what a hung request looks like
+     * too. What is asserted here is that the screen is made of facts: the
+     * stage the engine reported, the reader's own elapsed wait, and the
+     * work that has actually finished -- and that there is no completion
+     * fraction anywhere, because the planner decides how many calls a run
+     * makes as it goes.
+     */
+    stageAiAvailable(page);
+    stageSession(page);
+    await openApp(page);
+
+    // A real run's events, cut off part way: the engine's own sequence up
+    // to the point where two queries have returned.
+    const recording = await readRecording(page, RECORDING_ID);
+    const upTo = (recording.events as { type: string }[]).findIndex(
+      (event) => event.type === "finding_verified",
+    );
+    expect(upTo, "the recording has no partial point to stop at").toBeGreaterThan(3);
+    stageRunInFlight(page, recording, upTo);
+
+    await openComposer(page);
+    await page.getByRole("radio", { name: /^AI Analytics/ }).click();
+    await ask(page, "Which customer segment returns most?");
+
+    const progress = page.getByTestId("run-progress");
+    await expect(progress).toBeVisible({ timeout: 60_000 });
+
+    // The stage, in the engine's own words rather than a spinner.
+    const stage = page.getByTestId("run-progress-stage");
+    await expect(stage).toBeVisible();
+    await expect(stage).not.toHaveText("Starting");
+
+    // The work that finished. These numbers came from events; the run is
+    // deliberately cut off before `finding_verified`, so the queries are
+    // counted and the findings are not.
+    const work = page.getByTestId("run-progress-work");
+    await expect(work).toBeVisible();
+    await expect(work).toContainText(/quer(y|ies) returned/);
+    await expect(work).not.toContainText(/finding verified/);
+
+    // Why it is waiting, with no estimate: the provider does not give one.
+    await expect(page.getByTestId("run-progress-note")).toContainText(/cloud model/i);
+
+    /*
+     * And nothing simulated. A percentage, a `progressbar`, or a figure
+     * that moves while only time passes would each be the one claim this
+     * product cannot afford to get wrong.
+     */
+    expect(await page.locator('[role="progressbar"], progress').count()).toBe(0);
+    const before = await progress.innerText();
+    const elapsedBefore = await page
+      .getByTestId("run-progress-elapsed")
+      .textContent();
+    await page.waitForTimeout(3500);
+    const after = await progress.innerText();
+    const elapsedAfter = await page.getByTestId("run-progress-elapsed").textContent();
+
+    expect(elapsedAfter, "the elapsed clock did not advance").not.toBe(elapsedBefore);
+    expect(
+      after.replace(elapsedAfter ?? "", ""),
+      `a figure moved while only time passed at ${cell.name}`,
+    ).toBe(before.replace(elapsedBefore ?? "", ""));
+
+    // The answer is not on screen, because there is not one yet.
+    await expect(page.getByTestId("report-panel")).toHaveCount(0);
+
+    await expectNoOverflow(page, `in progress at ${cell.name}`);
+    await shot(page, info, "ai-in-progress");
   });
 
   test("terminal-refused: a refusal says what it refused, at every width", async ({
@@ -685,6 +807,7 @@ test.describe("hosted visual acceptance", () => {
     expect(moving, `still animating under reduced motion at ${cell.name}`)
       .toEqual([]);
 
+    await chartPainted(page, `reduced motion at ${cell.name}`);
     await expectNoOverflow(page, `reduced motion at ${cell.name}`);
     await shot(page, info, "reduced-motion");
   });
@@ -696,6 +819,11 @@ test.describe("hosted visual acceptance", () => {
     await openApp(page);
     const recording = await readRecording(page, RECORDING_ID);
     await openRecordedReport(page, String(recording.title));
+
+    // Painted before the media switch: a chart that is still loading when
+    // print styles apply prints as a blank band, which is exactly what
+    // the first production sweep captured.
+    await chartPainted(page, `print at ${cell.name}`);
     await page.emulateMedia({ media: "print" });
 
     const appendix = page.locator("[data-print-appendix]").first();

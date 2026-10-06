@@ -230,6 +230,63 @@ export function stageRun(page: Page, payload: Record<string, unknown>): string {
   return runId;
 }
 
+/**
+ * Hold a run in flight, so the in-progress view can be looked at.
+ *
+ * The one state the sweep could not reach. A finished report and six
+ * terminal states are all staged from payloads; "still running" is not a
+ * payload, it is the *absence* of an ending -- and `App` only fetches the
+ * run once the event stream says it is over.
+ *
+ * So the stream is answered with the first `upTo` events and **no
+ * `stream_end`**. The browser's `EventSource` then reconnects and
+ * re-receives them, which `useRunEvents` de-duplicates by sequence
+ * number, and `finished` never becomes true. That is also what a genuinely
+ * slow run looks like from the browser, which is the state being
+ * photographed.
+ *
+ * Nothing is started: no analysis, no provider call, no spend.
+ */
+export function stageRunInFlight(
+  page: Page,
+  payload: Record<string, unknown>,
+  upTo: number,
+): string {
+  const runId = `run_hosted_inflight_${Math.random().toString(36).slice(2, 8)}`;
+  const events = (Array.isArray(payload.events) ? payload.events : []).slice(0, upTo);
+  const body = events
+    .map((event) => {
+      const typed = event as { type?: string };
+      return `event: ${typed.type ?? "message"}\ndata: ${JSON.stringify(event)}\n\n`;
+    })
+    .join("");
+
+  stage(page, async (route, url, method) => {
+    if (method === "POST" && url.pathname === "/api/analyses") {
+      await route.fulfill({ status: 202, json: { run_id: runId } });
+      return true;
+    }
+    if (method === "GET" && url.pathname === `/api/analyses/${runId}/events`) {
+      await route.fulfill({
+        status: 200,
+        headers: { "content-type": "text/event-stream" },
+        body,
+      });
+      return true;
+    }
+    if (method === "GET" && url.pathname === `/api/analyses/${runId}`) {
+      // Should not be asked for while the stream has not ended. Answered
+      // truthfully rather than with a finished payload, so a change in
+      // `App` that polls early shows up as a run that never settles
+      // instead of as a report appearing from nowhere.
+      await route.fulfill({ status: 200, json: { run_id: runId, status: "running" } });
+      return true;
+    }
+    return false;
+  });
+  return runId;
+}
+
 /** Advertise AI and Compare, which no credential-free deployment offers. */
 export function stageAiAvailable(page: Page): void {
   stage(page, async (route, url, method) => {

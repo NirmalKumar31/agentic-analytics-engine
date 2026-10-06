@@ -29,6 +29,7 @@ export const STATES = [
   "evidence-drawer",
   "focus-restoration",
   "compare",
+  "ai-in-progress",
   "terminal-refused",
   "reduced-motion",
   "print",
