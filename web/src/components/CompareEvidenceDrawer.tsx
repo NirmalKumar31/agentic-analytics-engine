@@ -25,6 +25,7 @@ import { SideSheet } from "./SideSheet";
 import type { RunPayload } from "../lib/types";
 
 interface Trace {
+  role: "deterministic" | "ai";
   title: string;
   run: RunPayload | null;
 }
@@ -34,11 +35,14 @@ export function CompareEvidenceDrawer({
   ai,
   onClose,
 }: {
-  deterministic: Trace;
-  ai: Trace;
+  deterministic: Omit<Trace, "role">;
+  ai: Omit<Trace, "role">;
   onClose: () => void;
 }) {
-  const tabs = [deterministic, ai];
+  const tabs: Trace[] = [
+    { role: "deterministic", ...deterministic },
+    { role: "ai", ...ai },
+  ];
   const [active, setActive] = useState(0);
   const current = tabs[active] ?? tabs[0]!;
 
@@ -55,7 +59,7 @@ export function CompareEvidenceDrawer({
       >
         {tabs.map((tab, index) => (
           <button
-            key={tab.title}
+            key={tab.role}
             type="button"
             role="tab"
             id={`evidence-tab-${index}`}

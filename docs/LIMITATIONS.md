@@ -563,11 +563,12 @@ developer's machine is not the constraint the deployment is.
 - Vega is 298 kB gzipped, lazily loaded on first chart render, and dominates
   the bundle.
 - Tested with Vitest and Testing Library for components, and with Playwright
-  for the assembled application: **96 discovered browser scenarios** covering
-  the landing page, recorded and live analysis, provenance, uploads,
-  refusals, session deletion, cross-session isolation, cookie flags, MCP
-  policy, planning modes, reports, charts, accessibility and schema-role
-  confirmation. They run against a real server, not a mocked page.
+  for the assembled application. The browser count belongs to each exact CI
+  run rather than this document; the guard reconciles every discovered case.
+  The suite covers the landing page, recorded and live analysis, provenance,
+  uploads, refusals, session deletion, cross-session isolation, cookie flags,
+  MCP policy, planning modes, reports, charts, accessibility and schema-role
+  confirmation against a real server.
 - The report leads with the answer, the population it covers, the rows it was
   counted over and the grouped result, and puts the provenance after them.
   Population rows and non-null observations used by an aggregate are separate
@@ -579,10 +580,11 @@ developer's machine is not the constraint the deployment is.
   in the suite can see those rules, and the screen palette is tuned for a
   dark background — a block added without them renders close to white on
   white in a saved PDF.
-- CI runs Chromium, Firefox and WebKit separately. Chromium executes all 96;
-  Firefox and WebKit each declare one skip for Playwright's Chromium-only PDF
-  API. The report guard reconciles every discovered result and rejects zero
-  execution, undeclared skips, missing engines and retry-rescued flakes.
+- CI runs Chromium, Firefox and WebKit separately. Firefox and WebKit declare
+  only the five real-PDF cases that rely on Playwright's Chromium-only
+  `page.pdf()` API. The report guard reconciles every discovered result and
+  rejects zero execution, undeclared skips, missing engines and retry-rescued
+  flakes.
 - Browser tests preflight `/api/health` and refuse to run unless
   `provider_mode` is `fake`. Their CI upload ceiling is set for the suite's
   known aggregate demand; rate-limit refusals are failures, not passes or
@@ -592,19 +594,23 @@ developer's machine is not the constraint the deployment is.
 
 ## 10. Deployed, and what the deployment has and has not shown
 
-Live at <https://agentic-analytics-engine.onrender.com>. Both public modes
-work there: credential-free acceptance passes **57 checks** against the
-deployed service, and the authorised comparison run taken at the **v0.1.0**
-release published the correct total on both the deterministic and the AI
-side for **$0.001160**.
+Live at <https://agentic-analytics-engine.onrender.com>. The production audit
+on 6 October 2026 verified the exact deployed commit, passed all **60**
+credential-free API checks and **156/156** hosted browser cells, and then ran
+one authorised Compare canary for **$0.000158**. Both strategies executed the
+same accepted contract and matched an independent DuckDB result. See
+[`RELEASE-EVIDENCE-production-2026-10-06.md`](RELEASE-EVIDENCE-production-2026-10-06.md).
+
+The older v0.1.0 evidence below remains useful as a release-specific record.
+Its authorised comparison published the correct total on both the
+deterministic and AI side for **$0.001160**.
 `docs/RELEASE-EVIDENCE-v0.1.0.md` carries the figures and the capture
 checksums for the v0.1.0 release, where the same script reported 55.
 
-The two figures are the same script, not a changed one. Two of its checks
-are HTTPS-only — that HSTS is set, and that it does not claim Render's
-shared parent domain — so a run against a local container reports 55 and a
-run against the deployed service reports 57. Neither number should be quoted
-without saying which it was.
+At v0.1.0, the same earlier script reported 55 checks locally and 57 against
+the deployed service. The difference was two HTTPS-only checks: HSTS and a
+cookie-domain assertion. The current script has since grown to 60 checks, so
+none of those counts should be quoted without its release and target.
 
 Behaviour behind a TLS-terminating proxy is now exercised rather than
 assumed, which is what `AAE_SESSION_COOKIE_SECURE` existed for.
@@ -623,7 +629,7 @@ inference:
   see §5b.
 - **Firefox and WebKit are untested against this deployment.** Chromium
   only. No claim is made about the other two.
-- **One paid run at this release.** The figure above is one comparison
+- **One paid run at the v0.1.0 release.** The figure above is one comparison
   request, taken at v0.1.0: evidence that the path works, not a sample of
   how it behaves under variety or load.
 
@@ -634,9 +640,9 @@ inference:
   with the rules in two of three — which a single run cannot show. A
   further two were made on 3 Oct 2026 against `5913f6e`, testing the
   lifecycle-clock refusal rather than contract agreement; they are also in
-  §11. **Six paid runs in total across three periods**, costing $0.004723
-  altogether; no sentence in this document should be read as claiming a
-  larger sample than the one it names.
+  §11. Those six historical runs cost $0.004723 across three periods. Later
+  canaries, including the 6 October production audit, are reported separately
+  rather than folded into a sample they were not designed to extend.
 - The resource envelope has not been measured against the running instance
   under load, and cold-start latency is unquantified.
 

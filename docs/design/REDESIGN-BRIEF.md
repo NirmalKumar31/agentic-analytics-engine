@@ -1,6 +1,9 @@
 # Redesign brief — design review package
 
-**Status: for approval. No production frontend code has been written.**
+**Historical design input.** This was the approval package measured against
+`5913f6e`; its present-tense descriptions record that earlier interface. The
+redesign was later implemented. Current production evidence is in
+[`../RELEASE-EVIDENCE-production-2026-10-06.md`](../RELEASE-EVIDENCE-production-2026-10-06.md).
 
 Measured against the deployed service at `5913f6e`. Every number below was
 taken from the live site, not estimated.

@@ -1,10 +1,10 @@
-"""One authorised, capped Compare Both run against the hosted service.
+"""One authorised, capped comparison against the hosted service.
 
 Usage:
     python scripts/paid_compare_acceptance.py https://service.onrender.com --confirm
 
-Requires `--confirm` because this is the only script here that spends money.
-It makes exactly one comparison, never retries, and stops on the first
+Requires `--confirm` because this script spends money. It makes exactly one
+comparison, never retries, and stops on the first
 mismatch rather than trying another question.
 
 Prints no credential, no prompt, no raw provider response and no uploaded
@@ -89,7 +89,7 @@ def main() -> int:
     parser.add_argument(
         "--confirm",
         action="store_true",
-        help="required: this script makes one paid model request",
+        help="required: this script makes one paid comparison",
     )
     args = parser.parse_args()
     if not args.confirm:
@@ -206,7 +206,7 @@ def main() -> int:
 
     if ai_status == "completed":
         checks.ok(
-            "both panes executed the same canonical contract",
+            "both strategies executed the same canonical contract",
             left == right,
             f"differences: {[k for k in set(left) | set(right) if left.get(k) != right.get(k)]}",
         )

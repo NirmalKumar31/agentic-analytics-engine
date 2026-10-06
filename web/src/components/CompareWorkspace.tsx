@@ -543,10 +543,13 @@ export function CompareWorkspace({
         hidden
       >
         <h2 className="section-heading">Appendix: evidence</h2>
-        {[deterministic, ai].map((side) =>
+        {[
+          { role: "deterministic", side: deterministic },
+          { role: "ai", side: ai },
+        ].map(({ role, side }) =>
           side.run ? (
             <section
-              key={side.title}
+              key={role}
               className="print-appendix-side"
               data-strategy={side.title}
             >

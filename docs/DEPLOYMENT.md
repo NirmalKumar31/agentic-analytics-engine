@@ -200,8 +200,9 @@ Deterministic first. AI only after the deterministic service is healthy.
     `compare_available` true.
 11. **One bounded AI question** — a single run. Check the response, the
     recorded usage and cost, and the logs for credential leakage.
-12. **One planning-strategy comparison** — confirm two independent panes and that only the
-    AI side consumed quota.
+12. **One planning-strategy comparison** — confirm both strategy reports are
+    available through the report switcher and that only the AI side consumed
+    quota.
 13. **Quota exhaustion** — lower a ceiling temporarily and confirm the 429
     message, then confirm Deterministic Analytics still works.
 14. **Web-restart durability** — restart the web service and confirm the
@@ -209,6 +210,12 @@ Deterministic first. AI only after the deterministic service is healthy.
     which is documented to erase the store.
 
 ## What the live deployment has been shown to do
+
+The latest production audit is
+[`RELEASE-EVIDENCE-production-2026-10-06.md`](RELEASE-EVIDENCE-production-2026-10-06.md).
+It identifies the exact deployed commit, the ten-job CI run, the 156-cell
+hosted browser sweep, the 60-check API acceptance run and one bounded paid
+Compare canary. The evidence below is retained as the earlier v0.1.0 record.
 
 `docs/RELEASE-EVIDENCE-v0.1.0.md` records the v0.1.0 measurements: a
 55-check credential-free acceptance run against production, and one

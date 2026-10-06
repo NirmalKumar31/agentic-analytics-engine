@@ -15,9 +15,8 @@
  * affordance -- a drop target you can also click. The prepared datasets are
  * an alternative offered underneath it, in a list, which is what "or" means.
  *
- * And its small print was styled as small print. "Nothing is sent to a model
- * unless you choose an AI strategy" is not a disclaimer; it is one of the
- * few genuinely distinguishing things about this engine, and it is now
+ * And its small print was styled as small print. What may leave the server is
+ * not a disclaimer; it is part of the choice a visitor is making, and is now
  * stated at body weight inside the drop zone where the decision is made.
  */
 
@@ -96,7 +95,9 @@ export function LandingView({
               {config.session_ttl_minutes} minutes of inactivity.
             </p>
             <p className="dropzone-terms">
-              Nothing is sent to a model unless you choose an AI strategy.
+              Deterministic Analytics sends nothing to a model. Governed
+              Analysis may use a model when local rules cannot resolve the
+              question; AI Analytics and Compare use one by design.
             </p>
             <button
               type="button"
@@ -107,15 +108,17 @@ export function LandingView({
             >
               Choose a file
             </button>
-            <p className="dropzone-caution">
+            <div className="dropzone-caution">
               Please don&rsquo;t upload sensitive or regulated data.
               {config.model_inference_remote && (
                 <>
                   {" "}
                   <details className="disclosure">
-                    <summary>What is sent to OpenAI in AI mode</summary>
-                    Column names, inferred column roles and computed results go
-                    to OpenAI as part of the prompt. Computed results include
+                    <summary>What can be sent to OpenAI</summary>
+                    When a run uses AI, your question, column names, inferred
+                    column types such as date, measure or category, and
+                    computed results go to OpenAI as part of the prompt.
+                    Computed results include
                     the labels of a column you group by — a total by department
                     cannot be reported without naming the departments.
                     Individual rows do not go: row sampling is refused, a
@@ -129,7 +132,7 @@ export function LandingView({
                   </details>
                 </>
               )}
-            </p>
+            </div>
           </div>
         )}
 

@@ -154,4 +154,5 @@ make a column decidable, it records that someone decided.
 - The browser suite refuses to run against a paid provider. That gate was
   not planned here; it was found while verifying this change, when a
   cloud-mode server owned by another process was discovered listening on
-  the suite's default port. See `web/e2e/preflight.ts`.
+  the suite's default port. See `web/src/test/preflight.ts`, which the browser
+  suite's global setup imports.

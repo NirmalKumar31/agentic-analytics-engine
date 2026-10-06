@@ -1,5 +1,9 @@
 # Design sheet generators
 
+These scripts reproduce the historical redesign package. They do not capture
+or certify the current interface; use the
+[production audit](../../RELEASE-EVIDENCE-production-2026-10-06.md) for that.
+
 Every sheet in `docs/design` is generated. Nothing here is hand-drawn, which is
 why a fact can be checked across sheets instead of trusted.
 

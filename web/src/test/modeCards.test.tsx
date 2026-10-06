@@ -192,7 +192,9 @@ describe("the explanation is behind one control", () => {
     selector("ai");
     const explainer = screen.getByTestId("mode-explainer");
     expect(explainer.textContent).toMatch(/limited public quota/i);
-    expect(explainer.textContent).toMatch(/schema, profiles and aggregates/i);
+    expect(explainer.textContent).toMatch(
+      /The question, column names, inferred column types, summary profiles and aggregate results are sent/i,
+    );
     expect(explainer.textContent).toMatch(/3 AI runs per dataset session/);
   });
 
