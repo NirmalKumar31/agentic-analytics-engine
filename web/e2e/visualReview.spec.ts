@@ -281,20 +281,22 @@ test.describe("a real report holds at every approved width, in both themes", () 
           ).toBeLessThan(viewport.height);
 
           /*
-           * And no finding is clipped.
+           * And no finding is clipped, and none is folded away.
            *
-           * The brief's "exactly one finding expanded on arrival at mobile
-           * widths" is implemented, but only where there is something to
-           * fold: this payload publishes two one-line rows, so all of it is
-           * shown. `findingFold.test.tsx` covers the threshold, and
-           * `report.spec.ts` covers a recorded run with six.
+           * The phone-width fold this used to allow for is gone: the
+           * presentation contract emits at most two highlights and the
+           * fold's threshold was three, so it never ran in product output.
+           * `src/test/highlightsAreNotFolded.test.tsx` asserts the cap and
+           * the absence of the control over every committed payload; this
+           * asserts the same thing in a browser, at every width in the
+           * sweep.
            */
           const findings = profiled.locator(".finding-item");
           const count = await findings.count();
           expect(count, `${viewport.label}: no findings rendered`).toBeGreaterThan(0);
           expect(
             await profiled.locator(".findings-more").count(),
-            `${viewport.label}: two findings were folded`,
+            `${viewport.label}: a fold control is back on the report`,
           ).toBe(0);
           for (let i = 0; i < count; i += 1) {
             const clipped = await findings.nth(i).evaluate((node) => {

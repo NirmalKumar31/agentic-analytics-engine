@@ -270,12 +270,12 @@ test.describe("a recorded report on a phone", () => {
      * two highlights, and the table.
      *
      * The presentation layer emits two highlights for every shape it
-     * builds -- highest and lowest -- and `FOLD_ABOVE` is three, so the
-     * fold is a branch of the fallback path and not of the report a visitor
-     * sees. `src/test/findingFold.test.tsx` still asserts that branch, over
-     * a model it constructs, which is where an assertion about a component's
-     * behaviour belongs. Driving it from a browser would now mean
-     * publishing a recording the engine cannot produce.
+     * builds -- highest and lowest -- and the fold's threshold was three,
+     * so the branch never ran in product output. It has been **removed**
+     * rather than kept for a constructed test model, which would have left
+     * dead markup and a disclosure a keyboard user could reach.
+     * `src/test/highlightsAreNotFolded.test.tsx` asserts the cap and the
+     * absence of the control over every committed payload.
      *
      * So this asserts what the phone report actually does, which is the
      * thing that was never checked: every highlight is present, none is

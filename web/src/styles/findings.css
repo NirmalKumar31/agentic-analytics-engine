@@ -135,22 +135,13 @@ pre.sql {
   overflow: auto;
 }
 
-/* ------------------------------------------------- the rest, on a phone
+/* The phone-width fold that stood here is gone with its markup.
  *
- * One finding is expanded on arrival at phone widths and the rest fold
- * behind this. It is a `<details>`, so it is reachable by keyboard and the
- * print cascade expands it: the paper copy is never the folded one.
+ * It hid every highlight but the first behind a `<details>` below 640px,
+ * above a threshold of three -- and the presentation contract emits at
+ * most two highlights for any shape, so the threshold was never met in
+ * product output. The branch looked alive only because the published
+ * recordings carried no presentation snapshot and the report fell back to
+ * listing the engine's own findings. See `AnswerReport.tsx` for the order
+ * to put it back in, if the cap is ever raised.
  */
-.findings-more {
-  margin-block-start: var(--space-3);
-}
-
-.findings-more > summary {
-  cursor: pointer;
-  font-size: var(--text-sm);
-  color: var(--ink-secondary);
-}
-
-.findings-more > ol {
-  margin-block-start: var(--space-3);
-}

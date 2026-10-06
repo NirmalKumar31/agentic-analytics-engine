@@ -272,11 +272,8 @@
     break-inside: avoid;
   }
 
-  /* The phone fold is a screen device. On paper every finding is printed,
-     and the control that folded them is not. */
-  .findings-more > summary {
-    display: none;
-  }
+  /* The rule hiding the phone fold's summary went with the fold. Every
+     highlight is in the document now, on screen and on paper alike. */
 
   .finding-rank {
     background: #eee;
