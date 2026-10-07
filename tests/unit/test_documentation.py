@@ -64,6 +64,8 @@ def test_current_docs_do_not_repeat_superseded_claims() -> None:
         "two independent panes",
         "Chromium **96/96**",
         "The two figures are the same script, not a changed one",
+        "times ten states",
+        "120 cells, each with a screenshot",
     ):
         assert stale not in current
 
@@ -100,3 +102,14 @@ def test_remote_inference_docs_name_the_question_as_disclosed() -> None:
     # And the limit on it: individual rows do not leave the server.
     assert "unaggregated rows" in readme
     assert "the question, schema, inferred column types" in example
+
+
+def test_hosted_guide_states_the_matrix_the_code_runs() -> None:
+    """Keep the operator guide aligned with the declared hosted matrix."""
+    guide = (ROOT / "web/hosted/README.md").read_text(encoding="utf-8")
+    matrix = (ROOT / "web/hosted/matrix.ts").read_text(encoding="utf-8")
+
+    assert "thirteen states" in guide
+    assert "156 cells" in guide
+    assert '"ai-in-progress"' in matrix
+    assert '"focus-visible"' in matrix

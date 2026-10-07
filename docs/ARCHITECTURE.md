@@ -498,7 +498,7 @@ It takes a different route:
    cited aggregate preserved it.
 
 For a planning-strategy comparison the contract has a canonical hash that excludes planner
-provenance and filter order. Matching hashes mean both panes executed the same
+provenance and filter order. Matching hashes mean both strategies executed the same
 semantic request; a mismatch is disclosed rather than hidden, and the differing
 canonical fields are named side by side. A swapped measure and a dropped row
 restriction are very different things to have happened, and "different governed

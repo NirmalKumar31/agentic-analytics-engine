@@ -65,6 +65,18 @@ corrected, the design package is labeled as historical input, and a link test
 based on Git's tracked files now prevents an uncommitted local file from
 satisfying a documentation link.
 
+## Follow-up deployment: 7 October 2026
+
+The findings above describe the 6 October target `f98b890`. The disclosure,
+HTML and React-key fixes were merged in `a851850`. The service now reports
+`b5a24b51963f69577f28b5002eacab0d7a24d9c1` from both `/api/health` and
+`/api/config`, with fake provider mode and three recordings.
+
+A credential-free hosted sweep then completed all **156/156** cells against
+that exact SHA. Its request guard recorded zero uploads, analyses, comparisons
+and provider calls. This is a frontend and recorded-state check; it does not
+repeat the earlier paid canary or expand its one-run conclusion.
+
 ## Limits
 
 - The 156-cell sweep uses route interception for report states. It verifies

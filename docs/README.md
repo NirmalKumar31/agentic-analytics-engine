@@ -12,7 +12,8 @@ overview. The files below separate current behaviour from historical evidence.
   not make
 - [Performance budget](PERFORMANCE-BUDGET.md): enforced frontend limits
 - [Production audit, 6 October 2026](RELEASE-EVIDENCE-production-2026-10-06.md):
-  evidence for deployed commit `f98b890`
+  initial evidence for `f98b890` and the zero-spend follow-up for the current
+  deployment
 - [Architecture decision records](adr/): decisions that still constrain the
   implementation
 
