@@ -13,8 +13,9 @@ would, reading every figure it writes out of a real `ResultSnapshot`.
 That is what lets tests, CI, the recorded demos and the public deployment run
 with zero credentials and identical results. It also means the numbers in
 [EVALUATION.md](EVALUATION.md) measure graph execution, MCP execution, SQL and
-statistical correctness, provenance, verification and publication — and not
-question understanding, planning quality or tool-selection reliability.
+statistical correctness, provenance, verification and publication. They do
+not measure question understanding, planning quality or tool-selection
+reliability.
 
 Live mode drives the same graph, the same MCP tools and the same verification,
 and every safety and provenance guarantee holds identically. Plan quality
@@ -35,8 +36,8 @@ benchmark cannot be mistaken for autonomous planning:
 - for an uploaded file, asks the engine to map the question onto the inferred
   schema (`aggregate_for_question`) rather than mapping it itself
 
-The plans are not question-specific lookups — the same rules run for every
-question — but they are rules, not reasoning.
+The plans are not question-specific lookups, since the same rules run for
+every question. They remain rules rather than reasoning.
 
 ---
 
@@ -49,16 +50,16 @@ question — but they are rules, not reasoning.
   and the publication gate reads the adjusted p-value. Correction does *not*
   span tasks: a run performing related tests in two separate tasks has two
   families, not one. That is a real limit on the guarantee.
-- Applicability is validated before a test runs — a correlation on text or a
-  t-test on a category label is refused rather than returning a meaningless
-  number — but nothing refuses a test whose *distributional* assumptions are
+- Applicability is validated before a test runs, so a correlation on text or
+  a t-test on a category label is refused rather than returning a meaningless
+  number. Nothing refuses a test whose *distributional* assumptions are
   violated. The warnings travel with the result; a reader has to read them.
 - Welch's t and ANOVA are computed from group n/mean/sd. Exact for those
   statistics, but no distributional diagnostics are available.
 - Correlations above 50,000 rows use a seeded DuckDB reservoir sample. The
   snapshot records `rows_available`, `rows_used`, `sampling_applied`,
   `sampling_method` and `sampling_seed`, and the same request reproduces the
-  same coefficient — but it is still an estimate.
+  same coefficient. It remains an estimate.
 
 ---
 
@@ -66,9 +67,9 @@ question — but they are rules, not reasoning.
 
 The arithmetic check is complete for what it covers: every number must appear
 in a cited result or be derivable from two cited cells by subtraction, ratio
-or percentage change. Derivations outside that set — a weighted average across
-three cells, a compound growth rate — would be rejected even if correct. That
-is the safe direction to fail, and it is a limit.
+or percentage change. Derivations outside that set, such as a weighted
+average across three cells or a compound growth rate, would be rejected even
+if correct. That is the safe direction to fail, and it is a limit.
 
 The semantic check is a model and inherits a model's judgement. It runs last,
 cannot overrule the arithmetic, and a critic that fails returns
@@ -122,8 +123,8 @@ coroutine.
 - **Resource exhaustion is bounded, not eliminated.** Generator arguments, AST
   size and depth, joins, CTEs and set operations are all capped, recursive
   CTEs are refused, and the query timeout is real. A query that is expensive
-  without being structurally unusual — a legitimate aggregate over the whole
-  warehouse — is bounded only by the timeout and the memory limit.
+  without being structurally unusual, such as a legitimate aggregate over the
+  whole warehouse, is bounded only by the timeout and the memory limit.
 - **The MCP endpoint fails closed** for a network binding with no host
   allow-list: the transport is withdrawn rather than served unvalidated. When
   an allow-list *is* configured, Host and Origin validation is the SDK's, and
@@ -164,8 +165,8 @@ coroutine.
   everywhere and will misclassify. Two rules exist because the obvious
   version of each got it wrong:
   - a numeric column with few distinct values reads as a dimension, *unless
-    the question names it as the thing to aggregate* -- a question naming a
-    column is an instruction, not something to infer around;
+    the question names it as the thing to aggregate*, because a question
+    naming a column is an instruction rather than something to infer around;
   - a text column named like a key (`store_code`, `account_no`) is still a
     grouping if its values repeat, and a text column with a different value
     on almost every row is an identifier however it is named, because one
@@ -232,7 +233,7 @@ categorical equality, nullity, compositions and contradictions across at
 least three unrelated domains each.
 
 The newest family is `interval_grained_rows`, where a row describes a
-*span* rather than a point -- a drill-core depth interval, a
+*span* rather than a point: a drill-core depth interval, or a
 departure-to-arrival window. It is there because the bound columns read as
 ordinary numbers and dates: nothing about `from_depth_m` marks it as a
 coordinate rather than a quantity, so a question asking for "total depth"
@@ -254,7 +255,7 @@ cardinality rather than from the schema classifier: a column whose values
 repeat is a category, and its labels are legitimately part of an aggregate
 grouped by it, while a near-unique or free-text column's values are not.
 Reading the classifier's verdict instead made the measurement blind to the
-one leak it exists for -- reintroducing the defect reclassified those
+one leak it exists for, because reintroducing the defect reclassified those
 columns as groupings and the check excused them in the same instant. ISO
 dates are excluded because the engine derives period bounds from the
 question, and legitimate values are subtracted by value rather than by
@@ -264,8 +265,8 @@ it references is not reported as a leak.
 **What it does not establish.** That an arbitrary file gets a good answer.
 The corpus is 266 questions the authors chose, against datasets the authors
 generated. It demonstrates the committed cases and the *shape* of the
-failure behaviour -- refusal rather than guessing -- not coverage of every
-file a visitor might upload. Some question kinds are satisfied by a refusal,
+failure behaviour, which is refusal rather than guessing. It does not
+demonstrate coverage of every file a visitor might upload. Some question kinds are satisfied by a refusal,
 and a large share of the corpus is deliberately unanswerable.
 
 **Acceptance is about what must never happen**, not what must always
@@ -289,8 +290,8 @@ data problem. It is compared on outcome rather than on wording: the reporter
 may phrase a finding differently, and that is not a divergence.
 
 What it does not establish is that a *real* model agrees. Both passes are
-driven by the scripted provider — the AI pass differs in declaring itself
-remote and retaining its prompts, not in who plans. A real model's plan is
+driven by the scripted provider. The AI pass differs in declaring itself
+remote and in retaining its prompts, not in who plans. A real model's plan is
 bounded by the checks in §5a and by the AI-plan rules in ARCHITECTURE §14,
 and the only evidence about its actual behaviour is the paid runs recorded
 in §11.
@@ -317,7 +318,7 @@ The blind spots, each of which hid a distinct defect:
 
 The last one is the one worth naming. Unit checks supplied a schema written
 by hand, and that hand classified the grouping key correctly where
-`infer_schema` did not — so seven acceptance questions passed at the unit
+`infer_schema` did not, so seven acceptance questions passed at the unit
 level while three were wrong end to end. `tests/integration/` now drives a
 committed fixture with the failure-relevant shape through the actual
 upload, inference, planning, SQL, verification and report path, and no test
@@ -345,8 +346,8 @@ and declines with the group count, the ceiling and four ways to narrow.
 **This is a limitation of the deployment, not of the question.** Raising
 `max_result_rows` would answer it, at a memory cost on a 512 MB instance,
 and that is a deployment decision rather than something the engine should
-take for itself. What it must not do -- and what it did -- is return the
-first 25 groups and call them the breakdown.
+take for itself. What it must not do, and what it did, is return the first
+25 groups and call them the breakdown.
 
 A consequence worth stating plainly: a >200-group breakdown cannot arise
 from an *inferred* dimension at all, because a column with more than 200
@@ -365,8 +366,8 @@ ordinary input, cached input, cache-write input and output tokens, each at
 its own rate. This is what a normal call produces.
 
 **Conservatively retained cost** is charged when a call's outcome is
-ambiguous -- the usage could not be read, or the request left the process
-and no usable answer came back. The full worst-case reservation stands: the
+ambiguous: the usage could not be read, or the request left the process and
+no usable answer came back. The full worst-case reservation stands: the
 counted input at the dearest input rate plus the whole output allowance the
 call was permitted. Nothing is refunded, because a request that was sent
 may have been billed, and a spend ceiling that guesses "free" when it
@@ -388,7 +389,7 @@ request may have reached the provider and been billed, and the tokens it
 was permitted may already have been generated; a ceiling that hands both
 back on cancellation can be crossed by cancelling. So a run that cancels
 work reports a total at or above what was really spent, and has less
-allowance left than an uncancelled run would -- conservative in the
+allowance left than an uncancelled run would, which is conservative in the
 direction that cannot overspend.
 
 **Provider enforcement is not instantaneous.** OpenAI documents that a hard
@@ -404,9 +405,9 @@ discovered mid-run.
 
 The profile query emits one `UNION ALL` across every column of a table,
 so its `min_value` and `max_value` must share a single type and that type
-is text. `mean_value` does not have to, and no longer does -- it was cast
-to text, which made a correct claim about it unverifiable, and it is now
-numeric where it is produced.
+is text. `mean_value` does not have to, and no longer does. It had been cast
+to text, which made a correct claim about it unverifiable; it is now numeric
+where it is produced.
 
 The two range columns remain a gap. **A finding citing the minimum or
 maximum of a numeric column is reported as numerically unsupported**,
@@ -422,9 +423,9 @@ from being read as a quantity.
 
 The invariants that money and mapping rest on are checked by **deterministic
 sweep, not by a property-generation engine**. For each one the test walks a
-fixed grid -- token counts either side of both context tiers, every split of
+fixed grid (token counts either side of both context tiers, every split of
 input across the three billing categories, six schema shapes against nine
-questions -- and asserts the property at every point. Several thousand
+questions) and asserts the property at every point. Several thousand
 combinations, reproducible exactly, no new dependency in a pinned install.
 
 What that buys and what it does not:
@@ -460,16 +461,16 @@ audit of 959ebd9.** The 27th, `[cache exceeds total]`, passes against
 larger than the input containing it. It guards the same settlement path
 and is worth keeping, but it is a broader invariant rather than an
 original-defect reproduction, so it is not counted as one and the suite is
-not described as 27 of 27. That figure was also mismeasured once -- an
-editable install leaked current code into the checkout of the old
-revision and produced 25 of 27, which is why the measurement now runs
-against a copy of 959ebd9 on `PYTHONPATH`.
+not described as 27 of 27. That figure was also mismeasured once: an editable
+install leaked current code into the checkout of the old revision and
+produced 25 of 27, which is why the measurement now runs against a copy of
+959ebd9 on `PYTHONPATH`.
 
 The upload corpus carries two further injections of its own, recorded in
 §5a: the near-unique-text leak, which the disclosure check must catch, and
-the two mapping guards the interval-grained family was added for -- a
-measure taken from the first of several candidates, and a grouping matched
-by substring so that "by airport" silently becomes `origin_airport`.
+the two mapping guards the interval-grained family was added for: a measure
+taken from the first of several candidates, and a grouping matched by
+substring so that "by airport" silently becomes `origin_airport`.
 
 The typed-AI-plan bounds and the answer-first report were measured the same
 way. Reverted one at a time: the `time_field`/`period_field` fold restored;
@@ -479,7 +480,7 @@ the contract diff made to report nothing; the rows-counted figure taken from
 the result's own row count instead of summed across groups; the direct
 answer taken as the first published finding instead of the one citing the
 executed contract; the answer block's print rules dropped; filters compared
-in order rather than as a set. **Eleven mutations, eleven caught** — five in
+in order rather than as a set. **Eleven mutations, eleven caught**: five in
 the engine, five in the frontend, and the cross-mode equivalence above,
 which the fold alone breaks.
 
@@ -497,7 +498,7 @@ which never waits for a report.
 Additive decomposition is exact. Shift-share decomposition for rate metrics
 reconciles exactly and separates rate movement from mix movement, but:
 
-- it is descriptive, not causal — it attributes arithmetic, not cause
+- it is descriptive rather than causal, attributing arithmetic and not cause
 - it requires the metric to declare a numerator and denominator, so metrics
   without one (`roas`, `average_order_value`) cannot be decomposed
 - a segment present in only one period contributes its whole weight to the mix
@@ -578,7 +579,7 @@ developer's machine is not the constraint the deployment is.
 - Print rules are maintained per block, and `printStyles.test.ts` reads the
   stylesheet to enforce it. jsdom does not apply print media, so nothing else
   in the suite can see those rules, and the screen palette is tuned for a
-  dark background — a block added without them renders close to white on
+  dark background, so a block added without them renders close to white on
   white in a saved PDF.
 - CI runs Chromium, Firefox and WebKit separately. Firefox and WebKit declare
   only the five real-PDF cases that rely on Playwright's Chromium-only
@@ -625,8 +626,8 @@ inference:
 - **No production restart was performed**, so a Redis counter has not been
   watched surviving one. Durability is a property of the store and is
   tested locally; it has not been observed here. Separately, the free Key
-  Value plan can lose every counter if the datastore itself restarts —
-  see §5b.
+  Value plan can lose every counter if the datastore itself restarts; see
+  §5b.
 - **Firefox and WebKit are untested against this deployment.** Chromium
   only. No claim is made about the other two.
 - **One paid run at the v0.1.0 release.** The figure above is one comparison
@@ -636,8 +637,8 @@ inference:
   Three *further* authorised runs were taken on **30 Sep 2026** and are
   recorded separately in §11. They are not the same evidence and are not
   added together here: different dates, different release, different
-  question, and §11's three exist to show **variance** — the model agreed
-  with the rules in two of three — which a single run cannot show. A
+  question, and §11's three exist to show **variance**, which a single run
+  cannot show: the model agreed with the rules in two of three. A
   further two were made on 3 Oct 2026 against `5913f6e`, testing the
   lifecycle-clock refusal rather than contract agreement; they are also in
   §11. Those six historical runs cost $0.004723 across three periods. Later
@@ -656,7 +657,7 @@ over seven datasets with deliberately unrelated vocabularies. It has no
 answer key and no pass mark; it records what a model *did*, including which
 gate withheld what.
 
-**The qwen3:4b run is a pre-fix, incomplete diagnostic — not a model
+**The qwen3:4b run is a pre-fix, incomplete diagnostic rather than a model
 evaluation.** It published nothing and withheld 17 of 17 findings, but the
 run was contaminated by five defects it exposed, and it deadlocked before
 finishing. It should not be cited as evidence about that model. What it
@@ -703,7 +704,7 @@ One question, over a 300-row upload: *"What was the total annual revenue in
 | Run | AI outcome | Canonical hash vs rules | Cost |
 |---|---|---|---|
 | 1 | confident, published `77,781.76 across 150 rows` | identical | $0.001422 |
-| 2 | declared the question ambiguous; engine refused | differs — refused, so `profile` | $0.000399 |
+| 2 | declared the question ambiguous; engine refused | differs: refused, so `profile` | $0.000399 |
 | 3 | confident, published `77,781.76 across 150 rows` | identical | $0.001349 |
 
 Total $0.003170. The deterministic pane published `77,782` in all three.
@@ -729,14 +730,14 @@ expected total, computed with DuckDB first, is `29225.00`.
 
 Both matched the oracle, coverage agreed, and the two sides shared no
 evidence id. The **canonical** contracts were identical: every semantic
-field — operation, table, measure, dimensions, time field, grain, period,
-period field, filters — matched. The three fields that differed were
+field matched: operation, table, measure, dimensions, time field, grain,
+period, period field and filters. The three fields that differed were
 `explanation`, `interpretation` and the *ordering* of `named_columns`,
 all of which the canonical contract excludes on purpose, because they
 record who decided rather than what is computed.
 
 **Protected case.** A table whose only date is `signup_date`, asked *"What
-was total annual revenue in 2024?"* — no clock named.
+was total annual revenue in 2024?"*, with no clock named.
 
 | side | status | model calls | cost | published |
 |---|---|---|---|---|
@@ -752,12 +753,12 @@ keeping `AMBIGUOUS_PERIOD_SEMANTICS` out of `AI_ELIGIBLE_ISSUES` is for.
 **What this does not support.** Two runs are two runs. This says the guard
 held for these two questions on this dataset shape at this revision. It is
 not a sample across phrasings, datasets or load, and no run here *attacked*
-the boundary — neither attempted to shift a period, substitute a clock or
+the boundary: neither attempted to shift a period, substitute a clock or
 group by an identifier.
 
 **What this supports.** The typed plan validated to *byte-identical canonical
-contract* as the schema-grounded rules in two of three runs — same operation,
-measure, period, `period_field` and `time_field`, hash
+contract* as the schema-grounded rules in two of three runs, with the same
+operation, measure, period, `period_field` and `time_field`, hash
 `adc71a559eaa58a9be…`. When the model declined to commit, the engine
 **refused with the model's stated reason** rather than guessing or silently
 falling back to the rule contract, which is the behaviour ADR 0002 chose.
@@ -766,7 +767,7 @@ falling back to the rule contract, which is the behaviour ADR 0002 chose.
 two of three. The variance is real and a reader of a single comparison
 cannot see it.
 
-**No bound was breached in any run** — but none was *attacked* either. No run
+**No bound was breached in any run**, and none was *attacked* either. No run
 attempted to add a period, shift one, group by an identifier or reverse a
 ranking, so these runs are not evidence that the bounds hold under a model
 that tries. They are evidence that an agreeing plan is accepted and a
@@ -783,8 +784,8 @@ The critic raised the same point in runs 1 and 3 when withholding an
 > is on signup date, not a revenue-period date.
 
 That is a fair reading of a fixture whose only date column is a signup date,
-and it is the distinction the rule planner does not draw — it uses the one
-date column available. Recorded here because it is a limitation of the
+and it is the distinction the rule planner does not draw, because it uses
+the one date column available. Recorded here because it is a limitation of the
 *question-to-schema mapping*, in both modes, rather than a model failure.
 
 ---
@@ -819,7 +820,7 @@ What this does and does not change:
 
 - The inference is **unchanged**. The engine is no better at guessing, and
   the column stays marked a close call after confirmation, because
-  confirming does not make it decidable -- it records that someone decided.
+  confirming does not make it decidable; it records that someone decided.
 - The confirmation is **user-supplied meaning, not inferred truth**. The
   engine validates that the choice is one it can act on, acts on it, and
   records whose it was. It cannot validate that the reader is right about
@@ -845,8 +846,8 @@ What this does and does not change:
 `where chronotype is Night Owl` once bound as `chronotype = 'Night'`,
 because the equality grammar captured a single token. It now reads the
 whole value: quoted (`"Night Owl"`, `'Home Office'`) or unquoted up to the
-first word that begins another clause -- `by`, `grouped by`, `for`, `with`,
-`and`, `or`, and the ranking and ordering words -- or to sentence
+first word that begins another clause (`by`, `grouped by`, `for`, `with`,
+`and`, `or`, and the ranking and ordering words), or to sentence
 punctuation. So `where chronotype is Night Owl by mood` filters on
 `Night Owl` and groups by `mood`, rather than swallowing the grouping.
 
@@ -859,7 +860,7 @@ spelling, so `heavy rain` queries `Heavy Rain`.
 - a value the column does not have, named in the refusal rather than
   silently selecting nothing;
 - a candidate that begins two real values (`Night` where both `Night Owl`
-  and `Night Hawk` exist) -- completing it would pick one of two
+  and `Night Hawk` exist), since completing it would pick one of two
   populations on the reader's behalf;
 - a unique prefix, which is refused with a suggestion rather than
   completed, because the whole value is one word away;
@@ -871,9 +872,9 @@ spelling, so `heavy rain` queries `Heavy Rain`.
 **Still out of scope:** disjunction (`or`) is unsupported and refuses
 rather than being read as conjunction. A column with more than 200 distinct
 values is not treated as a category, so a value named against one is not
-bound and reaches the query unchecked -- safe, because an unmatched value
-selects nothing and the empty-population guard declines the run, but
-without the refusal that names the value.
+bound and reaches the query unchecked. That is safe, because an unmatched
+value selects nothing and the empty-population guard declines the run, but
+it happens without the refusal that names the value.
 
 Column values are never added to the schema payload to make this work:
 `infer_schema` emits NULL bounds for non-numeric columns on purpose, and
@@ -886,7 +887,8 @@ the binder reads values server-side instead.
 The boundary list is a closed set of English clause-opening words. A
 phrasing that separates a value from the next clause some other way ends
 the value early, which produces a refusal naming a value the column does
-not have -- visible and correctable, rather than a filter nobody asked for.
+not have, which is visible and correctable rather than a filter nobody
+asked for.
 
 Quote the value or use a single-word category until this has its own
 change with its own corpus evidence.

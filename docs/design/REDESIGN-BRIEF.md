@@ -83,13 +83,13 @@ New components: `DatasetContextBar`, `SchemaInspectorDrawer`, `StrategySelector`
 
 | # | State | Sheet |
 |---|---|---|
-| 1 | Landing / no dataset | `wireframes/01-landing.png` |
-| 2 | Dataset ready / composition | `wireframes/02-composer.png` |
-| 3 | Active run | `wireframes/03-active-run.png` |
-| 4 | Successful report | `wireframes/04-report.png` |
-| 5 | Compare strategies | `wireframes/05-compare.png` |
-| 6 | Terminal states (six) | `wireframes/06-terminal-states.png` |
-| 7 | Mobile report | `wireframes/07-mobile-report.png` |
+| 1 | Landing / no dataset | `wireframes/01-landing.svg` |
+| 2 | Dataset ready / composition | `wireframes/02-composer.svg` |
+| 3 | Active run | `wireframes/03-active-run.svg` |
+| 4 | Successful report | `wireframes/04-report.svg` |
+| 5 | Compare strategies | `wireframes/05-compare.svg` |
+| 6 | Terminal states (six) | `wireframes/06-terminal-states.svg` |
+| 7 | Mobile report | `wireframes/07-mobile-report.svg` |
 
 Each sheet carries desktop and mobile side by side plus numbered notes giving
 layout regions, what disappears from the default canvas, disclosure contents,
@@ -97,7 +97,7 @@ focus behaviour and motion.
 
 ## 5. Visual system
 
-`visual-system.png`. Typography, light and dark palettes, the chart ramp,
+`visual-system.svg`. Typography, light and dark palettes, the chart ramp,
 geometry and motion principles.
 
 **Measured contrast** — every foreground against every surface:
@@ -158,7 +158,7 @@ content. No others are added to reach a count:
 
 ### Terminal states — one per run
 
-The composite sheet `terminal-*.png` shows two states side by side. That is
+The composite sheet `terminal-*.svg` shows two states side by side. That is
 documentation. **A run reaches exactly one terminal state, and the page renders
 exactly that one.** There is no surface on which two terminal states coexist.
 
@@ -168,12 +168,12 @@ and its own required test state.
 
 | State | Status reported by the API | Mockup | Distinguishing affordance |
 |---|---|---|---|
-| Refused | `refused` | `state-refused-{light,dark}.png` | Two concrete re-ask buttons — the refusal is a question and the answer is one click away |
-| No findings | `completed` | `state-no-findings-{light,dark}.png` | **No action button.** Nothing was decided wrongly, so there is nothing to retry |
-| Verification withheld | `completed` | `state-verification-withheld-{light,dark}.png` | The computed result is kept and marked *not interpreted*; each withheld claim is named with its `verdict_rule` |
-| Quota stopped | `budget_exhausted` | `state-quota-stopped-{light,dark}.png` | Recorded spend, plus a free deterministic route offered |
-| Failed | `failed` | `state-failed-{light,dark}.png` | Run reference for the server log, and a retry |
-| Cancelled | `cancelled` | `state-cancelled-{light,dark}.png` | Re-upload, and wording that keeps a withdrawn input apart from an engine failure |
+| Refused | `refused` | `state-refused-{light,dark}.svg` | Two concrete re-ask buttons — the refusal is a question and the answer is one click away |
+| No findings | `completed` | `state-no-findings-{light,dark}.svg` | **No action button.** Nothing was decided wrongly, so there is nothing to retry |
+| Verification withheld | `completed` | `state-verification-withheld-{light,dark}.svg` | The computed result is kept and marked *not interpreted*; each withheld claim is named with its `verdict_rule` |
+| Quota stopped | `budget_exhausted` | `state-quota-stopped-{light,dark}.svg` | Recorded spend, plus a free deterministic route offered |
+| Failed | `failed` | `state-failed-{light,dark}.svg` | Run reference for the server log, and a retry |
+| Cancelled | `cancelled` | `state-cancelled-{light,dark}.svg` | Re-upload, and wording that keeps a withdrawn input apart from an engine failure |
 
 Three rules these sheets encode:
 
@@ -199,9 +199,9 @@ The space that reclaims is used, not held empty for symmetry:
 
 | Outcome | Mockup | What occupies the reclaimed space |
 |---|---|---|
-| Strategies agree | `compare-{light,dark}.png` | **Why this counts as agreement** — the accepted contract, the canonical hash, and the coverage both runs matched. Agreement that is asserted but not specified is a slogan |
-| Strategies differ | `compare-diff-{light,dark}.png` | The **structured difference**, field by field, differing rows marked. Not two results side by side, which invites picking the preferred number |
-| Either | `compare-evidence-{light,dark}.png` | The drawer itself: edge sheet on desktop, bottom sheet on mobile, two tabs, page visible behind |
+| Strategies agree | `compare-{light,dark}.svg` | **Why this counts as agreement** — the accepted contract, the canonical hash, and the coverage both runs matched. Agreement that is asserted but not specified is a slogan |
+| Strategies differ | `compare-diff-{light,dark}.svg` | The **structured difference**, field by field, differing rows marked. Not two results side by side, which invites picking the preferred number |
+| Either | `compare-evidence-{light,dark}.svg` | The drawer itself: edge sheet on desktop, bottom sheet on mobile, two tabs, page visible behind |
 
 The divergence sheet states plainly that **neither result is presented as the
 answer**, and the agree/differ counts in its caption are computed from the diff
@@ -294,12 +294,12 @@ headline answer, chart annotation styling, and the theme transition.
 
 | | |
 |---|---|
-| Wireframes, 7 states | `wireframes/*.png` |
-| Core mockups, light and dark | `mockups/{landing,report}-{light,dark}.png` |
-| Compare: agreement, divergence, evidence drawer | `mockups/compare-{,diff-,evidence-}{light,dark}.png` |
-| Terminal states, six, one per sheet | `mockups/state-{refused,no-findings,verification-withheld,quota-stopped,failed,cancelled}-{light,dark}.png` |
-| Terminal-state composite (documentation only) | `mockups/terminal-{light,dark}.png` |
-| Visual system with measured contrast | `visual-system.png` |
+| Wireframes, 7 states | `wireframes/*.svg` |
+| Core mockups, light and dark | `mockups/{landing,report}-{light,dark}.svg` |
+| Compare: agreement, divergence, evidence drawer | `mockups/compare-{,diff-,evidence-}{light,dark}.svg` |
+| Terminal states, six, one per sheet | `mockups/state-{refused,no-findings,verification-withheld,quota-stopped,failed,cancelled}-{light,dark}.svg` |
+| Terminal-state composite (documentation only) | `mockups/terminal-{light,dark}.svg` |
+| Visual system with measured contrast | `visual-system.svg` |
 | Motion and signature storyboard | `MOTION-STORYBOARD.md` |
 | Generators and the consistency audit | `generators/` |
 

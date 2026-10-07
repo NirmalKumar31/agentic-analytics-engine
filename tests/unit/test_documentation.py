@@ -80,7 +80,23 @@ def test_design_package_identifies_itself_as_historical() -> None:
 
 
 def test_remote_inference_docs_name_the_question_as_disclosed() -> None:
-    readme = (ROOT / "README.md").read_text(encoding="utf-8")
+    """The README must say what reaches a cloud planner, and what does not.
+
+    Asserted as claims rather than as one sentence. The previous version
+    pinned the exact phrase "A cloud planner sees the question", so an
+    editorial pass that kept every fact and changed one verb failed it,
+    which teaches the next person to weaken the test instead of keeping
+    the disclosure.
+
+    Each item below is a thing a visitor is owed before uploading a file,
+    so the test fails if any of them stops being stated.
+    """
+    readme = (ROOT / "README.md").read_text(encoding="utf-8").lower()
     example = (ROOT / ".env.example").read_text(encoding="utf-8")
-    assert "A cloud planner sees the question" in readme
+
+    assert "cloud planner" in readme
+    for disclosed in ("the question", "schema", "aggregate labels"):
+        assert disclosed in readme, disclosed
+    # And the limit on it: individual rows do not leave the server.
+    assert "unaggregated rows" in readme
     assert "the question, schema, inferred column types" in example
