@@ -36,3 +36,11 @@ web/hosted-results/
 
 # Local Claude Code settings. Machine-specific and not part of the project.
 .claude/
+
+# Rasterised design sheets. `docs/design/generators/render.mjs` writes these
+# beside the committed SVGs they come from; the SVG is the source and the
+# audit reads it. The architecture atlas PNGs are an exception and are
+# tracked, because its README embeds them.
+docs/design/*.png
+docs/design/mockups/*.png
+docs/design/wireframes/*.png

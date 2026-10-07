@@ -108,9 +108,9 @@ Agents never import `agentic_analytics.analytics`. They hold an
   is handed the `MCPServer` object and the client connects to it directly.
   That is what makes the deployment one container, and it is the path every
   analysis on the site actually takes. It is a real client and a real server
-  speaking the protocol -- not a function call dressed up as one -- but it is
-  not a network hop, and claiming the site makes HTTP MCP requests to itself
-  would be false.
+  speaking the protocol, rather than a function call dressed up as one. It is
+  still not a network hop, and claiming the site makes HTTP MCP requests to
+  itself would be false.
 - **`/mcp` is a separate Streamable HTTP transport** for callers outside this
   process. It is exercised in CI (`tests/integration/test_mcp.py` runs a real
   server) and again against the built container, where a second instance is
@@ -190,7 +190,7 @@ against a closed set, and the value is bound as a parameter. A filter cannot
 carry SQL even if a model is talked into trying.
 
 **Time scope** gets special handling. A question naming "Q3 2025" is not
-asking about Q3 in isolation — it is asking what changed relative to the
+asking about Q3 in isolation. It is asking what changed relative to the
 period before. `agents/timescope.py` widens a named quarter to its whole year
 at quarter grain and records the named period separately, so the worker reports
 the change *into* that quarter rather than the largest movement anywhere in
@@ -199,9 +199,9 @@ asked, which for seasonal data is almost never the movement the user meant.
 
 Uploaded files have no metric layer. They take a different route: profile the
 table, then compose a grouped aggregate from the columns and cardinalities the
-profile reported. The second call is a genuine bounded loop — the SQL cannot
-be written until the profile comes back — and the composed statement still
-passes the guard.
+profile reported. The second call is a genuine bounded loop, because the SQL
+cannot be written until the profile comes back, and the composed statement
+still passes the guard.
 
 ---
 
@@ -220,8 +220,8 @@ Two design choices worth naming:
   the database.
 
 Every test attaches its assumptions and a correlation-is-not-causation
-warning, and flags shaky ones — fewer than 10 events per group for a
-proportion test, expected cell counts below 5 for chi-square.
+warning, and flags shaky ones: fewer than 10 events per group for a
+proportion test, or expected cell counts below 5 for chi-square.
 
 Tests assert against independent references (SciPy called directly, or a
 closed-form F statistic), not against the implementation's own output.
@@ -230,7 +230,7 @@ closed-form F statistic), not against the implementation's own output.
 
 ## 6. SQL safety, in two layers
 
-### Layer 1 — SQLGuard (`warehouse/sqlguard.py`)
+### Layer 1: SQLGuard (`warehouse/sqlguard.py`)
 
 Parses with `sqlglot` and works on the AST. Rejects any non-`SELECT` root,
 any forbidden node anywhere in the tree (`Insert`, `Copy`, `Attach`,
@@ -243,12 +243,12 @@ unknown tables.
 The guard returns normalised SQL and callers execute *that*, so what was
 validated is what runs.
 
-### Layer 2 — the engine
+### Layer 2: the engine
 
 Each session's DuckDB connection is built in two phases:
 
-1. **Load** — Parquet or CSV is read. This needs filesystem access.
-2. **Lock** — `SET enable_external_access = false`, then
+1. **Load.** Parquet or CSV is read. This needs filesystem access.
+2. **Lock.** `SET enable_external_access = false`, then
    `SET lock_configuration = true`.
 
 After phase 2 DuckDB refuses filesystem reads, network reads, `COPY`,
@@ -257,7 +257,7 @@ on. It is irreversible for the life of the connection, which is why it is done
 once at construction.
 
 `tests/unit/test_session_and_execute.py` bypasses the guard on purpose and
-asserts the engine still refuses — a control that only holds when the layer
+asserts the engine still refuses. A control that only holds when the layer
 above it works is not defence in depth.
 
 ---
@@ -266,22 +266,23 @@ above it works is not defence in depth.
 
 Three gates, in this order, first failure decides:
 
-**1. Claim shape** (`verification/claims.py`) — deterministic.
+**1. Claim shape** (`verification/claims.py`), deterministic.
 Causal language (`caused`, `drove`, `led to`, `due to`) without hedging on
 observational data; the word "significant" with no test behind the cited
 result; a claim citing nothing.
 
-**2. Arithmetic** (`verification/numeric.py`) — deterministic.
+**2. Arithmetic** (`verification/numeric.py`), deterministic.
 Every number in the text must appear in a cited result, or be derivable from
 two cited cells by subtraction, ratio or percentage change. A declared
 `claimed_change` is recomputed and compared, including its sign.
 
 Two details matter. ISO dates and quarter labels are stripped before
 extraction, so `2025-07-01` does not read as three numbers. Statistical
-boilerplate is stripped too — "significant at the 5% level" states a
-threshold, not a measurement, and treating it as one rejects correct findings.
+boilerplate is stripped too. "Significant at the 5% level" states a
+threshold rather than a measurement, and treating it as one rejects correct
+findings.
 
-**3. Semantics** — the critic model.
+**3. Semantics**, the critic model.
 Whether the wording fairly describes the result, whether the direction is
 right, whether the claim is broader than the evidence.
 
@@ -295,7 +296,7 @@ metrics and kept out of the report. A critic that *fails* returns
 through.
 
 Before those three, a direct answer must also **cover the accepted contract**
-(`verification/coverage.py`). One cited result has to carry the whole of it —
+(`verification/coverage.py`). One cited result has to carry the whole of it:
 operation, measure, grouping, row filters, period, answer shape and, for a
 ranking, sort order. A profile result can support context around an answer but
 cannot prove the aggregate used the requested population, so the canonical
@@ -334,7 +335,7 @@ browser is where a hostile spec would actually run.
 ## 9. Parallelism and determinism
 
 Workers are dispatched with LangGraph `Send`, one per task, and run
-concurrently — the MCP client is safe for concurrent calls, which a test
+concurrently. The MCP client is safe for concurrent calls, which a test
 asserts by issuing six at once and checking each gets its own `result_id`.
 
 `merge_outcomes` is the reducer on `task_outcomes`: it concatenates,
@@ -344,8 +345,8 @@ the report would depend on which worker happened to finish first.
 What is deterministic: the tasks, the calls per task, the findings, the
 report. What is not: the order entries appear in the global MCP trace, since
 that is real completion order. The reproducibility test asserts the former and
-groups the trace by task rather than asserting a global sequence — asserting a
-fixed order would be asserting something the system does not provide.
+groups the trace by task rather than asserting a global sequence. A fixed
+order would assert something the system does not provide.
 
 ---
 
@@ -370,9 +371,9 @@ degrades the run rather than failing it.
 | upload rows | 2,000,000 | rejected, not truncated |
 
 The **Default** column is the code's default, which is what a local run
-gets. The public deployment overrides several of them downwards --
-10 MB and 400,000 rows rather than 25 MB and 2,000,000 -- because it is
-sized for a 512 MB (`free`) instance admitting three sessions; see
+gets. The public deployment overrides several of them downwards, to 10 MB and
+400,000 rows rather than 25 MB and 2,000,000, because it is sized for a
+512 MB (`free`) instance admitting three sessions; see
 `render.yaml`, where the measurements behind those numbers are recorded.
 
 `max_sample_rows` has a hard ceiling of 20 in the schema. Raw row disclosure
@@ -381,7 +382,7 @@ cannot be raised by configuration.
 
 Budgets are a nested settings model, overridden as
 `AAE_BUDGETS__MAX_ANALYSIS_TASKS`. A test asserts every key in both deployment
-blueprints maps to a setting that exists — an early version set ceilings that
+blueprints maps to a setting that exists. An early version set ceilings that
 were silently ignored, which is worse than setting none.
 
 ---
@@ -400,7 +401,7 @@ retry outcomes are stated in words. The graph is static; motion never implies
 that work completed or that two strategies agreed.
 
 The `EventBus` replays history on subscribe, so a client connecting mid-run
-sees a complete timeline, and each subscriber owns a bounded queue — a slow
+sees a complete timeline, and each subscriber owns a bounded queue, so a slow
 client loses events rather than stalling the run.
 
 ---
@@ -428,16 +429,16 @@ and the bounded Redis-backed usage ledger described in
 There is no authentication. A session is reached with a capability, and two
 identifiers are kept deliberately separate:
 
-* **`session_id`** — a public opaque handle. It appears in MCP resource URIs
+* **`session_id`**: a public opaque handle. It appears in MCP resource URIs
   and in tool arguments. On its own it authorises nothing.
-* **`session_key`** — a private bearer capability, compared in constant time.
+* **`session_key`**: a private bearer capability, compared in constant time.
   It reaches the browser as an HttpOnly cookie (so it stays out of history,
   access logs and `Referer` headers) and is injected by the MCP client into
   every tool call. A model never sees or chooses either.
 
 Both come from `secrets`. Neither is derived from the other, and an
-incrementing id would make the handle guessable — which matters because the
-handle is in URIs.
+incrementing id would make the handle guessable, which matters because the
+handle appears in URIs.
 
 **Tools** require the capability. **Resources**, which are keyed only by the
 handle, serve the built-in demo dataset and refuse an uploaded session:
@@ -461,8 +462,8 @@ file, schema, results, runs or session.
 An upload is one arbitrary table, so there is nothing to look a metric up in.
 It takes a different route:
 
-1. **Validate by content.** Parquet is checked through its footer — columns,
-   row groups, schema nesting, declared uncompressed size — before any data is
+1. **Validate by content.** Parquet is checked through its footer (columns,
+   row groups, schema nesting, declared uncompressed size) before any data is
    read. CSV has no magic bytes, so it is screened against the signatures of
    formats it definitely is not, its header is bounded, and DuckDB's parser is
    the real arbiter. The code says this rather than claiming CSV is
@@ -471,8 +472,8 @@ It takes a different route:
    `/tmp`, both erased when the session ends. The table name is fixed by the
    server; a user filename is never a path component and never reaches SQL.
 3. **Infer a schema.** Column roles from several signals together,
-   everything marked `inferred`. A *fractional* number is always a measure — a
-   price is not a key and not a grouping. An *integer* is read from how its
+   everything marked `inferred`. A *fractional* number is always a measure,
+   since a price is neither a key nor a grouping. An *integer* is read from how its
    values behave: whether they are near-unique, whether they fill their own
    range, whether they sit in a calendar-year window, whether there are
    exactly two of them, and how many rows each value recurs across.
@@ -483,8 +484,8 @@ It takes a different route:
    measure" was the earlier rule, and it summed store numbers: a key of 45
    values, each appearing in 143 rows, was averaged and published. Cardinality
    alone cannot separate that from a genuine count, so where the signals leave
-   it open the column name is allowed to tip the decision — and only there —
-   and when the name says nothing too, the column stays aggregatable and is
+   it open, and only there, the column name is allowed to tip the decision.
+   When the name says nothing either, the column stays aggregatable and is
    flagged `ambiguous` rather than presented as a settled measure.
 4. **Ask when it matters.** Two columns that could both be revenue produce a
    clarifying question rather than a guess.
@@ -499,7 +500,7 @@ It takes a different route:
 For a planning-strategy comparison the contract has a canonical hash that excludes planner
 provenance and filter order. Matching hashes mean both panes executed the same
 semantic request; a mismatch is disclosed rather than hidden, and the differing
-canonical fields are named side by side — a swapped measure and a dropped row
+canonical fields are named side by side. A swapped measure and a dropped row
 restriction are very different things to have happened, and "different governed
 interpretations" alone is not something a reader can act on.
 
@@ -518,9 +519,9 @@ Completeness is now counted, never inferred, because every signal available to
 infer it from was wrong: the SQL's own `LIMIT` left `truncated` false, the
 population line came from "the question stated no filters", and the row count
 was summed over the rows that came back. `GroupCoverage` keeps the four
-different meanings of "limit" apart — the query limit, transport truncation, a
-UI preview cap, and analytical completeness — and the breakdown asks for one
-group more than the engine accepts so a shortfall is *detected*. Either limit
+different meanings of "limit" apart: the query limit, transport truncation, a
+UI preview cap, and analytical completeness. The breakdown then asks for one
+group more than the engine accepts, so a shortfall is *detected*. Either limit
 firing makes the answer partial, and a partial answer says which groups and
 how many rows it covers.
 
@@ -540,9 +541,9 @@ propose an interpretation when the selected route permits it. An exact
 rule-resolved question needs none. The path used to need seven calls: a
 planner, two worker tool choices,
 a worker findings pass, a critic, a visualizer and a reporter. Only the
-first carried authority — the contract fixes the tool, DuckDB computes the
-number, and the result determines the chart — so the other six added
-latency, run-to-run variance and a redundant rejected draft.
+first carried authority: the contract fixes the tool, DuckDB computes the
+number, and the result determines the chart. The other six added only latency,
+run-to-run variance and a redundant rejected draft.
 
     resolve the contract   rules, or one typed cloud planning call
     validate it            locally, against the schema and the question
@@ -589,15 +590,15 @@ schema, name only real columns and ground every excerpt in the question while
 still answering a different question. So `mapping_from_plan` bounds it:
 
 * **Identifiers are not groupings.** A grouping must be a column this engine
-  would offer as one — a declared dimension, or a numeric column the question
+  would offer as one: a declared dimension, or a numeric column the question
   named. A near-unique text column is classified as an identifier precisely
   because grouping by it puts its raw values into the result as group labels,
   and from there into a remote prompt. Both planners read the same
   `_groupable`, because when only the rule path consulted it the privacy
   boundary held in deterministic mode alone.
-* **Periods are rule-owned.** Date arithmetic has one correct answer — "Q2
-  2025" has one pair of bounds — so the plan's period must be the period the
-  question states. Dropping one is caught downstream as a missing restriction;
+* **Periods are rule-owned.** Date arithmetic has one correct answer, since
+  "Q2 2025" has one pair of bounds, so the plan's period must be the period
+  the question states. Dropping one is caught downstream as a missing restriction;
   *adding* one was not caught anywhere, and narrows the population with
   nothing in the question behind it.
 * **Ranking direction is part of the question.** "Highest" answered ascending
@@ -644,9 +645,10 @@ interaction  = sum_s  (w1_s - w0_s) * (r1_s - r0_s)
 ```
 
 where `w` is a segment's share of the denominator and `r` its own rate. This
-separates "every segment got worse" from "volume moved to the worse segments"
-— the distinction the Q3 margin question turns on. On the demo warehouse it
-resolves to −3.76pp rate and −3.67pp mix against an observed −7.63pp.
+separates "every segment got worse" from "volume moved to the worse
+segments", which is the distinction the Q3 margin question turns on. On the
+demo warehouse it resolves to −3.76pp rate and −3.67pp mix against an
+observed −7.63pp.
 
 Both forms reconcile to the observed change or the result is marked
 `reconciled: false`, and no finding is generated from an unreconciled
@@ -667,7 +669,7 @@ default: segment comparisons on one dataset are usually correlated.
 Correction is applied per analytical task, because a task is the unit in which
 a worker asks a family of related questions. The result carries `p_value`,
 `p_value_adjusted`, `correction_method` and `family_size`, and the publication
-gate reads the adjusted value — so an uncorrected p-value can never be the
+gate reads the adjusted value, so an uncorrected p-value can never be the
 basis for a published significance claim. A family of one is left alone rather
 than marked corrected.
 
@@ -691,8 +693,8 @@ repeated parallel runs agree.
 
 Every query path now holds the lock. The audit is a grep away: outside the
 single-threaded load phase in `session.py`, `con.execute` appears in three
-places -- two in `analytics/execute.py` and one in `analytics/stats.py` --
-and all three are inside `with session.lock`.
+places, two in `analytics/execute.py` and one in `analytics/stats.py`, and
+all three are inside `with session.lock`.
 
 ## Presentation
 
@@ -706,7 +708,7 @@ them, and the engine knew all four.
 `agentic_analytics.presentation` closes that gap. It returns a typed
 `AnalysisPresentation` built by a pure function from the accepted contract,
 the verified snapshot, the coverage records, the published findings and the
-chart decision — no model call, and no figure it cannot point at. Prose is
+chart decision, with no model call and no figure it cannot point at. Prose is
 checked rather than trusted: every number in a headline must resolve to a
 cited cell, a recorded coverage count, or a declared difference recomputed
 from two cells.
@@ -734,10 +736,10 @@ not exist.
 Twelve `ResolutionIssue` codes classify into five states, and exactly one
 of them is worth a planning request:
 
-* `exact` — every column named. Executes immediately, no provider call.
-* `ambiguous` — the dataset can answer it and the wording did not say how.
+* `exact`: every column named. Executes immediately, no provider call.
+* `ambiguous`: the dataset can answer it and the wording did not say how.
   One typed request, validated against the schema and the question.
-* `unresolved`, `unsupported`, `unsafe` — certain refusals. A model cannot
+* `unresolved`, `unsupported`, `unsafe`: certain refusals. A model cannot
   overturn a missing column, so none is asked.
 
 The cost argument rests on lazy construction. Building the governed cloud
@@ -745,8 +747,8 @@ provider *is* the ledger admission, so construction is where quota is
 spent. `RunContext.open_planner` is therefore a factory the graph calls
 only once ambiguity is established, and the tests count constructions
 rather than requests. An exact question reads no credential and consults
-no ledger — which also means a deployment with a missing or broken
-credential still answers everything the rules can resolve.
+no ledger, which also means a deployment with a missing or broken credential
+still answers everything the rules can resolve.
 
 The model's authority is unchanged. A plan still cannot alter an operation
 or measure the question named, add a period, reverse a ranking or group by

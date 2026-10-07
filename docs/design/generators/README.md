@@ -21,6 +21,11 @@ why a fact can be checked across sheets instead of trusted.
 | `render.mjs` | SVG → PNG at `deviceScaleFactor: 2`, at each sheet's natural size |
 | `audit_mockups.py` | the cross-sheet consistency audit |
 
+Only the SVGs are committed. `render.mjs` writes a PNG beside each one and
+those are deliberately not tracked: they are 9.4 MB of output derived from
+0.35 MB of source, nothing embeds them, and `audit_mockups.py` reads the SVGs.
+Run `build.sh` if you want them locally.
+
 ## The audit is the point
 
 `audit_mockups.py` is what keeps the package honest. It checks that every sheet
