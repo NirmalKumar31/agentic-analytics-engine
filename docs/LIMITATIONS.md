@@ -645,8 +645,13 @@ inference:
   §11. Those six historical runs cost $0.004723 across three periods. Later
   canaries, including the 6 October production audit, are reported separately
   rather than folded into a sample they were not designed to extend.
-- The resource envelope has not been measured against the running instance
-  under load, and cold-start latency is unquantified.
+- A bounded production concurrency check passed on 7 October: two concurrent
+  demo analyses and three upload sessions completed or were cleanly
+  rate-limited, remained isolated, released capacity, and did not restart the
+  instance. The exact target and assertions are recorded in
+  [`RELEASE-EVIDENCE-capacity-2026-10-07.md`](RELEASE-EVIDENCE-capacity-2026-10-07.md).
+  This is a breakage check, not a load or throughput measurement. Sustained
+  load, latency under load and cold-start latency remain unquantified.
 
 ---
 
