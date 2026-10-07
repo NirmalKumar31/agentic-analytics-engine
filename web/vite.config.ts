@@ -29,6 +29,10 @@ export default defineConfig({
     environment: 'jsdom',
     setupFiles: ['./src/test/setup.ts'],
     css: false,
+    // A full CI worker running many jsdom files at once intermittently
+    // starved unrelated five-second tests. Keep the test contract strict;
+    // run files one at a time instead of making timeouts or retries larger.
+    fileParallelism: false,
     // The Playwright suites live in `e2e/` and `hosted/`, each driven by its
     // own runner against a running server. Vitest picking one up loads
     // `@playwright/test` outside a Playwright process, which fails before a
