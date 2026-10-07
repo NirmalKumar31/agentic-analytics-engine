@@ -18,7 +18,7 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import { RunFlowchart } from "../components/RunFlowchart";
@@ -164,9 +164,125 @@ describe("what it must never become", () => {
     expect(answer.compareDocumentPosition(flow) & 4).toBe(4);
   });
 
-  it("is absent in a Compare pane, which has one control for both runs", () => {
+  it("carries no evidence control where the surface already has one", () => {
+    // Compare owns one "Inspect both traces" for both strategies, so the
+    // diagrams it draws are handed no opener.
     render(<RunFlowchart events={trend.events ?? []} />);
     expect(document.querySelector('[data-testid="run-flow-open"]')).toBeNull();
+  });
+});
+
+/**
+ * On a Compare report.
+ *
+ * The diagram was suppressed on a Compare, and the reason was that the
+ * comparison has one evidence control and two summaries would be two more
+ * things to read. Printed, that left the only labelled picture of either
+ * run in the evidence appendix: a reader who exported a Compare to PDF and
+ * asked how the analysis ran got the evidence sheet's unlabelled dots,
+ * twice, and no flowchart anywhere.
+ *
+ * One per strategy now, under the section that already asks "How each
+ * strategy got there". Which is also where the two strategies differ: they
+ * agree on the contract, the coverage and the values, so the planning is
+ * the whole of the difference, and it is a stage.
+ */
+describe("the flowchart on a Compare report", () => {
+  /** The same run, planned by a model: one extra stage, `interpret`. */
+  function withModelPlanning(run: RunPayload): RunPayload {
+    const events = run.events ?? [];
+    return {
+      ...run,
+      events: [
+        ...events,
+        {
+          event_id: "model-planned",
+          seq: 0.5,
+          type: "contract_resolved",
+          at: events[0]?.at ?? 0,
+          data: { model_calls: 1 },
+        } as RunEvent,
+      ],
+    };
+  }
+
+  function compare(
+    deterministic: RunPayload | null,
+    ai: RunPayload | null,
+  ) {
+    return render(
+      <ReportWorkspace
+        comparison={{
+          comparison_id: "cmp_1",
+          session_id: "s_1",
+          question: trend.question,
+          deterministic_run_id: "r_d",
+          ai_run_id: "r_a",
+        }}
+        run={deterministic}
+        aiRun={ai}
+        aiError={null}
+        config={null}
+        deterministicPending={false}
+      />,
+    );
+  }
+
+  it("draws one spine per strategy, each naming the strategy it describes", () => {
+    compare(trend, withModelPlanning(trend));
+    const flows = screen.getAllByTestId("run-flowchart");
+    expect(flows.map((flow) => flow.getAttribute("data-strategy"))).toEqual([
+      "Deterministic Analytics",
+      "AI Analytics",
+    ]);
+
+    // Named to a screen reader too, not only headed. Two landmarks both
+    // called "How this analysis ran" are two a reader cannot tell apart.
+    expect(
+      screen.getByRole("region", { name: "How AI Analytics ran" }),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("region", { name: "How this analysis ran" })).toBeNull();
+  });
+
+  it("draws each spine from its own strategy's events", () => {
+    /*
+     * The point of drawing two. A model was consulted on one side and not
+     * the other, so one spine has an `interpret` stage and the other does
+     * not -- and that difference is the only one a Compare of two
+     * agreeing strategies has to show. Drawn from one side's events, or
+     * merged into one annotated spine, it would be a run neither
+     * strategy made.
+     */
+    compare(trend, withModelPlanning(trend));
+    const [left, right] = screen.getAllByTestId("run-flowchart");
+    expect(within(left!).queryByTestId("flow-stage-interpret")).toBeNull();
+    expect(within(right!).getByTestId("flow-stage-interpret")).toBeInTheDocument();
+    expect(
+      within(right!).getByTestId("flow-stage-interpret").textContent,
+    ).toContain("a model was consulted to plan");
+  });
+
+  it("draws two and not four: a pane's own report still draws none", () => {
+    // `AnswerReport` renders inside each pane as well, and when the
+    // strategies agree Compare renders one pane's report as the shared
+    // answer. A diagram drawn from in there would describe one run under
+    // a heading that speaks for both.
+    compare(trend, withModelPlanning(trend));
+    expect(screen.getAllByTestId("run-flowchart")).toHaveLength(2);
+  });
+
+  it("draws no spine for a strategy that recorded no events", () => {
+    // A node exists because an event carried it, and so does a diagram.
+    compare(trend, null);
+    const flows = screen.getAllByTestId("run-flowchart");
+    expect(flows).toHaveLength(1);
+    expect(flows[0]!.getAttribute("data-strategy")).toBe("Deterministic Analytics");
+  });
+
+  it("hands neither spine an evidence control", () => {
+    compare(trend, withModelPlanning(trend));
+    expect(screen.queryByTestId("run-flow-open")).toBeNull();
+    expect(screen.getByTestId("inspect-both-traces")).toBeInTheDocument();
   });
 });
 

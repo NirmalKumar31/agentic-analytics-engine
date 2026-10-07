@@ -56,12 +56,18 @@ class Mapping:
     named_columns: list[str] = field(default_factory=list)
 
 
-def snapshot(columns: list[str], rows: list[list[Any]], measure: str) -> ResultSnapshot:
+def snapshot(
+    columns: list[str],
+    rows: list[list[Any]],
+    measure: str,
+    column_types: dict[str, str] | None = None,
+) -> ResultSnapshot:
     return ResultSnapshot(
         tool_name="aggregate_for_question",
         columns=columns,
         rows=rows,
         row_count=len(rows),
+        column_types=column_types or {},
         column_lineage={measure: {"kind": "aggregate", "aggregate": "SUM", "column": "revenue"}},
     )
 
@@ -426,3 +432,130 @@ class TestAResultCutMoreWaysThanACanvasCanSeparate:
         )
         mapping = Mapping("trend", ("region", "business_type"), "revenue")
         assert chart_for(mapping, result)["kind"] == "none"
+
+
+class TestAnOrderedNumericCutIsDrawnAsASequence:
+    """`age`, and forty-eight bars.
+
+    A published report answered "what is the average bedtime_phone_minutes
+    by age" over 8,500 rows and drew 48 nominal bars. Verified against the
+    dataset, every value in it was exact; the drawing was the defect. Two
+    things were wrong with it and only one of them was visible:
+
+    * forty-eight tick labels collided along the foot of the frame; and
+    * a nominal axis sorts its values as strings, so their left-to-right
+      order was a coincidence of every age in the file having two digits.
+
+    `presentation/fields.py` already resolves such a column to
+    `SemanticKind.ORDERED_NUMERIC`, and its comment says plotting one on a
+    categorical axis "is what made a 48-age breakdown unreadable". The
+    chart builder had never been told.
+    """
+
+    #: Forty-eight ages, as the published result had them.
+    AGES = [[18 + index, 60.0 + index * 0.1, 200] for index in range(48)]
+    COLUMNS = ["age", "average_phone_minutes", "row_count"]
+    TYPES = {"age": "BIGINT", "average_phone_minutes": "DOUBLE", "row_count": "BIGINT"}
+
+    def chart(self, rows: list[list[Any]] | None = None, **types: str) -> dict[str, Any]:
+        declared = {**self.TYPES, **types}
+        snap = snapshot(self.COLUMNS, rows or self.AGES, "average_phone_minutes", declared)
+        return chart_for(
+            Mapping(operation="aggregate", dimensions=("age",), measure="phone_minutes"), snap
+        )
+
+    def test_it_is_a_line_on_a_number_line(self) -> None:
+        out = self.chart()
+        assert out["kind"] == "line"
+        x = out["spec"]["encoding"]["x"]
+        assert x["field"] == "age"
+        # Not `ordinal`: Vega gives an ordinal axis one discrete tick per
+        # value and crowds forty-eight of them exactly as the bars did.
+        assert x["type"] == "quantitative"
+
+    def test_the_y_axis_keeps_its_zero(self) -> None:
+        """The one change here that would have been dishonest.
+
+        The published values span 51.70 to 65.49 -- about a tenth of their
+        own mean -- and some of those groups rest on 29 rows. A suppressed
+        baseline draws a decisive pattern over a result whose shape is
+        "nearly flat, with noise". The axis *type* was the defect.
+        """
+        y = self.chart()["spec"]["encoding"]["y"]
+        assert "scale" not in y
+        assert str(self.chart()["spec"]).find("zero") == -1
+
+    def test_a_few_ordered_values_are_still_bars(self) -> None:
+        """Bars compare lengths better than a line does, and that is what
+        a reader wants from a handful of groups. The threshold decides
+        which of two honest drawings is used, never whether to draw."""
+        out = self.chart(rows=[[n, 60.0 + n, 200] for n in range(1, 6)])
+        assert out["kind"] == "bar"
+        assert out["spec"]["encoding"]["x"]["type"] == "nominal"
+
+    def test_a_cut_that_declares_no_type_is_left_as_it_was(self) -> None:
+        """A result written before the engine recorded column types knows
+        nothing about the column, and guessing from the values is the move
+        this codebase does not make."""
+        snap = snapshot(self.COLUMNS, self.AGES, "average_phone_minutes", None)
+        out = chart_for(
+            Mapping(operation="aggregate", dimensions=("age",), measure="phone_minutes"), snap
+        )
+        assert out["kind"] == "bar"
+
+    def test_a_text_cut_is_still_a_set_of_labels(self) -> None:
+        rows = [[f"segment-{index}", 60.0 + index, 200] for index in range(20)]
+        snap = snapshot(
+            ["segment", "average_phone_minutes", "row_count"],
+            rows,
+            "average_phone_minutes",
+            {"segment": "VARCHAR", "average_phone_minutes": "DOUBLE"},
+        )
+        out = chart_for(
+            Mapping(operation="aggregate", dimensions=("segment",), measure="phone_minutes"), snap
+        )
+        assert out["kind"] == "bar"
+        assert out["spec"]["encoding"]["x"]["type"] == "nominal"
+
+    def test_a_declared_type_carrying_parameters_is_still_numeric(self) -> None:
+        """`DECIMAL(10,2)` names its precision, and an exact-match lookup
+        against it finds nothing."""
+        out = self.chart(age="DECIMAL(10,2)")
+        assert out["kind"] == "line"
+
+    def test_a_rank_question_still_gets_its_ranking(self) -> None:
+        """Asked for an ordering by value, the ordering by value is the
+        answer -- drawing it in cut order instead would answer a different
+        question."""
+        snap = snapshot(self.COLUMNS, self.AGES, "average_phone_minutes", self.TYPES)
+        out = chart_for(
+            Mapping(operation="rank", dimensions=("age",), measure="phone_minutes"), snap
+        )
+        assert out["kind"] == "ranked_bar"
+
+    def test_too_many_values_is_still_declined(self) -> None:
+        """The sequence is a better drawing of a readable number of
+        groups, not a licence to draw an unreadable one. Nothing is
+        charted here that was declined before."""
+        rows = [[index, 60.0, 200] for index in range(200)]
+        out = self.chart(rows=rows)
+        assert out["kind"] == "none"
+        assert "more than a readable bar chart shows" in out["no_chart_reason"]
+
+    def test_the_specification_stays_inside_what_the_browser_allows(self) -> None:
+        spec = self.chart()["spec"]
+        assert not (FORBIDDEN_KEYS & set(_keys(spec)))
+        for _channel, _field_name, type_name in encoded_fields(spec):
+            assert type_name is None or type_name in ALLOWED_TYPES
+
+
+def _keys(node: Any) -> list[str]:
+    if isinstance(node, dict):
+        out: list[str] = []
+        for key, value in node.items():
+            out.append(key)
+            out.extend(_keys(value))
+        return out
+    if isinstance(node, list):
+        return [key for item in node for key in _keys(item)]
+    return []

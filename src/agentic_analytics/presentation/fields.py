@@ -374,8 +374,33 @@ def display_value(value: Any, field: DisplayField | None) -> str:
     if field is not None and field.scale != 1.0:
         number = number * Decimal(str(field.scale))
 
+    # A declared precision is a pin, not a hint.
+    #
+    # Both branches used to fall through to `format_number`, which decides
+    # from the *value*: whole numbers lose their decimals so that a figure
+    # reads the same in a sentence as in the table beside it. Down a column
+    # that rule is not consistency, it is the absence of it. A published
+    # breakdown of 48 age groups printed `61.08`, `62.94`, `59.48` and then
+    # `59` -- the one group whose mean happened to be 59.0033 -- and a
+    # reader has to stop and work out whether that cell is a different kind
+    # of number. It is not.
+    #
+    # So a field that declares how many places it has gets them, every
+    # time; a column with nothing declared is still read from its value,
+    # which is the honest fallback for a column this layer declined to
+    # describe. `precision == 0` is the same pin at zero places: a count
+    # stored as `4.0` is four things.
+    #
+    # Deliberately not pushed down into `format_number`. That function is
+    # the verifier's canonicalisation -- it builds the claim text a finding
+    # is checked against -- and it is handed a number with no field, so it
+    # has no declaration to honour. Widening it would change what every
+    # recorded finding says in order to fix a column.
     if field is not None and field.precision == 0:
         text = f"{int(number.to_integral_value()):,}"
+    elif field is not None and field.precision:
+        places = field.precision
+        text = f"{round(number, places):,.{places}f}"
     else:
         text = format_number(number)
     return with_unit(text, field)

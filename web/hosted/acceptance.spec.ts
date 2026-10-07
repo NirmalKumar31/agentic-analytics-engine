@@ -652,6 +652,61 @@ test.describe("hosted visual acceptance", () => {
     const workspace = page.getByTestId("compare-workspace");
     await expect(workspace).toBeVisible({ timeout: 60_000 });
 
+    /*
+     * One flowchart per strategy, on the canvas, before anything is
+     * opened.
+     *
+     * A Compare drew none. The reason was that it has one evidence
+     * control for both runs and two stage summaries would be two more
+     * things to read -- which stopped being true on paper, where the only
+     * labelled picture of either run was in the evidence appendix. A
+     * reader who exported a Compare to PDF got the appendix graph's
+     * unlabelled dots, twice, and no flowchart anywhere.
+     *
+     * Measured here rather than only in a unit test because the spine is
+     * a layout: six boxes, connectors drawn in the grid gaps, and chips
+     * that have been under the readable-prose floor before.
+     */
+    const spines = page.getByTestId("run-flowchart");
+    await expect(
+      spines,
+      `a Compare drew ${await spines.count()} flowcharts at ${cell.name}, not two`,
+    ).toHaveCount(2);
+    for (const strategy of ["Deterministic Analytics", "AI Analytics"]) {
+      const spine = page.locator(`[data-testid="run-flowchart"][data-strategy="${strategy}"]`);
+      await expect(spine, `no spine for ${strategy} at ${cell.name}`).toHaveCount(1);
+      // A labelled box per stage, which is the whole of what the dots
+      // were not. The recording reaches publish, so there are at least
+      // the five a deterministic run has.
+      expect(
+        await spine.locator(".run-flow-node").count(),
+        `${strategy} drew fewer than five stages at ${cell.name}`,
+      ).toBeGreaterThanOrEqual(5);
+      await expect(
+        spine.getByTestId("run-flow-counts"),
+        `${strategy} states no counts at ${cell.name}`,
+      ).toBeVisible();
+    }
+
+    /*
+     * And neither spine is squeezed or cut off.
+     *
+     * Both have happened. A call chip rendered at 116px against the
+     * 180px prose floor, and an absolutely positioned connector sitting
+     * in a grid gap read as clipped text -- outside the padding box it
+     * counts in `scrollWidth` and not in `clientWidth`, which is this
+     * check's exact signature. Two spines in a section that previously
+     * held a short table is a new place for both.
+     */
+    expect(
+      await unreadableProse(page, ".run-flow p, .run-flow li", 180),
+      `a flowchart box is below a readable width at ${cell.name}`,
+    ).toEqual([]);
+    expect(
+      await clipped(page, ".run-flow, .run-flow-node, .run-flow-box, .run-flow-call"),
+      `a flowchart box is cut off at ${cell.name}`,
+    ).toEqual([]);
+
     await page.getByTestId("inspect-both-traces").click();
     const drawer = page.getByTestId("compare-evidence-drawer");
     await expect(drawer).toBeVisible();
@@ -670,6 +725,29 @@ test.describe("hosted visual acceptance", () => {
     await chartPainted(page, `compare at ${cell.name}`);
     await expectNoOverflow(page, `compare at ${cell.name}`);
     await shot(page, info, "compare");
+
+    /*
+     * The printed Compare, which is the artefact that started this.
+     *
+     * The `print` cell prints a single run, so a Compare on paper was
+     * never measured -- and a Compare on paper is what a reader exported.
+     * Asserted against the computed style for the reason the single-run
+     * print cell gives: a static check on the selector passes whether or
+     * not the rule wins.
+     */
+    await page.keyboard.press("Escape");
+    await page.emulateMedia({ media: "print" });
+    await expect(
+      page.getByTestId("run-flowchart"),
+      `a printed Compare carried no flowchart at ${cell.name}`,
+    ).toHaveCount(2);
+    for (const control of ["run-flow-open", "run-flow-alternative"]) {
+      expect(
+        await page.locator(`[data-testid="${control}"]:visible`).count(),
+        `${control} printed on a Compare at ${cell.name}`,
+      ).toBe(0);
+    }
+    await page.emulateMedia({ media: "screen" });
   });
 
   test("ai-in-progress: a waiting run says what it has done, and never fakes a bar", async ({

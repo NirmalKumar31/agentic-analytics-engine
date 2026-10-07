@@ -23,6 +23,11 @@
  * away where an auditor wants them. The per-call *audit* rows -- arguments,
  * durations, the agent that reached for the tool -- stay there too.
  *
+ * **On a Compare report.** One of these per strategy, under "How each
+ * strategy got there", headed by the strategy name -- see the `strategy`
+ * prop. Not merged into a single annotated spine: a merged diagram would
+ * draw a run neither strategy made.
+ *
  * **Motion.** Nothing advances on its own. A stage box transitions on
  * colour, which only `data-state` changes, and `data-state` changes only
  * when an event arrives. A call chip animates once, on mount, because a
@@ -38,23 +43,47 @@ import type { RunEvent } from "../lib/types";
 export function RunFlowchart({
   events,
   onShowEvidence,
+  strategy,
 }: {
   events: RunEvent[];
   /** Absent inside a Compare pane, which has one control for both runs. */
   onShowEvidence?: () => void;
+  /**
+   * Which strategy this diagram belongs to, on a Compare report.
+   *
+   * A Compare draws one of these per strategy, under the section that
+   * already asks "How each strategy got there" -- so the heading here
+   * names the strategy instead of repeating the question, and drops a
+   * level to sit under that one. Two sections both headed "How this
+   * analysis ran" would be two headings a reader cannot tell apart, in
+   * the document outline and in a screen reader's list alike.
+   *
+   * Absent on a single run, where the diagram *is* the section and
+   * "How this analysis ran" is the right name for it.
+   */
+  strategy?: string;
 }) {
   const { stages, calls, branchAt, alternative } = flowchartOf(events);
   if (stages.length === 0) return null;
 
   const done = workDone(progressOf(events));
+  const heading = strategy ?? "How this analysis ran";
 
   return (
     <section
       className="run-flow"
-      aria-label="How this analysis ran"
+      // Named, not just headed. On a Compare there are two of these and a
+      // reader moving between landmarks has to be told which run each one
+      // describes without reading back up to the heading.
+      aria-label={strategy ? `How ${strategy} ran` : "How this analysis ran"}
       data-testid="run-flowchart"
+      data-strategy={strategy}
     >
-      <h2 className="section-heading">How this analysis ran</h2>
+      {strategy ? (
+        <h3 className="section-heading">{heading}</h3>
+      ) : (
+        <h2 className="section-heading">{heading}</h2>
+      )}
 
       {/*
         An ordered list, because the order is the content. The connectors

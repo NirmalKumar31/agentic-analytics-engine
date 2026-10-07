@@ -44,6 +44,7 @@ import { opensSheet } from "./SideSheet";
 import { CompareEvidenceDrawer } from "./CompareEvidenceDrawer";
 import { EvidenceBody } from "./EvidenceDrawer";
 import { PlanningRouteNote } from "./PlanningRouteNote";
+import { RunFlowchart } from "./RunFlowchart";
 import { RunStateCard } from "./RunStateCard";
 import type { ReactNode } from "react";
 import type { RunPayload, RunUsage } from "../lib/types";
@@ -299,6 +300,41 @@ export function CompareWorkspace({
             </tbody>
           </table>
         </div>
+
+        {/*
+          The same diagram a single run carries, once per strategy.
+
+          It was suppressed here, and the reason was that Compare has one
+          evidence control for both runs and two stage summaries would be
+          two more things to read. The table above was meant to stand in
+          for it. Exported to PDF that reasoning does not hold: the only
+          labelled picture of either run was in the evidence appendix, and
+          a reader who asked how the analysis ran got six unlabelled dots
+          per strategy and a sentence.
+
+          It also turns out to be the one place the two strategies visibly
+          differ. They agree on the contract, the coverage and the values
+          -- that is what the verdict strip says -- so the planning is the
+          whole of the difference, and the AI side's extra `interpret`
+          stage is that difference, drawn. A table of runtimes cannot show
+          it; two spines of five and six boxes show it at a glance.
+
+          Deliberately not merged into one diagram with the odd stage
+          marked. A merged spine would be a run that neither strategy
+          made, and this section is called "How each strategy got there".
+        */}
+        {[deterministic, ai].map((side) =>
+          // `events` is declared on the payload and still absent from one
+          // the server wrote before it carried them, so this reads it the
+          // way `AnswerReport` does rather than trusting the type.
+          side.run?.events?.length ? (
+            <RunFlowchart
+              key={side.title}
+              events={side.run.events}
+              strategy={side.title}
+            />
+          ) : null,
+        )}
       </section>
 
       {comparison.shareOneResult ? (

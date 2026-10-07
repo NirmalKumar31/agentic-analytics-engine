@@ -224,6 +224,120 @@ def thin_of(snapshot: ResultSnapshot, named: list[tuple[str, int]]) -> list[tupl
     return out
 
 
+def thin_rows(snapshot: ResultSnapshot) -> list[tuple[int, int]]:
+    """Every row in this result whose own population is below the floor.
+
+    `(row, population)`. Rows the result never counted are absent, not
+    zero, for the reason `group_population` gives.
+    """
+    out: list[tuple[int, int]] = []
+    for row in range(len(snapshot.rows)):
+        population = group_population(snapshot, row)
+        if population is not None and population < THIN_GROUP_ROWS:
+            out.append((row, population))
+    return out
+
+
+def thin_elsewhere(snapshot: ResultSnapshot, named: list[tuple[str, int]]) -> list[tuple[int, int]]:
+    """Thinly populated groups the answer does **not** name.
+
+    The gap this closes. `thin_of` asks whether the group the headline
+    names is thin, and that was the whole of the disclosure -- so a
+    48-group breakdown whose named maximum rested on 47 rows said nothing
+    at all about the group ranked second on 29. Verified on a published
+    report: the floor is thirty, the one group under it was 0.42 from the
+    named maximum, and no surface mentioned it.
+
+    Which group is nearest the named one is deliberately not computed
+    here. "The second-highest group is thin" is a fact, and "so the
+    highest may not really be the highest" is a significance claim this
+    engine does not make and will not imply. What a reader is owed is
+    that the range they are reading spans groups of very different
+    weight, and that is this.
+    """
+    spoken = {row for _role, row in named}
+    return [(row, population) for row, population in thin_rows(snapshot) if row not in spoken]
+
+
+def _matching_rows(snapshot: ResultSnapshot) -> int | None:
+    coverage = snapshot.group_coverage
+    return coverage.rows_matching if coverage is not None else None
+
+
+def thin_elsewhere_note(
+    snapshot: ResultSnapshot,
+    elsewhere: list[tuple[int, int]],
+    *,
+    alongside_named: bool,
+) -> str:
+    """The sentence for thin groups the answer does not name.
+
+    `alongside_named` is whether a named group was already reported thin,
+    which decides one word: "other". Without it the two sentences read as
+    though they might be about the same group.
+    """
+    if not elsewhere:
+        return ""
+    total = _matching_rows(snapshot)
+    groups = len(snapshot.rows)
+    smallest = min(population for _row, population in elsewhere)
+    count = len(elsewhere)
+    qualifier = "other " if alongside_named else ""
+
+    if count == 1:
+        row_word = "row" if smallest == 1 else "rows"
+        covers = (
+            f"{smallest:,} of {total:,} matching {row_word}"
+            if total is not None
+            else f"{smallest:,} {row_word}"
+        )
+        return (
+            f"One {qualifier}group in this result covers {covers}, too few for "
+            "its figure to be a reliable estimate."
+        )
+    # Every figure here is one the engine recorded, which is not a style
+    # choice: `numbers_resolve` refuses a published sentence carrying a
+    # number the cited result does not hold, and it refused the first
+    # version of this one. It stated the floor -- "fewer than 30 matching
+    # rows each" -- and thirty is a convention of this module, not a
+    # measurement of anything. The count is traceable (it is reported
+    # through `derived`), the group total and the smallest population are
+    # cells, and the floor is now described rather than quoted.
+    return (
+        f"{count:,} {qualifier}groups of {groups:,} rest on too few matching rows "
+        f"for their figures to be reliable estimates, the smallest on {smallest:,}."
+    )
+
+
+def thin_note(snapshot: ResultSnapshot, named: list[tuple[str, int]]) -> tuple[str, list[Decimal]]:
+    """Everything the populations behind this answer require saying.
+
+    Returns the sentences and the figures in them that are not cells of
+    the result -- only one, the count of thin groups, which this layer
+    computes from the result's own `row_count` column against the floor.
+    It goes back through `derived` because `numbers_resolve` will
+    otherwise refuse the sentence, and refusing it is right: a number in a
+    published sentence that nobody can check is how a sentence with two
+    real cells in it managed to be false.
+
+    One function so the order and the wording are decided once. Empty
+    where the answer names no group extreme at all -- a statistical test
+    states its own sample sizes and a scalar has one population, already
+    in the scope line -- because a note about groups nobody named is a
+    sentence with no referent.
+    """
+    if not named:
+        return "", []
+    named_thin = thin_of(snapshot, named)
+    elsewhere = thin_elsewhere(snapshot, named)
+    parts = [
+        thin_extreme_note(snapshot, named_thin),
+        thin_elsewhere_note(snapshot, elsewhere, alongside_named=bool(named_thin)),
+    ]
+    figures = [Decimal(len(elsewhere))] if len(elsewhere) > 1 else []
+    return " ".join(part for part in parts if part), figures
+
+
 def thin_extreme_note(snapshot: ResultSnapshot, thin: list[tuple[str, int, int]]) -> str:
     """The sentence that puts a thin group's population beside its figure.
 
@@ -1078,11 +1192,36 @@ def summarize(
     # group the answer names goes with it. Appended rather than replacing
     # anything: the reader still needs to know whether the breakdown was
     # complete, and now also what the extreme rests on.
-    note = thin_extreme_note(snapshot, thin_named(mapping, snapshot, column, shape))
+    #
+    # And the populations of the groups it does *not* name, when any of
+    # them is under the floor. Checking only the named group was the gap:
+    # it asks whether the figure quoted is thin, not whether the range the
+    # reader is being shown spans groups of wildly different weight. A
+    # 48-group breakdown said nothing about the group ranked second on 29
+    # rows, because the one it named had 47.
+    note, note_figures = thin_note(snapshot, named_rows(mapping, snapshot, column, shape))
     if note:
         secondary = f"{secondary} {note}" if secondary else note
+    derived = [*derived, *note_figures]
 
     return headline, secondary, highlights, derived
+
+
+def named_rows(
+    mapping: Any,
+    snapshot: ResultSnapshot,
+    column: str,
+    shape: PresentationShape,
+) -> list[tuple[str, int]]:
+    """The rows this shape's answer names, with the words for each.
+
+    The one definition, so the sentence in the summary and the caveat in
+    `build._caveats` cannot describe different groups -- which they would,
+    on an ascending ranking, if each worked it out for itself.
+    """
+    return named_extreme_rows(
+        snapshot, column, shape, ascending=bool(getattr(mapping, "ascending", False))
+    )
 
 
 def thin_named(
@@ -1091,15 +1230,5 @@ def thin_named(
     column: str,
     shape: PresentationShape,
 ) -> list[tuple[str, int, int]]:
-    """The thinly populated groups this shape's answer names.
-
-    The one definition, so the sentence in the summary and the caveat in
-    `build._caveats` cannot describe different groups -- which they would,
-    on an ascending ranking, if each worked it out for itself.
-    """
-    return thin_of(
-        snapshot,
-        named_extreme_rows(
-            snapshot, column, shape, ascending=bool(getattr(mapping, "ascending", False))
-        ),
-    )
+    """The thinly populated groups this shape's answer names."""
+    return thin_of(snapshot, named_rows(mapping, snapshot, column, shape))

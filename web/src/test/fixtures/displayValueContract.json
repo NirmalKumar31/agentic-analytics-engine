@@ -25,14 +25,15 @@
       "expected": "$1,050,312.91"
     },
     {
-      "name": "a whole currency amount carries no decimals",
+      "name": "a whole currency amount still carries the places its field declares",
       "field": {
         "source_name": "revenue",
         "unit": "$",
         "precision": 2
       },
       "raw": 1050312,
-      "expected": "$1,050,312"
+      "expected": "$1,050,312.00",
+      "why": "It read '$1,050,312' while the cell above it read '$1,050,312.91'. The rule was that a whole number loses its decimals so a figure reads the same in a sentence as in the table; down a column it is the absence of consistency, not consistency. A declared precision is a pin."
     },
     {
       "name": "a percentage sits tight against its number",
@@ -209,7 +210,7 @@
         "precision": 2
       },
       "raw": null,
-      "expected": "\u2014"
+      "expected": "—"
     },
     {
       "name": "a column with no metadata is shown as stored, which is the honest fallback",
@@ -271,7 +272,7 @@
       "expected": "9.96%"
     },
     {
-      "name": "a scaled whole number carries no decimals",
+      "name": "a scaled whole number also keeps its declared places",
       "field": {
         "source_name": "rate",
         "unit": "%",
@@ -279,7 +280,40 @@
         "scale": 100.0
       },
       "raw": 0.5,
-      "expected": "50%"
+      "expected": "50.00%",
+      "why": "0.5 scales to 50 and the field declares two places, so it is written with them -- beside '50.46%' from the same column."
+    },
+    {
+      "name": "the defect: a mean that rounds to a whole number keeps its places",
+      "why": "A published breakdown of 48 age groups printed 61.08, 62.94, 59.48 and then 59, for the one group whose mean was 59.00333. Verified against the uploaded file: the arithmetic was exact and the column was not.",
+      "field": {
+        "source_name": "average_bedtime_phone_minutes",
+        "precision": 2
+      },
+      "raw": 59.00333333333333,
+      "expected": "59.00"
+    },
+    {
+      "name": "a count beside it is still a whole number of things",
+      "why": "The pin is the field's, not the table's: `row_count` sits in the same result and declares zero places, so pinning the measure must not give the count a '.00'.",
+      "field": {
+        "source_name": "row_count",
+        "semantic_kind": "count",
+        "precision": 0
+      },
+      "raw": 300.0,
+      "expected": "300"
+    },
+    {
+      "name": "a column that declares no precision is still read from its value",
+      "why": "An integral-typed measure and a grouping key both reach here with `precision: null`, which means this layer declined to say how many places the column has. Inventing two would print an age as '18.00'.",
+      "field": {
+        "source_name": "age",
+        "semantic_kind": "ordered_numeric",
+        "precision": null
+      },
+      "raw": 18,
+      "expected": "18"
     }
   ]
 }

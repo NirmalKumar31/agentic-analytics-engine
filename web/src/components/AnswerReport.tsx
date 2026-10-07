@@ -258,9 +258,15 @@ export function AnswerReport({
 
         The full graph is in the evidence sheet and stays there; behind one
         control it was invisible, so a reader who wanted to know whether
-        anything ran had no sign that there was anything to open. Absent in
-        a Compare pane: the comparison has one evidence control for both
-        strategies and two summaries would be two more things to read.
+        anything ran had no sign that there was anything to open.
+
+        Absent in a Compare *pane*, and the reason has changed. It used to
+        be that Compare showed no diagram at all. Compare now draws one
+        per strategy itself, inside "How each strategy got there", because
+        that is where the two runs are being compared and a pane is not:
+        when the strategies agree, Compare renders one pane's report as
+        the shared answer, so a diagram drawn from inside the pane would
+        show one run's stages under a heading that speaks for both.
       */}
       {!compact && run?.events && run.events.length > 0 && (
         <RunFlowchart events={run.events} onShowEvidence={onShowEvidence} />
