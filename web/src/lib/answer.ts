@@ -132,7 +132,7 @@ export function rankedAnswer(
 
   if (!interpretation || (interpretation.metrics ?? []).length === 0) {
     // Nothing to rank against. The engine's own first finding leads, as
-    // before -- this is not worse than it was, it is just not better.
+    // before. This is not worse than it was, it is just not better.
     return { finding: findings[0] ?? null, onTopic: true };
   }
 
@@ -180,7 +180,7 @@ export function answerResult(
  *
  * Read from the engine's measured coverage when present. The fallback sums
  * the result's own `row_count` column, which is right only when every group
- * is present -- and that is exactly what coverage records, so the fallback
+ * is present, and that is exactly what coverage records, so the fallback
  * is used only for a result that carries no coverage block at all.
  *
  * Deliberately not `snapshot.row_count`: that is the number of rows in the
@@ -293,7 +293,7 @@ export function isComplete(snapshot: ResultSnapshot | null): boolean | null {
 /**
  * How the population was restricted, in the reader's terms.
  *
- * Empty means no restriction was asked for -- which the caller states as
+ * Empty means no restriction was asked for, which the caller states as
  * "every row", never as silence, because a reader cannot tell an
  * unrestricted answer from an unreported restriction.
  */

@@ -77,8 +77,8 @@ class ServerConfig(BaseModel):
     #: recorded | deterministic_live | ai_live. Drives the badge in the UI.
     execution_mode: ExecutionMode
     #: Whether a run on this deployment *can* send prompts to a third-party
-    #: model. False is the strong claim -- nothing derived from a dataset
-    #: leaves this server, in any mode a visitor can pick -- so it is taken
+    #: model. False is the strong claim. Nothing derived from a dataset
+    #: leaves this server, in any mode a visitor can pick, so it is taken
     #: from the published capabilities rather than from a process setting
     #: that no longer decides what a run does.
     model_inference_remote: bool

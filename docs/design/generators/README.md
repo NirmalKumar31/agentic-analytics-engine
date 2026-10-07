@@ -16,8 +16,8 @@ why a fact can be checked across sheets instead of trusted.
 | `mock.py` | the shared drawing library: palettes, the product mark, type, charts, tables, the header |
 | `wf.py` | `wireframes/01..07` |
 | `sheets.py` | `mockups/landing-*`, `mockups/report-*`, `mockups/terminal-*` (the documentation composite) |
-| `compare.py` | `mockups/compare-*` — agreement, divergence, evidence drawer |
-| `states.py` | `mockups/state-*` — the six terminal states, one per sheet |
+| `compare.py` | `mockups/compare-*`: agreement, divergence, evidence drawer |
+| `states.py` | `mockups/state-*`: the six terminal states, one per sheet |
 | `render.mjs` | SVG → PNG at `deviceScaleFactor: 2`, at each sheet's natural size |
 | `audit_mockups.py` | the cross-sheet consistency audit |
 

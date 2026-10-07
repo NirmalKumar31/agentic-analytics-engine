@@ -34,7 +34,7 @@ log = get_logger(__name__)
 #: `completed` means the graph ran to the end. It does not mean anything was
 #: published: a run that honestly found nothing publishable is complete and
 #: says why in its limitations, which is a different outcome from a run that
-#: broke -- and the two used to be reported identically, because a
+#: broke, and the two used to be reported identically, because a
 #: `RunResult` object existed in both cases.
 RunOutcome = Literal[
     "completed",
@@ -73,7 +73,7 @@ class RunResult:
     #: What the planner understood the question to be asking.
     #:
     #: A contract is only accepted for uploaded data, so a run over the
-    #: governed warehouse has none -- and everything that reads intent from
+    #: governed warehouse has none, and everything that reads intent from
     #: `query_contract` was blind on exactly the path the public deployment
     #: uses. Compare then had nothing to compare and reported two absent
     #: contracts as identical, and the report had no way to tell whether a
@@ -274,7 +274,7 @@ class _MetricContract:
     #: Empty on purpose.
     #
     # The operation word prefixes the measure in a headline -- "total
-    # revenue", "average order value" -- and a governed metric's name
+    # revenue", "average order value", and a governed metric's name
     # already carries its aggregation. Naming the operation here produced
     # "Aggregate return rate is highest for new", which puts the planner's
     # vocabulary in front of a reader who did not ask for it. The metric
@@ -283,7 +283,7 @@ class _MetricContract:
     ascending: bool = False
     #: Always true: the metric registry resolved it, so there is no
     #: ambiguity left for a presentation to hedge about. An unresolvable
-    #: question never reaches here -- it is refused earlier, and that
+    #: question never reaches here. It is refused earlier, and that
     #: refusal has its own presentation.
     confident: bool = True
     explanation: str = ""
@@ -293,8 +293,8 @@ class _MetricContract:
     measure_format: str | None = None
     #: For a statistical test: the metric the question was about, and the
     #: column it grouped by. Both are declared -- the first from the
-    #: planner's own interpretation, the second from the test's parameters
-    #: -- and both exist because `rate` and `group` do not say, on their
+    #: planner's own interpretation, the second from the test's parameters,
+    #: and both exist because `rate` and `group` do not say, on their
     #: own, what was measured or what it was measured across.
     subject: str = ""
     grouping: str = ""
@@ -391,7 +391,7 @@ def _statistical_contract(
     """
     # The question's own subject metric, which is what a reader asked
     # about. The test's `value_column` is the indicator it summed --
-    # `is_repeat` -- and humanising that produced the headline "Is repeat
+    # `is_repeat`, and humanising that produced the headline "Is repeat
     # is 50.46% for late", which is the engine's column name read aloud.
     subject = target_metrics[0] if target_metrics else relevance.value_column_of(snapshot)
     return _MetricContract(
@@ -815,7 +815,7 @@ def _presentation_for(result: RunResult, state: Any, session: Any | None = None)
     if snapshot is None:
         # The governed warehouse resolves through the metric registry and
         # never produces an `aggregate_for_question` snapshot, so this used
-        # to return None for every demo run -- and None means the interface
+        # to return None for every demo run, and None means the interface
         # falls back to rendering a finding's own prose as the headline.
         #
         # On a cloud-planned run that prose is the model's, and a live run
@@ -848,7 +848,7 @@ def _presentation_for(result: RunResult, state: Any, session: Any | None = None)
             #
             # The warehouse sets `query_mapping` as well, and that object
             # knows nothing about the metric's declared format and carries
-            # the planner's operation word -- which is how an answer came
+            # the planner's operation word, which is how an answer came
             # out as "Aggregate revenue is highest for West" with no
             # currency on either figure. The metric contract describes what
             # was actually executed, so it is the one that describes it.
@@ -879,7 +879,7 @@ def _presentation_for(result: RunResult, state: Any, session: Any | None = None)
         # docstring above says losing a presentation should do.
         #
         # Deliberately scoped to `completed`. A refusal or a failure has no
-        # snapshot either, and its presentation is the useful one -- it
+        # snapshot either, and its presentation is the useful one. It
         # carries the reason. Those must keep being built.
         return None
     try:

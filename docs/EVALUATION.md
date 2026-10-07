@@ -23,7 +23,7 @@ It measures:
 - SQL and statistical correctness
 - provenance completeness
 - deterministic verification
-- publication behaviour — specifically, whether anything unsupported escapes
+- publication behaviour, specifically whether anything unsupported escapes
 
 It does **not** measure:
 
@@ -51,7 +51,7 @@ agents:
 2. **Prompt capture.** A full benchmark runs behind a recording provider that
    keeps every request. The test then asserts that no pattern id, no
    answer-key sentence, and no expected entity appears in any system prompt,
-   user prompt, context object or schema — and separately that no expected
+   user prompt, context object or schema, and separately that no expected
    entity is written into a prompt template.
 
 An entity such as `Home & Kitchen` legitimately appears in a query *result*,
@@ -77,7 +77,7 @@ Each is asserted directly against the generated data in
 stopped being present those tests fail first, which distinguishes "the agents
 got worse" from "the data changed".
 
-**On causal wording.** The generator causes these patterns — it writes the
+**On causal wording.** The generator causes these patterns, because it writes the
 rows. The analytics system only sees the finished table, where nothing
 identifies a causal effect. So the expectations are phrased as associations,
 and a run that concludes causation has its claim withheld. That withholding
@@ -106,7 +106,7 @@ present so the suite covers the easy case too.
 
 ## Metric definitions, with denominators
 
-Every rate below is pooled — total over total — not a mean of per-case rates.
+Every rate below is pooled, total over total, rather than a mean of per-case rates.
 Averaging ratios would weight a case with two findings the same as one with
 ten.
 
@@ -131,10 +131,10 @@ that, because the generator knows the answer and the agents cannot see it.
 
 **The numeric rate counts findings, not numeric literals.** `verify_numbers`
 checks every figure in a finding and returns one verdict, so 30/30 means 30
-of 30 published findings had all their numbers re-verify — not that 30
+of 30 published findings had all their numbers re-verify, not that 30
 individual numbers were checked. The name says so now.
 
-Candidate support is *expected* below 1.0 — a run that withholds nothing is
+Candidate support is *expected* below 1.0, because a run that withholds nothing is
 not verifying anything. Published support must be exactly 1.0, because
 publishing an unsupported finding is the failure this system exists to
 prevent. Reporting one number for both, as an earlier version did, described
@@ -196,8 +196,8 @@ withheld**.
 analytics engine or a text-to-SQL wrapper?
 
 In the benchmark every call went to a governed tool and none to
-`run_readonly_sql`. That is not a target — whatever the implementation does
-gets reported — but the test asserts it stays above 0.5, so a regression
+`run_readonly_sql`. That is not a target, since whatever the implementation
+does gets reported, but the test asserts it stays above 0.5, so a regression
 toward generated SQL becomes visible rather than silent.
 
 ---
@@ -250,7 +250,7 @@ AAE_PROVIDER_MODE=local AAE_OLLAMA_MODEL=qwen2.5:7b-instruct \
 ```
 
 The probe hands the `worker_findings` role five fixed results built in
-`evaluation/worker_probe.py` -- a simple aggregate, a grouped ranking, a
+`evaluation/worker_probe.py`: a simple aggregate, a grouped ranking, a
 trend, a real statistical test, and one thin result that supports no
 conclusion at all. Because the results are known-good, anything that goes
 wrong afterwards belongs to the role. For every claim it records reference

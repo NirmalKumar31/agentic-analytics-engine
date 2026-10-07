@@ -17,7 +17,7 @@
  *                                      changed
  *
  * The last three are derived because the server classifies them from how a
- * run *ended* -- a raise, a budget exception, a withdrawn dataset -- and a
+ * run *ended* -- a raise, a budget exception, a withdrawn dataset, and a
  * scripted provider cannot be made to raise them from a question. The
  * derivation is one dictionary of fields, written down beside the fixture.
  */
@@ -104,7 +104,7 @@ describe("a completed run that published nothing is not a refusal", () => {
    * The distinction these states exist for. "No findings" is a `completed`
    * run: the engine executed the contract and had nothing to claim. It was
    * carrying the eyebrow "Not answered", which is the language of a run
-   * that declined -- and once a reader has read that, the difference
+   * that declined, and once a reader has read that, the difference
    * between the two is gone.
    */
   it("says the execution completed, in those words", () => {

@@ -264,13 +264,13 @@ test.describe("a recorded report on a phone", () => {
      *
      * It could only ever do that because the recording carried **no
      * presentation snapshot**, so the report fell back to the engine's own
-     * finding prose -- which is the defect `presentation/fields.py` and
+     * finding prose, which is the defect `presentation/fields.py` and
      * `recordings/record.py` were corrected for. With the snapshot carried,
      * a recorded run renders the way a live one does: a headline, at most
      * two highlights, and the table.
      *
      * The presentation layer emits two highlights for every shape it
-     * builds -- highest and lowest -- and the fold's threshold was three,
+     * builds -- highest and lowest, and the fold's threshold was three,
      * so the branch never ran in product output. It has been **removed**
      * rather than kept for a constructed test model, which would have left
      * dead markup and a disclosure a keyboard user could reach.

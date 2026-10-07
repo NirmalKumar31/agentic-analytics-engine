@@ -3,7 +3,7 @@
  *
  * Extracted from `ProvenanceDrawer`, which had solved the focus problem
  * properly and privately. Two more surfaces need the same behaviour -- the
- * schema inspector and the evidence drawer -- and the half that is easy to
+ * schema inspector and the evidence drawer, and the half that is easy to
  * get wrong is the half that is invisible.
  *
  * What it guarantees:
@@ -26,7 +26,7 @@ import { useCallback, useEffect, useRef, type ReactNode } from "react";
  * Click handler for a control that opens a sheet.
  *
  * WebKit does not focus a `<button>` when it is clicked -- Safari's
- * long-standing behaviour, not a Playwright artefact -- so
+ * long-standing behaviour, not a Playwright artefact, so
  * `document.activeElement` is `<body>` at the moment the sheet mounts, and
  * the sheet dutifully restores focus to `<body>` on close. A
  * keyboard-and-mouse user is dropped at the top of the document.

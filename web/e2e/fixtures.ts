@@ -41,7 +41,7 @@ import {
  * intercepting a response, not by the file.
  *
  * The product holds no session across a page load -- `App.tsx` keeps it in
- * React state, and the capability cookie alone cannot restore it -- so
+ * React state, and the capability cookie alone cannot restore it, so
  * reusing a server-side session means keeping the *page* alive. That is
  * what this fixture does: worker-scoped, so with `workers: 1` there is one
  * upload per engine for every spec that opts in.
@@ -66,7 +66,7 @@ import {
  * Dismiss whatever sheet the last test left open.
  *
  * A side sheet puts a scrim over the header, so every control up there is
- * in the document, visible, enabled -- and not clickable. Playwright waits
+ * in the document, visible, enabled, and not clickable. Playwright waits
  * for actionability and reports a timeout against a button the screenshot
  * plainly shows, which is a confusing way to learn that a drawer is open.
  */
@@ -141,9 +141,9 @@ async function resetToComposer(page: Page): Promise<void> {
 
   /*
    * And any emulated media. `accessibility.spec.ts` scans under
-   * `prefers-reduced-motion: reduce` -- correctly, because axe composites
+   * `prefers-reduced-motion: reduce`, correctly, because axe composites
    * opacity and a mid-animation scan reports contrast failures that do not
-   * exist -- and `print.spec.ts` switches to print media. Neither is
+   * exist, and `print.spec.ts` switches to print media. Neither is
    * discarded with the test on a shared session, and `motion.spec.ts`'s
    * control then measured a 1ms budget and concluded the product animates
    * nothing.
@@ -172,7 +172,7 @@ async function resetToComposer(page: Page): Promise<void> {
    *
    * While a run is in flight the composer is on screen with its field
    * disabled, so a reset that only checks visibility returns a page the
-   * next test cannot type into -- and `fill()` then waits for
+   * next test cannot type into, and `fill()` then waits for
    * actionability until the *test* timeout, reporting a two-minute hang
    * on a locator that is plainly present in the screenshot. That is how a
    * previous test leaving a run running got diagnosed as a problem with
@@ -211,7 +211,7 @@ interface WorkerFixtures {
    *
    * Eight specs opened it on eight pages and asked it the same question,
    * for eight real analyses against a dataset that never changes. It holds
-   * no upload session -- nothing to hand back -- so sharing it costs
+   * no upload session. Nothing to hand back, so sharing it costs
    * nothing and saves an admission per spec. Each one still asserts its own
    * thing; they just stop paying separately for the same result.
    *
@@ -238,7 +238,7 @@ type WorkerSession = [
  * The filename each shared session is uploaded under.
  *
  * Exported because the dataset strip echoes the reader's own filename, and
- * a test asserting that is asserting something real -- it should name the
+ * a test asserting that is asserting something real. It should name the
  * file the fixture actually sent rather than a literal that drifts.
  */
 export const TWO_CLOCKS_FILE = "two-clocks.csv";
@@ -310,7 +310,7 @@ function session(name: string, csv: () => string): WorkerSession {
         await context.close();
       } catch {
         // The worker-scoped `browser` is torn down around this one, and
-        // Playwright disposes its contexts with it -- so by the time this
+        // Playwright disposes its contexts with it, so by the time this
         // runs the context may already be gone. The close above is the one
         // that matters: it is what gives the *server* its session back,
         // and it happens while the page is still alive.
@@ -373,7 +373,7 @@ export const test = base.extend<{ page: Page }, WorkerFixtures>({
         configurable: true,
         value: releaseContext,
       });
-      // No upload, so no server-side session to return -- only the context.
+      // No upload, so no server-side session to return, only the context.
       await context.close();
     },
     { scope: "worker" },
@@ -388,7 +388,7 @@ export const test = base.extend<{ page: Page }, WorkerFixtures>({
  *
  * The container allows **200 analyses per IP per hour**, shared by all three
  * engines because they run from one address inside one hour. The suite was
- * running one per rendering -- and `POST /api/analyses`
+ * running one per rendering, and `POST /api/analyses`
  * began returning 429 partway through Firefox while every upload check was
  * still green. Cutting uploads had moved the pressure here without anyone
  * noticing, because nothing counted analyses.
@@ -414,7 +414,7 @@ export const test = base.extend<{ page: Page }, WorkerFixtures>({
  * Keyed by dataset *and* question, not by question alone.
  *
  * Two pages can ask the same question of different data -- `golden.spec.ts`
- * asks the demo warehouse what `chart.spec.ts` asks a 200-row upload -- and
+ * asks the demo warehouse what `chart.spec.ts` asks a 200-row upload, and
  * a question-keyed cache would replay one dataset's result on the other's
  * session, so the test would assert against a report for a file it never
  * opened.
@@ -430,7 +430,7 @@ export const test = base.extend<{ page: Page }, WorkerFixtures>({
  * statement of what is open: the file name for an upload, the warehouse's
  * name for the warehouse. Not from the session id, because two sessions
  * over the same uploaded bytes are the same data as far as a report is
- * concerned -- and not from the page, because that is the thing we want to
+ * concerned, and not from the page, because that is the thing we want to
  * share across.
  */
 const captured = new Map<string, Record<string, unknown>>();
@@ -446,7 +446,7 @@ async function datasetKey(page: Page): Promise<string> {
  * Start listening for the payload *before* the run that produces it.
  *
  * This used to be the first line of `capturePayload`, called after `ask()`
- * had already started the run -- and that is a race the suite lost. The
+ * had already started the run, and that is a race the suite lost. The
  * application polls `GET /api/analyses/<id>` while a run is going and
  * stops when it finishes; in fake mode a run can finish before the
  * listener is attached, and then no further poll ever arrives and
@@ -511,7 +511,7 @@ export async function reportFor(
      *
      * `motion.spec.ts` needs `prefers-reduced-motion` active *while* the
      * report appears -- an entrance that has already started keeps its
-     * original duration -- and the reset puts media emulation back so that
+     * original duration, and the reset puts media emulation back so that
      * one spec cannot leave the shared session under a preference the next
      * never asked for. Passing it here is the only point that satisfies
      * both.
@@ -539,7 +539,7 @@ export async function reportFor(
      *
      * The theme has to be part of this test rather than a reason to skip
      * the fast path. `visualReview.spec.ts` walks twelve cells grouped by
-     * theme, so eleven of them already have the report they want -- and
+     * theme, so eleven of them already have the report they want, and
      * treating any requested theme as a miss made every one of them reset
      * to the composer and render again. On Chromium that is a few hundred
      * milliseconds; on WebKit it is seconds, repeated across three

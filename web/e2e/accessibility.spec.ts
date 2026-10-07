@@ -29,7 +29,7 @@ import { ask, inDrawer, onCanvas, openApp, waitForReport } from "./helpers";
  *
  * Nothing here is excluded to make the scan pass. If a rule ever has to
  * be, the exclusion names the rule, names the element, says why, and is
- * recorded in LIMITATIONS with a follow-up -- because a silent exclusion
+ * recorded in LIMITATIONS with a follow-up, because a silent exclusion
  * is indistinguishable from a bug.
  */
 
@@ -115,7 +115,7 @@ test.describe("accessibility", () => {
     // schema sheet open over it. The sheet is where the field table lives,
     // which is the part most likely to have a contrast or
     // header-association problem, and it is not in the document at all
-    // until a reader asks for it -- so a single scan of the default screen
+    // until a reader asks for it, so a single scan of the default screen
     // would never see it.
     await expect(page.getByTestId("composer")).toBeVisible();
     await scan(page, "profiled upload, schema closed");
@@ -138,7 +138,7 @@ test.describe("accessibility", () => {
      * Through `reportFor`, which admits it once and remembers the payload.
      *
      * A refusal is as real a result as an answer -- the engine classified
-     * it -- and the dark-mode scan below needs the same refused DOM in the
+     * it, and the dark-mode scan below needs the same refused DOM in the
      * other palette. Captured here, replayed there, one admission between
      * them.
      */
@@ -160,7 +160,7 @@ test.describe("accessibility", () => {
      *
      * In fake mode a run finishes in well under a second, so the window is
      * held open by delaying the status poll rather than by racing it. The
-     * responses are the server's own -- nothing is fabricated; they simply
+     * responses are the server's own. Nothing is fabricated; they simply
      * arrive late, which is what a slow run looks like to the page.
      *
      * `onCanvas`, because the print appendix holds a hidden copy of the
@@ -184,7 +184,7 @@ test.describe("accessibility", () => {
      * in flight when the test ended, so the next test found a composer
      * that was *visible and disabled*. `fill()` waits for actionability,
      * so it waited out the whole two-minute test timeout and then
-     * reported "Target page, context or browser has been closed" -- which
+     * reported "Target page, context or browser has been closed", which
      * is the teardown, not the cause. The failure was in this test and
      * was reported against the one after it.
      */
@@ -194,7 +194,7 @@ test.describe("accessibility", () => {
       await expect(onCanvas(page, '[data-testid="run-timeline"]')).toBeVisible();
 
       /*
-       * And while it runs there is no composer at all -- which is the
+       * And while it runs there is no composer at all, which is the
        * mechanism behind the failure this test used to cause in the test
        * after it.
        *
@@ -317,7 +317,7 @@ test.describe("accessibility", () => {
   }) => {
     // Every scan above runs in the default colour scheme, which on CI is
     // light. So the dark palette was never scanned, and a token left
-    // undefined in the dark block -- which inherits the light value rather
+    // undefined in the dark block, which inherits the light value rather
     // than being absent -- went unnoticed: #855c17 ochre on a near-black
     // surface at 2.92:1, carried by a warning notice, an ambiguous-field
     // tag and a stopped workflow step.

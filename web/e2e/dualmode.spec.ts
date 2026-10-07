@@ -45,7 +45,7 @@ test.describe("choosing a mode", () => {
      * is the regression test for both.
      *
      * 1. A radio's accessible name is its label -- the visible mode name
-     *    plus the screen-reader description -- and when AI is unavailable
+     *    plus the screen-reader description, and when AI is unavailable
      *    Compare's unavailable message *is* the AI mode's message. So the
      *    Compare radio's name also contains "AI Analytics", and an
      *    unanchored match resolved to two radios. Playwright's strict mode
@@ -263,7 +263,7 @@ test.describe("AI and Compare, with the API intercepted", () => {
 
     // The status moved from a pane header into the row of the table that
     // compares the two strategies. The claim is unchanged -- the AI side's
-    // own outcome, attributable to that side and machine-readable -- and
+    // own outcome, attributable to that side and machine-readable, and
     // the row is scoped by its header, which is the strategy's name.
     const aiRow = page
       .getByTestId("compare-routes")
@@ -327,7 +327,7 @@ test.describe("AI and Compare, with the API intercepted", () => {
    *
    * It existed because each pane had its own "Show work" button, both runs
    * mint finding ids within themselves, and `f1` on the AI side is a
-   * different claim from `f1` on the deterministic side -- so the app had
+   * different claim from `f1` on the deterministic side, so the app had
    * to carry *which side* alongside the id, and once did not.
    *
    * There is one evidence control for the comparison, and the drawer has a

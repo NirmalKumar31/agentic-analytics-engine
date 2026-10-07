@@ -112,7 +112,7 @@ def test_every_rule_the_engine_can_emit_has_prose() -> None:
     #
     # Scanned independently of `known_rules`. An earlier version of this
     # filtered the scan *by* `known_rules`, which made it a subset by
-    # construction -- it could not report a rule that was missing from the
+    # construction. It could not report a rule that was missing from the
     # table, which is the only thing it exists to report.
     undescribed = _assigned_rules_in_source() - known_rules() - SUCCESS_ONLY_RULES
     assert not undescribed, (

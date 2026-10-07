@@ -1,4 +1,4 @@
-# 0005 — Automatic governed planning
+# 0005: Automatic governed planning
 
 Status: accepted
 Date: 2026-10-01
@@ -42,7 +42,7 @@ classifies them into `exact`, `ambiguous`, `unresolved`, `unsupported` and
 | state | example | planner consulted |
 |---|---|---|
 | `exact` | every column named | **no** |
-| `ambiguous` | "the average by chronotype" — several measures | **yes, once** |
+| `ambiguous` | "the average by chronotype", several measures | **yes, once** |
 | `unresolved` | a column the file does not have | no |
 | `unsupported` | no operation this engine implements | no |
 | `unsafe` | one column read as both value and grouping | no |
@@ -56,7 +56,7 @@ look expensive.
 ### The provider is built lazily, and that is the whole cost argument
 
 `open_governed_cloud_provider` takes the durable ledger slot at
-construction — deliberately, so a run that cannot be priced is refused
+construction, deliberately, so a run that cannot be priced is refused
 before its first billable request. That makes construction, not the
 request, the moment quota is spent.
 
@@ -77,7 +77,7 @@ one, which is why the mode is offered wherever live analysis is.
 
 The model's authority is unchanged, because it was already correct. A plan
 still cannot alter an operation or measure the question named, add or shift
-a period, reverse a ranking, group by an identifier, or supply SQL —
+a period, reverse a ranking, group by an identifier, or supply SQL,
 `mapping_from_plan` enforces every one of those, and `auto` routes through
 it rather than around it. Arithmetic, verification, coverage and
 provenance are untouched.
@@ -99,15 +99,15 @@ Routing made the resolver's conclusions legible, and two were wrong.
 **A dropped restriction.** `average total_sleep_hours where mood is good`
 resolved as `exact` and was answered for every participant. An equality
 clause whose column did not resolve was skipped rather than recorded, so
-the restriction vanished — while the sibling branch, for an *ambiguous*
+the restriction vanished, while the sibling branch, for an *ambiguous*
 column, refused correctly. The module's own docstring states the policy it
 was violating: "a false detection costs a refusal with a reason, a missed
 one costs a wrong answer presented as the right one." It now refuses, and
 classifies as ambiguous, because a planner reading the sentence may bind
 the column.
 
-**A test that could not see it.** Mutation B7 — reporting "no candidates"
-as "several candidates" — survived, because the fixture always had
+**A test that could not see it.** Mutation B7, reporting "no candidates"
+as "several candidates", survived because the fixture always had
 measures and `_pick`'s empty branch was never reached. A text-only upload
 now covers it.
 
@@ -128,7 +128,7 @@ now covers it.
 
 **Classify question difficulty with a model.** Rejected. It spends a
 request to decide whether to spend a request, and it would make routing
-unexplainable — the one thing a governed engine cannot afford.
+unexplainable, which is the one thing a governed engine cannot afford.
 
 **Infer the route from the refusal sentence.** Rejected: string sniffing on
 prose that exists to be read by people, which breaks the first time the

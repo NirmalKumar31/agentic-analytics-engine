@@ -287,7 +287,7 @@ describe("the planning audit", () => {
     // Scoped to the column's own entry, not the section.
     //
     // Asserting against the whole block matched the heading -- "Roles
-    // confirmed for this dataset session" -- so removing the source from
+    // confirmed for this dataset session", so removing the source from
     // every entry left the test green. The claim is about what each line
     // says, so each line is what is read.
     const entry = evidence.querySelector("dd");
@@ -554,7 +554,7 @@ describe("what a confirmed field does to the offered questions", () => {
   it("orders by the schema, not by however the API listed the roles", () => {
     // The two coincide in every other fixture here, because the helper
     // derives the role lists from `fields`. They need not coincide in a
-    // real payload, and "schema order" is the claim -- so this builds a
+    // real payload, and "schema order" is the claim, so this builds a
     // summary whose `dimensions` array is in the opposite order and
     // asserts the schema still decides.
     const confirmedFirst = confirmedCategory("batch");

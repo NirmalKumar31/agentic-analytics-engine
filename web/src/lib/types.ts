@@ -330,7 +330,7 @@ export interface RunPayload {
    * What the planner understood the question to be asking.
    *
    * A contract is only accepted for uploaded data, so a run over the
-   * governed warehouse has none -- and the governed warehouse is what the
+   * governed warehouse has none, and the governed warehouse is what the
    * public deployment serves. Everything that read intent from
    * `query_contract` was therefore blind on that path: Compare had nothing
    * to compare and called two absences identical, and the report could not

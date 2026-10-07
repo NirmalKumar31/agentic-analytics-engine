@@ -9,8 +9,8 @@
  *
  * So these helpers derive the order from `main.tsx` rather than hard-coding
  * it. A test that hard-coded the list would keep passing after someone
- * reordered the imports -- which is the one change most likely to break the
- * cascade -- and `cssArchitecture.test.ts` is what pins the order itself.
+ * reordered the imports, which is the one change most likely to break the
+ * cascade, and `cssArchitecture.test.ts` is what pins the order itself.
  */
 
 import { readFileSync } from "node:fs";

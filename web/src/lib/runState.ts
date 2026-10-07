@@ -102,7 +102,7 @@ export function runState(
       // Verification checked claims and declined to publish them. The
       // engine computed an answer and then refused to stand behind it,
       // which is a different thing to be told than "there was nothing
-      // here" -- and the reader can see the withheld claims and why.
+      // here", and the reader can see the withheld claims and why.
       state = "verification_withheld";
       reason = run.stopped_reason || "";
     } else {

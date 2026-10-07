@@ -3,7 +3,7 @@
  *
  * The production image builds the frontend from a narrower context than a
  * checkout: the Dockerfile copies `web/src`, the three tsconfigs,
- * `vite.config.ts` and `index.html` -- and nothing else. `npm run build`
+ * `vite.config.ts` and `index.html`, and nothing else. `npm run build`
  * runs `tsc -b`, which type-checks all of `src`, `src/test` included.
  *
  * So a file under `src/` that reaches outside it compiles locally, where

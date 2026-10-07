@@ -162,8 +162,8 @@ export function Chart({ chart, snapshot, onOpenProvenance }: Props) {
               },
               /*
                * `axisX` rather than `axis`, and config rather than the
-               * spec: a specification that set its own `axis.labelAngle`
-               * -- which the demo warehouse's do -- overrides config and
+               * spec: a specification that set its own `axis.labelAngle`,
+               * which the demo warehouse's do -- overrides config and
                * keeps the decision it made.
                */
               ...(labelAngle === null

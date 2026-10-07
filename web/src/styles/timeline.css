@@ -54,7 +54,7 @@
 
 /* ------------------------------------------------------------- states
  *
- * State is carried by fill, by weight and by the label's own words -- never
+ * State is carried by fill, by weight and by the label's own words, never
  * by colour alone, because a reader who cannot separate the hues still has
  * to be able to tell a finished stage from a stopped one.
  */
@@ -185,7 +185,7 @@
  * absolutely positioned fan broke at every width the spine reflows at.
  *
  * Connectors are pseudo-elements with `content: ""` -- geometry, not
- * glyphs -- so nothing is announced to a screen reader, which reads the
+ * glyphs, so nothing is announced to a screen reader, which reads the
  * ordered list and the text alternative instead.
  */
 .run-flow {
@@ -229,7 +229,7 @@
    * sweep failed every cell at 15.
    *
    * Rounding the chips alone would have landed on exactly 12, with no
-   * headroom -- and an AI run draws a sixth stage, so the next real
+   * headroom, and an AI run draws a sixth stage, so the next real
    * payload would have failed. Square corners cost the diagram nothing;
    * a flowchart of square boxes joined by arrows is if anything the more
    * conventional one, and the report's own language is hairlines and
@@ -312,7 +312,7 @@
 
 /* --------------------------------------------------------------- states
  *
- * Fill, weight and the state's own words -- never colour alone.
+ * Fill, weight and the state's own words, never colour alone.
  */
 .run-flow-node[data-state="complete"] .run-flow-mark,
 .run-flow-node[data-state="active"] .run-flow-mark {
@@ -387,7 +387,7 @@
 /* Wide enough to be a line rather than a column.
  *
  * These sized to their content first, and at 360px three of them shared a
- * row at 116, 143 and 145px -- which the hosted sweep failed at every one
+ * row at 116, 143 and 145px, which the hosted sweep failed at every one
  * of the twelve cells, correctly: 180px is about four words at this type
  * scale and a tool name wrapping over three lines in a 116px box is a
  * column, not a label. `flex-basis` makes the row break instead of
@@ -585,7 +585,7 @@
  * engine actually proposed, in the order it proposed them.
  *
  * **State is in the words, not only in the mark.** Each node prints its
- * own outcome -- "returned 24 rows", "refused before execution: …" -- so a
+ * own outcome -- "returned 24 rows", "refused before execution: …", so a
  * monochrome print, a reader who cannot separate the hues, and a screen
  * reader all get the same four distinctions the colours draw.
  *

@@ -82,7 +82,7 @@ export function RoleConfirmation({ field, onApply, disabled = false }: Props) {
     setError(null);
     setStatus("");
     // Raised before awaiting. `await` yields, so React can flush the
-    // parent's state update -- and run the effect below -- before the
+    // parent's state update, and run the effect below -- before the
     // continuation here would reach this line. The effect also runs when
     // `pending` settles, so a late flag would still be seen; raising it
     // here means the first run is the one that acts, rather than relying

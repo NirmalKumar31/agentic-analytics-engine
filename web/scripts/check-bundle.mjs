@@ -39,7 +39,7 @@
  * seven panels, and because those modules carry their reasoning. The
  * application code shrank, because ten components were deleted and their
  * replacements are smaller. Vega's chunk is byte-identical across the two
- * builds -- its content hash did not change -- and still separate.
+ * builds -- its content hash did not change, and still separate.
  */
 
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'

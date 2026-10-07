@@ -4,7 +4,7 @@
  * `check-e2e-sources.mjs` is what stops a billed request being issued by a
  * path the recorder cannot see, or answered in a way it cannot classify.
  * Both are one plausible line, neither breaks a test, and both make the
- * measured cost of the suite smaller than the real one -- which is how the
+ * measured cost of the suite smaller than the real one, which is how the
  * job came to be over its analysis budget while the guard reported it
  * passing.
  */

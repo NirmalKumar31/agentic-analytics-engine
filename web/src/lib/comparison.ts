@@ -120,7 +120,7 @@ export function compareRuns(
   // a different one.
   //
   // Falling through to the comparison below read the absence as a
-  // disagreement and announced "Different governed interpretations -- these
+  // disagreement and announced "Different governed interpretations. These
   // panes answered different questions" while the AI pane still read
   // "running". Observed against a real governed run where the two planners
   // went on to produce the identical figure. `base` already says the true
@@ -164,7 +164,7 @@ export function compareRuns(
 
   // Matching answers are not matching runs. Verification is per run, so one
   // mode can publish the same figure while having withheld something the
-  // other published -- and `shareOneResult` would then hide the withheld
+  // other published, and `shareOneResult` would then hide the withheld
   // finding along with the pane that held it. When the two differ in what
   // they withheld, there is something to compare, so both panes stay.
   if ((deterministic.rejected ?? []).length !== (ai.rejected ?? []).length) {

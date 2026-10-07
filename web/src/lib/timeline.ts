@@ -60,7 +60,7 @@ export interface Stage {
    * `data.reason` straight through: "stopped: the question could not be
    * mapped safely: the question asks about 'gross margin', which is not a
    * column of this table". That belongs in the evidence sheet, where an
-   * auditor wants the engine's exact words -- and not on the report
+   * auditor wants the engine's exact words, and not on the report
    * canvas, which is the one surface that carries no unedited engine
    * text. A surface that cannot take it has to be able to *tell*, which
    * is what this flag is for; the alternative was matching on the
@@ -121,7 +121,7 @@ export function modelPlanned(events: RunEvent[]): boolean {
  * `events` is the only input.
  *
  * There is deliberately no `finished` flag. Whether the run is over is
- * itself an event -- `run_completed` -- so taking it as a parameter would
+ * itself an event -- `run_completed`, so taking it as a parameter would
  * let a caller tell the timeline something the engine had not said, which
  * is the one thing this derivation exists to prevent.
  */

@@ -5,7 +5,7 @@
  * three ceilings this suite can exhaust:
  *
  *   max_active_upload_sessions   24, which the workflow now sets
- *                                explicitly -- it did not, and this was
+ *                                explicitly. It did not, and this was
  *                                the ceiling nothing named
  *   uploads_per_ip_per_hour      200, shared by all three engines because
  *                                they run from one address inside one hour
@@ -23,7 +23,7 @@
  * a build rather than be a number somebody remembers.
  *
  * No measured totals live in this file. They were here, and they went
- * stale the first time the suite changed -- and worse, one of them was a
+ * stale the first time the suite changed, and worse, one of them was a
  * prediction rather than a measurement. The numbers belong in
  * `e2e/UPLOADS.md`, next to the run they came from.
  *
@@ -98,7 +98,7 @@ const JOB = process.env.AAE_E2E_JOB_ID ?? null
  * The engines this job is expected to produce ledgers for.
  *
  * An engine that ran but wrote nothing is indistinguishable from an engine
- * that never ran, and both are a hole in the accounting -- so a selection
+ * that never ran, and both are a hole in the accounting, so a selection
  * naming three engines that leaves two ledgers is a failure, not a smaller
  * number.
  */
@@ -130,7 +130,7 @@ const MAX_ADMISSIONS_PER_ENGINE = 26
  * reports success right up to the moment CI goes red.
  *
  * Three times the per-engine allowance, so the per-engine rule is the one
- * that normally fires -- which is the right way round, because a single
+ * that normally fires, which is the right way round, because a single
  * engine drifting upwards is a change somebody made, while the job total
  * is the thing the container actually enforces.
  */
@@ -333,7 +333,7 @@ for (const event of events) {
          * Served from a registered payload: the container was never asked
          * to compute anything, so it costs nothing against the analysis
          * ceiling. Counted anyway, because "how much of this suite is
-         * replay" is worth being able to answer -- and a fall in replays
+         * replay" is worth being able to answer, and a fall in replays
          * with a matching rise in admissions is the regression this file
          * exists to catch.
          */
@@ -524,7 +524,7 @@ for (const [engine, r] of byEngine) {
 
   /*
    * Non-vacuity. An engine that uploaded datasets and admitted nothing did
-   * not run a cheap suite -- it ran a suite whose accounting stopped
+   * not run a cheap suite. It ran a suite whose accounting stopped
    * working, which is exactly the failure this file was rewritten for. The
    * floor is 1 rather than a measured number so that a genuine reduction
    * does not have to move it.

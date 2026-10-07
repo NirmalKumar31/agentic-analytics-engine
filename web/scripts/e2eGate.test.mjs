@@ -8,7 +8,7 @@
  *
  * `.mjs` beside the module it tests: CI runs the gate with bare `node`
  * after the frontend build, so the gate cannot be TypeScript, and a test
- * under `src/` importing it would reach outside `src/` -- which the
+ * under `src/` importing it would reach outside `src/`, which the
  * build-context gate forbids, because the image's build context has no
  * `scripts/`.
  */

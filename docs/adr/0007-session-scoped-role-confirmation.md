@@ -1,4 +1,4 @@
-# 0007 — The uploader supplies the missing fact: session-scoped role confirmation
+# 0007: The uploader supplies the missing fact: session-scoped role confirmation
 
 Status: accepted
 Date: 2026-10-02
@@ -12,7 +12,7 @@ this record implements.
 
 0006 settled the hard part: a numeric column of small integers is
 genuinely undecidable from its values. `age` and `Store` are the same
-shape — integers in a narrow band, a modest distinct count, no nulls — and
+shape (integers in a narrow band, a modest distinct count, no nulls) and
 one is a quantity worth averaging while the other is a label whose mean is
 meaningless. The owner ruled out every way of guessing: no column-name
 special cases, no density heuristic, no list of names that look like
@@ -20,7 +20,7 @@ identifiers. A dataset-specific rule is a rule that is wrong on the next
 dataset.
 
 That left the only correct answer: the person who uploaded the file says
-which it is. 0006 deferred *where that lands*, and gave the reason — a
+which it is. 0006 deferred *where that lands*, and gave the reason: a
 role the engine does not honour is worse than no role at all, because a
 label the planner ignores is a lie told in the interface. So the control
 could not ship until the engine would act on it and the audit would
@@ -33,7 +33,7 @@ This record is that change.
 ### Raw inference and effective schema are different things
 
 `infer_schema()` keeps returning what the data alone supports. It is not
-given access to anyone's opinion, and `as_dict()` stays pure — a
+given access to anyone's opinion, and `as_dict()` stays pure, which is a
 serializer that reached into session state would make the raw inference
 unobservable, and the question "what did the engine think before anyone
 intervened" has to stay answerable.
@@ -41,7 +41,7 @@ intervened" has to stay answerable.
 Confirmations are applied by `apply_role_confirmations()`, a pure function
 over a copied `InferredSchema`, and the two are combined in exactly one
 place: `effective_schema(session, table, *, confirmation_snapshot=None)`.
-Every consumer — the API summary, the planner, MCP, the SQL builder —
+Every consumer (the API summary, the planner, MCP, the SQL builder)
 reads the effective schema. Nothing reads the raw inference and then
 patches it locally, because two places that combine the same two inputs
 are two places that can disagree.
@@ -58,7 +58,7 @@ nothing durable about anyone's data from it.
 
 ### Only measure and dimension can be confirmed
 
-`CONFIRMABLE_ROLES` is `("measure", "dimension")` — in the interface,
+`CONFIRMABLE_ROLES` is `("measure", "dimension")`, in the interface,
 "quantity" and "category". Those are the two readings the planner can act
 on for an ambiguous numeric column, and they are the two the ambiguity is
 actually between.
@@ -94,8 +94,8 @@ confirmation deadlock against a run holding it.
 
 ### A run pins one schema, and an active run blocks the write
 
-`RunContext` pins a `RoleConfirmationSnapshot` — a frozen
-`(revision, mapping)` — at admission, and every schema read inside the run
+`RunContext` pins a `RoleConfirmationSnapshot`, a frozen
+`(revision, mapping)`, at admission, and every schema read inside the run
 goes through it. A run that saw a confirmation land halfway through would
 publish evidence describing a schema that never existed as a whole.
 
@@ -106,7 +106,7 @@ dataset's owner from settling their own column.
 
 Compare runs both branches against **one** snapshot, captured once before
 either admission. Two captures could straddle a confirmation and produce a
-comparison whose two halves disagree about what a column meant — the one
+comparison whose two halves disagree about what a column meant, which is the one
 thing a comparison must never do.
 
 ### Provenance is required, and the canonical hash excludes it

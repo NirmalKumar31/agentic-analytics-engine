@@ -13,7 +13,7 @@
  * The first is invisible to `watchTraffic`, which listens to the page's
  * network events; `route.fetch` and `APIRequestContext` do not produce
  * them. The second is indistinguishable from the container answering.
- * Neither fails anything at runtime -- they just make the number smaller.
+ * Neither fails anything at runtime. They just make the number smaller.
  *
  * So they are refused here, by reading the files. A spec that genuinely
  * needs to issue one goes through `ledgerHarnessRequest`, which records it.
@@ -144,7 +144,7 @@ for (const name of readdirSync(E2E).filter((file) => file.endsWith('.ts'))) {
  * And the two settings the whole resource model assumes.
  *
  * `retries` is not a convenience here. The report guard refuses a flaky
- * test outright, so a retry can never turn a job green -- it can only run
+ * test outright, so a retry can never turn a job green. It can only run
  * the test again and spend the budget a second time, with no entry in any
  * plan for what that costs. `workers: 1` is what makes one shared upload
  * session per engine possible at all.

@@ -15,7 +15,7 @@
  *
  * The stale-report problem is handled before Playwright starts. The report
  * is deleted first, so a crash that writes nothing cannot leave the
- * previous run's JSON for the guard to approve -- which has happened here
+ * previous run's JSON for the guard to approve, which has happened here
  * once already, with `--reporter=line` overriding the config's JSON
  * reporter and the guard reading a file from the run before.
  */
@@ -72,7 +72,7 @@ const guard = spawnSync('node', ['scripts/check-playwright-skips.mjs', REPORT], 
  * And the resource budget, also unconditionally.
  *
  * The two guards answer different questions -- "did every test run and
- * reconcile" and "what did the run cost the server" -- and a failing run
+ * reconcile" and "what did the run cost the server", and a failing run
  * needs both answered. A job that fails on 71 assertions *and* exhausted
  * the analysis ceiling has two problems, and reporting one of them sends
  * the next hour in the wrong direction.

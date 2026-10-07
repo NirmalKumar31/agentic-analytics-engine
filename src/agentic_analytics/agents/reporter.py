@@ -19,7 +19,7 @@ What the model still decides, and why that is safe:
 
 * **Selection and ordering** -- cannot introduce a claim, because every
   candidate is already verified.
-* **Section grouping** -- which findings belong together. The *heading* is
+* **Section grouping**, which findings belong together. The *heading* is
   not the model's: a label short enough to look like a label is still long
   enough to assert something, so the engine derives it from the kind of
   evidence in the group.

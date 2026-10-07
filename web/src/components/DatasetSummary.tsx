@@ -184,7 +184,7 @@ export function DatasetSummary({
  * Questions this dataset can actually answer, and that are worth asking.
  *
  * The first version took `measures[0]` and proposed totalling it. On a
- * dataset whose only classified measure is `age` -- because the real
+ * dataset whose only classified measure is `age`, because the real
  * measure is near-unique and reads as an identifier -- that produced
  * "What is total age by team_size?" and "Which team_size contributes most
  * to age?". Both are reproducible arithmetic and neither is a question
@@ -192,12 +192,12 @@ export function DatasetSummary({
  *
  * So a sum is suggested only for a column whose name reads as a quantity,
  * an average is offered for one that reads as an attribute, and a
- * contribution question -- which only makes sense over an additive total
+ * contribution question, which only makes sense over an additive total
  * -- is offered for neither unless the engine is confident.
  *
  * A column the reader confirmed as a quantity counts as an attribute here.
  * Confirming clears the additivity guess, because asserting "this is a
- * quantity" says nothing about whether totalling it means anything -- so
+ * quantity" says nothing about whether totalling it means anything, so
  * without this the confirmed column matched no branch and nothing on the
  * page mentioned it again. An average is what the control offered in so
  * many words ("can be averaged or totalled"); a sum is a further claim
@@ -282,7 +282,7 @@ export type Intent = "Trend" | "Compare" | "Rank" | "Relationship" | "Count";
  *
  * `Relationship` is deliberately absent. The generator does not produce a
  * two-variable question, because proposing one would invite a causal
- * reading the verifier would then withhold -- and a suggestion that
+ * reading the verifier would then withhold, and a suggestion that
  * reliably produces a withheld finding is a worse suggestion than none.
  * The wireframe showed four intent groups; three are honest.
  */

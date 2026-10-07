@@ -1,4 +1,4 @@
-# Principal audit corrections — release evidence
+# Principal audit corrections: release evidence
 
 This record describes the locally verified implementation commit `77627cc`,
 based on `main` at `cd83683`. It is evidence for a proposed change, not proof

@@ -130,8 +130,8 @@ def preflight(
     # The mirror of the rule above, and the one a real run needed. On the
     # demo warehouse the planner kept reaching for `aggregate_for_question`,
     # which maps a question onto one table's raw columns. The server refused
-    # every call -- correctly, since "revenue" is a metric-layer definition
-    # and not a column -- but only after a round trip, with a message about
+    # every call, correctly, since "revenue" is a metric-layer definition
+    # and not a column, but only after a round trip, with a message about
     # ambiguous columns rather than about the layer being bypassed.
     if tool == "aggregate_for_question" and contract.has_metrics:
         return PreflightRejection(

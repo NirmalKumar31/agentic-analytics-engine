@@ -4,7 +4,7 @@
  * `AnswerReport` renders the evidence drawer's contents a second time, as a
  * `hidden` appendix that only `@media print` reveals. That is deliberate --
  * a reader who prints a report must not get less than a reader who clicks
- * through it -- but it means the report element now contains two copies of
+ * through it, but it means the report element now contains two copies of
  * every datum the drawer holds: one behind a control, one behind `hidden`.
  *
  * A test about what is *on the canvas* has to exclude the appendix, or it

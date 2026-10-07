@@ -29,8 +29,8 @@ This isolates the default routing policy. An exactly resolved upload question
 does not construct a cloud provider or consume AI admission.
 
 **Not every ambiguity is delegable**, and the diagram now distinguishes the
-two kinds. An ambiguity of *language* -- wording that did not say which
-column filled a role -- may use a typed AI planning proposal, locally
+two kinds. An ambiguity of *language*, meaning wording that did not say which
+column filled a role, may use a typed AI planning proposal, locally
 validated before a contract reaches execution. An ambiguity of *business
 semantics* may not: when a table carries both `order_date` and
 `signup_date`, which one defines "2024" is a fact about the business, not
@@ -122,12 +122,12 @@ is wrong in a way no test will catch.
 Nothing in CI reads these diagrams, so the snapshot is only worth the audit
 behind it. What the `077fc70` audit resolved, diagram by diagram:
 
-**01 — from dataset to an inspectable answer.** The five operations in
+**01, from dataset to an inspectable answer.** The five operations in
 "Resolved upload aggregate" are the set `_is_canonical_upload_aggregate`
 admits in `graph/build.py`, literally and in full: `count`, `sum`,
 `average`, `trend`, `rank`. `profile` is the sixth upload operation and is
 deliberately *not* in that set, so a profile question routes to
-`plan_analysis` -- the "Other analysis paths" box -- exactly as drawn. The
+`plan_analysis`, the "Other analysis paths" box, exactly as drawn. The
 node chain in that box is the graph's own: `plan_analysis`,
 `analysis_worker`, `aggregate_results`, `critique_findings`,
 `followup_round`, `build_visualizations`, `write_report`,
@@ -136,7 +136,7 @@ node chain in that box is the graph's own: `plan_analysis`,
 `api/runs.py` on the run. `AnalysisPresentation` is a `Strict` model in
 `presentation/schemas.py`.
 
-**02 — how an uploaded question becomes a contract.** The five routing
+**02, how an uploaded question becomes a contract.** The five routing
 states are `ResolutionState` in `analytics/resolution.py`: `EXACT`,
 `AMBIGUOUS`, `UNRESOLVED`, `UNSUPPORTED`, `UNSAFE`. The split the diagram
 draws between "AMBIGUOUS · LANGUAGE" and "AMBIGUOUS · SEMANTIC" is
@@ -147,7 +147,7 @@ what "a missing business clock is asked, not inferred" names, and
 so "UNRESOLVED · UNSUPPORTED · UNSAFE → no planner request" holds by
 construction.
 
-**03 — where computation and data live.** The ledger verbs are
+**03, where computation and data live.** The ledger verbs are
 `CostLedger.reserve` and `.settle` in `llm/ledger.py`; "retain" is
 `.abandon`, which deliberately leaves a reservation charged rather than
 refunding it. "Remote /mcp is withdrawn when allowed hosts are empty" is

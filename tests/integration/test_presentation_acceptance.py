@@ -337,7 +337,7 @@ def test_the_published_chart_specification_still_carries_no_rows(
 #
 # The presentation is built around an `aggregate_for_question` snapshot. The
 # demo warehouse resolves through the metric registry and never produces one,
-# while still setting `query_mapping` -- so the guard in `_presentation_for`
+# while still setting `query_mapping`, so the guard in `_presentation_for`
 # let it through and the builder's own "no snapshot" branch returned a
 # FAILURE presentation.
 #

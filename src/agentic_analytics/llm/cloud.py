@@ -56,8 +56,8 @@ RESPONSE_FORMAT_NAME = "analysis_response"
 REASONING_EFFORTS = ("none", "low", "medium", "high", "xhigh", "max")
 
 #: Never sent. The engine does not depend on a particular sampling setting --
-#: determinism comes from the analytics layer, not from the model's decoding
-#: -- and a reasoning model rejects or ignores them. Named here so a test can
+#: determinism comes from the analytics layer, not from the model's decoding,
+#: and a reasoning model rejects or ignores them. Named here so a test can
 #: assert their absence rather than trusting that nobody adds one.
 FORBIDDEN_SAMPLING_FIELDS = ("temperature", "top_p", "top_k", "top_logprobs", "logprobs")
 
@@ -250,7 +250,7 @@ class CloudProvider(LLMProvider):
     #:
     #: `reasoning` used to be in this list and should not have been.
     #: Reasoning effort can change the hidden instructions the model is
-    #: given, which is input -- so counting without it produced a number
+    #: given, which is input, so counting without it produced a number
     #: about a request the model never sees, and a count that bounds a
     #: different request bounds nothing.
     #:   https://developers.openai.com/api/docs/guides/token-counting

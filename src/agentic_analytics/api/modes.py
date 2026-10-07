@@ -121,8 +121,8 @@ def build_provider_for_mode(
     if mode in (RunMode.DETERMINISTIC, RunMode.AUTO):
         # An automatic run gets the scripted provider for everything the
         # graph does outside planning. Its cloud planner, if it needs one,
-        # is built lazily and separately -- see `RunContext.open_planner`
-        # -- so a question the rules answer never touches the credential.
+        # is built lazily and separately. See `RunContext.open_planner`,
+        # so a question the rules answer never touches the credential.
         from agentic_analytics.llm.fake import FakeProvider
 
         return FakeProvider(max_calls=cfg.budgets.max_llm_calls)

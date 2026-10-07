@@ -81,7 +81,7 @@ async function openInspector(page: Page) {
 /**
  * Close it again.
  *
- * The sheet is modal -- it has a scrim, and focus is contained -- so the
+ * The sheet is modal. It has a scrim, and focus is contained, so the
  * page behind it cannot be used until it is closed. That is the real
  * sequence a reader follows: settle the column, close the schema, ask the
  * question. Idempotent, so a test can declare what it needs without
@@ -277,7 +277,7 @@ test.describe("settling a close call", () => {
 
   test("confirming again brings the question back, and running it groups by the column", async () => {
     // Ordered last in this group deliberately. Running an analysis replaces
-    // the composer with the report workspace, so the inspector -- and the
+    // the composer with the report workspace, so the inspector, and the
     // control inside it -- is no longer reachable: a reset asserted after a
     // run has nothing to click. This is also the only place the
     // reset-then-confirm-again path is exercised, which is why the run is
@@ -459,8 +459,8 @@ test.describe("confirming the reading the engine already had", () => {
 
 test.describe("when the server refuses", () => {
   /*
-   * Each of these tests uploads its own dataset -- they mutate the schema
-   * revision, so they cannot share one -- and a server-side upload session
+   * Each of these tests uploads its own dataset. They mutate the schema
+   * revision, so they cannot share one, and a server-side upload session
    * is not freed by the test ending. Three engines leaving theirs behind is
    * what exhausted the 24-session pool.
    */
@@ -562,8 +562,8 @@ test.describe("when the server refuses", () => {
 
 test.describe("the control at every width", () => {
   /*
-   * Each of these tests uploads its own dataset -- they mutate the schema
-   * revision, so they cannot share one -- and a server-side upload session
+   * Each of these tests uploads its own dataset. They mutate the schema
+   * revision, so they cannot share one, and a server-side upload session
    * is not freed by the test ending. Three engines leaving theirs behind is
    * what exhausted the 24-session pool.
    */
@@ -621,8 +621,8 @@ test.describe("the control at every width", () => {
 
 test.describe("accessibility of the control", () => {
   /*
-   * Each of these tests uploads its own dataset -- they mutate the schema
-   * revision, so they cannot share one -- and a server-side upload session
+   * Each of these tests uploads its own dataset. They mutate the schema
+   * revision, so they cannot share one, and a server-side upload session
    * is not freed by the test ending. Three engines leaving theirs behind is
    * what exhausted the 24-session pool.
    */

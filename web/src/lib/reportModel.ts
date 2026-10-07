@@ -91,7 +91,7 @@ export interface ReportModel {
    *
    * "This is a partial breakdown" without numbers is a hedge. The numbers
    * are what make it actionable -- 25 of 45 groups, 3,575 of 6,435 matching
-   * rows -- and dropping them was a regression this file's first draft
+   * rows, and dropping them was a regression this file's first draft
    * introduced and `answerFirst.test.tsx` caught.
    */
   partialDetail: string | null;
@@ -210,7 +210,7 @@ function fromFindings({
    *
    * `directAnswer` only recognises a finding citing a result produced by a
    * tool that executed an accepted contract, and a contract is only
-   * accepted for uploaded data -- so on the governed warehouse it always
+   * accepted for uploaded data, so on the governed warehouse it always
    * declines and `findings[0]` used to lead. That makes the planner's task
    * ordering into editorial ranking, and a live run showed the cost: a
    * report answering "which customer segments are driving the increase in
@@ -332,7 +332,7 @@ export function reportModel(input: {
    * A terminal state owns the top of the report.
    *
    * It used to be a separate card beside the report, which meant a refusal
-   * stated its reason twice -- once in the card and once as the headline,
+   * stated its reason twice, once in the card and once as the headline,
    * because the presentation builder sets the headline from the same stop
    * reason. One of them has to win, and it is the one written for a reader.
    */

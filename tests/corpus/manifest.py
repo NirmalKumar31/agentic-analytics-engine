@@ -58,7 +58,7 @@ ALLOWED: dict[QuestionKind, frozenset[Outcome]] = {
     QuestionKind.PERIOD_SENSITIVE: frozenset({Outcome.VERIFIED_ANSWER, Outcome.NO_FINDINGS}),
     # A refusal counts. Terminology that cannot be mapped to a column is
     # ambiguous in substance, and a refusal naming what to say instead is
-    # more honest than picking whichever column seemed closest -- which is
+    # more honest than picking whichever column seemed closest, which is
     # the only other way to answer "how long do fixes take in each team?"
     QuestionKind.SYNONYM: frozenset(
         {Outcome.VERIFIED_ANSWER, Outcome.NO_FINDINGS, Outcome.SAFE_REFUSAL}
@@ -466,7 +466,7 @@ _QUESTIONS: dict[str, dict[QuestionKind, str]] = {
 #: The other kinds ask whether the engine maps a question to the right
 #: columns; these ask whether a restriction it mapped actually reached the
 #: query. That failure is invisible in the output -- a dropped filter
-#: returns real numbers for a population nobody asked about -- so each
+#: returns real numbers for a population nobody asked about, so each
 #: case here is either answered with the restriction applied or refused.
 _FILTER_QUESTIONS: dict[str, dict[QuestionKind, str]] = {
     "retail_orders": {

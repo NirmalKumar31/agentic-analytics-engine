@@ -59,7 +59,7 @@ log = get_logger(__name__)
 #: How long the *receipt* for a reservation survives.
 #:
 #: Not a hold that lapses. The amount is added to the counters when the
-#: reservation is taken, so this TTL does not give budget back -- it
+#: reservation is taken, so this TTL does not give budget back. It
 #: removes the record needed to give it back. A process killed mid-call
 #: therefore leaves its worst-case estimate charged, permanently against
 #: the lifetime total and until tomorrow against the daily one.
@@ -117,8 +117,8 @@ class RedisLike(Protocol):
 #:
 #: Session and client run counting used to happen inside `_RESERVE`, on the
 #: first *billable* call. Model retrieval and token counting come before
-#: that, and they are provider requests made with the account's credential
-#: -- so a caller could open sessions, vary a forwarded-for header and
+#: that, and they are provider requests made with the account's credential,
+#: so a caller could open sessions, vary a forwarded-for header and
 #: drive preflight traffic indefinitely without ever consuming a run quota.
 #: Nothing durable had authorised the run.
 #:

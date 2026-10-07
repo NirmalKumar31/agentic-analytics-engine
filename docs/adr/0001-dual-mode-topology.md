@@ -1,4 +1,4 @@
-# 0001 — One service for dual-mode v0.1
+# 0001: One service for dual-mode v0.1
 
 Status: accepted
 Date: 2026-09-27
@@ -30,8 +30,8 @@ public process proxies AI runs to an internal one that holds the key.
 
 Dataset sessions are the deciding constraint. A session is a DuckDB
 connection, a capability cookie and an uploaded file living in one process. In
-topology B, Compare Both either uploads the dataset twice — two sessions, two
-fingerprints, and a comparison that is no longer of the same data — or shares
+topology B, Compare Both either uploads the dataset twice (two sessions, two
+fingerprints, and a comparison that is no longer of the same data) or shares
 a session across origins, which means a cross-site credentialed cookie,
 `SameSite=None`, a CORS allow-list and CSRF protection that the code does not
 have today.
@@ -69,5 +69,5 @@ result is never interpreted through the server's current configuration.
 
 A two-service split stays open. It becomes worthwhile when AI traffic needs
 separate scaling or a separate availability budget, and it should be revisited
-then — with a same-origin path for the browser, such as a reverse proxy, so
+then, with a same-origin path for the browser such as a reverse proxy, so
 the cookie architecture does not have to change.

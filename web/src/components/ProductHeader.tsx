@@ -64,7 +64,7 @@ export function ProductHeader({
  *
  * A baseline, two risers of differing height, and one plotted reading. It is
  * the same contour geometry as the rest of the visual signature, and it is
- * the smallest honest picture of what this product does -- it measures
+ * the smallest honest picture of what this product does. It measures
  * something and plots where the measurement landed.
  *
  * What it replaces was a rising line inside a rounded square: a chart going
@@ -73,7 +73,7 @@ export function ProductHeader({
  * rising, and the mark should not promise one of them.
  *
  * It is not a logotype, it carries no text, and it never appears inside the
- * report canvas -- once, in the header, is the whole budget.
+ * report canvas, once, in the header, is the whole budget.
  */
 function BrandMark() {
   return (

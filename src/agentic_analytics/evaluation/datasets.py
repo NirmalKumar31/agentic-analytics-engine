@@ -43,7 +43,7 @@ class EvalQuestion:
     text: str
     #: aggregate | grouped | ranking | trend | statistical | ambiguous |
     #: unsupported. Used to read the results by category rather than to
-    #: score an expected answer -- there is no answer key here.
+    #: score an expected answer. There is no answer key here.
     kind: str
     #: What a competent run would do. Not asserted; recorded next to what
     #: actually happened, so a human can see the gap.

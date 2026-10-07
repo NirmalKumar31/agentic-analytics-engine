@@ -52,7 +52,7 @@ Where the content comes from:
 
 ## The matrix
 
-Six widths — 360, 390, 768, 1024, 1440, 1920 — in light and dark, which is
+Six widths (360, 390, 768, 1024, 1440, 1920) in light and dark, which is
 twelve projects, times ten states: landing, composer, report,
 execution-graph, evidence-drawer, focus-restoration, compare,
 terminal-refused, reduced-motion, print. 120 cells, each with a screenshot.

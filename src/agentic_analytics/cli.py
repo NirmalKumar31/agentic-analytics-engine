@@ -412,7 +412,7 @@ def cloud_preflight() -> None:
     async def _check() -> Any:
         # A bare provider is right here and only here: preflight creates no
         # response. It resolves the model, prices it, and puts one strict
-        # schema to the token counter -- all free -- so there is nothing
+        # schema to the token counter -- all free, so there is nothing
         # for a ledger to admit.
         nonlocal provider_owner
         provider = CloudProvider(

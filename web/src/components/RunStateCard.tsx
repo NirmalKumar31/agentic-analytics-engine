@@ -20,7 +20,7 @@ import type { RunState } from "../lib/runState";
  *
  * All four tones are mapped. The previous version sent anything that was
  * not `error` to `warn`, which was correct while every non-verified state
- * was a problem -- and became wrong once `no_findings` existed, because
+ * was a problem, and became wrong once `no_findings` existed, because
  * "the analysis found nothing to claim" is an outcome, not a warning.
  */
 const TONE_CLASS: Record<RunState["tone"], string> = {

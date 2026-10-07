@@ -44,7 +44,7 @@ import { ambiguousCsv, answerRunWith, ask, endSession, onCanvas, openApp, plainC
  * Used wherever a test is not specifically about uploaded-file behaviour.
  * Uploads consume a bounded server-side session pool
  * (`max_active_upload_sessions`), and a suite that exhausts it gets its
- * uploads refused -- which surfaced here as nine tests failing inside
+ * uploads refused, which surfaced here as nine tests failing inside
  * `uploadFile` rather than as anything to do with what they assert. The
  * demo path has no such ceiling.
  */
@@ -63,7 +63,7 @@ test.describe("the schema inspector tells the truth about ambiguity", () => {
   // Serial, with one upload shared across the three tests.
   //
   // Uploads are rate limited per address, and the whole suite runs three
-  // times -- once per engine -- against one container. At one upload per
+  // times, once per engine -- against one container. At one upload per
   // test the third engine was refused mid-run and fifteen upload-dependent
   // tests failed, including pre-existing ones that have nothing to do with
   // this file. A profiled dataset does not change between these
@@ -263,7 +263,7 @@ test.describe("terminal states, produced by the engine", () => {
 
     // The terminal state is part of the report now, inside the same
     // reading column as the question. It was a separate card, which is
-    // what let a refusal state its reason twice -- once in the card and
+    // what let a refusal state its reason twice, once in the card and
     // once as the display headline.
     const report = page.getByTestId("report-panel");
     await expect(report).toBeVisible({ timeout: 90_000 });
@@ -350,7 +350,7 @@ test.describe("terminal states, produced by the engine", () => {
  *
  * The run payload is a server-shaped one with fields overridden. The
  * application derives the state, the label, the tone and the copy itself,
- * which is the behaviour under test -- and that derivation has to work on
+ * which is the behaviour under test, and that derivation has to work on
  * a payload with *every* field a real run carries, not on a hand-written
  * stub. So one real run is performed, its payload captured, and each case
  * is that payload with its own overrides.

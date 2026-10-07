@@ -53,7 +53,7 @@ test.describe("the composer, on a dataset with two clocks", () => {
      *
      * It used to compare the question field's area against the segmented
      * control's. Cards are deliberately larger than a pill strip -- that is
-     * the point of making them look selectable -- so the old comparison
+     * the point of making them look selectable, so the old comparison
      * would now fail for a design that was chosen on purpose, which makes
      * it a measurement of the wrong thing rather than a guard.
      *
@@ -61,7 +61,7 @@ test.describe("the composer, on a dataset with two clocks", () => {
      * the field comes first, no single card competes with it for width, and
      * the explanations are *not resident*. That last one is the assertion
      * that would have failed on the four-paragraph layout this test was
-     * written against -- it is kept, and strengthened from "one description"
+     * written against. It is kept, and strengthened from "one description"
      * to "none on screen until asked for".
      */
     const field = page.locator("#composer-field");

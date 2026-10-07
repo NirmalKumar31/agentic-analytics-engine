@@ -11,7 +11,7 @@
  * So this derives a flowchart: the stage spine with its labels, the arrows
  * between them, and the tool calls that `compute` fanned out into. Same
  * two derivations the evidence sheet's graph uses -- `timelineOf` and
- * `toolCallsOf` -- so the canvas and the sheet cannot disagree about what
+ * `toolCallsOf`, so the canvas and the sheet cannot disagree about what
  * happened.
  *
  * **Two rules carried forward unchanged, because they are why the picture
@@ -83,7 +83,7 @@ export const STAGE_STATE_LABEL: Record<StageState, string> = {
  * first version substituted "the reason is in the evidence", and the
  * refusal screenshot showed why that is noise: the box already said
  * "stopped here" in its state line, the report's own headline *is* the
- * engine's reason -- a refusal's answer is why it refused -- and the
+ * engine's reason -- a refusal's answer is why it refused, and the
  * section carries one control to the full record. Four ways of saying the
  * same thing, three of them in the same box.
  */
@@ -96,7 +96,7 @@ function sanitised(stage: Stage): string | null {
  * What a call says on the canvas.
  *
  * A completed call's outcome is authored from the event's own row count --
- * "returned 45 rows" -- and is a fact, so it is kept: the row count is the
+ * "returned 45 rows", and is a fact, so it is kept: the row count is the
  * single most useful thing on the node. Every other state's outcome may
  * carry `data.error` or `data.reason`, so those take the authored state
  * word instead and the engine's text stays in the sheet.

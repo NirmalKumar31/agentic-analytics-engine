@@ -174,7 +174,7 @@ def test_an_interval_table_refuses_a_bound_it_would_have_to_choose(
 def test_an_edge_table_will_not_pick_one_end_of_the_edge(
     tmp_path: Path, question: str, expected_dimension: str | None
 ) -> None:
-    """The row is an edge -- a leg *from* somewhere *to* somewhere -- so a
+    """The row is an edge -- a leg *from* somewhere *to* somewhere, so a
     question naming one end must be answered with that end, and a question
     naming neither must not be answered with whichever came first in the
     schema."""

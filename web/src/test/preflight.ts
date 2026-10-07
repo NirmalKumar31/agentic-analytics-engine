@@ -2,7 +2,7 @@
  * The browser suite refuses to run against a paid provider.
  *
  * This exists because of a near miss. A long-lived server owned by another
- * process was listening on 127.0.0.1:8000 -- which is exactly this suite's
+ * process was listening on 127.0.0.1:8000, which is exactly this suite's
  * default base URL -- reporting `provider_mode: cloud`. A uvicorn started
  * with `AAE_PROVIDER_MODE=fake` failed to bind that port, exited, and the
  * health response read back belonged to the other server. The posture you
@@ -19,7 +19,7 @@
  *
  * It lives under `src/test/` rather than beside the specs in `e2e/`, next
  * to the other non-suite helpers there, because the Dockerfile copies
- * `web/src` and not `web/e2e` -- and `npm run build` runs `tsc -b`, which
+ * `web/src` and not `web/e2e`, and `npm run build` runs `tsc -b`, which
  * type-checks `src/test`. With the module in `e2e/` the image build failed
  * on an unresolvable import while the identical command passed locally,
  * where `e2e/` happens to exist. The build context is part of the

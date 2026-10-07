@@ -157,7 +157,7 @@ describe("Compare Both terminal states", () => {
       />,
     );
     expect(paneStates()).toEqual(["completed_verified", "refused"]);
-    // The reason is on screen, not only in the activity log -- and it is
+    // The reason is on screen, not only in the activity log, and it is
     // attributed to the strategy that refused.
     expect(strategy("ai")).toHaveTextContent(/could not be mapped/i);
     expect(screen.queryByTestId("pane-placeholder")).toBeNull();

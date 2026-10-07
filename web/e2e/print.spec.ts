@@ -32,7 +32,7 @@ import { expect, freshComposer, reportFor, test } from "./fixtures";
  *
  * This replaces `app.spec.ts`'s "prints a complete report as a browser
  * PDF", which asserted the first four bytes and a lower bound on the file
- * size -- a PDF of a blank page passes both -- and rendered landscape,
+ * size -- a PDF of a blank page passes both, and rendered landscape,
  * which is not the page this design specifies.
  *
  * The viewport is set to the A4 printable width before each check. Print
@@ -85,7 +85,7 @@ async function reach(page: Page, scenario: Scenario): Promise<void> {
 
   // The shared session, reset: a refusal and a no-findings run are produced
   // by answering the finished run with a committed payload, so none of the
-  // three uploaded scenarios needs a dataset of its own -- and the two
+  // three uploaded scenarios needs a dataset of its own, and the two
   // fixture states ask the engine for nothing at all.
   if (scenario === "successful") {
     // The captured report, replayed: printing it is about layout, not
@@ -111,7 +111,7 @@ const SCENARIOS: Scenario[] = ["successful", "compare", "refusal", "no-findings"
 test.afterEach(async ({ profiled }) => {
   // The fixture routes as well as the media. A `POST /api/analyses` route
   // left installed would answer the next test's run with this test's
-  // payload -- and on a worker-scoped session "the next test" can be in
+  // payload, and on a worker-scoped session "the next test" can be in
   // another file.
   await profiled.unroute("**/api/analyses/*");
   await profiled.unroute("**/api/analyses");
@@ -134,8 +134,8 @@ test.describe("the print cascade, applied to a live page", () => {
       for (const selector of [
         ".topbar",
         ".composer",
-        // The row itself prints -- it holds the run's `contract · sha · ms`
-        // stamp -- but nothing in it that is operated does.
+        // The row itself prints. It holds the run's `contract · sha · ms`
+        // stamp, but nothing in it that is operated does.
         ".report-actions .btn",
         ".analytical-field",
         ".suggestions",
@@ -294,7 +294,7 @@ test.describe("the print cascade, applied to a live page", () => {
      * The body's background is polled, not sampled once.
      *
      * `reset.css` gives `body` a transition, so switching from the dark
-     * canvas to the printed white one is animated -- and a single read can
+     * canvas to the printed white one is animated, and a single read can
      * land in the middle of it. Firefox returned `rgb(111, 114, 114)`,
      * which is exactly halfway between #0e1113 and #ffffff; Chromium
      * happened to finish first. The claim is about the colour the page

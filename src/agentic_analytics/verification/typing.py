@@ -30,7 +30,7 @@ from typing import Any
 _CANONICAL = re.compile(r"^[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?$")
 
 #: A redundant leading zero: `0012345`. A numeric column never produces
-#: one -- the engine writes 12345 -- so text that carries them came from
+#: one -- the engine writes 12345, so text that carries them came from
 #: somewhere that was keeping them, which is what an identifier does.
 #: `0` and `0.5` are unaffected.
 _PADDED = re.compile(r"^[+-]?0\d")

@@ -1,4 +1,4 @@
-# Release evidence — governed analytics rebuild
+# Release evidence: governed analytics rebuild
 
 What was measured, against what, and what it does not cover. Every figure
 below came from a run recorded in this document's own session; none is
@@ -73,7 +73,7 @@ What the paid run established that no fake can:
 - both sides' averages match an independent DuckDB oracle computed before
   anything was sent;
 - coverage was complete on both sides and every row was represented;
-- a cited cell resolves inside each run's own results — the two sides
+- a cited cell resolves inside each run's own results, and the two sides
   share no result id and no finding id, so there is no cross-run leakage;
 - the deterministic side consumed **no** AI allowance;
 - nothing was published without a supporting verdict, and each side
@@ -84,7 +84,7 @@ What the paid run established that no fake can:
 ### What it does not establish
 
 The paid run exercises the **AI planner through Compare Both**. It does
-not exercise the `auto` routing *decision* — that a question the rules
+not exercise the `auto` routing *decision*, that a question the rules
 resolve exactly makes zero provider calls, and an ambiguous one makes
 exactly one. That decision is deterministic logic with no provider in it,
 covered by 45 tests and nine mutations, and a paid run would not add to
@@ -116,7 +116,7 @@ WebKit | 48 passed, 1 skipped |
 Firefox | 48 passed, 1 skipped |
 
 The single skip on WebKit and Firefox is the browser-PDF test, which uses
-`page.pdf()` — a Chromium-only Playwright API. It is gated rather than
+`page.pdf()`, a Chromium-only Playwright API. It is gated rather than
 failing.
 
 **CI runs Chromium alone.** Firefox and WebKit are therefore *locally

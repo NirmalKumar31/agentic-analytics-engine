@@ -107,7 +107,7 @@ def column_label(column: str) -> str:
 # --------------------------------------------------------------- semantics
 #
 # A name is half of an output contract. The other half is what the column
-# *is* -- and for a derived column that is a statement about the column it
+# *is*, and for a derived column that is a statement about the column it
 # derives from, not about itself.
 #
 # This was being decided by falling back. `period` is produced by

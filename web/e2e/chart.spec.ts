@@ -91,7 +91,7 @@ test.describe("a chart on an uploaded dataset", () => {
   });
 
   test("draws a trend as a line, not just a bar chart", async ({ profiled: page }) => {
-    // The hydration walks encoding channels, so it is kind-agnostic -- but
+    // The hydration walks encoding channels, so it is kind-agnostic, but
     // a trend plots the engine's synthesised `period` column rather than a
     // column of the uploaded file, which is the one field name that could
     // fail to resolve against the result.
@@ -154,7 +154,7 @@ test.describe("the run timeline, on real runs", () => {
      * The stages come from the engine's own event stream either way.
      *
      * `reportFor` admits the question once per job and replays the settled
-     * payload afterwards -- and that payload *is* a real run's, events
+     * payload afterwards, and that payload *is* a real run's, events
      * included. What a replay cannot assert is the progression while it
      * happens, which is `accessibility.spec.ts`'s "a run in flight" and
      * `app.spec.ts`'s live demo run. This asserts the finished record.
@@ -186,7 +186,7 @@ test.describe("the run timeline, on real runs", () => {
 });
 
 test.describe("Compare Both, in a browser", () => {
-  // This describe opens its own session -- see the test below -- so it
+  // This describe opens its own session (see the test below), so it
   // hands it back rather than leaving it for the container to time out.
   test.afterEach(async ({ page }) => {
     await endSession(page);
@@ -198,7 +198,7 @@ test.describe("Compare Both, in a browser", () => {
    * This file kept its own copy: an `/api/config` override and an
    * `/api/comparisons` handler that issued the real deterministic run with
    * `route.fetch`. That request is invisible to the traffic recorder --
-   * `route.fetch` produces no page event -- so the analysis happened and
+   * `route.fetch` produces no page event, so the analysis happened and
    * nothing counted it. `compareWith` records it where it is made and
    * remembers the settled payload, so the first comparison of a question
    * in the whole job is real and every later one replays it.
@@ -224,7 +224,7 @@ test.describe("Compare Both, in a browser", () => {
      * The same dataset label `compare.spec.ts` uses.
      *
      * Both files are `sampleCsv()` -- byte-identical data under two
-     * filenames -- and the label exists to stop a comparison being
+     * filenames, and the label exists to stop a comparison being
      * replayed across *different* data, not across two names for the
      * same data. Sharing it means the job admits one comparison over
      * this dataset instead of two.
@@ -359,7 +359,7 @@ test.describe("the chart's category labels", () => {
    * labels are: four words at 1440px were printed on their sides, in the
    * same product whose demo-warehouse specifications set `-30` and look as
    * the mockup intends. The angle is decided from the labels now --
-   * `categoryLabelAngle`, unit-tested in `axisLabels.test.ts` -- and this
+   * `categoryLabelAngle`, unit-tested in `axisLabels.test.ts`, and this
    * is the half that only a browser can check: that the decision reaches
    * the rendered SVG.
    */

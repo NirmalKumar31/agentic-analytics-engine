@@ -173,7 +173,7 @@ describe("the compatibility bridge is gone", () => {
   it("leaves no var() fallback carrying a stale hardcoded colour", () => {
     // Five call sites read `var(--line, #2a2f3a)` and `var(--accent,
     // #6ea8fe)`. The fallbacks were unreachable, being old-palette dark
-    // values that would have surfaced only if the token vanished -- which
+    // values that would have surfaced only if the token vanished, which
     // is exactly what retiring the alias would have caused.
     const hex = withoutComments(stylesheet()).match(/var\(\s*--[\w-]+\s*,\s*#[0-9a-f]{3,8}/gi);
     expect(hex ?? []).toEqual([]);
@@ -221,7 +221,7 @@ describe("rules stay in the module that owns their place in the cascade", () => 
      * `.presentation-report .answer-card`, a component deleted in step E,
      * so it was removed rather than refilled. The guarantee is now carried
      * structurally instead -- `print.css` is the last module that declares
-     * a print block at all -- which is stronger than ordering within one
+     * a print block at all, which is stronger than ordering within one
      * file, because it cannot be undone by appending to `states.css`.
      */
     const PRINTS = [
@@ -334,7 +334,7 @@ describe("rules stay in the module that owns their place in the cascade", () => 
      * And the chain above it, which is what lets `min-width: 0` matter.
      *
      * `.report-table` and `.report-visual` declare `display: grid` with no
-     * columns, so the implicit track is `auto` -- and an `auto` track takes
+     * columns, so the implicit track is `auto`, and an `auto` track takes
      * its content's max-content width. A five-column result table sized the
      * track to 678px inside a 358px section and the page scrolled 304px
      * sideways at 390px; the scroll container three levels down had already
@@ -381,7 +381,7 @@ describe("rules stay in the module that owns their place in the cascade", () => 
      * The `--z-*` ladder in tokens.css was declared and entirely unused:
      * every stacking context set a raw number. The surfaces rebuilt in this
      * redesign adopted it -- the landing field sits on `--z-behind`, the
-     * scrim on `--z-drawer`, the side sheet on `--z-overlay` -- and the two
+     * scrim on `--z-drawer`, the side sheet on `--z-overlay`, and the two
      * raw 60/61 in `drawer.css` went with that module.
      *
      * Three raw numbers remain, each a local stacking decision inside one
@@ -417,7 +417,7 @@ describe("rules stay in the module that owns their place in the cascade", () => 
      * scroll below them.
      *
      * Those panels are gone -- the activity log is in the evidence drawer
-     * and the timeline is not resident once a report exists -- and the
+     * and the timeline is not resident once a report exists, and the
      * rules then lifted the terminal state *above the dataset context
      * strip*: outside the reading column, before the reader had been told
      * which file it was about.

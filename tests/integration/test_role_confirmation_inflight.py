@@ -172,7 +172,7 @@ def test_a_comparison_captures_one_snapshot_for_both_branches(
     """
     # A comparison is only offered where AI is configured. The provider
     # stays `fake` and the key is a placeholder, so this is credential-free
-    # and makes no provider request -- it is the repository's existing
+    # and makes no provider request. It is the repository's existing
     # pattern for exercising the Compare admission path.
     import fakeredis
 
@@ -206,7 +206,7 @@ def test_a_comparison_captures_one_snapshot_for_both_branches(
         return snapshot
 
     # Patched on the class, because the manager holding the instance is
-    # private to `create_app` -- which is the correct boundary, so the test
+    # private to `create_app`, which is the correct boundary, so the test
     # works with it rather than opening it.
     monkeypatch.setattr(AnalysisSession, "role_confirmation_snapshot", counted)
 

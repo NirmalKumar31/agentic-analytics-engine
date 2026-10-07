@@ -43,7 +43,7 @@ test.describe("the run timeline", () => {
      *
      * All three tests assert on the timeline of the same finished
      * deterministic run. Each used to perform its own, so one thing was
-     * looked at three ways at three times the price -- and the warehouse's
+     * looked at three ways at three times the price, and the warehouse's
      * answer to this question is the same one five other specs are looking
      * at, so the job admits it once in total. The payload is a real run's,
      * events included, which is what these assertions read.

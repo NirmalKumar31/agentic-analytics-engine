@@ -74,7 +74,7 @@ def resolve_result_column(name: str, columns: list[str]) -> str | None:
 #: The engine rounds aggregates to four inside SQL, and printing all four
 #: put `1,122,887.8924` in a sentence about money. Two is what a reader
 #: expects and what the independently computed figure uses. The evidence
-#: cell keeps the value the query produced -- this changes presentation
+#: cell keeps the value the query produced. This changes presentation
 #: only, never what was verified.
 DISPLAY_PLACES = 2
 
@@ -371,7 +371,7 @@ def canonical_answer(
     # guessing what was meant.
     measure_named = getattr(mapping, "measure", None)
     # A count is the exception, but only a *grouped* count. The count is
-    # the value, so there is no measure to name -- and two corpus datasets
+    # the value, so there is no measure to name, and two corpus datasets
     # have no trustworthy numeric column and answer only this way.
     #
     # A bare count is not covered, because the comment above is right: "how

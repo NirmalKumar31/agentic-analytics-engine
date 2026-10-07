@@ -36,7 +36,7 @@ MAX_BAR_CATEGORIES = 60
 #: Distinct values an *ordered numeric* cut can show as bars before the
 #: bars stop being the readable form.
 #:
-#: Above this it is drawn as the sequence it is -- see the single-cut
+#: Above this it is drawn as the sequence it is. See the single-cut
 #: branch of `chart_for`. Twelve is a bar chart's comfortable label budget
 #: at a reading column's width, and the number only decides which of two
 #: honest drawings is used: it never declines a chart and never changes a
@@ -57,7 +57,7 @@ MAX_CUTS = 2
 #:
 #: Declared here rather than in the presentation layer, which imports it,
 #: because the engine's own specification has to carry a format for the
-#: path that never reaches a presentation -- and because two copies of this
+#: path that never reaches a presentation, and because two copies of this
 #: map is how an axis and a tooltip come to disagree about a date.
 #:
 #: Format strings only, never `labelExpr`: `expr` is on the forbidden-key
@@ -236,7 +236,7 @@ def chart_for(mapping: Any, snapshot: ResultSnapshot) -> dict[str, Any]:
     # Declining is the honest outcome, and it is also what the rest of the
     # system was already relying on. `graph/relevance.py` gives a charted
     # result a small bonus on the grounds that a presentable answer reads
-    # better than a number in an empty frame -- which is only true while
+    # better than a number in an empty frame, which is only true while
     # "charted" means "drawn correctly". The cross-tab was collecting that
     # bonus for a chart that misrepresented it.
     if len(resolved) > MAX_CUTS:
@@ -274,7 +274,7 @@ def chart_for(mapping: Any, snapshot: ResultSnapshot) -> dict[str, Any]:
         #
         # `PERIOD_COLUMN`'s comment above says "every other cut is an
         # unordered category", and for a cut like `age` that is simply not
-        # true. `presentation/fields.py` already knows it -- it resolves
+        # true. `presentation/fields.py` already knows it. It resolves
         # such a column to `SemanticKind.ORDERED_NUMERIC` and its own
         # comment says plotting one on a categorical axis "is what made a
         # 48-age breakdown unreadable". The chart builder had not been

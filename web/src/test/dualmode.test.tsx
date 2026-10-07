@@ -365,7 +365,7 @@ describe("CompareWorkspace", () => {
 
     // No side-by-side panes: that is what "shown once" means, and it is
     // the claim `pane-status.length === 0` used to stand for. The status
-    // itself has not gone anywhere -- it is a column in the table that
+    // itself has not gone anywhere. It is a column in the table that
     // compares the two strategies, where both sides now read "Complete",
     // which is more informative than two panes that are not rendered.
     expect(document.querySelectorAll(".compare-report")).toHaveLength(0);

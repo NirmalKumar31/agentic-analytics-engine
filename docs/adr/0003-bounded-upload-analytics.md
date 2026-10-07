@@ -1,4 +1,4 @@
-# 0003 — A bounded analytics engine, not a general question answerer
+# 0003: A bounded analytics engine, not a general question answerer
 
 Status: accepted
 Date: 2026-09-30
@@ -6,8 +6,8 @@ Date: 2026-09-30
 ## Context
 
 Production testing on real uploads found the engine answering questions it
-had not been asked. The failures were not arithmetic — DuckDB computed
-correctly every time — they were in deciding *what* to compute and in
+had not been asked. The failures were not arithmetic, since DuckDB computed
+correctly every time. They were in deciding *what* to compute and in
 describing what had been computed.
 
 Four, from the evidence:
@@ -27,7 +27,7 @@ Four, from the evidence:
   which is arithmetically reproducible and analytically meaningless.
 
 Both modes reached the same wrong contract in the first three, so
-Compare Both reported "same governed interpretation" — agreement about the
+Compare Both reported "same governed interpretation", agreement about the
 wrong thing, displayed as corroboration.
 
 ## Decision
@@ -46,7 +46,7 @@ Four structural consequences.
 two, and every decision, hash, coverage check and SQL clause reads it. The
 singular `dimension` survives one release as a projection that is
 populated only when there is exactly one grouping, and null for zero or
-two — so a two-cut question read through the old field looks like a
+two, so a two-cut question read through the old field looks like a
 question with no grouping rather than like a one-cut question.
 
 **Explicit roles outrank inferred ones.** A column named after `by` is a
@@ -64,7 +64,7 @@ separate statements, and Compare Both reports them separately.
 
 **The model plans; it does not compute.** One typed planning call. No model
 chooses a tool, restates arithmetic, picks a chart or writes a summary
-after a governed aggregate exists — that path cost seven model calls per
+after a governed aggregate exists. That path cost seven model calls per
 question and produced a redundant rejected draft each time. Deterministic
 mode makes none.
 
@@ -95,5 +95,5 @@ permitted when a visitor asks for it explicitly and never proposed.
 **None of this is evidence about a real model.** The corpus drives both
 modes with a scripted provider. What is claimed is that the bounds hold
 against the plans the tests construct, and that a cloud plan which cannot
-be validated either falls back to the engine's own contract — recorded as
-a fallback, never as independent agreement — or refuses.
+be validated either falls back to the engine's own contract, recorded as
+a fallback and never as independent agreement, or refuses.

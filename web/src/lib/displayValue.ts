@@ -16,7 +16,7 @@
  *
  * Everything it needs is on the `DisplayField`. A missing field means the
  * backend declined to describe that column, and the value is then shown as
- * stored -- which is honest, and is what the old path did for every
+ * stored, which is honest, and is what the old path did for every
  * column.
  */
 

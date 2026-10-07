@@ -272,7 +272,7 @@ def publish(finding: CandidateFinding, verdict: Verdict) -> PublishedFinding:
         answers_question=verdict.answers_question,
         relevance_reason=verdict.relevance_reason,
         # Dropped when the verifier could not read it. An unreadable change
-        # asserts nothing, so it does not fail the finding -- but it must
+        # asserts nothing, so it does not fail the finding, but it must
         # not be displayed as a calculation either, because nothing checked
         # it. The provenance drawer shows what was verified or nothing.
         claimed_change=(

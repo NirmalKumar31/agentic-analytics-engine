@@ -49,7 +49,7 @@ _IDENTIFIER = re.compile(
     r"\b[A-Za-z][A-Za-z_]*\d[A-Za-z0-9_]*\b"
     # Hyphenated or dotted: `MATH-101`, `ORD-100042`, `P1.2`. The separator
     # must touch both sides, so "revenue -101" keeps its number while
-    # "MATH-101" does not read as minus one hundred and one -- which is how
+    # "MATH-101" does not read as minus one hundred and one, which is how
     # a course code became a claimed negative value and failed a correct
     # finding for a numeric mismatch it never made.
     r"|\b[A-Za-z][A-Za-z_]*[-.][0-9][A-Za-z0-9_.-]*\b"
@@ -100,7 +100,7 @@ class NumericVerdict:
     checks: list[NumericCheck] = field(default_factory=list)
     #: True when the finding carried a `claimed_change` that could not be
     #: read at all. The change asserts nothing in that state, so it is
-    #: discarded rather than counted against the finding -- but the caller
+    #: discarded rather than counted against the finding, but the caller
     #: must clear it, so no unverified calculation is shown to a reader.
     claimed_change_discarded: bool = False
 
@@ -233,7 +233,7 @@ def verify_numbers(
             if verdict.reason == _MALFORMED_CHANGE:
                 # An unreadable change is not a false claim, it is no claim.
                 # Rejecting the finding for it discards one whose every
-                # stated number checked out -- which is what a real model
+                # stated number checked out, which is what a real model
                 # produced: correct figures, and a `claimed_change` missing
                 # its `from`/`to`. The numbers in the text are verified
                 # against the cited cells either way, so the guarantee is

@@ -63,7 +63,7 @@ export function ResultPanel({
    * One formatter, shared with the backend.
    *
    * This used to read `boolean_labels` and then fall through to
-   * `formatCell`, which sees no field metadata at all -- so a `$` measure
+   * `formatCell`, which sees no field metadata at all, so a `$` measure
    * printed "1,050,312.91", a `%` measure printed "9.96", and a period
    * printed "2025-01-01T00:00:00" directly beneath a headline that said
    * "Oct 2025". `displayValue` honours the semantic kind, the unit, the

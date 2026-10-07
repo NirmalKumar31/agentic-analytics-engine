@@ -248,7 +248,7 @@ def test_deleting_the_cookie_uses_the_same_attributes(warehouse_dir: Path, tmp_p
     """A deletion that differs on Secure leaves the cookie in the browser."""
     cfg = _settings(warehouse_dir, tmp_path, session_cookie_secure=True)
     # Over https, because a client will not return a Secure cookie to an
-    # http origin -- which is the flag doing its job.
+    # http origin, which is the flag doing its job.
     with TestClient(create_app(cfg), base_url="https://testserver") as client:
         session_id = client.post("/api/datasets/demo").json()["session_id"]
         response = client.delete(f"/api/datasets/{session_id}")

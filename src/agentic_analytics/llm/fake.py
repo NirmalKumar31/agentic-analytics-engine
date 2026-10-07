@@ -134,7 +134,7 @@ class FakeProvider(LLMProvider):
         # The subject of each matched hint, and the companions kept apart.
         #
         # A hint group may name more than one metric -- `return|refund` gives
-        # `return_rate` and `refund_amount` -- and the second exists so a
+        # `return_rate` and `refund_amount`, and the second exists so a
         # relationship question has a second variable to correlate. Handing
         # both to every analysis is how a question about return rate by
         # customer segment came to lead with a refund trend. The first of
@@ -161,7 +161,7 @@ class FakeProvider(LLMProvider):
 
         # Every quarter named, not just the first. "Q3 and Q2" is a request
         # to compare two periods, and reading only the leading match turned
-        # it into a request about one -- which then failed to resolve at all
+        # it into a request about one, which then failed to resolve at all
         # and was answered as though no period had been named.
         quarters = _QUARTER.findall(question)
         years = _YEAR.findall(question)
@@ -196,7 +196,7 @@ class FakeProvider(LLMProvider):
         # chi-square test belongs. The relationship branch still catches
         # what it was written for: "Do shipping delays appear to affect
         # repeat purchasing?" names no grouping, so it is still read as a
-        # relationship question -- and its causal claim is still rejected
+        # relationship question, and its causal claim is still rejected
         # downstream, which is what that example exists to show.
         relationship = _matches(r"affect|impact|relate|associat|correlat|driv", question)
         names_groups = bool(dimensions) or bool(_NAMES_A_BREAKDOWN.search(question))
@@ -232,7 +232,7 @@ class FakeProvider(LLMProvider):
         if quarters and not years:
             # The specific, actionable version. A quarter with no year
             # cannot be resolved -- guessing one would analyse data nobody
-            # asked about -- so say exactly what to type instead.
+            # asked about, so say exactly what to type instead.
             named = " and ".join(f"Q{q}" for q in dict.fromkeys(quarters))
             example = f"Q{quarters[0]} 2025"
             ambiguities.append(
@@ -244,7 +244,7 @@ class FakeProvider(LLMProvider):
             # Only when the question is actually about time. "The average
             # revenue by region" is not a temporal question, and telling
             # its reader that no time range was given is noise dressed as
-            # a caveat -- it describes the question, not the answer.
+            # a caveat. It describes the question, not the answer.
             ambiguities.append("No explicit time range; the full dataset period is used.")
         # A driver question with no period states what it is missing.
         #
@@ -358,7 +358,7 @@ class FakeProvider(LLMProvider):
         )
 
         # 2. The second target metric, if the question named one, over the
-        #    same period -- this is what makes "revenue up, margin down"
+        #    same period. This is what makes "revenue up, margin down"
         #    visible as two series rather than one claim.
         if len(targets) > 1:
             add(
@@ -1538,7 +1538,7 @@ def _answers_question(
 
     # A description of the table's shape, offered as the answer to a
     # question that asked for something else. It is true and checkable --
-    # the counts come from the profile result -- and it is not an answer to
+    # the counts come from the profile result, and it is not an answer to
     # "total kwh_consumed by tariff_band". The engine falls back to a
     # profile when a question cannot be mapped, and publishing that
     # fallback as a finding presented the fallback as the answer.

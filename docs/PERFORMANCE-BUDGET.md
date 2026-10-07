@@ -6,8 +6,8 @@ introduced this file, and the thresholds sit far enough above the
 observations that normal variation will not trip them.
 
 A tight threshold on a noisy measurement gets disabled within a month and
-then protects nothing. These are set to catch a *regression in kind* — a
-dependency landing on the critical path, the chart bundle becoming eager —
+then protects nothing. These are set to catch a *regression in kind*, such as
+a dependency landing on the critical path or the chart bundle becoming eager,
 rather than to police a few kilobytes.
 
 Measured: 2026-10-01, production build, local server, Chromium.
@@ -28,7 +28,7 @@ and the chart series ramp).
 **Initial transfer: 343 kB raw / ~103 kB gzip**, across two files.
 
 Up 7 kB raw on the figure this file first recorded. The stylesheet grew by
-0.9 kB -- a palette with a data-series ramp in two themes -- and the entry
+0.9 kB (a palette with a data-series ramp in two themes) and the entry
 chunk by 5.7 kB across thirteen new components and the restructured report.
 The architectural claim below is the one that matters, and it is unchanged.
 
@@ -93,7 +93,7 @@ For the load pattern and the render timing, the method is a Playwright
 response listener that records every `.js`/`.css` request and whether it
 arrives before or after the report is visible. It is not kept as a
 committed test: a timing assertion on a shared machine is the definition
-of a flaky gate. The architectural claim — that Vega is not on the
-critical path — *is* worth asserting, and
+of a flaky gate. The architectural claim, that Vega is not on the critical
+path, *is* worth asserting, and
 `e2e/foundation.spec.ts` already does it by failing if the landing page
 makes any request beyond the two expected files.

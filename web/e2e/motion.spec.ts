@@ -144,13 +144,13 @@ test.describe("with reduced motion asked for", () => {
 
   /*
    * `shared` says whether the surface needs the uploaded session. The
-   * landing is the one that must not have one -- it is the screen before a
-   * dataset exists -- so it takes a page of its own, which costs nothing.
+   * landing is the one that must not have one. It is the screen before a
+   * dataset exists, so it takes a page of its own, which costs nothing.
    *
    * Each `reach` sets the preference itself, at the one moment that works:
-   * after any reset -- which puts media emulation back, so that one spec
+   * after any reset, which puts media emulation back, so that one spec
    * cannot leave the shared session under a preference the next never
-   * asked for -- and before the action that animates. Setting it earlier
+   * asked for, and before the action that animates. Setting it earlier
    * is undone by the reset; setting it afterwards is too late, because an
    * entrance that has already started keeps its original duration.
    */

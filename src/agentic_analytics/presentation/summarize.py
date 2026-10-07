@@ -85,7 +85,7 @@ def measure_column(snapshot: ResultSnapshot, mapping: Any) -> str | None:
     # `compute_metric`, `compare_segments` and `analyze_timeseries` return
     # the metric as a named column and record no `column_lineage`, so the
     # loop above finds no aggregate and every governed-warehouse answer
-    # resolved to no measure at all -- which made `detect_shape` call it a
+    # resolved to no measure at all, which made `detect_shape` call it a
     # failure and the report say "could not be summarised as an answer".
     #
     # The metric's own name is the lineage in that case: the registry
@@ -147,8 +147,8 @@ def _values(snapshot: ResultSnapshot, column: str) -> list[tuple[int, Decimal]]:
 #: A convention, not a derivation, and it is written down here so it can
 #: be argued with: thirty is the usual floor for treating a sample
 #: proportion or mean as a stable estimate. It decides **only when the
-#: population is said out loud** -- never which group is named, never what
-#: the figure is -- so getting it wrong costs a sentence a reader did not
+#: population is said out loud**, never which group is named, never what
+#: the figure is, so getting it wrong costs a sentence a reader did not
 #: need, in the direction of saying more rather than less.
 THIN_GROUP_ROWS = 30
 
@@ -299,7 +299,7 @@ def thin_elsewhere_note(
     # choice: `numbers_resolve` refuses a published sentence carrying a
     # number the cited result does not hold, and it refused the first
     # version of this one. It stated the floor -- "fewer than 30 matching
-    # rows each" -- and thirty is a convention of this module, not a
+    # rows each", and thirty is a convention of this module, not a
     # measurement of anything. The count is traceable (it is reported
     # through `derived`), the group total and the smallest population are
     # cells, and the floor is now described rather than quoted.
@@ -517,8 +517,8 @@ def format_p_value(p: float) -> str:
         return "an unreported p-value"
     # `nan < 0.001` is False, so a non-finite value fell straight through to
     # the format string and published "p = nan". A reader cannot act on
-    # that, and `readerQuality` counts `NaN` as a value that never arrived
-    # -- correctly.
+    # that, and `readerQuality` correctly counts `NaN` as a value that
+    # never arrived.
     if not math.isfinite(value):
         return "an unreported p-value"
     if value < 0.001:
@@ -986,7 +986,7 @@ def _extremes(
 
     if shape is PresentationShape.ORDERED_NUMERIC_SERIES:
         # The groups have a numeric order, which is why the chart puts them
-        # on a numeric axis -- but an order is not a trend, and nothing here
+        # on a numeric axis, but an order is not a trend, and nothing here
         # tested for one. Saying so is the difference between describing a
         # breakdown and claiming a direction.
         extent = f"{low_value.formatted_value} to {high_value.formatted_value}"

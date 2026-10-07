@@ -4,7 +4,7 @@
  *
  * The palette's contrast was documented and not enforced. `tokens.css`
  * records the measurements in a comment, and axe checks whatever the browser
- * suite happens to render -- which is six states out of a much larger set.
+ * suite happens to render, which is six states out of a much larger set.
  * A token that fails on a surface no scanned state uses passes both.
  *
  * That gap has cost real time. `--ink-muted` took three attempts: `#79828a`
@@ -117,7 +117,7 @@ const LIGHT = resolve(hexTokens(LIGHT_BLOCK), aliasTokens(LIGHT_BLOCK));
  * Dark: the overrides, composed onto the light palette.
  *
  * The dark block redefines a subset. Everything it does not mention keeps
- * its `:root` value, because that is how the cascade works -- so the palette
+ * its `:root` value, because that is how the cascade works, so the palette
  * a reader in dark mode actually gets is light overlaid with the overrides.
  * Reading the block alone reports the rest as absent, which hides exactly
  * the failure this is looking for: a colour tuned for a light surface that
@@ -133,7 +133,7 @@ const LIGHT = resolve(hexTokens(LIGHT_BLOCK), aliasTokens(LIGHT_BLOCK));
  * declared on `:root` is a substitution performed where the token is used,
  * against whatever `--signal` holds on the element then. Under
  * `[data-theme="dark"]` that is the dark signal, so the alias follows the
- * override without being restated -- and restating it is how a palette
+ * override without being restated, and restating it is how a palette
  * drifts, because a later edit that forgets one alias leaves a single
  * component wearing the old hue.
  *
@@ -214,7 +214,7 @@ const TEXT_TOKENS = [
  * expressed by position and spacing, so they are decorative under 1.4.11 and
  * exempt. Measured, they sit at 1.26-2.85:1. Holding a divider to the
  * component threshold would mean darkening every hairline in the interface
- * to satisfy a rule that does not apply to it -- and the honest reason they
+ * to satisfy a rule that does not apply to it, and the honest reason they
  * are listed here at all is so that nobody re-adds them believing they were
  * overlooked.
  */
@@ -293,7 +293,7 @@ describe("interface colours clear 3:1 on every surface", () => {
  * It went wrong exactly there. `.btn.primary` carried `color: #1a1000`, a
  * near-black left from the palette where `--signal` was a light orange.
  * Against the mineral green it fell below 3:1, and axe failed three
- * browser states on it, while all 87 assertions here passed -- because
+ * browser states on it, while all 87 assertions here passed, because
  * none of them was looking at that pair.
  *
  * Each entry is (foreground token, fill token). Adding a filled control

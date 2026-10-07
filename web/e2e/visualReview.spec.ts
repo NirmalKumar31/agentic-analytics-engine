@@ -29,7 +29,7 @@ import { answerRunWith, ask, onCanvas, openApp, setTheme, watchTraffic } from ".
  *
  * Screenshots are written to `test-results/review/` for the visual half of
  * the review, which is a person looking at them. They are captured in
- * Chromium only -- one set of artefacts, not three -- and capturing is not
+ * Chromium only -- one set of artefacts, not three, and capturing is not
  * an assertion, so the other engines lose no coverage by not writing files.
  *
  * --------------------------------------------------------------- uploads
@@ -333,7 +333,7 @@ test.describe("every terminal state renders itself, in both themes", () => {
    *
    * One test per cell, not one test with twenty-four `test.step`s.
    * Twenty-four cells in a single case do not fit inside a per-test
-   * timeout -- WebKit spent the full two minutes and failed the lot -- and
+   * timeout -- WebKit spent the full two minutes and failed the lot, and
    * a failure in the first cell stopped the other twenty-three from ever
    * running. Each cell now reports itself, and they still share the one
    * session underneath.
@@ -399,7 +399,7 @@ test.describe("Compare, in both themes", () => {
    * while a twenty-second assertion was still retrying inside it.
    *
    * The cells are still four independently reported tests -- a failure at
-   * desktop dark does not hide phone light -- and what they assert is
+   * desktop dark does not hide phone light, and what they assert is
    * unchanged. What they no longer do is rebuild the comparison four times
    * to look at it from four angles. The comparison itself is replayed from
    * the job's one captured warehouse comparison, so it costs no admission
@@ -425,7 +425,7 @@ test.describe("Compare, in both themes", () => {
 
   test.afterAll(async () => {
     // The warehouse holds no upload session, so there is nothing to hand
-    // back -- only the page this describe opened.
+    // back, only the page this describe opened.
     await page.close();
   });
 

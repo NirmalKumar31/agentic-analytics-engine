@@ -8,8 +8,8 @@
  *  1. The state was a card *outside* the report column, pulled above the
  *     dataset strip by an `order: -2` rule left over from when execution
  *     panels streamed before the report.
- *  2. A refusal said its reason twice -- once in the card, once verbatim as
- *     the display headline -- and the raw backend stop reason is not a
+ *  2. A refusal said its reason twice, once in the card, once verbatim as
+ *     the display headline, and the raw backend stop reason is not a
  *     headline. It begins mid-sentence, in lower case, with the engine's
  *     own framing.
  *  3. "No findings" is a **completed** run and was carrying the eyebrow

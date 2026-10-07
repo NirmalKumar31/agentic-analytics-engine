@@ -158,7 +158,7 @@ class AnalyticsToolset:
         self.trace: list[ToolCall] = []
         #: The results this run produced, in order. A session is shared --
         #: Compare Both puts a deterministic run and an AI run on one
-        #: connection -- so "every result on the session" is the wrong set
+        #: connection, so "every result on the session" is the wrong set
         #: for any one run to read: it would let the cloud run cite, and be
         #: shown, rows the local run computed under a laxer policy.
         self._result_order: list[str] = []

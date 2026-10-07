@@ -21,7 +21,7 @@ interface Line {
  * The clean activity line, with a technical MCP trace behind a toggle.
  *
  * The default view names the agent and the tool it reached for. The toggle
- * adds the arguments, the duration and the result id -- never a credential,
+ * adds the arguments, the duration and the result id, never a credential,
  * never a raw provider error, never model reasoning.
  */
 export function ActivityLog({ events, trace, showTrace, onToggleTrace, running }: Props) {

@@ -17,14 +17,14 @@ Measured on `8e385fc`.
 
 | PR | merge | what |
 |---|---|---|
-#27 | `e7f008f` | **F** — cross-browser and accessibility gate |
-#28 | `434836a` | **G** — thirteen component boundaries out of `App.tsx` |
-#29 | `5180381` | **H** — twelve CSS modules, palette bridge retired |
-#30 | `2f7606a` | **I-a** — information architecture |
+#27 | `e7f008f` | **F**: cross-browser and accessibility gate |
+#28 | `434836a` | **G**: thirteen component boundaries out of `App.tsx` |
+#29 | `5180381` | **H**: twelve CSS modules, palette bridge retired |
+#30 | `2f7606a` | **I-a**: information architecture |
 #31 | `15953d5` | a query that matched nothing is not a query that failed |
 #32 | `eaae8be` | dark-mode text contrast, and a gate that measures it |
 #33 | `7f41850` | the demo report said the analysis failed |
-#34 | `5506de6` | **I-b** — an entirely new palette |
+#34 | `5506de6` | **I-b**: an entirely new palette |
 #35 | `5b89046` | "Compare both", and a disagreement announced mid-run |
 #36 | `8e385fc` | a colour-blind-safe chart series ramp |
 
@@ -48,8 +48,8 @@ existed rather than that the words were true.
    needs an `aggregate_for_question` snapshot; the demo resolves through the
    metric registry and produces none, while still setting `query_mapping`.
    The guard returned early only when *both* were missing, so a FAILURE
-   presentation replaced a verified figure — "Revenue by region: Midwest
-   $1,918,803.05; …" — with "The analysis could not be completed.", and the
+   presentation replaced a verified figure, "Revenue by region: Midwest
+   $1,918,803.05; …", with "The analysis could not be completed.", and the
    workflow index showed Verify complete beside it.
 2. **A filter matching no rows was reported as a failure.** The SQL ran and
    the table held nothing matching; `_canonical_for` returned None and the
@@ -61,7 +61,7 @@ existed rather than that the words were true.
    `--warning-text` were defined only in the light palette, and CSS inherits:
    an undefined override is not an absent colour, it is the wrong one.
 4. **A refusal was labelled "Verified answer."** Nothing was verified.
-5. **The stop reason appeared three times** — headline, Notes, and "The run
+5. **The stop reason appeared three times**: headline, Notes, and "The run
    stopped early". The builder sets a refusal's headline and caveat from one
    sentence; a fourth source was added when `RunStateCard` landed.
 6. **The state card sat below the execution panels**, because the report is
@@ -140,7 +140,7 @@ conformance.
 ## Deployment
 
 `main` is ahead of what is serving. Deploying is the owner's step, and
-`merged` and `live` are different claims — see `docs/DEPLOYMENT.md`.
+`merged` and `live` are different claims; see `docs/DEPLOYMENT.md`.
 
 Worth one deploy rather than several: the information architecture, the new
 palette, the series ramp and nine defect fixes land together.

@@ -11,8 +11,8 @@
  * tint, and three of the four purposes were invisible until selected.
  *
  * So: cards again, each with a visible selected mark, each stating its
- * purpose in **one sentence** taken from the description's first -- so a
- * card cannot disagree with the full text -- and every paragraph of
+ * purpose in **one sentence** taken from the description's first, so a
+ * card cannot disagree with the full text, and every paragraph of
  * explanation behind one disclosure.
  */
 
@@ -142,7 +142,7 @@ describe("what a screen reader is told", () => {
     const radio = screen.getByRole("radio", { name: /^Governed Analysis/ });
     const name = radio.getAttribute("aria-label") ?? "";
     // The name comes from the label, which carries the mark (hidden), the
-    // mode name and the purpose -- and not a second copy of the sentence.
+    // mode name and the purpose, and not a second copy of the sentence.
     const label = document.querySelector('label[for="mode-auto"]')!;
     expect(label.textContent).not.toMatch(/locally\..*locally\./);
     expect(name === "" || name.length > 0).toBe(true);
@@ -160,7 +160,7 @@ describe("what a screen reader is told", () => {
   it("states a disabled mode's reason exactly once", () => {
     selector("auto", false);
     const reason = /turned off on this deployment/i;
-    // Two disabled cards -- AI and Compare, which depends on it -- and one
+    // Two disabled cards -- AI and Compare, which depends on it, and one
     // element each. It used to be two each: a visible span and a hidden
     // copy, which a screen reader reads twice.
     expect(screen.getAllByText(reason)).toHaveLength(2);

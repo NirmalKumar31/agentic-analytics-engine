@@ -5,7 +5,7 @@
  * `timeline.ts` derives the six coarse stages. This derives the layer below
  * them: every call the engine proposed, and what became of it. Together
  * they are the execution graph, and the whole claim of both files is that
- * a node exists because an event said so -- never because a stage usually
+ * a node exists because an event said so, never because a stage usually
  * happens, never because enough time has passed.
  *
  * **Four outcomes, and the distinction between them is the point.**

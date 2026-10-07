@@ -7,7 +7,7 @@
  * inside `golden.spec.ts`'s sweep of every visible control. The two
  * selectors agreed. The heuristic did not, and nothing could notice,
  * because the one element they disagree about is a control CI had never
- * rendered -- it appears only on a deployment with a provider key.
+ * rendered. It appears only on a deployment with a provider key.
  *
  * So the class name lives here, both specs read it from here, and
  * `touchTargetExemption.test.ts` beside it reads this file *and* the two

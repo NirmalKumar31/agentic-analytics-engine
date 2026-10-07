@@ -73,7 +73,7 @@ async function expectNoOverflow(page: Page, where: string): Promise<void> {
  * The report's prose, with the audit surfaces and identifiers removed.
  *
  * `drop` removes further selectors, which is how the two halves of a
- * recorded report are measured apart -- see the report case for why.
+ * recorded report are measured apart. See the report case for why.
  */
 async function proseOf(
   page: Page,
@@ -110,7 +110,7 @@ async function proseOf(
  *
  * Planner vocabulary and punctuation are left out for the same reason the
  * browser suite leaves them out -- the canvas legitimately carries prose
- * the engine wrote -- so this and `e2e/readerQuality.spec.ts` hold the
+ * the engine wrote, so this and `e2e/readerQuality.spec.ts` hold the
  * deployed build and the container to the same standard.
  */
 function assertFitForAReader(where: string, text: string): void {
@@ -417,7 +417,7 @@ test.describe("hosted visual acceptance", () => {
      * `:focus-visible` only matches when the browser decides focus should
      * be shown, which a script setting `.focus()` does not always
      * trigger. Pressing Tab is what a keyboard user does, so it is what
-     * this does -- and it also exercises the order, which is the other
+     * this does, and it also exercises the order, which is the other
      * half of focus safety.
      */
     const seen: string[] = [];
@@ -658,7 +658,7 @@ test.describe("hosted visual acceptance", () => {
      *
      * A Compare drew none. The reason was that it has one evidence
      * control for both runs and two stage summaries would be two more
-     * things to read -- which stopped being true on paper, where the only
+     * things to read, which stopped being true on paper, where the only
      * labelled picture of either run was in the evidence appendix. A
      * reader who exported a Compare to PDF got the appendix graph's
      * unlabelled dots, twice, and no flowchart anywhere.
@@ -730,7 +730,7 @@ test.describe("hosted visual acceptance", () => {
      * The printed Compare, which is the artefact that started this.
      *
      * The `print` cell prints a single run, so a Compare on paper was
-     * never measured -- and a Compare on paper is what a reader exported.
+     * never measured, and a Compare on paper is what a reader exported.
      * Asserted against the computed style for the reason the single-run
      * print cell gives: a static check on the selector passes whether or
      * not the rule wins.
@@ -762,7 +762,7 @@ test.describe("hosted visual acceptance", () => {
      * thinks, and an unchanged picture is what a hung request looks like
      * too. What is asserted here is that the screen is made of facts: the
      * stage the engine reported, the reader's own elapsed wait, and the
-     * work that has actually finished -- and that there is no completion
+     * work that has actually finished, and that there is no completion
      * fraction anywhere, because the planner decides how many calls a run
      * makes as it goes.
      */
@@ -814,7 +814,7 @@ test.describe("hosted visual acceptance", () => {
      *
      * A first version compared `innerText()` before and after with the
      * elapsed string removed by `String.replace`, which replaces only the
-     * first occurrence -- so once the clock read a value that also appeared
+     * first occurrence, so once the clock read a value that also appeared
      * elsewhere in the block the subtraction took out the wrong text and
      * the comparison failed on one cell in twelve. The assertion was
      * fragile; the product was not. Naming the two figures that must not

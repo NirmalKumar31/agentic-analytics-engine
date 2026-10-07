@@ -98,8 +98,8 @@ def profile_table(
                 # correct claim about it unverifiable: the arithmetic check
                 # reads numbers, saw a string, and reported that the value
                 # could not be derived from the result it came from.
-                # `min_value` and `max_value` cannot follow -- this is one
-                # UNION ALL across columns of every type -- so they stay
+                # `min_value` and `max_value` cannot follow. This is one
+                # UNION ALL across columns of every type, so they stay
                 # text and are read through the declared-type rule.
                 f"ROUND(AVG({q})::DOUBLE, 4) AS mean_value"
                 if dtype in NUMERIC_TYPES

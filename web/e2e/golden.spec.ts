@@ -30,7 +30,7 @@ import {
  * are phones, 768 a tablet, 1024 a small laptop, 1440 and 1920 desktops.
  * The assertions are properties rather than pixel baselines -- a chart
  * occupies most of its container, nothing overflows the page, the answer
- * precedes the technical detail -- so they survive a copy change that a
+ * precedes the technical detail, so they survive a copy change that a
  * screenshot baseline would not.
  */
 
@@ -226,8 +226,8 @@ test.describe("touch targets on a phone", () => {
     // rather than a link inside a sentence. The inline privacy disclosure
     // is exempt under WCAG 2.2 SC 2.5.8; this one is not.
     //
-    // It is inside the evidence drawer now, which is where a phone meets it
-    // -- and a drawer is exactly where a cramped target hurts most.
+    // It is inside the evidence drawer now, which is where a phone meets it,
+    // and a drawer is exactly where a cramped target hurts most.
     // On the shared upload rather than the demo warehouse, and replayed:
     // the size of a hit area does not depend on which dataset produced the
     // report behind it, so this does not need an admission of its own.

@@ -189,7 +189,7 @@ def _attach_group_coverage(
     # Two different limits can cut a breakdown short, and either one means
     # the answer is partial. The probe row is the query's own limit; the
     # transport limit fires first when `max_result_rows` is at or below the
-    # ceiling, which it is by default -- so reading only the probe row
+    # ceiling, which it is by default, so reading only the probe row
     # reported a 501-group result as complete.
     overflowed = len(snapshot.rows) > ceiling or bool(snapshot.truncated)
     if overflowed:

@@ -248,7 +248,7 @@ describe("the flowchart on a Compare report", () => {
     /*
      * The point of drawing two. A model was consulted on one side and not
      * the other, so one spine has an `interpret` stage and the other does
-     * not -- and that difference is the only one a Compare of two
+     * not, and that difference is the only one a Compare of two
      * agreeing strategies has to show. Drawn from one side's events, or
      * merged into one annotated spine, it would be a run neither
      * strategy made.
@@ -317,7 +317,7 @@ describe("the engine's own words stay in the evidence", () => {
      * the evidence" as the stage's note, and the refusal screenshot showed
      * that for noise: the state line already said it stopped, the report's
      * headline *is* the engine's reason -- a refusal's answer is why it
-     * refused -- and the section carries one control to the full record.
+     * refused, and the section carries one control to the full record.
      */
     render(<RunFlowchart events={refused} onShowEvidence={() => undefined} />);
     const stopped = document.querySelector('.run-flow-node[data-state="stopped"]');
@@ -433,8 +433,8 @@ describe("the spine turns horizontal only where it fits as prose", () => {
      * 1440 up, where the reading column caps. 768 and 1024 cannot hold
      * the row.
      *
-     * Pinned because the 768px breakpoint is the house default -- it is
-     * what `.timeline-track` uses -- and copying it here is the mistake
+     * Pinned because the 768px breakpoint is the house default. It is
+     * what `.timeline-track` uses, and copying it here is the mistake
      * this number exists to prevent. It failed two sweep cells doing
      * exactly that.
      */

@@ -26,7 +26,7 @@
  *
  * The dichromacy simulation is the Viénot/Brettel LMS reduction, and the
  * distance is CIE76 in Lab. Neither is the last word on perception -- CIE76
- * over-weights saturated hues, and real dichromats are not uniform -- which
+ * over-weights saturated hues, and real dichromats are not uniform, which
  * is why the threshold here is well clear of the usual "just noticeable"
  * figure rather than sitting on it.
  */

@@ -1,4 +1,4 @@
-# 0002 — The cloud planner interprets language; the engine keeps authority
+# 0002: The cloud planner interprets language; the engine keeps authority
 
 Status: accepted
 Date: 2026-09-30
@@ -24,7 +24,7 @@ the question:
    existed; it did not check the engine would offer it as a grouping. The
    deterministic planner refuses this outright, because an identifier's values
    become group labels in the result and travel from there into the next
-   prompt — which is the leak the schema classifier exists to prevent. The
+   prompt, which is the leak the schema classifier exists to prevent. The
    privacy boundary was holding in one mode.
 2. **Add a period.** Asked "what is the average annual revenue", the plan
    restricted to 2024 and the engine executed it. Dropping a stated period is
@@ -44,7 +44,7 @@ exceeded what the question supported in a way no single field revealed.
 The plan may decide only what the engine cannot decide for itself, and the
 engine re-derives everything it can.
 
-* A grouping must be in `_groupable(schema)` — the same list the rule planner
+* A grouping must be in `_groupable(schema)`, the same list the rule planner
   uses. One function, read by both planners.
 * A period must equal the period the rules parse from the question. Date
   arithmetic is rule-owned in both modes.
@@ -71,7 +71,7 @@ distinction is what the fallback protects rather than whether it exists:
 * `interpretation` still says the rules decided and `planner_note` records
   why, so the mode's provenance stays true;
 * the canonical contract is byte-identical to the deterministic one, so
-  Compare Both reports the same governed interpretation — which it is —
+  Compare Both reports the same governed interpretation, which it is,
   rather than a false claim of independent agreement;
 * where the rules are *not* confident, a refusal is still the answer,
   because there is no contract to fall back to and the model's stated
@@ -95,8 +95,8 @@ every comparison read as agreement.
 
 ## Consequences
 
-**AI mode can refuse where deterministic mode answers.** This is intended —
-the refusal names the disagreement — but it caps how much language coverage
+**AI mode can refuse where deterministic mode answers.** This is intended,
+and the refusal names the disagreement, but it caps how much language coverage
 the cloud planner can add. A period the rules cannot parse is now a refusal in
 both modes rather than an answer in one, even where the model read it
 correctly. Widening this means teaching the rule parser, not loosening the
@@ -106,7 +106,7 @@ check.
 plan remains free to choose an operation, measure or grouping where the rules
 abstain, as long as every excerpt is grounded and every identifier is real.
 That is the coverage AI mode exists for, and it is not verified against a
-second opinion — only against the schema and the question.
+second opinion, only against the schema and the question.
 
 **No claim is made about real-model behaviour.** The corpus drives both modes
 with the scripted provider, so it proves the bounds hold against the plans the
@@ -120,7 +120,7 @@ A fifth defect surfaced from the same probe and was not a plan problem at all:
 `time_field` (a trend's axis) and `period_field` (the column a period filters)
 were folded into one field during contract revalidation. Every non-trend
 mapping came back carrying a trend axis it never had, which changed its
-canonical hash without changing its SQL — so the MCP boundary refused the
+canonical hash without changing its SQL, so the MCP boundary refused the
 engine's own contract, and every question naming a period published nothing.
 It was also the sole cause of the five cross-mode corpus divergences, now
 zero. See ARCHITECTURE §14.

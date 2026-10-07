@@ -29,8 +29,8 @@ import { expect, test, type APIRequestContext, type Page, type Request } from '@
  * Playwright clears its output directory at the start of every run, and CI
  * runs the three engines as three separate invocations against one
  * container. A ledger under `test-results` was therefore wiped between
- * engines, so the "job total" it reported was only ever the last engine's
- * -- which is precisely the accounting the shared ceilings require. The
+ * engines, so the "job total" it reported was only ever the last engine's,
+ * which is precisely the accounting the shared ceilings require. The
  * three engines share 200 uploads and 200 analyses per hour; the ledger has
  * to outlive each of them to say so.
  */
@@ -44,7 +44,7 @@ const LEDGER = join(
  * Which job wrote this line.
  *
  * The ledger now outlives a Playwright invocation, which is the whole
- * point of it -- and the cost of that is that a file left behind by an
+ * point of it, and the cost of that is that a file left behind by an
  * earlier job looks exactly like a file written by this one. A stale
  * `chromium.jsonl` from yesterday's run would satisfy "every expected
  * engine is present" while describing nothing that happened today, and a
@@ -52,7 +52,7 @@ const LEDGER = join(
  * belong to neither.
  *
  * So the outer wrapper pins an id -- in CI, the run id and the attempt,
- * so a re-run of the same workflow is a different job -- and every record
+ * so a re-run of the same workflow is a different job, and every record
  * carries it. `scripts/check-resource-budget.mjs` refuses a ledger that
  * holds more than one, or one that is not the job it was asked about.
  * Unset, it is a fixed string: the three engines still agree with each
@@ -87,7 +87,7 @@ export function ledger(
    * The engine, when there is no test to ask.
    *
    * A worker-scoped fixture's *teardown* runs after the last test, where
-   * `test.info()` throws -- so a session closed there would go unrecorded
+   * `test.info()` throws, so a session closed there would go unrecorded
    * and the peak-concurrency figure would be computed from opens alone.
    * The fixture captures the project name while a test is still live and
    * hands it back here.
@@ -97,7 +97,7 @@ export function ledger(
    * Structured fields, merged last so they win.
    *
    * The traffic observer records a response that may arrive after the test
-   * that caused it has ended, where `test.info()` throws -- so it captures
+   * that caused it has ended, where `test.info()` throws, so it captures
    * the engine and the test path when the *request* is made and passes
    * them back here. Everything the guard reconciles on (sequence, status,
    * source, capture) is a field rather than a substring of `detail`,
@@ -125,7 +125,7 @@ export function ledger(
         /*
          * Durable and unique across workers.
          *
-         * A worker restart -- which a single failing test causes -- starts
+         * A worker restart, which a single failing test causes -- starts
          * a new process with its own counter, so a plain integer would
          * repeat within one engine's ledger and a duplicate-detection rule
          * would either fire on honest data or be too weak to fire at all.
@@ -174,7 +174,7 @@ export function sampleCsv(rows = 200): string {
  *
  * They were spread across the specs that happened to use them, which made
  * "how many distinct datasets does this suite require" a question nobody
- * could answer -- and the answer mattered: the suite uploaded 150 files per
+ * could answer, and the answer mattered: the suite uploaded 150 files per
  * engine against a container that allows 24 live sessions. Gathered here,
  * each one is a worker fixture in `fixtures.ts`, uploaded once per engine.
  *
@@ -214,7 +214,7 @@ export function twoDimensionCsv(rows = 240): string {
  * Two date columns, so the ambiguity signals have something real to report.
  * Every assertion here is about a property of the composed screen rather
  * than about an element existing -- "the composer is the largest control",
- * "the landing is not also on screen" -- because element-existence is what
+ * "the landing is not also on screen", because element-existence is what
  * the previous suite checked and it is what let a panel-in-a-panel layout
  * pass review.
  */
@@ -293,7 +293,7 @@ export async function waitForCompare(page: Page): Promise<void> {
  * The recorded-run buttons, in the landing's prepared-data list.
  *
  * Scoped by test id rather than by a heading. The old selector reached for
- * `section.panel` containing a heading named exactly "Dataset" -- which
+ * `section.panel` containing a heading named exactly "Dataset", which
  * worked, and was three assumptions deep: that the surface is a panel, that
  * it is headed, and that the heading says that word. All three were true
  * only because the landing had not been designed yet.
@@ -361,7 +361,7 @@ export async function uploadFile(
   //
   // This waited for the schema inspector, which was resident on the canvas.
   // The inspector now lives inside a side sheet that opens on request, so
-  // it is not in the document until a reader asks for it -- and every
+  // it is not in the document until a reader asks for it, and every
   // upload test timed out waiting for something that was never going to
   // appear. The composer is the better signal anyway: it is what the
   // profiling was *for*, and it is what the reader is waiting to use.
@@ -383,7 +383,7 @@ export async function uploadFile(
  * the container. That is the whole basis of the analysis accounting.
  *
  * A `run_fixture_*` prefix on the run id was the earlier signal. It is
- * weaker -- it is a convention in test code about a value the *product*
+ * weaker. It is a convention in test code about a value the *product*
  * mints, and a product that one day generates ids with that shape would
  * silently reclassify real runs as free.
  */
@@ -395,7 +395,7 @@ export const CAPTURE_HEADER = 'x-aae-e2e-capture'
  * repository. `harness`: a response the suite synthesised while
  * orchestrating a *real* run -- Compare's `POST /api/comparisons` is
  * answered here while the deterministic analysis behind it is issued to
- * the container -- which costs nothing itself and must be accompanied by
+ * the container, which costs nothing itself and must be accompanied by
  * the server-backed request it stands for.
  */
 export type FixtureSource = 'capture' | 'committed' | 'harness'
@@ -493,7 +493,7 @@ const BILLED = /\/api\/(analyses|comparisons)$/
  *
  * A plain counter was not: Playwright starts a fresh worker process
  * whenever the worker fixtures a file needs change, and each one began
- * again at 1 -- so three processes produced three requests numbered 1 and
+ * again at 1, so three processes produced three requests numbered 1 and
  * the guard reported them as duplicates of each other. The pid makes the
  * identity the thing it has to be, which is unique within the engine's
  * ledger rather than within one process's memory.
@@ -538,7 +538,7 @@ export function registerPayload(payload: unknown, from: FixtureSource): string {
  *
  * Compare's route handler fulfils `POST /api/comparisons` and issues the
  * deterministic `POST /api/analyses` through `route.fetch`, which does not
- * surface as page traffic -- so `watchTraffic` cannot see it and the one
+ * surface as page traffic, so `watchTraffic` cannot see it and the one
  * analysis a Compare scenario really costs would go unrecorded. Recorded
  * here, at the only point where the request exists, with the same
  * sequence/response shape everything else reconciles on.
@@ -571,7 +571,7 @@ export function ledgerHarnessRequest(path: string, status: number, detail: strin
  * The first version of this derived "real run" from a `Set` of pages that
  * had a fixture route installed, cleared by the `release()` the route
  * handler returned. `terminalStates.spec.ts` unrouted by pattern instead of
- * calling `release()`, so the route went away and the marker did not -- and
+ * calling `release()`, so the route went away and the marker did not, and
  * every later real analysis in that worker was recorded as a free replay.
  * Two of them were: `visualReview`'s "a real report holds at every approved
  * width" and `timeline`'s refused run -- enough to put the job over its
@@ -680,7 +680,7 @@ export async function answerRunWith(
    * Where the payload came from. `committed` is a fixture in the
    * repository; `capture` is a real response this run remembered. The
    * guard holds both to the same rule -- a replay must name a payload that
-   * was registered -- and keeps them apart in the accounting, because a
+   * was registered, and keeps them apart in the accounting, because a
    * committed fixture is evidence about *rendering* and a capture is
    * evidence about rendering something the engine really produced.
    */
@@ -748,7 +748,7 @@ export async function setTheme(page: Page, theme: 'light' | 'dark'): Promise<voi
  * with "the demo is at capacity for uploaded datasets". That is exactly how
  * Chromium failed on PR #46.
  *
- * "End session" is the product's own control -- it calls
+ * "End session" is the product's own control. It calls
  * `DELETE /api/datasets/{id}` with the capability cookie. No test-only
  * endpoint is involved, and a suite that frees what it takes is behaving
  * like the client it is standing in for.
@@ -761,7 +761,7 @@ export async function endSession(page: Page, project?: string): Promise<void> {
   const control = page.getByRole('button', { name: 'End session' })
   try {
     // Whatever the last test left open. A side sheet puts a scrim over the
-    // header, so the control is in the document but not clickable -- and
+    // header, so the control is in the document but not clickable, and
     // Playwright waits for actionability, which in a fixture teardown is a
     // 120-second hang with no test to attribute it to. This happened: the
     // last terminal-state test leaves the evidence drawer open.
@@ -793,7 +793,7 @@ export async function endSession(page: Page, project?: string): Promise<void> {
  *
  * The run button is disabled while the app is busy or the field is empty,
  * so a plain `click()` waits the full test timeout and then reports only
- * "element is not enabled" -- which says nothing about *why*.
+ * "element is not enabled", which says nothing about *why*.
  *
  * This has happened twice on Firefox, deep in a full suite run, in the
  * role-confirmation describe, and it does not reproduce in isolation (six
@@ -808,7 +808,7 @@ export async function ask(page: Page, question: string): Promise<void> {
    * This does not count the run.
    *
    * It used to, by reading a `Set` of pages with a fixture route
-   * installed -- and a spec that unrouted by pattern instead of calling the
+   * installed, and a spec that unrouted by pattern instead of calling the
    * `release()` it was handed left the marker set, so every later real
    * analysis in that worker was recorded as free. `watchTraffic` counts the
    * request at the network boundary instead, which also means a test that
@@ -819,7 +819,7 @@ export async function ask(page: Page, question: string): Promise<void> {
    * Bounded, and with a sentence attached.
    *
    * While a run is in flight the question field is not in the document at
-   * all, so `fill()` -- which has no timeout of its own and falls back to
+   * all, so `fill()`, which has no timeout of its own and falls back to
    * the test's -- waits two minutes and is then reported as "Target page,
    * context or browser has been closed", because that is what the timeout
    * teardown does to the context. The name of the test that actually
@@ -838,7 +838,7 @@ export async function ask(page: Page, question: string): Promise<void> {
    * The composer is a controlled textarea, so a render landing just after
    * the fill can revert it to whatever the component's state still holds.
    * Closing a side sheet is one way to produce that render -- focus
-   * restoration happens asynchronously -- and the result was an empty
+   * restoration happens asynchronously, and the result was an empty
    * field, a disabled run button, and a diagnostic that correctly reported
    * both without saying why.
    *
@@ -864,7 +864,7 @@ export async function ask(page: Page, question: string): Promise<void> {
    *
    * The action is named per mode now -- "Run governed analysis",
    * "Run deterministic analysis", "Run with AI", "Compare both
-   * planners" -- so a name regex here would have to be kept in step with
+   * planners", so a name regex here would have to be kept in step with
    * four strings in a component, in every spec that drives a run.
    * `composer.spec.ts` asserts the accessible name per mode, which is the
    * assertion that belongs to a test rather than to navigation.
@@ -926,7 +926,7 @@ export async function openDemoViaApi(request: APIRequestContext): Promise<string
  * Open the application.
  *
  * Every test navigated with `page.goto("/")`, whose default `waitUntil` is
- * `load` -- and on Firefox that intermittently never resolves. Twice in
+ * `load`, and on Firefox that intermittently never resolves. Twice in
  * consecutive CI runs a test burned its entire 120s budget inside
  * `page.goto`, "waiting until load", on two *different* tests: once in
  * `foundation.spec.ts`, once in `informationArchitecture.spec.ts`. The
@@ -951,7 +951,7 @@ export async function openApp(page: Page): Promise<void> {
   // tried and both hung on Firefox.
   //
   // The second trace is what settles it. With `domcontentloaded` the
-  // navigation still timed out -- and the report shows the document, the
+  // navigation still timed out, and the report shows the document, the
   // stylesheet, the bundle and the app's own `/api/config` all returned
   // **200**, with the page snapshot and a 128KB screenshot showing the
   // banner, the theme toggle and all four progress steps rendered. The
@@ -997,7 +997,7 @@ export async function openApp(page: Page): Promise<void> {
  * The consequence is that the run timeline, the planning audit, the
  * activity trace and the accepted contract each exist twice in the
  * document. A bare `getByTestId` for one of them now matches two elements
- * and fails Playwright's strict mode -- correctly, because the question
+ * and fails Playwright's strict mode, correctly, because the question
  * "is this on the canvas?" has stopped being the same question as "is this
  * in the DOM?".
  *

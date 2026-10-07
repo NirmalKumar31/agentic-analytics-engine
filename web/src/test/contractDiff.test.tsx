@@ -239,7 +239,7 @@ describe("CompareWorkspace contract diff", () => {
     );
     // Equality is decided on the canonical fields now, not the hash. The
     // hash is derived from those fields, so a differing hash over
-    // identical fields cannot arise from the engine -- and treating it as
+    // identical fields cannot arise from the engine, and treating it as
     // a divergence told the reader two identical interpretations differed.
     expect(screen.queryByTestId("contract-diff")).toBeNull();
     expect(screen.getByTestId("contract-comparison")).toHaveAttribute(

@@ -38,7 +38,7 @@ test.describe("Compare's configuration route", () => {
     /*
      * Polled, not sampled once. `openApp` resolves on the app shell being
      * mounted, and the `request` event for `/api/config` is delivered on
-     * its own turn of the event loop -- so reading the record immediately
+     * its own turn of the event loop, so reading the record immediately
      * can see `null` ("not asked yet") rather than the ordering. Polling
      * distinguishes "has not happened yet" from "happened in the wrong
      * order", which is the thing being asserted.
@@ -74,7 +74,7 @@ test.describe("Compare's configuration route", () => {
      * The consequence, stated separately: the ordering is only interesting
      * because of what it enables. A deployment with no AI key advertises
      * `compare_available: false`, and without the route the radio is
-     * disabled -- which is what every timed-out test was waiting on.
+     * disabled, which is what every timed-out test was waiting on.
      */
     await advertiseAi(page);
     await openApp(page);

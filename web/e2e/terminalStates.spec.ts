@@ -11,7 +11,7 @@ import { expect, freshComposer, test } from "./fixtures";
  * The six terminal states, in a browser, at both widths.
  *
  * The payloads are the committed fixtures in `src/test/runs/states/`, which
- * were captured from a local server in fake mode -- see the header of
+ * were captured from a local server in fake mode. See the header of
  * `src/test/terminalStates.test.tsx` for which were asked of the engine and
  * which were derived, and how.
  *
@@ -61,7 +61,7 @@ function fixture(name: StateName): Record<string, unknown> {
  * cost one of the container's 200 analyses per IP per hour for each of the
  * sixteen tests here. The state is a fixture either way; what these tests
  * assert is how it *renders*. The tests that are about reaching a state --
- * `app.spec.ts`'s refusal, `timeline.spec.ts`'s stopped stage -- still
+ * `app.spec.ts`'s refusal, `timeline.spec.ts`'s stopped stage, still
  * drive the real engine.
  */
 let release: (() => Promise<void>) | null = null;
@@ -100,7 +100,7 @@ test.afterEach(async () => {
    * unrouting the pattern.
    *
    * Unrouting by pattern removed the route and left everything else the
-   * installer had set up -- which, while the accounting lived in a
+   * installer had set up, which, while the accounting lived in a
    * client-side marker, meant every later real analysis in the worker was
    * recorded as a free replay. Accounting no longer depends on this (it is
    * taken at the network boundary now), but one cleanup path is still

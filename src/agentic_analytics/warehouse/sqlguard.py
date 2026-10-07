@@ -25,7 +25,7 @@ DIALECT = "duckdb"
 
 # sqlglot logs a warning and falls back to a generic `Command` node for syntax
 # it does not model. That fallback is exactly how this guard detects
-# non-query statements, so the warning is expected rather than notable -- and
+# non-query statements, so the warning is expected rather than notable, and
 # it would otherwise echo the rejected statement into the application log.
 logging.getLogger("sqlglot").setLevel(logging.ERROR)
 

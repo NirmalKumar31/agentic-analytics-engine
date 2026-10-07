@@ -4,7 +4,7 @@
  * `ReportView` and `PresentationReportView` are gone: one `AnswerReport`
  * now serves both payload shapes, driven by `reportModel`. This shim takes
  * the inputs those two components took so the suites written against them
- * keep asserting the same claims about the same data -- which is the point
+ * keep asserting the same claims about the same data, which is the point
  * of porting them rather than deleting them.
  *
  * It lives in `src/test` and is never imported by the application.

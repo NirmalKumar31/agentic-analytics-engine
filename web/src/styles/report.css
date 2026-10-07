@@ -159,7 +159,7 @@ table.data tr[data-ambiguous="true"] {
   display: block;
   /* `table.data td` sets `white-space: nowrap` so a data row scrolls rather
    * than wraps. This control is prose inside such a cell, and inheriting
-   * that kept its legend and both choice labels on single lines -- which
+   * that kept its legend and both choice labels on single lines, which
    * grew the column and took the page's horizontal overflow at 360px from
    * 258px to 1009px. The sentences wrap; the data rows still do not. */
   white-space: normal;

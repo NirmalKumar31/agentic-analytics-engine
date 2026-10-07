@@ -11,7 +11,7 @@
  * reporting terminal states in single mode: the presentation headline said
  * it, the Notes section said it, and this said it again in a different
  * phrasing. `RunStateCard` says it once, with the state named -- "Refused."
- * rather than "stopped early" -- so this no longer does.
+ * rather than "stopped early", so this no longer does.
  */
 export function TerminalState({
   configError,

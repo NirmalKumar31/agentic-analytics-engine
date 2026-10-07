@@ -1,4 +1,4 @@
-# Redesign brief — design review package
+# Redesign brief: design review package
 
 **Historical design input.** This was the approval package measured against
 `5913f6e`; its present-tense descriptions record that earlier interface. The
@@ -38,7 +38,7 @@ Two findings worth stating plainly:
 
 ## 2. Before / after page hierarchy
 
-**Today — pipeline first**
+**Today: pipeline first**
 
 ```
 header → 5-step stepper
@@ -52,7 +52,7 @@ header → 5-step stepper
   ACTIVITY            MCP trace log
 ```
 
-**Proposed — answer first**
+**Proposed: answer first**
 
 ```
 thin header (dataset identity when one exists)
@@ -100,7 +100,7 @@ focus behaviour and motion.
 `visual-system.svg`. Typography, light and dark palettes, the chart ramp,
 geometry and motion principles.
 
-**Measured contrast** — every foreground against every surface:
+**Measured contrast**, every foreground against every surface:
 
 | | light | dark |
 |---|---|---|
@@ -132,7 +132,7 @@ What is tested instead, at 360 and 390:
 
 1. The answer and its context line are visible **above the first viewport
    break**, without scrolling.
-2. The chart begins within the first reading sequence — no intervening panel.
+2. The chart begins within the first reading sequence, with no intervening panel.
 3. Exactly **one** finding is expanded on arrival; the rest are collapsed.
 4. No technical material is resident: no activity log, no stage list, no
    planning audit, no DAG on the default canvas.
@@ -144,7 +144,7 @@ What is tested instead, at 360 and 390:
 
 ### Disclosure architecture
 
-The earlier "≥ 3 disclosures" target is also withdrawn — it is satisfiable by
+The earlier "≥ 3 disclosures" target is also withdrawn, because it is satisfiable by
 adding meaningless disclosures. These are the disclosures, by name and
 content. No others are added to reach a count:
 
@@ -156,7 +156,7 @@ content. No others are added to reach a count:
 | Findings 2–4 | Inline, mobile only | The ranked findings after the headline |
 | Planning audit | **Inside** the evidence sheet only | The full typed-plan record |
 
-### Terminal states — one per run
+### Terminal states, one per run
 
 The composite sheet `terminal-*.svg` shows two states side by side. That is
 documentation. **A run reaches exactly one terminal state, and the page renders
@@ -168,7 +168,7 @@ and its own required test state.
 
 | State | Status reported by the API | Mockup | Distinguishing affordance |
 |---|---|---|---|
-| Refused | `refused` | `state-refused-{light,dark}.svg` | Two concrete re-ask buttons — the refusal is a question and the answer is one click away |
+| Refused | `refused` | `state-refused-{light,dark}.svg` | Two concrete re-ask buttons; the refusal is a question and the answer is one click away |
 | No findings | `completed` | `state-no-findings-{light,dark}.svg` | **No action button.** Nothing was decided wrongly, so there is nothing to retry |
 | Verification withheld | `completed` | `state-verification-withheld-{light,dark}.svg` | The computed result is kept and marked *not interpreted*; each withheld claim is named with its `verdict_rule` |
 | Quota stopped | `budget_exhausted` | `state-quota-stopped-{light,dark}.svg` | Recorded spend, plus a free deterministic route offered |
@@ -183,12 +183,12 @@ Three rules these sheets encode:
    colour regardless of state.
 2. **A completed run never borrows failure vocabulary.** "No findings" and
    "verification withheld" both report `completed`; neither says *failed*,
-   *error* or *problem*. The consistency audit enforces this — it rejected an
+   *error* or *problem*. The consistency audit enforces this, and it rejected an
    earlier draft that said "both failed verification" on a completed run.
 3. **A state with nothing to decide gets no button.** An action that only
    restates the state teaches people to ignore the buttons that matter.
 
-### Compare — one evidence action
+### Compare: one evidence action
 
 Two persistent per-strategy evidence buttons were replaced by a single
 **Inspect both traces** control opening one drawer with a tab per strategy.
@@ -199,7 +199,7 @@ The space that reclaims is used, not held empty for symmetry:
 
 | Outcome | Mockup | What occupies the reclaimed space |
 |---|---|---|
-| Strategies agree | `compare-{light,dark}.svg` | **Why this counts as agreement** — the accepted contract, the canonical hash, and the coverage both runs matched. Agreement that is asserted but not specified is a slogan |
+| Strategies agree | `compare-{light,dark}.svg` | **Why this counts as agreement**: the accepted contract, the canonical hash, and the coverage both runs matched. Agreement that is asserted but not specified is a slogan |
 | Strategies differ | `compare-diff-{light,dark}.svg` | The **structured difference**, field by field, differing rows marked. Not two results side by side, which invites picking the preferred number |
 | Either | `compare-evidence-{light,dark}.svg` | The drawer itself: edge sheet on desktop, bottom sheet on mobile, two tabs, page visible behind |
 
@@ -225,7 +225,7 @@ reported as one.
 
 ## 7. Test requirements
 
-These measure **layout behaviour**, not element existence — the weakness the
+These measure **layout behaviour** rather than element existence, which was the weakness the
 current suite has.
 
 1. Answer and context above the first viewport break at 360 and 390.
@@ -255,7 +255,7 @@ current suite has.
 18. The design-package consistency audit (`generators/audit_mockups.py`) runs
     green — it is what keeps the sheets from contradicting each other.
 
-## 8. Print / PDF — a first-class output
+## 8. Print / PDF as a first-class output
 
 `print.css` (233 lines) encodes the current panel structure and the browser-PDF
 test asserts against it. Replacing the shell **will** break both. That is
@@ -306,7 +306,7 @@ headline answer, chart annotation styling, and the theme transition.
 Every sheet is generated, not drawn: `generators/` regenerates all 32 SVGs and
 `generators/audit_mockups.py` checks them against each other. The audit
 currently runs **300 checks over 32 sheets**. It has already rejected two real
-defects — a Compare sheet whose caption claimed five agreeing fields over a
+defects: a Compare sheet whose caption claimed five agreeing fields over a
 table with four, and a completed run described with failure vocabulary.
 
 ## 11. What this package deliberately does not do

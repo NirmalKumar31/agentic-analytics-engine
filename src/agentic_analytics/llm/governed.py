@@ -447,7 +447,7 @@ class GovernedCloudProvider(LLMProvider):
         # 2 and 3. Admission. Both ceilings are checked and the allowance
         #    is taken in one atomic step, because the previous shape read
         #    the committed totals, awaited the network, and only then
-        #    recorded anything -- so several concurrent calls each passed
+        #    recorded anything, so several concurrent calls each passed
         #    the same check and together exceeded a ceiling every one of
         #    them individually respected.
         #
@@ -462,7 +462,7 @@ class GovernedCloudProvider(LLMProvider):
         #    priced pessimistically, immediately before dispatch. Nothing
         #    here can know whether an input token will be served from cache,
         #    written to it, or neither, and the three rates differ by more
-        #    than tenfold -- so the dearest one is assumed and the
+        #    than tenfold, so the dearest one is assumed and the
         #    difference is released at settlement.
         worst_case = self._price.reservation_microdollars(counted_input, allowance)
         try:

@@ -116,7 +116,7 @@ export function ModeSelector({
    *
    * This was a compact segmented control: four labels in a pill strip,
    * with only the selected one explaining itself. It read as a row of
-   * headings rather than as a choice -- nothing about it said "pick one",
+   * headings rather than as a choice. Nothing about it said "pick one",
    * the selected state was a background tint, and three of the four modes
    * were unlabelled as to purpose until you selected them.
    *
@@ -124,7 +124,7 @@ export function ModeSelector({
    * reversed: the version before the pill strip put four full paragraphs
    * on screen, occupying more room than the question field they modify.
    * A card now carries **one sentence** -- the description's first, so it
-   * cannot disagree with the full text -- and the full explanations, the
+   * cannot disagree with the full text, and the full explanations, the
    * taxonomy and the AI quota note all sit behind one disclosure.
    *
    * The radiogroup, the per-option `aria-describedby`, the capability

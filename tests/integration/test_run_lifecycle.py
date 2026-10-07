@@ -460,7 +460,7 @@ def test_a_session_is_not_closed_while_a_run_still_holds_it(
         # Swallows cancellation until released, so the grace period really
         # does expire with work still live.
         # Swallows cancellation until released or the deadline passes, so
-        # the grace period really expires with work still live -- but it
+        # the grace period really expires with work still live, but it
         # always exits, or it would hang the test client's shutdown.
         deadline = time.time() + 15
         while not release.is_set() and time.time() < deadline:
@@ -515,7 +515,7 @@ def test_a_deferred_close_does_not_affect_another_session(
     async def stubborn(*args: Any, **kwargs: Any) -> Any:
         started.set()
         # Swallows cancellation until released or the deadline passes, so
-        # the grace period really expires with work still live -- but it
+        # the grace period really expires with work still live, but it
         # always exits, or it would hang the test client's shutdown.
         deadline = time.time() + 15
         while not release.is_set() and time.time() < deadline:

@@ -106,7 +106,7 @@ NAMED_KEY_DIMENSION_DISTINCT = 25
 #: Cardinality cannot settle this band and pretending otherwise would be
 #: dishonest: a branch number recurring across 20 rows and a basket size
 #: recurring across 12 are indistinguishable from the data. So the name is
-#: allowed to tip a decision it is not allowed to make -- which is why
+#: allowed to tip a decision it is not allowed to make, which is why
 #: `basket_size` and `units` stay measures while `outlet_no` and `postcode`
 #: become groupings, and why a column called `qty` is unaffected however
 #: its values happen to be distributed.
@@ -719,7 +719,7 @@ def _classify(
     uniqueness = distinct_count / max(row_count, 1)
     if uniqueness >= IDENTIFIER_UNIQUENESS and row_count >= MIN_ROWS_FOR_CARDINALITY_RULES:
         # One row per value. Grouping by it returns the rows, so it is a
-        # label rather than a category -- and on a remote run those labels
+        # label rather than a category, and on a remote run those labels
         # would be uploaded cells travelling as group keys.
         return (
             "identifier",

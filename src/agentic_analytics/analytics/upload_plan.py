@@ -65,7 +65,7 @@ _OPERATION_PATTERNS: list[tuple[str, Operation]] = [
         # Temporal *intent*, not temporal vocabulary.
         #
         # This pattern used to include the bare adjectives -- `weekly`,
-        # `monthly`, `daily`, `quarterly`, `yearly` -- and those are the
+        # `monthly`, `daily`, `quarterly`, `yearly`, and those are the
         # words measures are named after. `Weekly_Sales`, `monthly_ad_spend`
         # and `daily_active_users` all made every question about them a
         # trend, so "the average weekly sales by holiday flag" was answered
@@ -236,7 +236,7 @@ def _time_grain(
 
 #: Words that begin a row restriction. A grouping phrase's capture runs to
 #: the end of the clause, so it spills across these into the filter's own
-#: text -- and everything after one of them belongs to the restriction, not
+#: text, and everything after one of them belongs to the restriction, not
 #: to the grouping.
 _FILTER_LEAD = re.compile(r"\b(?:where|for|with|having|whose|filtered)\b", re.IGNORECASE)
 
@@ -428,7 +428,7 @@ def _unresolved_measure(text: str, schema: dict[str, Any]) -> str | None:
     # A word that resolves to a column by plural is not unresolved.
     # `_without_column_names` strips exact spellings, so "categories" for a
     # column called `category` survived it and read as a measure the table
-    # does not have -- which turned "top categories", a legitimate
+    # does not have, which turned "top categories", a legitimate
     # frequency ranking with no measure at all, into a refusal.
     columns = [str(f.get("name", "")) for f in schema.get("fields") or []]
     content = [w for w in content if not any(_mentions(w, c) >= 0 for c in columns)]
@@ -484,7 +484,7 @@ class QuestionMapping:
     #: a router can tell "this dataset has no such column" from "the
     #: wording did not say which column": those were the same
     #: `confident=False` and therefore the same non-decision, which left
-    #: only two possible policies -- never ask a model, or always ask one.
+    #: only two possible policies, never ask a model, or always ask one.
     #: Diagnostics, not semantics, and so excluded from the canonical
     #: contract: two planners reaching the same contract must hash the same
     #: however much they struggled to get there.
@@ -530,7 +530,7 @@ class QuestionMapping:
             # raw flag made two identical interpretations hash differently:
             # a paid Compare Both on "the average X by Y" had the cloud plan
             # return `ascending: true` and the rules `false`, the engine
-            # executed both correctly -- same values, same coverage -- and
+            # executed both correctly -- same values, same coverage, and
             # the page reported "different governed interpretations" over a
             # field that changes nothing. Normalised, so contract identity
             # means what it says.
@@ -716,7 +716,7 @@ def _pick(
         return candidates[0], None, None
     if not candidates:
         # Nothing to choose from. No planner resolves this, because the
-        # column is not in the file -- which is why this is a different
+        # column is not in the file, which is why this is a different
         # issue from having several and not being told which.
         return None, f"the table has no column that looks like a {what}", unresolved
     return (
@@ -1090,7 +1090,7 @@ def question_requirements(question: str, schema: dict[str, Any]) -> QuestionRequ
     resolution = parse_filters(question, schema)
     # A column a filter claimed is not a grouping the question asked for.
     # The phrase capture runs to the end of the clause, so "by region for
-    # age 30 to 40" mentions two groupable columns -- and counting `age` as
+    # age 30 to 40" mentions two groupable columns, and counting `age` as
     # a requested grouping made coverage demand a cut the question never
     # asked for, which would have failed a correct contract. The resolver
     # excludes these for the same reason; both must agree or the gate
@@ -1193,7 +1193,7 @@ def resolve_question(
     #
     # A question that restricts its population and is answered over every
     # row is not a slightly worse answer, it is an answer to a different
-    # question -- and the old planner returned one confidently, because it
+    # question, and the old planner returned one confidently, because it
     # had no way to represent the restriction and therefore no way to
     # notice it had dropped one. An unresolvable restriction refuses here
     # rather than falling through.
@@ -1259,7 +1259,7 @@ def resolve_question(
     # the grouping, the filters.
     # Column references are removed, and so is the text a row filter has
     # already claimed. "total revenue with temperature at least 50"
-    # contains "least", which the ranking pattern matched -- so a filtered
+    # contains "least", which the ranking pattern matched, so a filtered
     # total became a ranking, needed a grouping it was never given, and was
     # refused. A clause another component owns must not also decide the
     # intent.
@@ -1316,7 +1316,7 @@ def resolve_question(
     #
     # Declared dimensions are tried first, then any other column the
     # phrase names. A numeric column is not *offered* as a grouping --
-    # choosing one unprompted would be a guess -- but "by store" names it
+    # choosing one unprompted would be a guess, but "by store" names it
     # explicitly, and reading that as anything other than a grouping
     # produced "average Store by Holiday_Flag" for a question that said
     # "by Store": both roles inverted.
@@ -1327,7 +1327,7 @@ def resolve_question(
     groupable = _groupable(schema)
     # A column a filter already claimed is not a grouping. The phrase
     # capture runs to the end of the clause, so "by territory for headcount
-    # 41 to 50" is one phrase mentioning two groupable columns -- and
+    # 41 to 50" is one phrase mentioning two groupable columns, and
     # harvesting both turned a filtered breakdown by territory into a
     # two-cut breakdown by territory and headcount, which silently changed
     # the answer.
@@ -1437,7 +1437,7 @@ def resolve_question(
     # A column the question named as the *grouping* is withheld from the
     # widening that lets a named numeric dimension be aggregated. The
     # widening is right in itself -- if a question names a numeric column
-    # as the thing to measure, the user has said which to use -- but it
+    # as the thing to measure, the user has said which to use, but it
     # could not tell a measure reference from a grouping reference. So
     # "the average profit by holiday flag", on a table with no `profit`,
     # took the flag from the `by` phrase, averaged it, and published 0.07
@@ -1446,7 +1446,7 @@ def resolve_question(
     widening = [c for c in aggregatable if c not in grouping]
     # A column a filter already claimed is not also a candidate measure.
     # "total Weekly_Revenue with Avg_Temp_C at least 50" names two numeric
-    # columns, and both being measures made the measure ambiguous -- so a
+    # columns, and both being measures made the measure ambiguous, so a
     # question that says plainly what to total was refused because it also
     # said what to restrict.
     filtered_columns = {str(getattr(f, "column", "")) for f in resolution.filters}
@@ -1471,7 +1471,7 @@ def resolve_question(
     # unresolved measures.
     # Also when nothing could be resolved at all. "the table has 2 numeric
     # columns to choose from" is true but unhelpful for a question that
-    # named a column plainly -- it just is not in this table. Naming the
+    # named a column plainly. It just is not in this table. Naming the
     # word back is the difference between a reader rephrasing and a reader
     # guessing.
     if measure is None or measure not in named:
@@ -1491,7 +1491,7 @@ def resolve_question(
     if measure is not None and measure in grouping:
         # Refuse rather than repair. This branch used to replace the
         # grouping with whatever other dimension the question mentioned,
-        # or delete it outright -- and that deletion is exactly how "total
+        # or delete it outright, and that deletion is exactly how "total
         # website_visits by age" became SUM(age) with no grouping and was
         # published as an answer about website visits.
         #
@@ -1861,7 +1861,7 @@ def build_sql(mapping: QuestionMapping) -> str | None:
         )
     # A breakdown. Ordered by the dimension, because ordering by the measure
     # and then cutting at a limit turns "total sales by store" into an
-    # undeclared top-list -- which is exactly how a 25-of-45 result came to
+    # undeclared top-list, which is exactly how a 25-of-45 result came to
     # be published as the complete breakdown.
     return (
         f"SELECT {', '.join(selected)}, {value}, COUNT(*) AS row_count, "

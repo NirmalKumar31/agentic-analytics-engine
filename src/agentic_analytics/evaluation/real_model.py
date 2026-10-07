@@ -109,11 +109,11 @@ class QuestionOutcome:
     planner_tasks_after_cleanup: int = 0
     tasks_redirected_by_engine: int = 0
     #: Metric tasks the planner left without a metric name. Executable --
-    #: the worker has the catalogue -- but worth counting, because it is the
+    #: the worker has the catalogue, but worth counting, because it is the
     #: planner leaving a field the schema asks for.
     tasks_without_a_named_metric: int = 0
     #: Verified claims suppressed because an identical sentence was already
-    #: published. Not a verification rejection -- these passed every gate --
+    #: published. Not a verification rejection. These passed every gate --
     #: so they are counted apart from `withheld_findings`.
     duplicate_published_findings_removed: int = 0
     redirect_reasons: list[str] = field(default_factory=list)
@@ -289,7 +289,7 @@ def _observe(
             # What the cited cells actually hold, resolved by the engine.
             # Reviewing a claim means comparing its wording to the numbers
             # it rests on, and `EvidenceCell.value` is usually unset because
-            # a model rarely echoes it -- so without this a reviewer has the
+            # a model rarely echoes it, so without this a reviewer has the
             # claim and no way to check it short of re-running the whole
             # evaluation.
             "resolved_cells": _resolve_cells(
@@ -560,7 +560,7 @@ def environment_fingerprint(cfg: Settings) -> dict[str, Any]:
         "think": cfg.ollama_think if cfg.provider_mode == "local" else None,
         # What was actually sent. A hardcoded `temperature: 0.0` used to
         # sit here and was never sent to the cloud provider at all --
-        # sampling fields are refused by the transport -- so the artifact
+        # sampling fields are refused by the transport, so the artifact
         # asserted a setting that was not in effect. A record that states
         # a configuration nobody applied is worse than one that omits it.
         "sampling_fields_sent": "none",

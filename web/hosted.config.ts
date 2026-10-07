@@ -14,7 +14,7 @@ import { baseUrl } from "./hosted/preflight";
  * `hosted/fixtures.ts` aborts anything that would reach a billed endpoint.
  *
  * It is not part of CI. CI cannot know which commit a deployment is serving
- * -- Render redeploys on its own schedule -- and a sweep filed against the
+ * -- Render redeploys on its own schedule, and a sweep filed against the
  * wrong SHA is worse than no sweep. `hosted/preflight.ts` reads
  * `/api/health` and refuses unless the build matches `AAE_HOSTED_SHA`.
  *

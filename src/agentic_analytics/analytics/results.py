@@ -195,7 +195,7 @@ class ResultSnapshot(BaseModel):
     #: file in full, and numeric verification still checks against the truth.
     withhold_cells: bool = False
     #: Declared type per column, as the engine produced it. Present so a
-    #: cell holding numeric text can be read as a number when -- and only
+    #: cell holding numeric text can be read as a number when, and only
     #: when -- the column it came from is numeric. Absent on artifacts
     #: written before this field existed, which read as "nothing declared"
     #: and therefore as "no coercion", the safe direction.

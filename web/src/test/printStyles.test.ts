@@ -7,7 +7,7 @@
  *
  * The suite this replaces asserted the old selectors -- `.direct-answer`,
  * `.answer-text`, `.applied-analysis`, `.contract-diff` and the notice
- * variants -- because the screen palette was tuned for a dark background
+ * variants, because the screen palette was tuned for a dark background
  * and those blocks printed white on white. None of those blocks exists now,
  * so restating them would be testing a stylesheet against a page that is
  * gone. The claims are rewritten against the hierarchy that replaced it.
@@ -150,7 +150,7 @@ describe("nothing animates on paper", () => {
     /*
      * Not tidiness. `.activity-row` enters with `animation: stream ... both`
      * whose `from` state is `opacity: 0`, and Chromium restarts animations
-     * when it lays the page out to print -- so the activity trace printed
+     * when it lays the page out to print, so the activity trace printed
      * as an empty bordered box. `animation-fill-mode: both` then holds it
      * at zero opacity rather than letting it finish.
      */
@@ -359,7 +359,7 @@ describe("the flowchart prints, and its control does not", () => {
      * `controls.css` loads after `timeline.css`, so `display: inline-flex`
      * won and a printed sheet carried a button.
      *
-     * This is the weaker of the two checks on purpose -- it cannot tell
+     * This is the weaker of the two checks on purpose. It cannot tell
      * whether the rule wins, only that it is here. The hosted print cell
      * reads the computed style, which is what caught the defect.
      */
@@ -394,7 +394,7 @@ describe("the flowchart prints, and its control does not", () => {
      * which stood in for "is not hidden" only while there was nothing
      * legitimate to say about it on paper. There is now -- a Compare
      * prints one spine per strategy and each has to stay whole across a
-     * page break -- so the check names what it actually forbids: a rule
+     * page break, so the check names what it actually forbids: a rule
      * that takes the flowchart off the page. A proxy that fails on a rule
      * it was never aimed at teaches the next person to delete the test.
      */

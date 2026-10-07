@@ -33,7 +33,7 @@
  * a denominator, and how many calls a run will make is decided by the
  * planner as it goes. Any bar would be a guess or a timer, and a bar that
  * advances on a timer cannot be told apart from one that advances because
- * work was done -- which is the one claim this product cannot afford to
+ * work was done, which is the one claim this product cannot afford to
  * get wrong. See `lib/runProgress.ts`.
  */
 

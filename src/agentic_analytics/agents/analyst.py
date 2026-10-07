@@ -263,7 +263,7 @@ async def resolve_upload_query_automatically(
 
     # The plan was unusable and the rules had already declined. Neither
     # settled it, so the question is refused with the more specific
-    # reason -- and never silently answered as a different question.
+    # reason, and never silently answered as a different question.
     return AutoResolution(
         mapping=proposed,
         assessment=assessment,

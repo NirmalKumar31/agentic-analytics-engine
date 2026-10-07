@@ -172,7 +172,7 @@ async def run_task(
     telemetry = ToolLoopTelemetry()
     # Every failed attempt, and the signatures of the calls already known to
     # be bad. Without the second, a worker that cannot see why its call
-    # failed proposes the same one until its budget is gone -- which is
+    # failed proposes the same one until its budget is gone, which is
     # exactly how one real run spent 36 attempts on 36 failures.
     attempts: list[FailedAttempt] = []
     failed_signatures: dict[str, FailedAttempt] = {}

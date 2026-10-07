@@ -13,7 +13,7 @@
  *
  * This is a gate, not a transformer. It reports; it never rewrites. A
  * formatter that silently fixed prose would hide the fact that something
- * upstream was producing prose that needed fixing -- and the fix belongs
+ * upstream was producing prose that needed fixing, and the fix belongs
  * where the value is formatted, which is the backend's presentation.
  *
  * Identifiers, hashes, evidence quotations and provenance are out of

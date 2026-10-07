@@ -16,7 +16,7 @@
  * the canvas is plain.
  *
  * Keeping both would have stacked two textures behind the same content --
- * contours over graph paper -- which is the half-migrated look this
+ * contours over graph paper, which is the half-migrated look this
  * redesign exists to remove. The `grid-drift` keyframes went with it.
  */
 
@@ -212,7 +212,7 @@ table.data td.cited {
  *
  * That claim survives here because of *what* is animated. A stage mark
  * transitions on `background-color` and `border-color`, and those change
- * only when `data-state` changes -- which happens only when an event
+ * only when `data-state` changes, which happens only when an event
  * arrives. A call node animates once, on mount, and a call node exists
  * only because an event created it. There is no keyframe loop, no
  * `infinite`, and nothing on a timer: if the backend goes quiet, the graph

@@ -26,7 +26,7 @@ log = get_logger(__name__)
 #: validator will refuse.
 #:
 #: It did. A live run's visualiser chose `categorical` -- a reasonable word
-#: for a nominal axis, and not one Vega-Lite has -- and
+#: for a nominal axis, and not one Vega-Lite has, and
 #: `verification/charts.py` rejected the specification:
 #: "encoding type 'categorical' is not allowed". The refusal was correct;
 #: the chart was still lost. Constraining the schema prevents the mistake

@@ -7,7 +7,7 @@
  * current header and panel chrome: this one owns *where things sit and how
  * big they are*, and nothing in it knows what a report or a finding is.
  *
- * It sits immediately after `reset.css` so every later module -- and every
+ * It sits immediately after `reset.css` so every later module, and every
  * override in `states.css` -- can rely on the frame existing and can win
  * over it where a specific surface needs to.
  *
@@ -86,7 +86,7 @@
 /* ---------------------------------------------------------------- type
  *
  * The typographic signature. `--text-display` has exactly one legitimate
- * call site -- the headline answer -- and the rule only works while nothing
+ * call site -- the headline answer, and the rule only works while nothing
  * else competes at that size.
  *
  * `text-wrap: balance` rather than truncation. An answer is the one thing on
@@ -153,7 +153,7 @@
  *
  * Anything that scrolls inside itself declares it here, together with the
  * `min-width: 0` that lets it. A grid or flex item defaults to `min-width:
- * auto` -- "at least as wide as my content" -- so a scroll container inside
+ * auto` -- "at least as wide as my content", so a scroll container inside
  * one expands to fit rather than scrolling, and takes the page sideways.
  */
 .scroll-x {
@@ -165,7 +165,7 @@
 
 /* -------------------------------------------------------- print page
  *
- * Page-level print foundations only. How a *report* prints -- which
+ * Page-level print foundations only. How a *report* prints, which
  * disclosures expand, where the evidence appendix begins -- belongs with the
  * report, not here.
  *

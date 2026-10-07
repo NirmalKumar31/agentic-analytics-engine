@@ -3,7 +3,7 @@
  *
  * `App` already holds fifteen pieces of mutable state. A sixteenth saying
  * which phase we are in would be one that can disagree with the other
- * fifteen -- and a phase that says `completed` while the run payload says
+ * fifteen, and a phase that says `completed` while the run payload says
  * `refused` is worse than no phase at all, because the interface would
  * then confidently render the wrong thing.
  *

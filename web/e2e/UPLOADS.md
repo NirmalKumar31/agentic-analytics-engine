@@ -22,8 +22,8 @@ a number in a comment is a number nothing re-measures.
 > can express. A viewport is not a shape. A theme is not a shape. A terminal
 > state is not a shape. A filename is certainly not a shape.
 
-> A new **admission** -- a `POST /api/analyses` or `POST /api/comparisons`
-> the container answers -- is justified only by a *behaviour of the engine*
+> A new **admission**, meaning a `POST /api/analyses` or `POST /api/comparisons`
+> the container answers, is justified only by a *behaviour of the engine*
 > no existing result demonstrates. Rendering the same result at a different
 > width, in a different theme, in print, or in a different terminal state is
 > iteration over one result, and `reportFor()` serves it from a capture.
@@ -43,7 +43,7 @@ that header, so the classification cannot be faked from inside a test.
 This replaced an earlier scheme that asked a client-side marker whether the
 current page had a fixture route installed. `terminalStates.spec.ts` removed
 its route by pattern rather than through the `release()` it was handed, so
-the route went away and the marker did not -- and every later real analysis
+the route went away and the marker did not, and every later real analysis
 in that worker was recorded as a free replay. Two were:
 `visualReview.spec.ts`'s "a real report holds at every approved width" and
 `timeline.spec.ts`'s refused run. **The job was over its analysis budget and
@@ -65,7 +65,7 @@ Every replayed response names the payload behind it, and the guard fails if
 that payload was never registered. A capture is registered only when it came
 from a real server response, and only after it has been checked for every
 field `RunPayload` declares non-optional plus the provenance and
-terminal-classification fields the redesign asserts on -- so a payload
+terminal-classification fields the redesign asserts on, so a payload
 captured mid-run cannot be replayed for the rest of the job as a finished
 result. Committed fixtures (the six terminal states) are registered as
 `committed` rather than `capture`: they are evidence about *rendering*, and
@@ -88,10 +88,10 @@ theme and any emulated media with it.
 | fixture | shape | used by |
 |---|---|---|
 | `profiled` | the ordinary 200-row sample | accessibility, app, chart, evidence, golden, motion, print, terminalStates, timeline, visualReview |
-| `wide` | 36 categories over 400 rows — a long table and a crowded axis | chart, report |
+| `wide` | 36 categories over 400 rows, a long table and a crowded axis | chart, report |
 | `twoSeries` | two dimensions, so the chart carries a colour encoding | report |
 | `twoClocks` | two date columns, so the composer must ask which is the clock | composer |
-| `closeCall` | a genuinely ambiguous column | *available; roleConfirmation does not use it — see below* |
+| `closeCall` | a genuinely ambiguous column | *available; roleConfirmation does not use it, see below* |
 | `plain` | no ambiguity at all, as the control | *available* |
 | `ambiguous` | a column that reads as measure and as dimension | *available* |
 | `comparable` | a Compare-capable session, with `/api/config` routed before mount | compare |
@@ -101,7 +101,7 @@ theme and any emulated media with it.
 
 A worker-scoped page is shared by every test in the file. `page.close()` is
 the ordinary line to write against a test-scoped page, and against a shared
-one it destroys the resource for every test after it — which then fail with
+one it destroys the resource for every test after it, which then fail with
 "Target page, context or browser has been closed", reported in the *victim*,
 naming a locator that is plainly present in the screenshot. The culprit
 passes.
@@ -113,7 +113,7 @@ test: remove the refusal and it fails.
 
 The same applies to state. **A test gives the session back the way it found
 it.** A route installed on a shared page outlives the test that installed it;
-so does a run left in flight — and while a run is in flight there is no
+so does a run left in flight, and while a run is in flight there is no
 composer in the document at all, so the next test's `fill()` waits for a
 locator that will never resolve, until the *test* timeout. That is a
 two-minute hang reported as a closed page. `accessibility.spec.ts`'s "a run
@@ -123,7 +123,7 @@ settle, and asserts the missing composer so the mechanism stays written down.
 ## The uploads, and the exceptions
 
 Nineteen per engine, measured. Four are worker fixtures, attributed to
-whichever spec first asked for one -- `profiled` to `accessibility`,
+whichever spec first asked for one: `profiled` to `accessibility`,
 `twoClocks` to `composer`, the multi-series shape to `report`, and
 `comparable` to `compare`. The `demo` fixture uploads nothing at all: the
 warehouse is committed data the server already holds. Three declared
@@ -133,7 +133,7 @@ cost nothing.
 The remaining fifteen belong to specs that genuinely cannot share, each for
 a stated reason:
 
-**`roleConfirmation` — 8 uploads.** Confirming a schema role is a `PATCH`
+**`roleConfirmation`, 8 uploads.** Confirming a schema role is a `PATCH`
 that advances the session's revision, and the flow is one-way: a column that
 has been settled cannot be un-settled through the UI. Each scenario needs a
 dataset whose roles are still open, so each takes its own. Three are
@@ -141,18 +141,18 @@ dataset whose roles are still open, so each takes its own. Three are
 those tests mutate the revision from outside the page to model a second tab.
 Every one of them closes in an `afterEach` or `afterAll`.
 
-**`informationArchitecture` — 3 uploads.** Three serial describes over three
+**`informationArchitecture`, 3 uploads.** Three serial describes over three
 different shapes (`ambiguous`, `plain`, and `plain` again driven to a
 terminal state). The third could share the second's shape but not its state,
 which has already been driven somewhere specific. All three close in
 `afterAll`.
 
-**`app` — 2 uploads.** One test *ends* a session and asserts the dataset
-becomes unreachable — it cannot share one it is going to destroy. The other
+**`app`, 2 uploads.** One test *ends* a session and asserts the dataset
+becomes unreachable, so it cannot share one it is going to destroy. The other
 opens two browser contexts to prove one cannot reach the other's dataset,
 which is the whole point of the test. Both close what they open.
 
-**`chart` — 2 uploads.** One is the Compare-lanes dataset, which needs
+**`chart`, 2 uploads.** One is the Compare-lanes dataset, which needs
 `/api/config` answered with AI advertised *before the app mounts*, so it
 cannot reuse a session created without that route. The other is a
 high-cardinality shape the sample cannot express.
@@ -161,7 +161,7 @@ Specs that upload nothing: `compareSetup`, `dualmode`, `evidence`,
 `foundation`, `golden`, `landing`, `motion`, `print`, `sharedSession`,
 `terminalStates`, `timeline` and `visualReview`. Between them they render
 every terminal state, the whole viewport and theme matrix, the print
-appendix, five PDFs and forty review screenshots -- on sessions and
+appendix, five PDFs and forty review screenshots, on sessions and
 payloads other specs already paid for.
 
 ## The admissions, and why each one is real
@@ -196,7 +196,7 @@ produced.
 
 A closed browser context does **not** free a server-side upload session. The
 server holds it until the capability deletes it or the TTL expires, and the
-TTL outlives a CI run — so a suite that merely closes pages leaves one
+TTL outlives a CI run, so a suite that merely closes pages leaves one
 session per upload behind, and three engines leave three times as many.
 
 `endSession(page)` presses "End session", which is
@@ -217,7 +217,7 @@ and a repeated id makes duplicate detection either useless or wrong. That direct
 `test-results/` on purpose: Playwright clears its output directory at the
 start of every run, and the three engines are three runs against one
 container, so a ledger kept there could only ever report the last engine's
-numbers — the opposite of what a shared ceiling needs.
+numbers, which is the opposite of what a shared ceiling needs.
 
 Every record carries the **job id** (`AAE_E2E_JOB_ID`; in CI, the run id and
 the attempt). The ledger deliberately outlives a Playwright invocation, and
@@ -234,8 +234,8 @@ node scripts/check-resource-budget.mjs --scope engine   # after each engine
 node scripts/check-resource-budget.mjs --scope job      # after all three
 ```
 
-`engine` scope is everything one invocation can know by itself — a 429 it was
-served, a session it did not hand back, its own totals — and `scripts/e2e.mjs`
+`engine` scope is everything one invocation can know by itself (a 429 it was
+served, a session it did not hand back, its own totals) and `scripts/e2e.mjs`
 runs it after every engine so a leak is named before the next two engines
 spend twenty minutes on top of it. `job` scope adds the totals against the
 shared ceilings and the roll-call of engines that were expected to write;
@@ -258,7 +258,7 @@ the static rules.
 build if that changes without the resource model changing with it.
 
 The report guard refuses a flaky test outright, so a retry can never turn a
-job green — it can only spend the budget a second time. Worst case today is
+job green, and it can only spend the budget a second time. Worst case today is
 therefore exactly one execution per test, which is what the budget above
 measures. If retries were ever enabled, each retried test would re-upload
 its dataset and re-issue its admissions, and the guard would only say so

@@ -91,7 +91,7 @@ def test_a_grouped_answer_is_publishable_whatever_the_header_case(
 
 
 def test_the_numbers_are_there_either_way() -> None:
-    """The figures were never wrong -- only unpublishable. Worth pinning,
+    """The figures were never wrong, only unpublishable. Worth pinning,
     so a future shape fix cannot be mistaken for an arithmetic one."""
     _, snapshot = _run(
         "What is the average Weekly_Sales by Holiday_Flag?",

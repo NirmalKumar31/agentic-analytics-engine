@@ -40,7 +40,7 @@ from agentic_analytics.presentation.schemas import (
 # widening that.
 #
 # So a unit that d3-format cannot express goes in the axis **title**
-# instead -- "Return rate (%)", "Difference from the highest (pp)" -- which
+# instead -- "Return rate (%)", "Difference from the highest (pp)", which
 # is declarative, is announced to a screen reader, and says it once rather
 # than on every tick.
 

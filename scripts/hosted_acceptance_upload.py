@@ -120,7 +120,7 @@ def _ask(client: Client, session: str, question: str, checks: Checks) -> dict[st
         # A per-address ceiling refusing an eleventh question is the
         # deployment working as configured. Counting it as a failed check
         # says the engine is broken when the script is simply being
-        # throttled -- and counting it as a pass would be worse.
+        # throttled, and counting it as a pass would be worse.
         raise RateLimited(question)
     if status != 202:
         checks.ok(f"{question[:44]!r} was accepted", False, f"HTTP {status}")

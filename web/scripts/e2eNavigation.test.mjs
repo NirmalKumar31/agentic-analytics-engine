@@ -37,7 +37,7 @@ describe("end-to-end navigation", () => {
     // Any receiver, not just a variable literally called `page`. The first
     // version of this guard matched `page.goto(` case-sensitively and so
     // missed `alicePage.goto("/")` and `bobPage.goto("/")` in the
-    // two-visitor isolation test -- which the sweep had also missed, for
+    // two-visitor isolation test, which the sweep had also missed, for
     // the same reason.
     const offenders = [];
     for (const name of specFiles()) {

@@ -11,7 +11,7 @@
  *    rendering of the same events must not reintroduce it.
  * 2. **Calls pair by `task_id`, not by order.** The committed
  *    `returns-segments` recording dispatches four calls and they return
- *    out of order -- `task_03` before `task_02` -- so index pairing
+ *    out of order -- `task_03` before `task_02`, so index pairing
  *    attributes one call's row count to another.
  * 3. **A refused or suppressed failure opens its own node.** The worker
  *    emits it before the client is reached, so there is no preceding

@@ -121,7 +121,7 @@ test.describe("the report canvas is fit for a reader", () => {
      * The surface the published defect was on, and the one the uploaded
      * sample cannot reproduce.
      *
-     * `profiled`'s columns are single words -- `revenue`, `region` -- so a
+     * `profiled`'s columns are single words -- `revenue`, `region`, so a
      * finding about them contains no identifier and this gate passes over
      * the fallback path without noticing. The governed warehouse has a
      * metric called `return_rate` and a dimension called
@@ -155,7 +155,7 @@ test.describe("the report canvas is fit for a reader", () => {
     /*
      * The surface the published defect appeared on. A trend headline reads
      * the period straight out of the result, and the engine stores a
-     * monthly bucket as its first midnight -- so the answer said "peaked
+     * monthly bucket as its first midnight, so the answer said "peaked
      * in 2025-12-01T00:00:00", which is a serialisation format shown to a
      * reader.
      *
@@ -182,7 +182,7 @@ test.describe("the report canvas is fit for a reader", () => {
      * about `gross_margin`. Objecting that the answer contains
      * `gross_margin` would be objecting to their own typing. What a
      * refusal still may not do is show a float tail, a stored timestamp,
-     * or a value that never arrived -- so those are what is checked.
+     * or a value that never arrived, so those are what is checked.
      */
     await reportFor(page, "What is the average gross_margin by region?");
     const headline =
@@ -226,7 +226,7 @@ test.describe("the report canvas is fit for a reader", () => {
      * `rate_effect` down its y-axis. Both are a shift-share
      * decomposition naming its own arithmetic, and neither tells a reader
      * what moved. The titles are produced from one declared source --
-     * `analytics/labels.py` -- which the chart title, the axis, the
+     * `analytics/labels.py`, which the chart title, the axis, the
      * legend, the tooltip and the table header all read, so they cannot
      * disagree.
      *

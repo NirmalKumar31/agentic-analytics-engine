@@ -7,7 +7,7 @@
  * The fold showed one highlight below 640px and hid the rest behind a
  * `<details>`, above a threshold of three. **The presentation contract
  * emits at most two highlights for any shape it builds** -- highest and
- * lowest -- so the threshold was never met. It looked alive only because
+ * lowest, so the threshold was never met. It looked alive only because
  * the published recordings carried no presentation snapshot and the report
  * fell back to listing the engine's own findings, which is the defect
  * `presentation/fields.py` and `recordings/record.py` were corrected for.

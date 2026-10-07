@@ -886,7 +886,7 @@ def build_graph(ctx: RunContext) -> Any:
                     # Verification costs a model call per claim, and that
                     # tail is how a run overruns its budget after the tool
                     # loop has already stopped. A claim that cannot be
-                    # checked is withheld -- never waved through, which is
+                    # checked is withheld, never waved through, which is
                     # the one outcome that would make the budget matter
                     # more than the invariant.
                     verdict = Verdict(
@@ -960,7 +960,7 @@ def build_graph(ctx: RunContext) -> Any:
         # instead: "165,414,408" where the engine's own sentence said
         # "165,414,407.58 across 518 rows". Both cite the same cell and
         # numeric verification accepts a rounded figure, so the rounding
-        # was the only difference -- and it is the published total that a
+        # was the only difference, and it is the published total that a
         # reader takes away.
         grouped_contract = bool(
             (
@@ -1134,7 +1134,7 @@ def build_graph(ctx: RunContext) -> Any:
             # A refusal is stated once. The mapping stage already writes a
             # precise, actionable sentence -- "the question restricts to
             # '3 to 9' but does not say which column that applies to; name
-            # the column, for example ..." -- and a generic "the run
+            # the column, for example ...", and a generic "the run
             # stopped early" on top of it adds nothing a reader can use.
             core = stopped.split(":", 1)[-1].strip() or stopped
             if not any(core and core in existing for existing in limitations):

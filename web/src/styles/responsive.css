@@ -31,7 +31,7 @@
 /* The report's own sections, which are grids.
  *
  * `.report-table` and `.report-visual` declare `display: grid` with no
- * `grid-template-columns`, so the single implicit track is `auto` -- and an
+ * `grid-template-columns`, so the single implicit track is `auto`, and an
  * `auto` track resolves to its content's max-content width. A 678px table
  * therefore sized the track to 678px inside a 358px section, and every
  * descendant inherited the blown-out width. This is the same failure the

@@ -109,7 +109,7 @@ class Settings(BaseSettings):
     #: the engine does not ask the model to compute anything, only to choose
     #: what to investigate, and reasoning tokens are billed as output. There
     #: is no sampling setting to configure -- determinism here comes from the
-    #: analytics layer, not from model decoding -- so this is the only knob.
+    #: analytics layer, not from model decoding, so this is the only knob.
     cloud_reasoning_effort: CloudReasoningEffort = "low"
 
     # ------------------------------------------------------------ AI mode
