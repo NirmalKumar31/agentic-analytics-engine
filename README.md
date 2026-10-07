@@ -106,7 +106,12 @@ make verify     # run the same family of checks CI runs
 
 Normal development commands pin `AAE_PROVIDER_MODE=fake`; they do not need a
 credential or make a provider request. The browser suite also refuses to run
-unless the server health endpoint reports `provider_mode: fake`.
+unless the target is a loopback address whose health endpoint reports
+`provider_mode: fake`. The host is checked as well as the mode because the
+deployment runs in fake mode too — `provider_mode` selects the ungoverned
+provider, and the paid path is gated separately — so the mode alone cannot
+tell a local server apart from production. A deployment is exercised by the
+hosted sweep in `web/hosted/`, which has its own gate.
 
 Cloud development is deliberately separate and requires explicit intent:
 

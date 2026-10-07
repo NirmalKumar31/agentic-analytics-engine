@@ -74,7 +74,7 @@ export function configInterceptions(page: Page): number | null {
  * This is not hypothetical. Reordering these two lines in `print.spec.ts`
  * passed on Chromium -- which happened to win the race -- and timed out
  * every test in the file on Firefox. `configBeforeMount` in
- * `compareHelpers.spec.ts` pins the ordering so it cannot come back.
+ * `compareSetup.spec.ts` pins the ordering so it cannot come back.
  */
 export async function advertiseAi(page: Page) {
   seen.set(page, { routed: Date.now(), requested: null, intercepted: 0 });
@@ -93,6 +93,20 @@ export async function advertiseAi(page: Page) {
           : mode,
     );
     body.capabilities.compare_available = true;
+    /*
+      A deployment that offers AI always says a model is remote.
+
+      These are not two facts on the server: `app.py` computes one
+      `_ai_offered` and reports it as the AI mode's availability *and* as
+      `model_inference_remote`, and
+      `tests/integration/test_api_metadata_consistency.py` pins that they
+      can never disagree. A fixture that flipped one and left the other
+      stood for a deployment that cannot exist -- and the half it left
+      behind is the half that gates the "What can be sent to OpenAI"
+      disclosure, so every browser test ran against a landing page with
+      that control missing.
+    */
+    body.model_inference_remote = true;
     body.capabilities.ai_limits = {
       runs_per_session: 3,
       max_model_calls_per_run: 24,

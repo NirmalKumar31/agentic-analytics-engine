@@ -128,11 +128,13 @@
   margin-block-start: var(--space-3);
 }
 
-/* `composer-chip`, not `chip`. `drawer.css` already owns `.chip`, loads
-   after this module, and sets `font-family: var(--font-mono)` -- correct
-   there, where a chip is an identifier, and wrong here, where it is a
-   sentence. The collision rendered every composer chip in mono and no test
-   saw it. A name that is already taken is taken. */
+/* `composer-chip`, not `chip`. `.chip` belonged to the since-deleted
+   `drawer.css`, which loaded after this module and set `font-family:
+   var(--font-mono)` -- correct there, where a chip was an identifier, and
+   wrong here, where it is a sentence. The collision rendered every composer
+   chip in mono and no test saw it. The name stays qualified even though
+   `.chip` is now free: a generic name in a shared cascade is a collision
+   waiting for the next module to claim it. */
 .composer-chip {
   font-family: var(--font-sans);
   font-size: var(--text-xs);

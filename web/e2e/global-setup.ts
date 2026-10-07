@@ -13,6 +13,6 @@ export default async function globalSetup(): Promise<void> {
       signal: AbortSignal.timeout(10_000),
     });
     return { status: response.status, body: await response.text() };
-  });
+  }, process.env);
   console.log(`E2E safety check passed: ${baseURL} reports provider_mode=fake`);
 }
