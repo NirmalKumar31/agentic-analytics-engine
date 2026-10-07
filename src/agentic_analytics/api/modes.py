@@ -108,8 +108,8 @@ def build_provider_for_mode(
     """Construct the provider this run will use, and only that one.
 
     A deterministic run must not build a cloud provider, read the cloud
-    credential or validate it, so that a deployment with no key -- or a
-    broken one -- still serves deterministic analytics normally.
+    credential or validate it, so that a deployment with no key, or a
+    broken one, still serves deterministic analytics normally.
 
     Only the deterministic provider is returned. Asking for the AI one
     raises even when the deployment is perfectly configured: a paid

@@ -193,7 +193,7 @@ class RunBudget:
         hidden reasoning tokens count as output.
 
         So the proposing stages see a smaller budget than the verifying one.
-        The reserve is not extra spending -- the ceiling is unchanged -- it
+        The reserve is not extra spending -- the ceiling is unchanged. It
         is a claim on part of it that the earlier stages cannot take.
         """
         if role in VERIFICATION_ROLES:
@@ -513,7 +513,7 @@ class GovernedCloudProvider(LLMProvider):
 
         Synchronous on purpose, and that is the fix. The previous shape
         read the committed totals, awaited the token count, and recorded
-        nothing until the response came back -- so several concurrent calls
+        nothing until the response came back, so several concurrent calls
         each passed the same check and together exceeded a ceiling every
         one of them individually respected.
 
@@ -566,7 +566,7 @@ class GovernedCloudProvider(LLMProvider):
         nothing is settled. The reservation stands in full, the run is
         charged the counted input and the entire output allowance it was
         permitted to use, and the run's cost is marked incomplete. Settling
-        such a call to zero -- which is what reading an absent count as
+        such a call to zero, which is what reading an absent count as
         zero amounted to -- refunded real spending.
         """
         trustworthy = usage is not None and usage.valid

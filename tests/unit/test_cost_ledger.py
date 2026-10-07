@@ -86,7 +86,7 @@ def _start(
 
     Session and client slots are counted here and nowhere else. Tests that
     reserved without admitting used to exercise the ceiling because
-    `_RESERVE` counted the slot too -- which meant every real run spent
+    `_RESERVE` counted the slot too, which meant every real run spent
     two, and a cap of three admitted one.
     """
     return ledger.admit_run(run_id=run, session_id=session, client_id=client, caps=caps)

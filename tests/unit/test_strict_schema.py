@@ -4,7 +4,7 @@ OpenAI strict Structured Outputs accepts a narrower JSON Schema than
 Pydantic emits, and the gap is not cosmetic: eighty-eight violations sat
 across the eight response models before this existed. A schema the provider
 rejects fails the first call of whichever agent owns it -- possibly minutes
-into a paid run, and not necessarily the first agent to run -- so the
+into a paid run, and not necessarily the first agent to run, so the
 invariants are asserted here rather than discovered there.
 
 The rules, from the documented requirements (reviewed 2026-09-27):
@@ -252,7 +252,7 @@ def test_a_free_form_object_becomes_a_json_string() -> None:
     """`dict[str, Any]` cannot exist under strict mode.
 
     `additionalProperties: false` is mandatory, and on an object with no
-    declared properties it permits only `{}` -- so a tool-call arguments
+    declared properties it permits only `{}`, so a tool-call arguments
     field would be silently emptied rather than rejected.
     """
     schema = {"type": "object", "properties": {"arguments": {"type": "object"}}}

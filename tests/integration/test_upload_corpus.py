@@ -262,7 +262,7 @@ def test_the_two_modes_reach_the_same_outcome_on_every_case(
 
     The two modes differ in who reads the wording, not in what the engine
     will execute, so a case answered in one and refused in the other is a
-    defect in whichever path is wrong -- and it is the reader who pays,
+    defect in whichever path is wrong, and it is the reader who pays,
     because Compare Both shows the two side by side and offers no way to
     tell a planner disagreement from a data problem.
 

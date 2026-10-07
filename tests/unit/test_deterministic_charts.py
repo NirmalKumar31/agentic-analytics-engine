@@ -4,7 +4,7 @@
 draws, and the browser joins the two immediately before rendering. That
 split is deliberate -- the rows are in the payload once, where the table
 and verification read them, so a chart cannot disagree with the table
-beside it -- but it means a chart is only renderable if every field it
+beside it, but it means a chart is only renderable if every field it
 encodes is actually a column of the cited result. When that does not hold
 the browser has no rows to bind and the reader gets a message instead of a
 chart, which is how "chart data must be inline values" reached production.
@@ -152,7 +152,7 @@ def test_every_encoded_field_is_a_column_of_the_cited_result(kind: str) -> None:
     """The invariant the browser's hydration depends on.
 
     A field that is not a column has no rows to bind, so the chart renders
-    as a message rather than a plot -- and nothing on the server would
+    as a message rather than a plot, and nothing on the server would
     notice, because the server never binds the data.
     """
     mapping, result = CASES[kind]
@@ -477,7 +477,7 @@ class TestAnOrderedNumericCutIsDrawnAsASequence:
         """The one change here that would have been dishonest.
 
         The published values span 51.70 to 65.49 -- about a tenth of their
-        own mean -- and some of those groups rest on 29 rows. A suppressed
+        own mean, and some of those groups rest on 29 rows. A suppressed
         baseline draws a decisive pattern over a result whose shape is
         "nearly flat, with noise". The axis *type* was the defect.
         """

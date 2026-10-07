@@ -7,7 +7,7 @@ Deterministic mode only. No cloud model call is made, no credential is read
 and nothing is printed that could carry one: every value shown is either a
 number this script computed itself or a status the API reported.
 
-One upload, one session, every question asked against it -- the per-address
+One upload, one session, every question asked against it, because the per-address
 upload ceiling is low by design and a script that uploads per question
 exhausts it.
 

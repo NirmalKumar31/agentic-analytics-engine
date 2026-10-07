@@ -2,7 +2,7 @@
 
 The single-fixture privacy tests answer "does this leak on this file". The
 corpus asks it of thirty-eight schemas with different column types, null
-patterns and cardinalities -- which is where the last leak came from: a
+patterns and cardinalities, which is where the last leak came from: a
 text column with a different value on every row was treated as a grouping,
 so a remote run received uploaded cells as group labels. One file did not
 show that; a table of names did.

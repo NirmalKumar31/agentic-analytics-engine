@@ -117,7 +117,7 @@ class TestTheFigureIsKeptAndTheGroundIsStated:
         Written as `100%` and now `100.00%`: a declared precision became a
         pin rather than a hint, because a column of means printed `61.08`,
         `62.94`, `59.48` and then `59`. The figure is what this test is
-        about and the figure has not moved -- it is still the maximum, and
+        about and the figure has not moved. It is still the maximum, and
         still the group that holds it, which is the whole claim.
         """
         result = presentation(breakdown(self.THIN, self.VALUES))
@@ -149,7 +149,7 @@ class TestTheFigureIsKeptAndTheGroundIsStated:
         """Every figure in a published sentence has to be traceable to the
         cited result, and `build_presentation` raises when one is not. The
         population comes from the result's own `row_count` cell and the
-        total from recorded coverage, so both resolve -- but this is the
+        total from recorded coverage, so both resolve, but this is the
         assertion that catches a future sentence that states a number the
         guard cannot find, because the runner swallows that exception and
         the presentation would silently disappear."""
@@ -203,7 +203,7 @@ class TestWhatTheHelpersWillNotClaim:
 
     def test_the_note_never_adds_a_second_semicolon(self) -> None:
         """The presentation contract rejects one, because a semicolon run
-        repeating a grouped table is a prose failure it exists to stop --
+        repeating a grouped table is a prose failure it exists to stop,
         and this sentence is appended to a summary that may already have
         one."""
         for populations in ([2, 140], [2, 3], [2]):
@@ -435,7 +435,7 @@ class TestTheGroupsTheAnswerDoesNotName:
     def test_the_count_it_states_is_reported_as_derived(self) -> None:
         """So the sentence passes the guard honestly rather than by
         wording around it. Spelling "three" would have slipped past
-        `numbers_resolve`, which reads numerals -- and a figure that
+        `numbers_resolve`, which reads numerals, and a figure that
         evades the check is exactly what the check is for."""
         snapshot = breakdown([229, 29, 47, 66, 12, 18, 257], [0.61, 0.62, 0.9, 0.4, 0.6, 0.6, 0.6])
         named = named_rows(

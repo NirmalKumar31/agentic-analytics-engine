@@ -4,7 +4,7 @@ Derived, not redistributed. The evidence file is the user's own data and is
 not in this repository; what is reproduced is the shape that mattered:
 
 * a numeric measure that is ~98% distinct, so schema inference calls it an
-  identifier -- and an identifier was not allowed to be a measure, which is
+  identifier, and an identifier was not allowed to be a measure, which is
   why "total website_visits by age" summed `age` instead;
 * a repeating numeric column the question names as the grouping;
 * a second repeating numeric column, so a two-cut request is expressible;

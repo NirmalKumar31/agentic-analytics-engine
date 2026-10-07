@@ -25,7 +25,7 @@ is built in two phases:
 
 After phase 2 the engine refuses filesystem reads, network reads, ``COPY``,
 ``ATTACH`` and extension loading, and refuses to have those settings turned
-back on -- so even a statement that somehow got past
+back on, so even a statement that somehow got past
 :mod:`agentic_analytics.warehouse.sqlguard` cannot reach the host. Phase 2 is
 irreversible for the life of the connection, which is why it is done once at
 construction rather than per query.
@@ -88,7 +88,7 @@ class DisclosurePolicy:
     """What one run may show the model driving it.
 
     Attached to a run, not to a session. A session is shared -- Compare Both
-    puts a deterministic run and an AI run on the same connection -- so a
+    puts a deterministic run and an AI run on the same connection, so a
     policy stored on the session is a policy two runs race to set, and the
     AI side can inherit the local one.
 

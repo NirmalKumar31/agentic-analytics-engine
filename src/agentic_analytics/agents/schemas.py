@@ -203,7 +203,7 @@ def _shorten_without_splitting_a_number(text: str) -> str:
     A plain slice at 400 characters cut a 45-group breakdown in the middle
     of `301,397,792.46`, leaving `301,397`. Numeric verification then
     rejected the engine's own complete answer for stating a value that is
-    not in its results -- and the partial summary naming two groups was
+    not in its results, and the partial summary naming two groups was
     published in its place. The truncation created the false claim it was
     then blamed for.
 
@@ -314,7 +314,7 @@ class ReportSection(BaseModel):
 
     There is no body. A section used to carry the findings' own sentences
     joined together, which meant every factual sentence appeared three
-    times -- once in the executive summary, once in the findings list, once
+    times, once in the executive summary, once in the findings list, once
     here. A section says which findings belong together; the findings say
     what they say, once.
     """
@@ -327,8 +327,8 @@ class ReportPlanSection(BaseModel):
     """One group of findings the reporter wants kept together.
 
     There is deliberately no heading field. A heading is short enough to look
-    like a label and long enough to be a claim -- "Electronics underperformed"
-    is five words and an unverified assertion -- and distinguishing the two
+    like a label and long enough to be a claim: "Electronics underperformed"
+    is five words and an unverified assertion, and distinguishing the two
     needs exactly the semantic judgement the verification pipeline exists to
     avoid trusting. So the engine derives the heading from what is actually
     in the group, and the model keeps the part that is genuinely editorial:

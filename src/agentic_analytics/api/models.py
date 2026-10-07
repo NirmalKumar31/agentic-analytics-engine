@@ -25,7 +25,7 @@ def execution_mode(live_enabled: bool, ai_available: bool) -> ExecutionMode:
 
     Derived from what the deployment can offer, not from
     `AAE_PROVIDER_MODE`. The mode is chosen per run now, so a process
-    setting describes nothing a visitor can act on -- and reading it here
+    setting describes nothing a visitor can act on, and reading it here
     contradicted the capabilities published beside it: a deployment with
     AI enabled and the process default left at `fake` reported
     `deterministic_live` while offering AI runs, and told visitors nothing
@@ -41,7 +41,7 @@ class HealthResponse(BaseModel):
     version: str
     build_sha: str
     #: Random, generated once when this application object is built. Two
-    #: reads returning different values mean the process was replaced --
+    #: reads returning different values mean the process was replaced,
     #: which is the only way to see an OOM kill and restart from outside.
     #: Comparing `version` cannot: a restarted process runs the same build.
     #: Not a secret, and not stable across deploys by design.
@@ -200,7 +200,7 @@ class RoleConfirmationRequest(BaseModel):
     """A batch of role changes against a known generation of the schema.
 
     `expected_revision` is what the browser was looking at. A mismatch means
-    the schema moved under it -- another tab, or its own earlier request --
+    the schema moved under it -- another tab, or its own earlier request,
     and confirming against a column list it is no longer showing would apply
     an instruction the person never gave.
     """

@@ -113,7 +113,7 @@ read the release evidence rather than treating a diagram as proof.
 
 ## What the source snapshot means
 
-Each diagram's footer names the commit its claims were checked against --
+Each diagram's footer names the commit its claims were checked against,
 currently `077fc70`. The text in these diagrams was verified against
 implementation call sites at that revision, not against intent. When the
 architecture moves, the snapshot and the claim move together or the diagram
@@ -143,7 +143,7 @@ draws between "AMBIGUOUS · LANGUAGE" and "AMBIGUOUS · SEMANTIC" is
 `AI_ELIGIBLE_ISSUES`, which holds the four wording ambiguities a planner
 may settle and excludes `AMBIGUOUS_PERIOD_SEMANTICS`. That exclusion is
 what "a missing business clock is asked, not inferred" names, and
-`ai_eligible` additionally requires the state to be `AMBIGUOUS` at all --
+`ai_eligible` additionally requires the state to be `AMBIGUOUS` at all,
 so "UNRESOLVED · UNSUPPORTED · UNSAFE → no planner request" holds by
 construction.
 

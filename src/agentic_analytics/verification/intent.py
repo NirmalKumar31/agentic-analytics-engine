@@ -17,7 +17,7 @@ model's opinion of its own output is not a gate.
 So the model keeps its veto and loses its power to grant. A finding
 publishes when the model says it answers *and* the resolved intent agrees
 it does. Where no mapping is available -- the governed warehouse, an
-ambiguous question -- this abstains rather than guessing, and the existing
+ambiguous question. This abstains rather than guessing, and the existing
 checks decide alone.
 
 Profiling findings are not rejected in general. They are the right answer

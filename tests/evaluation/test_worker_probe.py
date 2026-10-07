@@ -457,7 +457,7 @@ async def test_citing_a_p_value_is_not_recorded_as_an_invented_column() -> None:
     """The probe found a gap in the contract, not a model mistake.
 
     qwen2.5:7b cited `res_stats[0].p_value` for a significance claim. There
-    is no `p_value` column -- the number lives in `statistical_result` -- so
+    is no `p_value` column -- the number lives in `statistical_result`, so
     no cell reference can be valid for a claim about one, however careful
     the model is. Recording that as "invented a column name" would blame the
     model for a limit of `EvidenceCell`.

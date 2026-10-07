@@ -2,7 +2,7 @@
 
 Found by running a real model. qwen3:4b produced findings whose every stated
 number matched a cited cell exactly -- `stated=43985.05` against
-`computed=43985.04999999993` -- and every one of them was withheld, because
+`computed=43985.04999999993`, and every one of them was withheld, because
 the optional `claimed_change` field came back without its `from`/`to`. Across
 three questions that was 17 of 17 findings rejected and nothing published:
 the run looked like a model hallucinating numbers when the numbers were

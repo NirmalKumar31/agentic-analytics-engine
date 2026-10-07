@@ -10,7 +10,7 @@ accumulates error in exactly the direction that matters for a spend ceiling.
 
 Input tokens are not one price. A token is billed as *exactly one* of
 ordinary input, a cache read, or a cache write -- the rates are alternatives
-rather than additions -- and which one it becomes is decided by the provider
+rather than additions, and which one it becomes is decided by the provider
 when it serves the request, after this process has already had to decide
 whether to allow it. Pricing therefore has to express all three, and the
 reservation has to assume the worst of them.

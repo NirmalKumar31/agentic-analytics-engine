@@ -2,7 +2,7 @@
 
 Agents never import the analytics package. They call tools through this
 toolset, which owns a real ``mcp.Client`` -- connected either in-process to a
-server object or over Streamable HTTP to a URL -- and which enforces the
+server object or over Streamable HTTP to a URL, and which enforces the
 per-task and per-run tool-call budgets.
 
 Routing every capability through one client is what makes the MCP trace in the

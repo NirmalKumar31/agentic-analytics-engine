@@ -4,7 +4,7 @@ A session is shared on purpose: Compare Both puts a deterministic run and
 an AI run on one connection so that both answer the same question against
 the same rows. That sharing stops at the result store. A stored snapshot
 keeps every value it was computed with, so "every result on this session"
-is the wrong set for any single run to read -- it would let the cloud run
+is the wrong set for any single run to read. It would let the cloud run
 be shown cells the local run was allowed to compute, and would let either
 half of a comparison cite the other half's numbers as its own evidence.
 """

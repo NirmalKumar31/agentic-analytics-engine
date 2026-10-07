@@ -119,7 +119,7 @@ def test_config_reports_the_same_mcp_policy_the_endpoint_enforces(
 
     An external checker cannot infer this from the address it dialled: a
     container published on a loopback port binds to 0.0.0.0 inside, so the
-    URL says nothing about the policy. It therefore has to be able to ask --
+    URL says nothing about the policy. It therefore has to be able to ask,
     and the answer has to be true.
     """
     settings = Settings(bind_host=bind_host, mcp_allowed_hosts=allowed_hosts)

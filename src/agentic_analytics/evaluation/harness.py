@@ -102,7 +102,7 @@ def _signed_change(finding: PublishedFinding, results: dict[str, Any]) -> str | 
 
     Only counted for a finding whose evidence came from a temporal tool. A
     segment comparison also records a from/to -- "Apparel 1,522,302 versus
-    Toys 825,693" -- and reading that as "revenue rose" is how a
+    Toys 825,693", and reading that as "revenue rose" is how a
     cross-sectional result gets mistaken for a trend.
     """
     temporal = any(

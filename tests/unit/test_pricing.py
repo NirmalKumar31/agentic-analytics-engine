@@ -1,7 +1,7 @@
 """Pricing, which is the part of a spend ceiling that can be silently wrong.
 
 An input token is billed at exactly one of three rates -- ordinary, cache
-read, or cache write -- and the rates differ by more than tenfold. Nothing
+read, or cache write, and the rates differ by more than tenfold. Nothing
 before dispatch can know which a token will become, so the reservation has
 to assume the dearest and settlement has to use the categories the provider
 reports. Getting either half wrong produces a ceiling that holds in testing

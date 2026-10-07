@@ -10,8 +10,8 @@ that a sequential acceptance run cannot find.
 
 What this is **not** for: measuring throughput. It does not report requests
 per second and no number it prints should end up in documentation as a
-performance claim. The load is deliberately tiny -- a couple of simultaneous
-analyses and a few small uploads -- because the goal is to find breakage,
+performance claim. The load is deliberately tiny: a couple of simultaneous
+analyses and a few small uploads, because the goal is to find breakage,
 not to find a limit.
 
 Exit code is 0 only if every check passed.

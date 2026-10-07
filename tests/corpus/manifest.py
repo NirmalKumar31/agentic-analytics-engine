@@ -611,7 +611,7 @@ def _merged_filters() -> dict[str, dict[QuestionKind, str]]:
     """Filter questions folded in per dataset.
 
     A dataset may appear in both tables -- `retail_orders` has a full
-    ten-kind matrix and five filter questions -- and both sets must
+    ten-kind matrix and five filter questions, and both sets must
     survive, so the inner dicts are merged rather than replaced.
     """
     merged: dict[str, dict[QuestionKind, str]] = {}

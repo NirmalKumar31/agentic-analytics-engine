@@ -4,7 +4,7 @@ The worker used to be told tool *names* and nothing else, so its arguments
 were guesses. Telling it the arguments fixes that only if the description
 stays true: a signature transcribed into a prompt drifts the moment a tool
 changes, and the worker is then confidently told about a contract that no
-longer exists -- which is worse than being told nothing, because it will not
+longer exists, which is worse than being told nothing, because it will not
 doubt it.
 
 So these tests run against the real MCP server over the real client. Nothing
@@ -112,7 +112,7 @@ async def test_a_real_metric_call_passes_preflight_against_the_real_catalog(
 
     `revenue by acquisition_channel` is exactly what the model asked for,
     and what the engine refused because it was addressed as a column of
-    `orders`. Named semantically, against the real registry, it is valid --
+    `orders`. Named semantically, against the real registry, it is valid,
     and it then actually runs.
     """
     manager, session_id, session_key = demo

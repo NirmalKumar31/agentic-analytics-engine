@@ -104,7 +104,7 @@ export async function assertFakeProvider(
 
     `provider_mode` selects the *ungoverned* provider. The paid path is
     gated separately, on `ai_analytics_enabled` plus a key plus a
-    reachable ledger -- which is why `render.yaml` ships
+    reachable ledger, which is why `render.yaml` ships
     `AAE_PROVIDER_MODE=fake` and still serves AI Analytics. Production
     therefore answers `/api/health` with exactly the value this gate is
     looking for, and a stray `AAE_E2E_BASE_URL` would send the suite's

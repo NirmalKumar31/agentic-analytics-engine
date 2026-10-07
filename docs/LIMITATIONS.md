@@ -190,7 +190,7 @@ coroutine.
 - **A named time axis or period is applied only when its date semantics are
   established.** "Total revenue in
   1998" filters to 1998 and reports nothing if no row falls there. On a table
-  with no date column it is refused, rather than answered over every row --
+  with no date column it is refused, rather than answered over every row,
   which is what it used to do. A lifecycle date such as `signup_date` is not
   silently treated as the date of revenue or as a revenue trend axis: the
   question must name that date column explicitly. A sole generic event clock

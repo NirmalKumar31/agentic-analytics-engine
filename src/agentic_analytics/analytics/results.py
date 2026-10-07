@@ -94,7 +94,7 @@ class GroupCoverage(BaseModel):
 
     This exists because completeness was being *inferred*, and every
     available signal inferred it wrongly. A grouped aggregate was capped at
-    25 groups by the SQL itself, so `truncated` -- which means "the result
+    25 groups by the SQL itself, so `truncated`, which means "the result
     exceeded the transport limit" -- stayed false; the population line was
     derived from "the question stated no filters"; and the row count was
     summed over the rows that came back. On a 45-store table all three
@@ -237,7 +237,7 @@ class ResultSnapshot(BaseModel):
         When `withhold_cells` is set, a profile's per-column minimum and
         maximum are blanked. Those two are not summaries of the data, they
         are cells of it -- the largest amount in the file, the earliest date
-        in it -- and an uploaded file's cells do not go to a third party.
+        in it, and an uploaded file's cells do not go to a third party.
 
         One method rather than a check at each call site: the leak this
         closes was a prompt that rendered `snapshot.rows` directly while the

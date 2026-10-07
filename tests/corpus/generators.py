@@ -1749,7 +1749,7 @@ def geology_core_assays(rng: random.Random, n: int = 340) -> Dataset:
     Materially different from every other fixture in one way that breaks
     mappings: `from_depth_m` and `to_depth_m` are *coordinates*. They are
     floats, they are not identifiers, and they look exactly like measures
-    to anything reading types alone -- but summing them is meaningless, and
+    to anything reading types alone, but summing them is meaningless, and
     the only additive column is the length the interval spans.
 
     The grades compound it. `gold_gpt` and `copper_pct` are intensities,

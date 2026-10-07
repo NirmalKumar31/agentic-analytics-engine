@@ -5,7 +5,7 @@ no `profit` column, the engine published:
 
     average_holiday_flag for the selected scope is 0.07.
 
-It had averaged the grouping column -- a 0/1 flag -- and presented the
+It had averaged the grouping column -- a 0/1 flag, and presented the
 result as the answer. Three things went wrong at once: a measure the
 question named was silently replaced, the replacement was the column the
 question asked to group *by*, and averaging a binary flag is not a figure
@@ -13,7 +13,7 @@ anyone asked for.
 
 The cause is a widening that exists for a good reason. A numeric column
 read as a dimension is not offered as a measure candidate, because
-choosing it unprompted would be a guess -- but if the question names it,
+choosing it unprompted would be a guess, but if the question names it,
 the user has said which column to use. The flaw is that "names it" could
 not tell a measure reference from a grouping reference, so a column named
 only in a `by` phrase became the measure whenever the real one was
@@ -70,7 +70,7 @@ def test_naming_no_measure_is_settled_only_when_there_is_one_candidate() -> None
 
     "The average by holiday flag" names no measure. With exactly one
     numeric column there is nothing to choose, so answering with it is not
-    a guess -- and refusing would make the engine useless on narrow
+    a guess, and refusing would make the engine useless on narrow
     tables. With several candidates it must refuse, because then it would
     be choosing.
     """

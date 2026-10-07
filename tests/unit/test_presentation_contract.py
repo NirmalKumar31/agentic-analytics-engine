@@ -900,7 +900,7 @@ def test_a_long_label_is_never_sliced_mid_number() -> None:
     """No arbitrary truncation of the published sentence.
 
     A hard slice at 400 characters once cut the engine's own complete
-    answer mid-number -- `301,397,792.46` became `301,397` -- and numeric
+    answer mid-number -- `301,397,792.46` became `301,397`, and numeric
     verification then rejected it for stating a value the result did not
     hold. The presentation layer must not truncate at all: it states the
     shape of a breakdown instead of growing with it.

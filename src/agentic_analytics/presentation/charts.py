@@ -3,8 +3,8 @@
 This does not choose the chart. `analytics.charts.chart_for` already does
 that as a pure function of the contract and the result shape, and having
 two selectors would let the report and the chart disagree about what was
-drawn. This reads that decision and names its parts -- which field is on
-which axis, what the series is -- so the frontend does not have to
+drawn. This reads that decision and names its parts, which field is on
+which axis, what the series is, so the frontend does not have to
 re-derive them by inspecting a Vega specification.
 
 It also carries the reason when there is no chart. An empty panel tells a

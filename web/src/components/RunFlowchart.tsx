@@ -122,7 +122,7 @@ export function RunFlowchart({
           screen and the chips were unreadable; positioned absolutely
           under its own column, it broke at every width the spine reflows
           at. As a block it reads at 360px and at 1920px, prints, and the
-          connection to the stage is stated in words -- which is also what
+          connection to the stage is stated in words, which is also what
           a screen reader gets, rather than a drawn line it cannot see.
         */
         <div className="run-flow-branch" data-testid="run-flow-branch">

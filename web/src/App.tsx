@@ -240,7 +240,7 @@ export function App() {
         {session && !hasRun && <QuestionComposer config={config} summary={
                   // Only an uploaded file gets schema-derived examples. The
                   // demo session also carries a summary, so gating on its
-                  // presence alone replaced the curated demo questions --
+                  // presence alone replaced the curated demo questions,
                   // which exist to demonstrate the governed metric registry
                   // with generic ones derived from its tables.
                   session?.catalog.dataset_kind === "upload"

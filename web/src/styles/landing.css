@@ -31,7 +31,7 @@
      "fade out by 62%" still landed inside the prepared-data list once the
      list had four rows in it. Tying the field's height to the content below
      it is the bug. It occupies a fixed band at the top -- the clear space
-     the composition puts it in -- and the mask softens its lower edge. */
+     the composition puts it in, and the mask softens its lower edge. */
   inset-block-start: 0;
   inset-inline: 0;
   /* `width: 100%` is load-bearing, not redundant with `inset-inline: 0`.
@@ -269,7 +269,7 @@
 }
 
 /* Set in sans, not mono. The mockup's placeholder here was a technique
-   list -- "parallel time-series · discount and mix" -- and mono was right
+   list -- "parallel time-series · discount and mix", and mono was right
    for that. The real `demonstrates` field is a sentence, and a sentence in
    mono is slower to read and claims to be an identifier. */
 .prepared-meta {

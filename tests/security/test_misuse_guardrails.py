@@ -16,7 +16,7 @@ that only the outermost one is a filter:
    the cited cells.
 
 So the interesting tests are not "does the filter catch X" -- filters are
-guessable and leaky -- but "is there any path at all by which model-written
+guessable and leaky, but "is there any path at all by which model-written
 prose reaches a visitor". There is exactly one, and it is bounded here.
 """
 

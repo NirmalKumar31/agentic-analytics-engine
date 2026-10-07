@@ -160,7 +160,7 @@ async def test_the_engine_answers_without_model_written_sql(
     """The measure of whether this is an engine or a text-to-SQL wrapper.
 
     Not a target to hit -- whatever the implementation does is what gets
-    reported -- but it is asserted to stay above zero so a regression toward
+    reported, but it is asserted to stay above zero so a regression toward
     generated SQL is visible rather than silent.
     """
     summary = report["summary"]

@@ -10,7 +10,7 @@ import { openApp } from "./helpers";
  *
  * The storyboard names four: the landing's ambient field, the upload-to-
  * context swap, the run timeline's stage marks and the report's entrance.
- * Each has a reduced-motion row, and all four reduce to the same promise --
+ * Each has a reduced-motion row, and all four reduce to the same promise.
  * **nothing decorative moves, and nothing loops.**
  *
  * Measured with `document.getAnimations()` rather than by reading

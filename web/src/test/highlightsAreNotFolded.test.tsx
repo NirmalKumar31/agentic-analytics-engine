@@ -18,7 +18,7 @@
  * what is asserted in its place, over payloads the pipeline produced.
  *
  * The cap itself is asserted here rather than described in a comment. If
- * the contract starts emitting more highlights, this fails and says so --
+ * the contract starts emitting more highlights, this fails and says so,
  * which is the signal that a fold is worth building again, in that order:
  * raise the cap, produce a recording that reaches it, then build the fold.
  */

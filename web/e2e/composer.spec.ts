@@ -140,7 +140,7 @@ test.describe("the composer, on a dataset with two clocks", () => {
      * Anchored to the start of the accessible name.
      *
      * A radio's accessible name is its label: the visible mode name
-     * followed by the screen-reader description. When AI is unavailable --
+     * followed by the screen-reader description. When AI is unavailable,
      * which is every deployment without a provider key, including CI --
      * Compare's unavailable message *is* the AI mode's message, so the
      * Compare radio's name also contains "AI Analytics" and an unanchored

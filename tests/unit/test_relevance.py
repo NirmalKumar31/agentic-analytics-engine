@@ -6,7 +6,7 @@ right, the labels were clean. It answered a different question.
 
 Asked "do shipping delays appear to affect repeat purchasing?", a run
 computed a two-proportion z-test showing a 50.5% repeat rate after a late
-delivery against 70.4% after an on-time one, p = 2e-122 -- and published
+delivery against 70.4% after an on-time one, p = 2e-122, and published
 
     "Repeat purchase rate is highest for social, at 69.81%,
      and lowest for affiliate, at 65.58%."
@@ -250,7 +250,7 @@ class TestABreakdownQuestionKeepsItsBreakdown:
 
         Asserted as a comparison, not as "the score is positive". A first
         version checked only that the score stayed above zero, and the
-        penalty still left it there -- so the mutation that reintroduced the
+        penalty still left it there, so the mutation that reintroduced the
         defect passed. The claim is relative: a breakdown of the subject
         metric must rank at or above a bare series of the same metric, and
         that is what breaks when the penalty is unconditional.
@@ -406,8 +406,8 @@ class TestACutIsReadAgainstTheCompanionMetrics:
 
     `first_delivery_status` is the delay cut. The signal saying so was
     already declared -- `late_delivery_rate` and `avg_delivery_days` are
-    the question's companion metrics and share the word `delivery` with it
-    -- and was not being read.
+    the question's companion metrics and share the word `delivery` with it,
+    and was not being read.
     """
 
     def test_the_delay_cut_is_chosen_over_four_rivals(self) -> None:
@@ -468,7 +468,7 @@ class TestACutIsReadAgainstTheCompanionMetrics:
         """Only the metrics the question related the subject *to* count.
 
         A cut named after the metric being measured says nothing about a
-        relationship -- it is the same quantity twice -- so the term reads
+        relationship. It is the same quantity twice, so the term reads
         `target_metrics[1:]`, and a single-metric question has no
         companions and gets no bonus from this term at all.
         """
@@ -507,7 +507,7 @@ class TestStructuralWordsDoNotMatch:
 
     `late_delivery_rate` is two subject words and a unit. If `rate`
     counted, every `*_rate` column in the file would look like an answer
-    to every question with a rate in it -- which is the failure mode of
+    to every question with a rate in it, which is the failure mode of
     name matching, and the reason the list is generous rather than minimal.
     """
 

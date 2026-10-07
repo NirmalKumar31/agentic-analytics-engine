@@ -5,7 +5,7 @@ Three fields describe what this deployment does with a dataset:
 sentence a visitor reads before uploading a file, and `capabilities` drives
 the mode selector. They were derived from two different sources -- the
 first two from the process-wide `AAE_PROVIDER_MODE`, the third from what
-the deployment can actually offer -- and the product moved the decision to
+the deployment can actually offer, and the product moved the decision to
 the run, which left the process setting describing nothing.
 
 The result was not a cosmetic mismatch. A deployment with AI enabled and

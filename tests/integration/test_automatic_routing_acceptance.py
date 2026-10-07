@@ -179,7 +179,7 @@ def test_a_bindable_restriction_still_answers_exactly(dataset: Path) -> None:
     """The fix above must not refuse questions that already worked.
 
     Single-word category values only. A multi-word value is captured up to
-    its first space -- `chronotype is Night Owl` binds as `Night` -- which
+    its first space -- `chronotype is Night Owl` binds as `Night`, which
     filters to no rows and is declined by the empty-population guard. That
     is a separate pre-existing limit in the filter grammar, recorded in
     LIMITATIONS, and it is not on the routing path: the question resolves

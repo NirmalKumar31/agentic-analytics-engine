@@ -2,7 +2,7 @@
 
 An uploaded file has no semantic metric layer, so the question cannot be
 resolved by looking a metric up. What is available instead is the inferred
-schema -- which columns look like measures, dimensions and time fields -- and
+schema, which columns look like measures, dimensions and time fields, and
 the words the visitor actually typed.
 
 This module turns those two things into an explicit :class:`QuestionMapping`,
@@ -363,7 +363,7 @@ def _groupable(schema: dict[str, Any]) -> list[str]:
 
     A near-unique text column is classified as an identifier and kept out
     of `dimensions` precisely because grouping by it puts its raw values
-    into the result as group labels -- and from there into a remote
+    into the result as group labels, and from there into a remote
     prompt. Widening to every column reopened that: three privacy tests
     caught an uploaded city name reaching a prompt. A numeric column
     named in a `by` phrase carries no such disclosure.
@@ -391,8 +391,8 @@ def _named_period(question: str, schema: dict[str, Any]) -> tuple[str, str] | No
     apply that to, so it was refused.
 
     Date arithmetic is rule-owned in both modes. There is nothing for a
-    language model to add here -- "Q2 2025" has one correct pair of bounds
-    -- and a model that supplies its own can only agree or narrow the
+    language model to add here -- "Q2 2025" has one correct pair of bounds,
+    and a model that supplies its own can only agree or narrow the
     population without saying so.
     """
     from agentic_analytics.agents.timescope import parse_time_scope
@@ -957,7 +957,7 @@ def mapping_from_plan(
         # `time_field` is the axis `build_sql` groups a trend along, and
         # the rule path leaves it unset for every other operation. Setting
         # it here from the plan's date column put a trend axis on a rank,
-        # which changed the canonical contract without changing the SQL --
+        # which changed the canonical contract without changing the SQL,
         # so the engine's own accepted contract failed its own
         # revalidation, and every non-trend question naming a period
         # ("what was the total revenue in 2024") published nothing.
@@ -1071,7 +1071,7 @@ def question_requirements(question: str, schema: dict[str, Any]) -> QuestionRequ
 
     Deliberately conservative: it reports only what the wording fixes
     beyond doubt. A component it cannot see is not treated as required, so
-    the gate never invents an obligation -- but anything it does see must
+    the gate never invents an obligation, but anything it does see must
     survive into the executed contract.
     """
     text = _normalise(question)
@@ -1588,7 +1588,7 @@ def _alias(*parts: str) -> str:
     """A safe output-column name built from the dataset's own vocabulary.
 
     Findings quote the result's column names, so `total_revenue by region`
-    reads far better than `total_value by segment` -- and a reader can see
+    reads far better than `total_value by segment`, and a reader can see
     which column of their file the number came from.
     """
     slug = "_".join(re.sub(r"[^a-z0-9]+", "_", part.lower()).strip("_") for part in parts if part)
@@ -1683,7 +1683,7 @@ def _where(mapping: QuestionMapping) -> str:
     filters, joined.
 
     One place, so a new query shape cannot pick up the period and forget
-    the filters -- which is the shape of the defect this replaces.
+    the filters, which is the shape of the defect this replaces.
     """
     from agentic_analytics.analytics.row_filters import where_clause
 

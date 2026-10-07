@@ -36,7 +36,7 @@
 }
 
 /* The gutter opens in two steps. Phone widths get 16px, the floor the
-   responsive tests assert -- and nothing narrower is ever applied. */
+   responsive tests assert, and nothing narrower is ever applied. */
 @media (min-width: 768px) {
   :root {
     --gutter: var(--space-6);
@@ -124,7 +124,7 @@
 }
 
 /* A section heading. Sentence case at body-ish scale with weight doing the
-   work -- there are no ALL-CAPS headings in this design, because capitals
+   work. There are no ALL-CAPS headings in this design, because capitals
    are slower to read and were being used to signal importance that the
    position in the page already signals. */
 .section-heading {
@@ -228,7 +228,7 @@
   }
 
   /* A scrim has no meaning on paper, and the thing it was dimming is not
-     being shown over the page any more -- it is an appendix. */
+     being shown over the page any more. It is an appendix. */
   .scrim {
     display: none;
   }

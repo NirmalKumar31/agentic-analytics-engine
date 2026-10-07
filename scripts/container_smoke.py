@@ -2,8 +2,8 @@
 
 `docker build` succeeding says the image assembles. This says the thing
 inside it serves the application: the app shell, the API, the recorded runs,
-the MCP endpoint over its real transport, and -- when live analysis is
-enabled -- a full analysis driven through HTTP.
+the MCP endpoint over its real transport, and, when live analysis is
+enabled, a full analysis driven through HTTP.
 
 Run against a container:
 

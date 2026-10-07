@@ -3,7 +3,7 @@
 "Revenue fell; what drove it?" is the question an analyst is actually asked,
 and it is arithmetic, not language. This module answers it two ways depending
 on what kind of metric is involved, and both reconcile exactly to the observed
-change -- which is the property that makes a decomposition trustworthy rather
+change, which is the property that makes a decomposition trustworthy rather
 than suggestive.
 
 **Additive metrics** (revenue, units, orders). The total change is the sum of
@@ -21,7 +21,7 @@ not decompose additively, so a shift-share decomposition is used:
 
 where ``w`` is a segment's share of the denominator and ``r`` its own rate.
 This separates "each segment got worse" from "volume moved toward the worse
-segments" -- the distinction the Q3 margin question turns on.
+segments", which is the distinction the Q3 margin question turns on.
 
 If the components do not reconcile to the observed change within tolerance,
 the result is marked ``reconciled: false`` and the caller must not publish it

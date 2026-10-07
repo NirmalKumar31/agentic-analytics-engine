@@ -1,6 +1,6 @@
 """The patterns deliberately injected into the demo warehouse.
 
-A note on wording. The generator *does* cause these patterns -- it writes the
+A note on wording. The generator *does* cause these patterns. It writes the
 rows. But the analytics system only ever sees the finished table, and nothing
 in it supports a causal identification: there is no randomisation, no
 instrument, no natural experiment. So the expectations below are phrased as

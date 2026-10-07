@@ -1,7 +1,7 @@
 """A typed cloud plan may interpret language. It may not exceed the question.
 
 Every case here was executed before the guards existed. The plans are not
-malformed -- they validate against the response schema, name real columns
+malformed. They validate against the response schema, name real columns
 and ground every excerpt in the question. They are the plans a capable
 model plausibly returns, and each one answers a different question from
 the one that was asked while looking entirely well-formed downstream.
@@ -184,7 +184,7 @@ def test_an_accepted_contract_survives_its_own_revalidation(question: str) -> No
     `time_field` is the axis a trend is grouped along; `period_field` is the
     column a period filters. The revalidation folded the two into one, which
     put a trend axis on every non-trend mapping and changed its canonical
-    hash without changing its SQL -- so the MCP boundary reported "the
+    hash without changing its SQL, so the MCP boundary reported "the
     accepted query contract changed before execution" and every ordinary
     question naming a period published nothing at all.
     """
@@ -263,7 +263,7 @@ def test_an_inert_sort_flag_does_not_split_two_identical_interpretations() -> No
     Asked "the average annual revenue by region", the cloud plan returned
     `ascending: true` and the rules `false`. Direction only reaches the SQL
     for a ranking, so both executed identically -- same values, same
-    coverage -- and the page still reported "different governed
+    coverage, and the page still reported "different governed
     interpretations" over a field that changes nothing.
     """
     question = "What is the average annual revenue by region?"

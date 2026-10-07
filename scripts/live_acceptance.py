@@ -4,8 +4,8 @@
     python scripts/live_acceptance.py https://service.onrender.com
 
 Needs no credential, because the deployment needs none. Exercises the same
-paths a visitor takes -- open a recording, open the demo warehouse, run an
-analysis, upload a file, analyse it, end the session -- and then checks that
+paths a visitor takes: open a recording, open the demo warehouse, run an
+analysis, upload a file, analyse it, end the session, and then checks that
 the session is really gone and that the response headers a browser relies on
 are present.
 
@@ -60,7 +60,7 @@ def _lower(headers: Any) -> dict[str, str]:
 
     HTTP header names are case-insensitive and this server sends them
     lowercase. Looking one up as `Cache-Control` found nothing, which is a
-    silent pass into a false failure -- or, worse, a false pass.
+    silent pass into a false failure, or, worse, a false pass.
     """
     return {str(k).lower(): str(v) for k, v in headers.items()}
 

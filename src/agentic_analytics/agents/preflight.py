@@ -9,8 +9,8 @@ metrics are revenue, gross_margin_pct, ..." can choose again. A worker told
 on variations of the same wrong assumption.
 
 The hard rule is that this layer **refuses; it does not repair**. There is a
-real difference between the engine supplying what it owns -- the session
-handle, the capability, the task id -- and the engine deciding what a model
+real difference between the engine supplying what it owns, the session
+handle, the capability, the task id, and the engine deciding what a model
 meant. Mapping `sales` to `revenue` or `channel` to `acquisition_channel`
 would be a guess dressed as a correction, and when it guessed wrong the
 resulting number would carry the engine's authority rather than the model's.
@@ -303,8 +303,8 @@ def _check_statistical_test(
 
     `variables` is typed `object` in the MCP schema, so the argument list a
     worker is shown says nothing about what belongs inside it. The engine
-    has always known -- `stats.TEST_VARIABLES` is the same table the
-    handlers enforce -- and a real run spent six calls rediscovering it one
+    has always known. `stats.TEST_VARIABLES` is the same table the
+    handlers enforce, and a real run spent six calls rediscovering it one
     error at a time.
 
     Column *types* are checked too. A correlation between two text columns

@@ -10,8 +10,8 @@ metric means "someone defined revenue"; an inferred measure means "this
 column is numeric and looks additive". Presenting the second as the first
 would be inventing business semantics.
 
-The inference is deterministic -- it reads column types and distinct counts,
-not a model -- so the same file always yields the same schema.
+The inference is deterministic. It reads column types and distinct counts,
+not a model, so the same file always yields the same schema.
 """
 
 from __future__ import annotations
@@ -341,7 +341,7 @@ class InferredSchema:
     def unresolved_ambiguity_count(self) -> int:
         """Close calls nobody has settled yet.
 
-        A confirmed field is still ambiguous -- the values did not change --
+        A confirmed field is still ambiguous -- the values did not change,
         so counting `ambiguous` alone would keep reporting work that is
         done.
         """
@@ -434,7 +434,7 @@ def category_value_lookup(session: AnalysisSession, table: str) -> Any:
     thing that changes that.
 
     Returns `None` for a column that is not a bounded category -- too many
-    distinct values to be something a reader names in a sentence -- so the
+    distinct values to be something a reader names in a sentence, so the
     caller falls back to its previous behaviour instead of scanning.
     """
     cache: dict[str, list[str] | None] = {}
@@ -682,7 +682,7 @@ def _classify(
 
     The third value is the honest part. A numeric column can sit in a band
     where a code list and a genuine count are indistinguishable from the
-    data, and the old classifier resolved that silently -- which is how a
+    data, and the old classifier resolved that silently, which is how a
     store number became a measure and the engine averaged it.
     """
     if dtype in TEMPORAL_TYPES:
@@ -889,7 +889,7 @@ def effective_schema(
 
     `infer_schema` stays the raw deterministic classification and is what
     the inference tests exercise. This is that, plus whatever the session
-    owner has settled -- and it is the one place the two are combined.
+    owner has settled, and it is the one place the two are combined.
 
     That matters because three layers derive the schema independently: the
     API for the profile a reader sees, the graph for the resolver and the

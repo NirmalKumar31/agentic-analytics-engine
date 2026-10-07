@@ -124,7 +124,7 @@ def _relation_columns(session: AnalysisSession, relation_sql: str) -> dict[str, 
 
     Holds the session lock. A DuckDB connection carries cursor state, so
     reading `description` without it returns whichever query a concurrent
-    worker ran last -- which is how this function first reported the columns
+    worker ran last, which is how this function first reported the columns
     of an unrelated result.
     """
     try:
@@ -149,7 +149,7 @@ def _require_numeric(session: AnalysisSession, relation_sql: str, column: str) -
     """Resolve a column and refuse it if it is not numeric.
 
     A correlation between two text columns, or a t-test on a category label,
-    is not a weaker result -- it is a meaningless one. Refusing is the only
+    is not a weaker result. It is a meaningless one. Refusing is the only
     honest outcome.
     """
     resolved = _check_column(column, relation_sql, session)

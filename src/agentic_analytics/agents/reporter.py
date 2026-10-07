@@ -9,7 +9,7 @@ claim-shape checking, numeric verification and the critic.
 That division is the point. The previous design let the model write the
 executive summary and section bodies as free prose and then stripped any
 *number* those contained that no finding supported. A sentence with no number
-in it -- "New customers are the primary cause of the Electronics decline" --
+in it ("New customers are the primary cause of the Electronics decline")
 went straight through, which meant the run's central invariant ("nothing
 reaches the reader that verification did not approve") held for figures and
 not for claims. Checking prose afterwards means catching the failures someone
@@ -243,8 +243,8 @@ def _safe_questions(questions: list[str], vocabulary: set[str] | None = None) ->
     critic exists to reject, so the same detector is applied here.
 
     These suggestions are the only model-written sentences that reach a
-    visitor -- everything else on the page is a verified finding's own text
-    -- so they are also held to the subject. A suggestion naming nothing in
+    visitor. Everything else on the page is a verified finding's own text,
+    so they are also held to the subject. A suggestion naming nothing in
     the dataset is dropped, which closes the one path by which a run could
     put arbitrary text on the page.
     """

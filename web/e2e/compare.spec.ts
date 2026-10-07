@@ -222,7 +222,7 @@ test.describe("Compare over an uploaded dataset", () => {
     }, SAMPLE_CSV_DATASET);
     await startCompare(page, "What is the total revenue by region?");
     // Settled first. The claim is about two *finished* runs that disagree,
-    // and both assertions below are also true of a run still in flight --
+    // and both assertions below are also true of a run still in flight,
     // so without this the test could pass before the AI side had answered,
     // and ended while a poll was still being served.
     await settle(page);

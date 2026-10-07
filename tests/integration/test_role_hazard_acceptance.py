@@ -252,7 +252,7 @@ def test_a_role_collision_refuses_rather_than_deleting_a_component(dataset: Path
     It no longer reaches the collision branch at all: excluding resolved
     groupings from the measure pool means `age` is never a measure
     candidate here, so measure resolution runs out of options first and
-    refuses. That is the better failure -- the collision cannot occur --
+    refuses. That is the better failure -- the collision cannot occur,
     and the branch remains as a backstop with its own unit test.
     """
     result = _run(dataset, "What is the total age by age?")

@@ -311,7 +311,7 @@ async def test_the_tool_loop_stops_when_the_run_is_out_of_time() -> None:
     Six tasks each taking six model-latency decisions could then overrun it
     by a whole tool loop. A 300-second budget produced a 554-second question
     on the demo warehouse, and what actually ended it was the harness's
-    outer timeout -- so the engine's own limit meant nothing.
+    outer timeout, so the engine's own limit meant nothing.
     """
     calls = {"n": 0}
 

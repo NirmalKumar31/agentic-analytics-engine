@@ -354,7 +354,7 @@ class BarrierStub(Stub):
     This produces the interleaving the sequential tests cannot: every call
     has passed its admission check and none has reported usage. A delay
     rather than a barrier, because a barrier has to be sized to the number
-    of calls the ceiling will actually admit -- and if the fix works, that
+    of calls the ceiling will actually admit, and if the fix works, that
     number is smaller than the number of callers, so the barrier is never
     crossed and the test hangs instead of asserting.
     """

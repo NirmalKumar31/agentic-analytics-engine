@@ -13,7 +13,7 @@ saying so plainly is more honest than a classifier pretending to judge
 intent.
 
 It fails open by design. A question that references anything in the
-dataset, or that is phrased analytically at all, is admitted -- the
+dataset, or that is phrased analytically at all, is admitted, because the
 verification pipeline is what decides whether an answer holds up, and this
 is only here to catch the case where there is obviously nothing to
 analyse. Rejecting a real question would be far worse than admitting a
@@ -171,7 +171,7 @@ def _words(text: str) -> set[str]:
     `kwh_consumed` one token that matched neither `kwh` nor `consumed`, so
     for any dataset with underscored columns the vocabulary contributed
     nothing at all and every question fell through to the analytical-term
-    fallback -- which is how questions naming a column exactly were still
+    fallback, which is how questions naming a column exactly were still
     judged as though they had named nothing.
     """
     return {w for w in _WORD.findall(text.lower()) if w}
@@ -272,7 +272,7 @@ def suggestion_in_scope(suggestion: str, vocabulary: set[str]) -> bool:
 
     Same two-part test as `check_scope`, and for the same reason: demanding
     a dataset word alone drops perfectly good follow-ups that happen to be
-    phrased naturally -- "Does the move persist, or does it recover?" names
+    phrased naturally: "Does the move persist, or does it recover?" names
     no column and is exactly the question a reader would ask next.
     """
     words = _words(suggestion)

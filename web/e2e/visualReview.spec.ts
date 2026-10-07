@@ -38,7 +38,7 @@ import { answerRunWith, ask, onCanvas, openApp, setTheme, watchTraffic } from ".
  * the CI job, for a matrix whose cells differ only in viewport width,
  * theme and which payload the response is answered with. None of that
  * needs a new file. The matrices run on the shared `profiled` session and
- * iterate as steps, so the whole file costs **one** upload per engine --
+ * iterate as steps, so the whole file costs **one** upload per engine,
  * and a failing cell still names itself, because a step carries its own
  * title in the report.
  */

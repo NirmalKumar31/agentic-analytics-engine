@@ -242,7 +242,7 @@ def thin_elsewhere(snapshot: ResultSnapshot, named: list[tuple[str, int]]) -> li
     """Thinly populated groups the answer does **not** name.
 
     The gap this closes. `thin_of` asks whether the group the headline
-    names is thin, and that was the whole of the disclosure -- so a
+    names is thin, and that was the whole of the disclosure, so a
     48-group breakdown whose named maximum rested on 47 rows said nothing
     at all about the group ranked second on 29. Verified on a published
     report: the floor is thirty, the one group under it was 0.42 from the
@@ -323,7 +323,7 @@ def thin_note(snapshot: ResultSnapshot, named: list[tuple[str, int]]) -> tuple[s
     One function so the order and the wording are decided once. Empty
     where the answer names no group extreme at all -- a statistical test
     states its own sample sizes and a scalar has one population, already
-    in the scope line -- because a note about groups nobody named is a
+    in the scope line, because a note about groups nobody named is a
     sentence with no referent.
     """
     if not named:
@@ -532,7 +532,7 @@ def _value_of(
     """One cell, as stored and as written.
 
     The written form comes from `display_value` -- the same function the
-    table and the chart resolve a cell through -- so a figure cannot be
+    table and the chart resolve a cell through, so a figure cannot be
     worded one way in the headline and another in the table beneath it.
     """
     raw = snapshot.cell(row, column)
@@ -601,7 +601,7 @@ def _filter_parts(entry: Any) -> tuple[str, str, Any]:
     Filters arrive as dictionaries from a governed contract and as tuples
     from a mapping built in code. The tuple branch used to unpack into
     three names with `(*list(entry), None, None)[:3]`, and the dictionary
-    branch read an `operator` key that a range filter does not carry -- so
+    branch read an `operator` key that a range filter does not carry, so
     a date window published the literal string
     ``Order date None ['2025-01-01', '2025-12-31']`` as the scope line
     under the headline. Both the `None` and the Python list repr were being
@@ -1150,7 +1150,7 @@ def summarize(
     then the thin-group note is appended here, because appending it inside
     the builders put it where a later line could take it away:
     `_small_breakdown` calls `_extremes` and then *overwrites* the summary
-    with "All groups are in the table below." -- so on a breakdown of four
+    with "All groups are in the table below.", so on a breakdown of four
     groups or fewer, which is exactly where a thin group is most likely,
     the note was computed, returned, and silently discarded. Found by a
     test asserting the sentence rather than the function.
@@ -1216,7 +1216,7 @@ def named_rows(
     """The rows this shape's answer names, with the words for each.
 
     The one definition, so the sentence in the summary and the caveat in
-    `build._caveats` cannot describe different groups -- which they would,
+    `build._caveats` cannot describe different groups, which they would,
     on an ascending ranking, if each worked it out for itself.
     """
     return named_extreme_rows(

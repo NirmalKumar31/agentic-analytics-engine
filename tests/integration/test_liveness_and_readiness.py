@@ -8,7 +8,7 @@ watching `/api/health` would keep it in rotation indefinitely.
 
 The second is a load test claiming to detect an out-of-memory restart by
 comparing `version` across it. A restarted process runs the same build and
-reports the same version, so that comparison can never fail -- which makes it
+reports the same version, so that comparison can never fail, which makes it
 worse than no check, because it reads like one.
 """
 

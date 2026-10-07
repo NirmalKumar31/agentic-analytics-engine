@@ -257,7 +257,7 @@ class _MetricContract:
 
     `build_presentation` reads its contract through `getattr` with
     defaults -- `measure`, `dimensions`, `filters`, `time_grain`, `period`,
-    `operation`, `ascending`, `confident`, `explanation` -- and never
+    `operation`, `ascending`, `confident`, `explanation`, and never
     requires the uploaded-data type. So a governed-warehouse answer can
     drive the same builder by describing itself in those terms, which is
     better than a second presentation path that would drift from the first.
@@ -318,7 +318,7 @@ def _presentation_inputs(
     """The result that answers the question, and the contract it amounts to.
 
     This used to pick by tool name -- `compute_metric`, then
-    `compare_segments`, then `analyze_timeseries`, first match wins -- and
+    `compare_segments`, then `analyze_timeseries`, first match wins, and
     skip anything without a `metric` parameter. Two defects followed, and
     `graph/relevance.py` has the full account:
 
@@ -422,7 +422,7 @@ def _chart_decision_for(result: RunResult, snapshot: ResultSnapshot) -> dict[str
     `chart_decision` is written on the upload path and left empty on the
     governed warehouse, and `presentation_chart` reads "no decision" as
     "no chart". So a presentation built for a warehouse answer declared
-    `kind: none` while the run held two real charts beside it -- and
+    `kind: none` while the run held two real charts beside it, and
     because the interface prefers the presentation, the report rendered no
     chart at all. Two width tests caught it, which is what they are for.
 
@@ -457,7 +457,7 @@ def _planner_interpretation(analysis: Any | None) -> dict[str, Any] | None:
     """What the planner read the question as, as a first-class record.
 
     Everything downstream that wanted to know what was asked read it from
-    `query_contract`, and a contract is only accepted for uploaded data --
+    `query_contract`, and a contract is only accepted for uploaded data,
     so on the governed warehouse, which is what the public deployment
     serves, there was nothing to read. Compare reported two absent
     contracts as identical, and the report could not tell a finding that
@@ -862,8 +862,8 @@ def _presentation_for(result: RunResult, state: Any, session: Any | None = None)
         #
         # The presentation is built around an `aggregate_for_question`
         # snapshot: it reads the result's columns, cells and row counts to
-        # say what the answer is. The demo warehouse does not produce one --
-        # it resolves through the metric registry and executes different
+        # say what the answer is. The demo warehouse does not produce one.
+        # It resolves through the metric registry and executes different
         # tools, while still setting `query_mapping`. So `mapping` was not
         # None, this guard let it through, and the builder's own "no
         # snapshot" branch returned a FAILURE presentation.

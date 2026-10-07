@@ -101,7 +101,7 @@ export async function advertiseAi(page: Page) {
       `model_inference_remote`, and
       `tests/integration/test_api_metadata_consistency.py` pins that they
       can never disagree. A fixture that flipped one and left the other
-      stood for a deployment that cannot exist -- and the half it left
+      stood for a deployment that cannot exist, and the half it left
       behind is the half that gates the "What can be sent to OpenAI"
       disclosure, so every browser test ran against a landing page with
       that control missing.

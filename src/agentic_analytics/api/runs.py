@@ -220,7 +220,7 @@ class RunRegistry:
         """Drop expired runs, then trim to the ceiling. Never a running run.
 
         The ceiling used to be advisory. The loop picked the globally oldest
-        record and stopped if it was still running -- so one long analysis at
+        record and stopped if it was still running, so one long analysis at
         the front of the queue blocked eviction of every finished run behind
         it, and the registry grew past `max_runs` without bound while that
         analysis lived. A class that calls itself bounded should be.
@@ -269,7 +269,7 @@ class RunRegistry:
 
         So a run is stopped before its session is, and stopped *properly*:
         cancelled, then awaited. Awaiting is the part that matters. A
-        cancelled task has not finished unwinding, so its `finally` blocks --
+        cancelled task has not finished unwinding, so its `finally` blocks,
         which close the provider and release the capacity slot -- have not
         run yet. Returning before they do is how a slot leaks.
 
@@ -350,7 +350,7 @@ class RunRegistry:
         """Cancel in-flight runs and wait for them to unwind.
 
         Cancelling without awaiting leaves a task part-way through an async
-        context manager -- an open MCP client, a DuckDB cursor -- and the
+        context manager -- an open MCP client, a DuckDB cursor, and the
         exception surfaces later, attached to whatever happens to be running.
         A container receiving SIGTERM mid-analysis hits exactly this path.
         """

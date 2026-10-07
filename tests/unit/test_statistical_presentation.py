@@ -138,7 +138,7 @@ class TestTheFiguresAreTraceable:
         """The numeric guard refused the first version of this headline.
 
         It allowed cells, row counts, coverage counts and declared
-        differences, and 30,000 is none of those -- it is the sum of the
+        differences, and 30,000 is none of those. It is the sum of the
         test's own `sample_sizes`. The guard was right about an incomplete
         list of sources, not about a false sentence, so the sources grew.
         """
@@ -189,7 +189,7 @@ class TestTheVisualiserCannotChooseAnInvalidEncoding:
     """`categorical` is a reasonable word and not a Vega-Lite type.
 
     A live run's visualiser chose it, `verification/charts.py` refused the
-    specification -- "encoding type 'categorical' is not allowed" -- and the
+    specification -- "encoding type 'categorical' is not allowed", and the
     chart was lost. The refusal was right; the loss was avoidable.
 
     `ChartChoice` now declares the allowed values as `Literal`, so the

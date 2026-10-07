@@ -20,7 +20,7 @@ The requested shape was an `asyncio.Barrier`, and it cannot be used here:
 a barrier for four callers never releases when the ceiling admits two, so
 the test deadlocks instead of failing. The hold is timed instead --
 every admitted call keeps its allowance outstanding while the others
-arrive -- which produces the same overlap the barrier was for, and lets
+arrive, which produces the same overlap the barrier was for, and lets
 the refused callers be observed being refused rather than hanging.
 """
 
@@ -224,7 +224,7 @@ async def test_the_output_ceiling_holds_at_every_observable_point(attempt: int) 
 async def test_cancellation_leaves_the_accounting_consistent(attempt: int) -> None:
     """Cancelling mid-flight must not corrupt the counters.
 
-    It may -- and does -- leave the allowance consumed and the money
+    It may, and does -- leave the allowance consumed and the money
     retained. That is deliberate: a cancelled request may already have been
     served and charged, so handing the allowance back would let the run
     spend it twice. What must not happen is an in-flight counter left

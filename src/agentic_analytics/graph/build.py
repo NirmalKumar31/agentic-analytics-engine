@@ -131,7 +131,7 @@ class RunContext:
 
         Scoped to the run's own toolset, not to the session. The session
         store is shared by every run on the connection, so reading it whole
-        would let one half of a comparison cite the other half's numbers --
+        would let one half of a comparison cite the other half's numbers,
         and would hand a cloud run the cells a local run was allowed to
         compute. A dropped id is skipped: the store is bounded.
         """
@@ -241,8 +241,8 @@ def _with_timings(state: Any, **stages: float) -> dict[str, float]:
     """Add stage durations to whatever the run has recorded so far.
 
     State fields without a reducer are last-write-wins, so a node returning
-    a fresh dict silently dropped the planning duration recorded upstream
-    -- and the AI lane then had no planning time to show.
+    a fresh dict silently dropped the planning duration recorded upstream,
+    and the AI lane then had no planning time to show.
     """
     merged = dict(state.get("timings") or {})
     merged.update({name: round(value, 1) for name, value in stages.items()})
@@ -1272,7 +1272,7 @@ def _matched_no_rows(snapshot: Any) -> bool:
     the output had at least one row by definition.
 
     Conservative on anything unexpected -- a snapshot without the column, or
-    rows that cannot be indexed -- because reporting a real answer as "no
+    rows that cannot be indexed, because reporting a real answer as "no
     rows" is a worse error than the one this fixes.
     """
     rows = list(getattr(snapshot, "rows", None) or [])

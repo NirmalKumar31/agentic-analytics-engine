@@ -410,8 +410,8 @@ def test_an_upload_tool_is_refused_on_a_governed_dataset() -> None:
 
     On the demo warehouse the planner kept choosing
     `aggregate_for_question`, which maps a question onto one table's raw
-    columns. Every call was refused by the server -- correctly, since
-    `revenue` is a metric-layer definition and not a column -- but only
+    columns. Every call was refused by the server, correctly, since
+    `revenue` is a metric-layer definition and not a column, but only
     after a round trip, and with a message about ambiguous columns rather
     than about the layer being bypassed.
     """

@@ -450,7 +450,7 @@ describe("the spine turns horizontal only where it fits as prose", () => {
     /*
      * `screen and` is one word and it is load-bearing. A printed sheet is
      * about 816px of paper laid out from whatever viewport the reader
-     * printed from, so without it this query still matched on paper --
+     * printed from, so without it this query still matched on paper,
      * and a first fix that overrode `grid-auto-flow` in the print block
      * left the row's *connectors* applied to a column of full-width
      * boxes, printing four arrowheads against the right margin. Found by

@@ -170,7 +170,7 @@ def _compressible_parquet(path: Path, rows: int) -> Path:
 
     `use_dictionary=False` matters and is the whole reason this helper is
     explicit about it. With dictionary encoding a repeated value is stored
-    once, so the footer declares the *encoded* size -- a few kilobytes -- and
+    once, so the footer declares the *encoded* size -- a few kilobytes, and
     the declared-size check sees nothing to refuse. Without it, the same data
     declares ~31 MB while still compressing to ~37 kB on disk, which is the
     shape the ceiling is there to catch: a file whose size on disk says

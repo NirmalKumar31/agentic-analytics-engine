@@ -553,7 +553,7 @@
   }
 
   /* Except inside the execution graph, where the same sequence is no
-     longer a progress indicator but the record of a finished run -- which
+     longer a progress indicator but the record of a finished run, which
      is exactly what the appendix is for. Restored static, connectors and
      all, so the printed page carries the sequence rather than a gap. */
   .execution-graph .timeline {

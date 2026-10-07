@@ -2,7 +2,7 @@
 
 Everything here goes through the real upload path and the real
 `infer_schema`, because the thing under test is whether a *genuinely*
-ambiguous column can be confirmed -- and a hand-written schema would let the
+ambiguous column can be confirmed, and a hand-written schema would let the
 test assert that against a fixture the engine never produces.
 
 The refusals matter more than the success. This endpoint accepts a
@@ -53,7 +53,7 @@ def ambiguous_csv() -> bytes:
     `reading` holds 48 distinct integers across 400 rows: 12% uniqueness, inside
     the share ceiling and above the small-enumeration ceiling, which is the
     band where a code list and a genuine count are indistinguishable. Named neutrally on purpose. No production rule may key on a column name,
-    and neither should the fixture that proves it -- and the name has to
+    and neither should the fixture that proves it, and the name has to
     avoid both hint lists, since `code`, `grade`, `tier` and `region` are all
     matched as substrings and would be classified by name before the
     cardinality rules were ever reached.

@@ -459,7 +459,7 @@ def test_a_mapping_only_ever_names_columns_the_table_has() -> None:
     """The property that stops a guess becoming a query.
 
     Whatever the question, a resolved measure, dimension or time field must
-    be a column of the schema -- never invented, never carried over from
+    be a column of the schema, never invented, never carried over from
     another shape.
     """
     for shape in SHAPES:
@@ -490,7 +490,7 @@ def test_every_unresolved_question_falls_back_to_a_profile() -> None:
     """Why the test above cannot be the only guard.
 
     The resolver never emits a non-confident mapping with a real
-    operation -- it degrades to `profile` instead. That makes the
+    operation. It degrades to `profile` instead. That makes the
     confidence check in `build_sql` unreachable from the resolver, so the
     sweep above cannot exercise it and the next test constructs the case
     by hand. Asserted rather than assumed, so if the resolver ever starts

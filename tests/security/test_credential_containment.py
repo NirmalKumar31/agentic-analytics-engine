@@ -151,8 +151,8 @@ def test_cloud_preflight_output_never_shows_the_credential(
         result = CliRunner().invoke(cli_app, ["cloud-preflight"])
     finally:
         get_settings.cache_clear()
-    # It will fail: the ledger is unreachable. The failure is the point --
-    # this is the path that reports what could not be contacted.
+    # It will fail: the ledger is unreachable. The failure is the point.
+    # This is the path that reports what could not be contacted.
     _assert_clean(result.output, "cloud-preflight output")
 
 

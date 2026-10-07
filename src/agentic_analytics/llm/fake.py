@@ -474,7 +474,7 @@ class FakeProvider(LLMProvider):
         question onto the table's inferred schema, and describe the table's
         shape regardless. The mapping is the engine's work, not this
         provider's -- `aggregate_for_question` resolves the columns and
-        composes the SQL -- so the same plan is right whether the caller is
+        composes the SQL, so the same plan is right whether the caller is
         a rule or a model.
         """
         tables: list[dict[str, Any]] = list(ctx.get("tables", []))
@@ -1232,7 +1232,7 @@ def _profile_findings(task: dict[str, Any], result: dict[str, Any]) -> list[dict
     """Describe the shape of a table from its profile.
 
     States only values that are numeric cells of the profile result -- the
-    counts and the null rate -- so every number remains checkable.
+    counts and the null rate, so every number remains checkable.
     """
     columns: list[str] = result["columns"]
     rows: list[list[Any]] = result["rows"]

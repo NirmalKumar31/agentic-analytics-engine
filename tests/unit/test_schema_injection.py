@@ -141,7 +141,7 @@ def test_the_schema_block_carries_no_cell_values() -> None:
 
     `AAE_ALLOW_UPLOAD_ROW_DISCLOSURE=false` governs raw cells reaching a
     remote model. The execution contract is built from the catalog, which
-    holds no rows -- this pins that it stays that way, because adding a
+    holds no rows. This pins that it stays that way, because adding a
     "sample value" here would be an easy and invisible way to break it.
     """
     catalog = {

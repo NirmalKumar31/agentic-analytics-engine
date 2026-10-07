@@ -50,7 +50,7 @@ class _Column:
 
     Used when the upload profile is not to hand. It carries the same
     attributes `display_field_for` reads, so the boolean and percentage
-    gates behave identically -- they just have less evidence to work with,
+    gates behave identically. They just have less evidence to work with,
     and therefore decline more often, which is the right direction.
     """
 
@@ -98,7 +98,7 @@ class _ProfiledColumn:
     profile reaching this layer is nested dictionaries rather than objects.
     Reading it with `getattr` silently found nothing, the profile was
     discarded, and a flag fell back to being described from the aggregated
-    result -- which is how `blue_light_filter_active` came back out as a
+    result, which is how `blue_light_filter_active` came back out as a
     bare 0 and 1 in a run that had profiled it correctly.
     """
 

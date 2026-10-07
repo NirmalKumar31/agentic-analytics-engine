@@ -215,7 +215,7 @@ def test_the_audit_names_the_confirmation_in_every_domain(
     assert entry["inferred_role"] == "measure"
 
     # The measure the contract used is reported too, so the audit can say
-    # "this reading is the engine's own" as well as "this one is yours" --
+    # "this reading is the engine's own" as well as "this one is yours",
     # but it is not attributed to anybody.
     assert evidence[corpus.measure]["role_source"] == "inferred"
 

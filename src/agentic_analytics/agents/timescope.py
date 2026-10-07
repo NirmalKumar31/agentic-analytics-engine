@@ -5,8 +5,8 @@ asking what changed relative to the period before it. So a named quarter
 widens to its whole year at quarter grain, and the period the question named
 is recorded separately as the one to report the change *into*.
 
-Without this the engine answers a different question than the one asked --
-it reports the largest movement anywhere in the dataset, which for seasonal
+Without this the engine answers a different question than the one asked.
+It reports the largest movement anywhere in the dataset, which for seasonal
 data is almost never the movement the user meant.
 """
 

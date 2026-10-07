@@ -2,7 +2,7 @@
 
 Found by the worker-findings probe. A real local model proposed four correct
 claims -- "The South region has a revenue of 38200.5", with a cell reference
-that pointed at exactly that number -- and the critic rejected them on the
+that pointed at exactly that number, and the critic rejected them on the
 grounds that the cited cell was empty. It was not empty. `EvidenceCell.value`
 is optional, the model had left it unset, and the prompt rendered that unset
 field straight into the line the critic reads:

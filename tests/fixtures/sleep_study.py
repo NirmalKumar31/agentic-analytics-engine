@@ -11,7 +11,7 @@ independent. `blue_light_filter_active` and `chronotype` both partition the
 same 8,500 rows, so the flag means and the chronotype means constrain the
 same values. Those two sets of targets are not exactly simultaneously
 satisfiable -- the flag totals imply a grand total of 53,266.12 and the
-chronotype totals imply 53,264.45 -- because each reported figure is itself
+chronotype totals imply 53,264.45, because each reported figure is itself
 a rounded mean. So the fixture targets the rounded values: each group mean
 must round to its target at two places, which is what the source figures
 actually assert.

@@ -4,8 +4,8 @@ Production evidence: asked `total Weekly_Sales by Store` on a 45-store
 sales table, the cloud planner returned `profile` with no measure and no
 grouping. The deterministic pane answered; the AI pane rendered nothing.
 
-Refusing is right when the rules cannot resolve the question either --
-there the model's reason is the only information available. It is wrong
+Refusing is right when the rules cannot resolve the question either.
+There the model's reason is the only information available. It is wrong
 when the rules resolved it unambiguously, because the arithmetic was never
 the model's to own, so refusing protects nothing and costs the answer.
 """

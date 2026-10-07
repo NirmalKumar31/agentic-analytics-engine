@@ -4,7 +4,7 @@
  *
  * `check-hosted-acceptance.mjs` is the thing that decides whether a hosted
  * sweep counted. A guard that approves an empty run is worse than no guard,
- * because it converts "nothing was tested" into a green line in a report --
+ * because it converts "nothing was tested" into a green line in a report,
  * and that is not hypothetical here: the browser suite once ran zero tests
  * on a shell quoting bug and its skip guard approved the result.
  *

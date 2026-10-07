@@ -1,7 +1,7 @@
 """Compare: agreement, divergence, and the two-tab evidence drawer.
 
 One `Inspect both traces` action, never two persistent evidence buttons. The
-space that reclaims is used -- for why the strategies agree, or for the
+space that reclaims is used: for why the strategies agree, or for the
 structured difference when they do not. It is not held empty for symmetry.
 """
 

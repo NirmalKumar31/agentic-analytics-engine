@@ -422,7 +422,7 @@ class TestAnEmptyResultIsNotAnUnsummarisableOne:
     """Two reasons reached one sentence, and it was the wrong one for both.
 
     An empty result was presented as "The analysis produced a result that
-    could not be summarised as an answer" -- which blames the engine for
+    could not be summarised as an answer", which blames the engine for
     what is almost always a filter that matched nothing, and sends the
     reader looking for a fault in the product rather than at the
     restriction they asked for.

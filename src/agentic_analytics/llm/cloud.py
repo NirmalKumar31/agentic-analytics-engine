@@ -8,7 +8,7 @@ against a durable ledger. Constructing this class directly is a test-only
 affordance, with one exception noted on `verify_model`.
 
 Structured output is obtained with strict Structured Outputs -- a
-`json_schema` response format with `strict: true` -- which is the supported
+`json_schema` response format with `strict: true`, which is the supported
 way to constrain the Responses API to a JSON schema. The engine's schemas
 are rewritten into the strict dialect by
 :mod:`agentic_analytics.llm.strict_schema`.
@@ -451,7 +451,7 @@ def _token_count(value: Any) -> int | None:
 
     `None` rather than zero, which is the distinction this replaces. An
     absent, negative, boolean or string count used to become zero, and zero
-    is a coherent, cheap, entirely believable number -- so a response whose
+    is a coherent, cheap, entirely believable number, so a response whose
     usage could not be read priced as a free call and the ledger refunded
     the reservation. "Unknown" and "none" are different facts and the
     accounting depends on telling them apart.

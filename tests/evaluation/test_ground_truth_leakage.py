@@ -7,7 +7,7 @@ value, or an evaluation object handed to the graph.
 
 So this captures every byte any provider would see during a full benchmark
 run -- system prompts, user prompts, the structured context, and the
-serialised schemas -- and asserts the answer key is absent from all of it.
+serialised schemas, and asserts the answer key is absent from all of it.
 """
 
 from __future__ import annotations

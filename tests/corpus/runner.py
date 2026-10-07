@@ -2,7 +2,7 @@
 
 The classification is the interesting part. Three outcomes are acceptable
 and the rest are contract failures, so the runner does not ask "did it
-work" -- it asks which of the allowed things happened, and separately
+work". It asks which of the allowed things happened, and separately
 whether anything published was unsupported or off-topic.
 
 Nothing here reaches a network. The scripted provider drives the graph, and

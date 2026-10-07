@@ -13,7 +13,7 @@ There are two transports, and which one carries production traffic matters:
 * **In-process, and this is what the deployed website uses.** The agent holds
   a real :class:`mcp.Client` connected to this server object. It is a genuine
   client/server pair speaking the protocol -- not a function call dressed up
-  as one -- and it is what makes the deployment a single container. It is not
+  as one, and it is what makes the deployment a single container. It is not
   a network hop.
 * **Streamable HTTP at** ``/mcp``, for callers outside the process. Exercised
   by ``tests/integration/test_mcp.py`` against a real server and again
@@ -299,7 +299,7 @@ def build_server(manager: SessionManager, settings: Settings | None = None) -> M
 
         Both are injected by the MCP client, never chosen by a model. A tool
         call carrying a handle but no matching capability is refused, so the
-        handle alone -- which appears in resource URIs -- grants nothing.
+        handle alone, which appears in resource URIs -- grants nothing.
         """
         try:
             session = manager.get(session_id, session_key)

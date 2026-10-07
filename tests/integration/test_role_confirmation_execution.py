@@ -2,7 +2,7 @@
 
 Everything here runs the whole path -- upload, DuckDB, real `infer_schema`,
 the confirmation endpoint, the effective schema, the resolver, MCP, SQL,
-verification -- and checks the published numbers against an independent
+verification, and checks the published numbers against an independent
 DuckDB query. A test that asserted only on the schema payload would pass
 while the engine grouped by a column it still considered a measure, which is
 exactly the failure this feature exists to prevent.

@@ -4,7 +4,7 @@ Three gates, added after a run answered "total revenue in q3 and q2 and
 percentage change?" with a revenue move from October to November plus two
 breakdowns nobody asked for. Every figure was exact. The metric was the one
 asked about. Nothing checked the period, the granularity, or whether a
-level had been asked for and a change supplied -- so all three published,
+level had been asked for and a change supplied, so all three published,
 and the report looked like an answer.
 
 That is the worst shape a wrong answer can take, and these are the three

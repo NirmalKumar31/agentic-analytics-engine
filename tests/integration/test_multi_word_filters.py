@@ -1,8 +1,8 @@
 """A category whose name has a space in it.
 
 `where chronotype is Night Owl` bound only `Night`, because the value
-class in the equality grammar had no space in it. The failure was safe --
-nothing matches `Night`, so the empty-population guard declined the run --
+class in the equality grammar had no space in it. The failure was safe.
+Nothing matches `Night`, so the empty-population guard declined the run,
 but it declined a question the product should answer, and it never said
 the value was the problem.
 
@@ -14,7 +14,7 @@ an unknown value be refused by name instead of silently selecting nothing.
 
 Everything here runs the real path -- a loaded DuckDB table, the real
 `infer_schema`, the real resolver with a real value lookup, the SQL the
-engine would execute -- and checks the rows against an independent query.
+engine would execute, and checks the rows against an independent query.
 Three unrelated domains, because a filter grammar that works on one
 vocabulary and not another is a rule about that vocabulary.
 """

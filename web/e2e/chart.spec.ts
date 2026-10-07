@@ -214,7 +214,7 @@ test.describe("Compare Both, in a browser", () => {
      * Compare, and the application requests that config **as it mounts**.
      * The shared `profiled` session was created at the start of the worker,
      * long before any such route existed, so on it the Compare strategy is
-     * never offered and the click waits out the whole test timeout --
+     * never offered and the click waits out the whole test timeout,
      * which is how this failed on Firefox while passing on Chromium.
      *
      * `compareSetup.spec.ts` pins the ordering rule this follows.

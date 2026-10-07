@@ -199,7 +199,7 @@
   /* No `.run-flow-track` rule here, and that is the fix rather than an
      omission. Overriding `grid-auto-flow` on paper left the row's
      *connectors* in place, because `@media (min-width: 1440px)` matches under
-     print emulation too -- so a printed column of full-width boxes
+     print emulation too, so a printed column of full-width boxes
      carried four arrowheads against the right margin. The horizontal
      spine is scoped `@media screen` in `timeline.css` instead, which
      takes its geometry with it. */
@@ -259,7 +259,7 @@
 
   .chart-host svg line,
   /* `.gridline` is Vega's own class, written into the SVG it
-     renders -- it is not declared anywhere in this application. */
+     renders. It is not declared anywhere in this application. */
   .chart-host svg .gridline line,
   .chart-host svg path.domain {
     stroke: #999 !important;
@@ -316,7 +316,7 @@
   }
 
   /* `:not(summary)` because the summary needs no reverting. It is
-     displayed already -- and this rule's `!important` would otherwise
+     displayed already, and this rule's `!important` would otherwise
      outrank the appendix's decision to drop a summary that repeats the
      heading above it. */
   details > *:not(summary),
@@ -355,7 +355,7 @@
 
   /* A sticky header repeats as an *empty row*. The header cells are
      painted once, at the scroll position they were stuck to, and every
-     later page gets the row's box with nothing in it -- which looks like a
+     later page gets the row's box with nothing in it, which looks like a
      column that lost its name rather than like a bug. */
   table.data th {
     position: static;
@@ -439,7 +439,7 @@
      and one short table, to stop the heading landing alone at a page
      foot. It now also holds one flowchart per strategy, so asking the
      printer never to break after the whole section is asking it to keep a
-     page and a half together -- and the rule it was written for is served
+     page and a half together, and the rule it was written for is served
      by naming the heading. */
   .compare-routes > .section-heading,
   .compare-diff-section > .section-heading,
@@ -577,7 +577,7 @@
   }
 
   /* The appendix's own timeline is a record of what happened, not an
-     animation, so it prints -- but flat, with no connecting rules that a
+     animation, so it prints, but flat, with no connecting rules that a
      printer would render as smears. */
   .print-appendix .timeline {
     display: block !important;

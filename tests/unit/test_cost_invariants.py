@@ -245,7 +245,7 @@ def test_provider_requests_are_actually_counted() -> None:
     so the second paid smoke's artifact said zero provider requests
     against fifteen completions. It counts free requests too -- a token
     count is made with the account's credential even though it is not
-    billed -- so it is always at least the number of attempts.
+    billed, so it is always at least the number of attempts.
     """
     budget = _budget(attempts=15, provider_requests=30)
     report = budget.usage_report()

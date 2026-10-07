@@ -92,7 +92,7 @@ export function ActivityLog({ events, trace, showTrace, onToggleTrace, running }
          * A call the engine refused is not a tool that failed.
          *
          * `preflight` checks a proposed call against the tool's real
-         * signature before anything crosses MCP, and refuses it there --
+         * signature before anything crosses MCP, and refuses it there,
          * so an unsupported argument never reaches the tool at all. The
          * trace said "Analyze Timeseries failed: analyze_timeseries does
          * not accept 'dimensions'", which reads as the analysis breaking

@@ -185,7 +185,7 @@ def _collapse_nullable_union(
 
     This is the shape Pydantic emits for ``X | None``, and it is the shape
     strict mode does not accept. The documented replacement is a nullable
-    type -- ``"type": ["string", "null"]`` -- so the union is collapsed back
+    type -- ``"type": ["string", "null"]``, so the union is collapsed back
     into its single real branch and the nullability applied afterwards.
 
     A union of two *real* branches is not collapsible and is refused, rather

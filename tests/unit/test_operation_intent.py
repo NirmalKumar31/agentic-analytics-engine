@@ -2,7 +2,7 @@
 
 `Weekly_Sales` is a measure. Asked "what is the average weekly sales by
 holiday flag?", a released build answered with a monthly trend of it --
-confidently, with `dimension=None` -- because the operation detector saw
+confidently, with `dimension=None`, because the operation detector saw
 "weekly" and the trend pattern is matched before the average one. The
 same question phrased with "total" failed the same way.
 
@@ -77,7 +77,7 @@ def test_a_time_word_inside_a_measure_name_is_not_a_trend_request(
 )
 def test_genuine_temporal_language_still_asks_for_a_trend(question: str) -> None:
     """The fix must not cost the feature. A question that really is about
-    time still gets one -- and only when a date column exists to use."""
+    time still gets one, and only when a date column exists to use."""
     mapping = upload_plan.resolve_question(question, SALES)
     assert mapping.operation == "trend", mapping.explanation
     assert mapping.time_field == "Date"

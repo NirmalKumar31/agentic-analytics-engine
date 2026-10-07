@@ -13,7 +13,7 @@ was responsible:
    was the correct response to them.
 
 Those call for opposite fixes -- change the schema, change the prompt, or
-change nothing about this layer at all -- so the probe removes the upstream
+change nothing about this layer at all, so the probe removes the upstream
 entirely. It hands the role *known-good* results, built here, with values
 chosen so that every check has a right answer the engine can compute. What is
 left is the model's own ability to read a table and cite it.
@@ -240,7 +240,7 @@ class CaseReport:
 def probe_cases() -> list[ProbeCase]:
     """The five situations, in increasing order of what they ask for.
 
-    Values are deliberately awkward -- 128450.75, not 128000 -- because a
+    Values are deliberately awkward -- 128450.75, not 128000, because a
     model that reproduces a round number may have guessed it, and a probe
     that cannot tell copying from guessing measures nothing.
     """

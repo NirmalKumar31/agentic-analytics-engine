@@ -224,7 +224,7 @@ class CaseResult:
         What this measures, precisely: that the publication gate emitted
         nothing its own verification pipeline rejected. It is a consistency
         check on the gate, and it is 1.0 by construction unless the gate
-        leaks -- which is worth watching, and is *not* an independent
+        leaks, which is worth watching, and is *not* an independent
         estimate of whether the findings are semantically right. The
         injected-pattern checks are what provide independent evidence.
         """

@@ -7,7 +7,7 @@ model, is explicitly non-deterministic, is opt-in, and never runs in CI.
 
 The question it answers is different too. The deterministic benchmark asks
 "does the engine still compute the right numbers". This asks "can a real
-model *operate* this architecture safely" -- which is about whether it
+model *operate* this architecture safely", which is about whether it
 produces parseable structured output, selects tools that exist, plans
 something executable, and whether the verification pipeline catches it when
 it does not.
@@ -113,7 +113,7 @@ class QuestionOutcome:
     #: planner leaving a field the schema asks for.
     tasks_without_a_named_metric: int = 0
     #: Verified claims suppressed because an identical sentence was already
-    #: published. Not a verification rejection. These passed every gate --
+    #: published. Not a verification rejection. These passed every gate,
     #: so they are counted apart from `withheld_findings`.
     duplicate_published_findings_removed: int = 0
     redirect_reasons: list[str] = field(default_factory=list)
@@ -523,7 +523,7 @@ async def evaluate_question(
 #: same question across invocations. The ledger was handed that same string
 #: as its run id, which conflated two different identities. Asking the same
 #: question twice then consumed one run slot rather than two, because `admit_run`
-#: is idempotent per run id and correctly reported `already_admitted` --
+#: is idempotent per run id and correctly reported `already_admitted`,
 #: and both invocations accumulated against one per-run cost cap. A paid
 #: re-run must be a new run.
 _INVOCATION = uuid.uuid4().hex[:8]

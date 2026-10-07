@@ -5,7 +5,7 @@ shape: a guess that is right often enough to look fine and wrong often
 enough to publish a falsehood.
 
 * `blue_light_filter_active` held `0` and `1`, and the report printed `0`
-  and `1`. The column is a flag and the reader needs "Off" and "On" -- but
+  and `1`. The column is a flag and the reader needs "Off" and "On", but
   a numeric column holding exactly two values is not therefore a flag. A
   store table with two stores would become "Off" and "On" under a rule that
   only counts distinct values.
@@ -197,7 +197,7 @@ def display_field_for(
     `derivation` says the column is one the analytics tools computed, and
     what it is relative to the measure. That is declared knowledge rather
     than evidence about the column itself, so it wins: `period` has no
-    entry in the upload profile -- it did not exist before the query --
+    entry in the upload profile -- it did not exist before the query,
     and inferring from what is left made it a CATEGORY, which is how a
     stored instant reached a reader. `measure_unit` is the measure's own
     unit, and a difference of two rates becomes percentage points rather
@@ -279,7 +279,7 @@ def period_label(value: Any, grain: str | None = None) -> str:
     The engine stores periods as ISO timestamps, and a headline that says
     "peaked in 2025-12-01T00:00:00" is showing a reader a serialisation
     format. The midnight suffix carries no information at any grain this
-    product aggregates to -- a monthly bucket is a month, not an instant --
+    product aggregates to -- a monthly bucket is a month, not an instant,
     so it is never shown.
 
     Anything that does not parse is returned unchanged. A period this does
@@ -351,7 +351,7 @@ def display_value(value: Any, field: DisplayField | None) -> str:
     Everything it needs is on the `DisplayField`, which is why that type
     carries the grain and the unit rather than leaving each caller to find
     them. A `None` field means no metadata was derived for the column, and
-    the value is then shown as stored -- which is the old behaviour, kept
+    the value is then shown as stored, which is the old behaviour, kept
     for the columns this layer still declines to describe.
     """
     if value is None:

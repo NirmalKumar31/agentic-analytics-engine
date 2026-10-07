@@ -1,7 +1,7 @@
 """The worker's execution contract: what it may name, and what it may not.
 
 A real run on the demo warehouse made 36 tool calls and failed all 36. The
-plan was good -- six sensible segmentation tasks -- and the model then asked
+plan was good -- six sensible segmentation tasks, and the model then asked
 for `acquisition_channel` on `orders`, which is a column of `customers`, and
 for `revenue` as a column when it is a metric-layer definition.
 

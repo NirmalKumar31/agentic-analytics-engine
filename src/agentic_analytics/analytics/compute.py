@@ -236,8 +236,8 @@ def _run_with_params(
 
     The snapshot has to record the literal SQL that produced the numbers,
     because that text is what a reviewer reads in the provenance drawer. The
-    values here are already validated -- they came from a model-supplied
-    filter that passed :func:`build_where` -- and are re-quoted defensively.
+    values here are already validated. They came from a model-supplied
+    filter that passed :func:`build_where`, and are re-quoted defensively.
     """
     final_sql = _inline_params(sql, params)
     try:

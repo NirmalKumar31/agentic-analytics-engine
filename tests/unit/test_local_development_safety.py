@@ -1,7 +1,7 @@
 """Ordinary local development must not be one keystroke from spending money.
 
 Settings load `.env`. A repository that has one can therefore select a paid
-provider for any command that does not say otherwise -- and `make dev` did
+provider for any command that does not say otherwise, and `make dev` did
 not say otherwise, so a plain development server could come up on the cloud
 provider while someone did unrelated UI work.
 
@@ -17,7 +17,7 @@ target added is not a boundary.
 
 Deliberately *not* checked here: whether a credential exists. Looking is
 unnecessary -- the guard is about intent, not about what happens to be
-configured -- and a test that reads credentials to assert something about
+configured, and a test that reads credentials to assert something about
 them is its own hazard.
 """
 

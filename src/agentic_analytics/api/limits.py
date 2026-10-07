@@ -123,7 +123,7 @@ def client_key(forwarded_for: str | None, client_host: str | None) -> str:
     spoofable; these limits raise the cost of casual abuse rather than
     preventing a determined one, and the documentation says so. What bounding
     the key store buys is that spoofing costs the *sender* effort without
-    costing this process memory -- it does not make the header trustworthy.
+    costing this process memory. It does not make the header trustworthy.
     """
     if forwarded_for:
         first = forwarded_for.split(",")[0].strip()

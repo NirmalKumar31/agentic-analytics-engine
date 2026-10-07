@@ -125,7 +125,7 @@ def test_of_two_candidates_the_one_beside_the_number_wins() -> None:
 
     "average revenue age 30 to 40" names `revenue` and `age` one word
     apart. Binding the range to `revenue` would filter the measure by
-    30-40 and return a confident, wrong answer -- and the locality window
+    30-40 and return a confident, wrong answer, and the locality window
     alone does not separate them here, so the ranking has to.
     """
     sch = schema(revenue="DOUBLE", age="BIGINT")
@@ -245,7 +245,7 @@ def _executed(question: str, rows: list[tuple[object, ...]], **columns: str):
 
     Parsing a filter correctly and *compiling* it are different things.
     Tests that stop at the parser pass happily while the WHERE clause is
-    dropped on the way to SQL, which is exactly the defect being fixed --
+    dropped on the way to SQL, which is exactly the defect being fixed,
     so this executes and counts rows.
     """
     import tempfile

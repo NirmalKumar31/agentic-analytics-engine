@@ -85,7 +85,7 @@ describe("the stylesheet exempts what the spec exempts", () => {
     /*
       The spec's exemption requires a computed `display` of `inline` or
       `inline-block` *as well as* the class. That is deliberate -- the
-      class alone must not buy an exemption for a block control -- but it
+      class alone must not buy an exemption for a block control, but it
       means the exemption silently stops applying if the stylesheet ever
       stops making the summary inline, and the symptom would be a
       failing touch-target sweep with no obvious cause.
@@ -116,7 +116,7 @@ describe("the browser spec reads the declaration rather than restating it", () =
     /*
       The copy that drifted was a literal. Two tests in that file now
       reach the class through the import, and a third literal would be a
-      third copy free to disagree again -- so the only occurrences
+      third copy free to disagree again, so the only occurrences
       allowed are inside a template that interpolates the constant.
       `details.${exemptClass}` is such a template; `details.disclosure`
       would not be.

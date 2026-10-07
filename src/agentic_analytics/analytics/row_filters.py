@@ -217,7 +217,7 @@ _NUMERIC_TYPES = frozenset(
 class CategoryFilter:
     """An exact match on a non-numeric column.
 
-    The value is not a number, so it is rendered as a quoted literal --
+    The value is not a number, so it is rendered as a quoted literal,
     which is why `_SAFE_VALUE` is narrow and a value outside it refuses.
     """
 

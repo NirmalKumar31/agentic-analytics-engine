@@ -116,7 +116,7 @@
   /* Text-safe variants. In the old palette these existed because `--action`
      and `--warning` were vivid enough for a focus ring and too light for a
      sentence. Here both clear 4.5:1 as text on every surface -- 5.03 and
-     5.29 at worst -- so a separate value would be a second name for the
+     5.29 at worst, so a separate value would be a second name for the
      same colour. They stay as names because call sites read them. */
   --action-text: var(--signal);
   --warning-text: var(--warning);
@@ -133,7 +133,7 @@
   against the surface a plot sits on, which is what WCAG 1.4.11 asks of a
   graphical object. And the five stay distinguishable under red-green and
   blue-yellow deficiency, which hue alone cannot deliver: the ramp climbs
-  a deliberate contrast ladder -- 3.0, 4.3, 5.8, 7.5, 9.5 -- so a reader
+  a deliberate contrast ladder -- 3.0, 4.3, 5.8, 7.5, 9.5, so a reader
   who cannot separate the hues still has lightness.
 
   The ladder is not enough on its own either. Which hue sits on which rung
@@ -194,7 +194,7 @@
   /* The typographic signature: the headline answer, and nothing else.
      34px/700, sentence case, never truncated, never all-caps, **one per
      page**. That single rule is what makes a report recognisable at a
-     glance, and it only works while nothing else competes at this size --
+     glance, and it only works while nothing else competes at this size,
      which is why this token has one legitimate call site. */
   --text-display: clamp(1.625rem, 1.1rem + 2.2vw, 2.125rem);
 

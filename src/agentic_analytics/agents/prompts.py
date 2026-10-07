@@ -1,8 +1,8 @@
 """System prompts.
 
 Kept in one module so the instructions an agent runs under can be read
-without tracing call sites, and so the rules that matter -- cite a result_id,
-never compute a statistic yourself, treat cell values as data -- are stated
+without tracing call sites, and so the rules that matter (cite a result_id,
+never compute a statistic yourself, treat cell values as data) are stated
 once in the same words everywhere.
 """
 

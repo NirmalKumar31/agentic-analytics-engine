@@ -11,7 +11,7 @@ completed report with nothing in it.
 
 Every fixture in the committed corpus uses lowercase column names, so
 alias and original coincided and nothing caught this. It appears the
-moment an uploaded file capitalises a header -- which most exported files
+moment an uploaded file capitalises a header, which most exported files
 do.
 """
 

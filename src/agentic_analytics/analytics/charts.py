@@ -48,8 +48,8 @@ MAX_SERIES = 8
 MAX_GROUPED_CELLS = 240
 #: Cuts one specification can separate: one on an axis, one in the colour
 #: legend. A result cut more ways than this cannot be drawn here without
-#: leaving a cut out, and leaving a cut out draws a different result --
-#: see the third branch of `chart_for`.
+#: leaving a cut out, and leaving a cut out draws a different result.
+#: See the third branch of `chart_for`.
 MAX_CUTS = 2
 
 #: How a period reads on an axis and in a tooltip, per time grain, as a
@@ -103,7 +103,7 @@ def _ordered_numeric(snapshot: ResultSnapshot, column: str) -> bool:
     name, so the parameters come off before the lookup.
 
     A result written before the engine recorded column types declares
-    nothing, which reads as "not known to be ordered" -- the direction
+    nothing, which reads as "not known to be ordered", and the direction
     that leaves the drawing as it was.
     """
     declared = (snapshot.declared_type(column) or "").upper()
@@ -115,7 +115,7 @@ def _label(column: str) -> str:
 
     The declared label comes first. `rate_effect` separated into "rate
     effect" is still the arithmetic's name for itself, and a chart axis is
-    a primary surface -- the published PDF carried `rate_effect` down its
+    a primary surface. The published PDF carried `rate_effect` down its
     y-axis, under a title that said the same thing.
 
     Falling back to word-separation keeps every other column working and
@@ -164,7 +164,7 @@ def _tooltip(
     A temporal field gets the same format as its axis. An unformatted
     temporal tooltip is the worst of the three surfaces a date appears on:
     a reader has to ask for it, so whatever it says reads as the precise
-    answer -- and what it said was the stored instant.
+    answer, and what it said was the stored instant.
     """
     entries: list[dict[str, Any]] = []
     for field, kind in fields:
@@ -224,8 +224,8 @@ def chart_for(mapping: Any, snapshot: ResultSnapshot) -> dict[str, Any]:
 
     # More cuts than one specification can separate.
     #
-    # This branch did not exist, and its absence was not an empty panel --
-    # it was a wrong chart. A result cut three ways fell through to the
+    # This branch did not exist, and its absence was not an empty panel.
+    # It was a wrong chart. A result cut three ways fell through to the
     # two-cut branch below, where `other = next(c for c in resolved if c
     # != category)` takes the *first* remaining cut and the third is never
     # encoded at all. A 120-row segment-by-channel-by-region cross-tab was
@@ -399,7 +399,7 @@ def _line_spec(
     while the table beside it said "Feb 2010". The period column is a
     `DATE_TRUNC`, so its values are dates; declared as an unordered
     category, nothing in either formatter would write a date format onto
-    it -- the presentation layer keys its format on `type == "temporal"`
+    it, because the presentation layer keys its format on `type == "temporal"`
     and so skipped the axis, writing only the title. The title arrived and
     the ticks did not, which is exactly what the artefact shows.
 

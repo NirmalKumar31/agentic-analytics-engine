@@ -39,7 +39,7 @@ def test_a_real_client_is_still_limited_while_spoofing_happens() -> None:
     """Eviction must not hand an attacker a way to reset someone's limit.
 
     It can -- a flood evicts the victim's record and their next request
-    starts a fresh window -- so what is asserted is the honest property: an
+    starts a fresh window, so what is asserted is the honest property: an
     unevicted client is limited exactly as specified, and the limiter is a
     cost, not a guarantee.
     """

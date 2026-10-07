@@ -2,11 +2,11 @@
 
 Three gates, in order, and the first failure decides:
 
-1. **Claim shape** -- deterministic. Causal language on observational data,
+1. **Claim shape**, deterministic. Causal language on observational data,
    "significant" with no test, a claim that cites nothing.
-2. **Arithmetic** -- deterministic. Every number must trace to a cited result
+2. **Arithmetic**, deterministic. Every number must trace to a cited result
    or be derivable from two cited cells.
-3. **Semantics** -- the critic model. Whether the wording is a fair
+3. **Semantics**, the critic model. Whether the wording is a fair
    description of the result, which is the only part of this that needs
    judgement.
 
@@ -288,7 +288,7 @@ def _render_cells(finding: CandidateFinding, by_id: dict[str, ResultSnapshot]) -
 
     `EvidenceCell.value` is optional and a proposer often leaves it unset.
     This line used to render it directly, so every unset value reached the
-    critic as `= None` -- and the critic, reading exactly what it was shown,
+    critic as `= None`, and the critic, reading exactly what it was shown,
     rejected correct findings on the grounds that the cited cell was empty.
     A real local model lost four true claims that way in one probe: the
     engine held the right value the whole time and never looked it up.

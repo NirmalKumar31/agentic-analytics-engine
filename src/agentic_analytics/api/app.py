@@ -404,7 +404,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         """Stop private responses being cached, and set browser defaults.
 
         Everything under `/api/` is derived from a particular visitor's
-        session -- their uploaded rows, their run, their results -- so none
+        session -- their uploaded rows, their run, their results, so none
         of it may sit in a shared cache or come back from the bfcache after
         the session has been deleted. Fingerprinted frontend assets are
         deliberately left alone; they are public and immutable, and caching
@@ -488,7 +488,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         """Readiness. 200 only when this process can actually serve the demo.
 
         `/api/health` answers 200 for a process with no demo warehouse, which
-        is alive and useless -- and a health check that accepts it lets a
+        is alive and useless, and a health check that accepts it lets a
         broken deploy go live and stay live. Both facts checked here are
         local to this container; readiness never depends on the network.
         """
@@ -619,7 +619,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         `Secure` comes from configuration, not from `request.url.scheme`. A
         TLS-terminating proxy forwards plain HTTP to this process, so the
         scheme the application sees is `http` on a site that is HTTPS for
-        every browser that visits it -- and the cookie would go out without
+        every browser that visits it, and the cookie would go out without
         `Secure` on exactly the deployment that needs it. No `Domain`
         attribute, so the cookie stays host-only.
         """
@@ -659,7 +659,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         analyses while cancellation is in flight. Then every run is
         cancelled and awaited. If any run is still alive when the grace
         period expires, the session stays open and stays closing: the
-        janitor retries. Closing anyway -- which is what suppressing the
+        janitor retries. Closing anyway, which is what suppressing the
         timeout amounted to -- is the use-after-close this exists to stop.
         """
         sessions.begin_closing(session_id)
@@ -685,7 +685,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         and, for an upload, the rows themselves. A visitor clicking through
         four datasets would leave three of those behind until the TTL caught
         them. Keyed on the capability, so it can only ever close a session
-        the caller could already reach -- and any analysis still running in
+        the caller could already reach, and any analysis still running in
         it is cancelled before it is closed.
         """
         key = request.cookies.get(cfg.session_cookie_name)

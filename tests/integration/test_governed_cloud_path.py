@@ -426,7 +426,7 @@ async def test_the_ledger_never_holds_prompt_text(ledger: CostLedger) -> None:
 async def test_the_reservation_uses_the_dearest_input_rate(ledger: CostLedger) -> None:
     """Before dispatch, nothing knows which rate an input token will attract.
 
-    So the reservation assumes cache-write -- the dearest of the three --
+    So the reservation assumes cache-write -- the dearest of the three,
     and the ledger holds that much until the provider reports otherwise.
     """
     recorder = Recorder(count=10_000, out_tokens=0)
@@ -535,7 +535,7 @@ async def test_the_proposing_stages_cannot_spend_the_verifiers_budget(
     output tokens across the planning and worker stages, so every critic
     call was refused and all sixteen proposed findings were withheld. The
     engine behaved correctly -- a claim nobody could check is never
-    published -- and the run was still useless.
+    published, and the run was still useless.
     """
     recorder = Recorder(count=100, out_tokens=400)
     provider = await _governed(recorder, ledger, max_output_tokens=1_000, verification_reserve=600)

@@ -2,7 +2,7 @@
 
 A model proposed the right number and the engine threw it away. Asked for
 the total net value, a worker claimed "the sum of total_net_value is
-176851.26 across 4000 rows" -- both cells resolving exactly -- and the
+176851.26 across 4000 rows" -- both cells resolving exactly, and the
 critic withheld it as only partially supported, reasoning that
 `total_net_value` might be read as a source column when it is the alias
 of `SUM(net_value)`. The doubt was reasonable. The wording created it.
@@ -121,7 +121,7 @@ def _rank_answer(mapping: Any, snapshot: ResultSnapshot, task_id: str | None) ->
     A ranking returns a short list, so it supports a statement about the
     extreme the question asked for and nothing about the other end. The
     model's summary said "20 has the highest total_weekly_sales at
-    301,397,792 and 39 the lowest at 207,445,542" -- and 39 was the tenth
+    301,397,792 and 39 the lowest at 207,445,542", and 39 was the tenth
     highest of a ten-row result, while the actual lowest store was 33 at
     37,160,221.96. Both numbers were real cells, so numeric verification
     passed; the word "lowest" was the falsehood.
@@ -199,7 +199,7 @@ def _trend_answer(mapping: Any, snapshot: ResultSnapshot, task_id: str | None) -
     """The engine's own sentence for a time series.
 
     A trend had no canonical answer, so the only candidate was a model's
-    prose -- and on a 33-month series the relevance gate withheld it as not
+    prose, and on a 33-month series the relevance gate withheld it as not
     answering the question. The engine had computed a correct monthly
     series and published nothing at all.
 

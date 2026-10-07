@@ -2,7 +2,7 @@
 
 Found by running a real model. Asked "what is the total net value by
 territory?" about an uploaded CSV, qwen3:4b returned a perfectly sensible
-task -- objective, dimension, table, columns -- but omitted `preferred_tool`.
+task -- objective, dimension, table, columns, but omitted `preferred_tool`.
 The schema default is `compute_metric`, which needs a governed metric layer
 that an upload does not have, so the cleaning step dropped every task and the
 run stopped with "the planner produced no executable task for this dataset"

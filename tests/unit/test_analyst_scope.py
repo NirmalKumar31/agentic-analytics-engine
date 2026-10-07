@@ -1,7 +1,7 @@
 """Reading a period out of a question.
 
 A question naming two quarters is asking for a comparison. Reading only
-the first one turns it into a question about a single period -- which,
+the first one turns it into a question about a single period, which,
 with no year attached, cannot be resolved at all, so the run answered as
 though no period had been named and presented unrelated breakdowns as the
 answer. Every number in that report was arithmetically correct and none of
@@ -79,7 +79,7 @@ async def test_a_quarter_without_a_year_says_what_to_type() -> None:
     """The refusal has to be actionable.
 
     Guessing a year would analyse data nobody asked about, so the engine
-    does not -- which makes it essential that it says so, and says how to
+    does not, which makes it essential that it says so, and says how to
     fix it, rather than quietly widening to the whole dataset.
     """
     analysis = await _analyse("total revenue in q3 and q2 and percentage change?")

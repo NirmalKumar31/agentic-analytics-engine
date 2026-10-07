@@ -14,7 +14,7 @@ total computed with DuckDB before anything is uploaded.
 Case B, protected. The table's only date is a lifecycle date. The question
 asks for annual revenue without naming a clock. Neither side may answer as
 though revenue was earned in that year, and the typed AI plan must not be
-able to bypass a refusal the rules made -- the missing fact is business
+able to bypass a refusal the rules made, because the missing fact is business
 semantics, which `AMBIGUOUS_PERIOD_SEMANTICS` deliberately keeps out of
 `AI_ELIGIBLE_ISSUES`.
 

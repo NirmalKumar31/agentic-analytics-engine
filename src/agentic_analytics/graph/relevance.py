@@ -3,7 +3,7 @@
 A run produces several results. One of them becomes the headline, the chart
 and the table; the rest are supporting detail. Choosing badly does not look
 like a bug -- the report is well formed, the numbers are right, the labels
-are clean -- it just answers a different question than the one asked.
+are clean. It just answers a different question than the one asked.
 
 **That is what was happening.** The choice was made by tool name:
 
@@ -23,7 +23,7 @@ Two consequences followed from the same cause, and both were reported as
 separate faults:
 
 * **A statistical test could never be the headline.** It carries no
-  `metric` parameter, so the old selector skipped it outright -- and a
+  `metric` parameter, so the old selector skipped it outright, and a
   relationship question's answer *is* a statistical test. The presentation
   layer has known how to render one (`PresentationShape.STATISTICAL_TEST`)
   the whole time; nothing ever handed it one.
@@ -37,7 +37,7 @@ separate faults:
 So selection is ranked against what the question declared it was about,
 and the tool order survives only as the tie-break. Nothing here reads the
 question's raw text: the signals are the planner's own interpretation --
-`analysis_type` and `target_metrics` -- and the result's own parameters.
+`analysis_type` and `target_metrics`, and the result's own parameters.
 Guessing from wording is how a selector starts answering questions nobody
 asked.
 """
@@ -68,7 +68,7 @@ RELATIONSHIP_TYPES = frozenset({"correlation", "causal", "driver_analysis"})
 #: subject words and a unit; `first_delivery_status` is one subject word
 #: between two structural ones. Matching on a structural word would make
 #: every `*_rate` column look like an answer to every rate question, and
-#: every `*_status` cut look like the answer to every status question --
+#: every `*_status` cut look like the answer to every status question,
 #: which is the failure mode of name matching and the reason this list is
 #: deliberately generous. A word left out of it costs a missed signal; a
 #: word wrongly kept in a name costs a wrong headline.
@@ -263,7 +263,7 @@ def score(
 
     The signals are the planner's interpretation -- `metrics`, `dimensions`
     and `analysis_type`, which is what `planner_interpretation` actually
-    carries -- and the result's own parameters. Nothing reads the question's
+    carries, and the result's own parameters. Nothing reads the question's
     wording.
     """
     total = 0.0

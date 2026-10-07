@@ -71,7 +71,7 @@ def test_a_relationship_question_with_no_grouping_is_still_a_correlation() -> No
 
     This is the home page's other example, advertised as "a rejected causal
     claim". It names no grouping, so it is still read as a relationship
-    question -- and the scripted provider still proposes the causal
+    question, and the scripted provider still proposes the causal
     interpretation that the critic then rejects.
     """
     analysis = analyse("Do shipping delays appear to affect repeat purchasing?")
@@ -156,7 +156,7 @@ def test_segment_return_rates_match_an_independent_query(warehouse_dir: Path) ->
 
     `return_rate` is `100.0 * SUM(is_returned) / COUNT(*)` over the order-item
     grain. This rebuilds that join rather than asking the metric layer, so the
-    two have to agree for the test to pass -- and a metric definition that
+    two have to agree for the test to pass, and a metric definition that
     drifted would be caught by something that does not share its code.
     """
     con = duckdb.connect(":memory:")

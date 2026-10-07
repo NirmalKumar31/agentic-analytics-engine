@@ -14,15 +14,15 @@
 Opt-in, never part of CI, and **not** a benchmark: it reports no requests per
 second and nothing it prints belongs in documentation as a performance claim.
 
-Why it exists. The blueprint's numbers -- 384 MB per session, 12 sessions, 2
-concurrent analyses -- cannot be validated by arithmetic. The memory limit is
+Why it exists. The blueprint's numbers (384 MB per session, 12 sessions, 2
+concurrent analyses) cannot be validated by arithmetic. The memory limit is
 a ceiling DuckDB will not exceed rather than an allocation it makes, and an
 idle session is not free either, because it has already materialised its rows
 into a private in-memory database and holds them for its whole life. So the
 real figure is neither `384 x 12` nor `384 x 2`. It has to be measured.
 
-What it does: fills a meaningful part of the envelope -- several demo
-sessions, several uploaded files of non-trivial size, two analyses at once --
+What it does: fills a meaningful part of the envelope (several demo
+sessions, several uploaded files of non-trivial size, two analyses at once),
 reads container memory at four points, then deletes everything and checks the
 service is the same process it started as.
 
@@ -49,7 +49,7 @@ from http.cookiejar import CookieJar
 from typing import Any
 
 #: Materially larger than the capacity smoke's 150 rows, and large enough
-#: that the per-session database is a real allocation rather than noise --
+#: that the per-session database is a real allocation rather than noise,
 #: while still finishing in a reasonable time on one CPU.
 UPLOAD_ROWS = 120_000
 UPLOAD_SESSIONS = 4

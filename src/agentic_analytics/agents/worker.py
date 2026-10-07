@@ -116,7 +116,7 @@ class ToolLoopTelemetry:
 def _results_digest(payloads: list[dict[str, Any]]) -> str:
     """Compact rendering of results for the prompt.
 
-    Rows are included -- a worker cannot cite a number it was not shown -- but
+    Rows are included, because a worker cannot cite a number it was not shown, but
     the row count is already bounded by the tool layer.
     """
     if not payloads:
@@ -520,8 +520,8 @@ Choose the next tool call, or set done to true if the objective is met."""
 def _render_attempts(attempts: list[FailedAttempt] | None) -> str:
     """Show the worker what it already tried and why it did not work.
 
-    The loop used to put a failure in `notes` -- read by the report, never
-    by the model -- so the next decision was made with no knowledge that the
+    The loop used to put a failure in `notes`, read by the report and never
+    by the model, so the next decision was made with no knowledge that the
     previous one had failed, let alone why. A worker with a wrong assumption
     about the schema therefore made the same wrong call until its budget ran
     out. The error message is the only thing that can change its mind.

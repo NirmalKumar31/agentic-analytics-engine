@@ -2,7 +2,7 @@
 
 An analysis holds an `AnalysisSession`, and therefore the DuckDB connection
 behind it. Four separate paths close a session -- an explicit DELETE, opening
-another dataset in the same browser, TTL expiry, and capacity eviction -- and
+another dataset in the same browser, TTL expiry, and capacity eviction, and
 each one could previously do it while a run was mid-flight. The run's next
 tool call then reaches a closed connection and surfaces to the visitor as an
 internal error.
@@ -258,7 +258,7 @@ def test_capacity_is_released_when_a_run_is_cancelled(
     """A deleted dataset must not cost the demo a concurrency slot.
 
     With one slot configured, a second analysis can only start if the first
-    one's slot came back -- which only happens if the cancelled task ran its
+    one's slot came back, which only happens if the cancelled task ran its
     `finally`.
     """
     started = threading.Event()
@@ -449,7 +449,7 @@ def test_a_session_is_not_closed_while_a_run_still_holds_it(
     """The whole invariant, end to end through the API.
 
     A task that refuses to finish within the grace period must leave its
-    session open, closing, and refusing new work -- and the DELETE must not
+    session open, closing, and refusing new work, and the DELETE must not
     claim the data is gone.
     """
     started = threading.Event()

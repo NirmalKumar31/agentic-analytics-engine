@@ -146,7 +146,7 @@ Return the grounded upload query plan."""
     #
     # This is deliberately not presented as an independent interpretation:
     # `interpretation` says the rules decided, `planner_note` says why, and
-    # the canonical contract is byte-identical to the deterministic one --
+    # the canonical contract is byte-identical to the deterministic one,
     # so Compare Both reports the same governed interpretation, which is
     # the truth.
     if deterministic.confident:
@@ -196,7 +196,7 @@ async def resolve_upload_query_automatically(
     The deterministic resolver runs first, always, and its assessment
     decides whether a provider is needed at all. An exact question
     executes immediately having made no provider call and consulted no
-    ledger -- which is the whole point: the common case must not cost
+    ledger, which is the whole point: the common case must not cost
     anything, or automatic routing is just the AI mode with extra steps.
 
     `open_planner` is a factory rather than a provider because constructing
@@ -208,7 +208,7 @@ async def resolve_upload_query_automatically(
     A model is asked only when the question is ambiguous: the dataset can
     answer it and the wording did not say how. A missing column, an
     unimplemented operation and an unsafe grouping are certain refusals,
-    and a model cannot overturn any of them -- asking would spend a
+    and a model cannot overturn any of them, because asking would spend a
     request to be told what the rules already knew.
     """
     assessment = assess(question, schema)

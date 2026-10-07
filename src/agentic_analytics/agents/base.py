@@ -3,7 +3,7 @@
 Every agent role does the same two things: ask a provider for JSON, then
 validate that JSON into a Pydantic model. `ask_into` is that pair, in one
 place, so there is a single point where the outcome of a structured call can
-be observed -- and observed *accurately*.
+be observed, and observed *accurately*.
 
 Accuracy is the reason this exists. Watching only the provider call records
 "the provider returned a dict" as a success, which it is; but a dict that

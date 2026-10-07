@@ -636,8 +636,8 @@ async def test_a_call_that_never_returns_is_bounded_by_the_application() -> None
     The local provider carries this bound too, added after a run wedged for
     twenty minutes: socket ESTABLISHED, no bytes moving, the HTTP client's
     read timeout never firing. Nothing about that failure is specific to a
-    vendor -- it is what "accepted, then nothing" looks like from the client
-    side -- so the cloud adapter keeps the same backstop.
+    vendor. It is what "accepted, then nothing" looks like from the client
+    side, so the cloud adapter keeps the same backstop.
 
     The mock transport here never responds at all. If the `asyncio.timeout`
     were removed this test would hang rather than fail, which is exactly the

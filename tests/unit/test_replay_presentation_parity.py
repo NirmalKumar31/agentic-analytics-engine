@@ -72,7 +72,7 @@ def test_every_stored_figure_matches_the_cell_it_cites(
     This is the parity assertion that bites. The snapshot was written by
     one version of the formatter and is read by whatever version is
     running, so if the two disagree a replayed report is published with
-    figures the live code would have written differently -- which is
+    figures the live code would have written differently, which is
     exactly the state the recordings were in, at a coarser grain.
 
     The field is resolved from the column the highlight cites, so a

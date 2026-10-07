@@ -78,7 +78,7 @@ def apply_family_correction_to_payloads(payloads: list[dict[str, Any]]) -> int:
     claiming a significance that the verifier would then have to strip.
 
     The snapshots held by the session are corrected separately with the same
-    function over the same family, so the two agree exactly -- Holm is
+    function over the same family, so the two agree exactly. Holm is
     deterministic on a given set of p-values.
 
     Returns the size of the family that was corrected.
