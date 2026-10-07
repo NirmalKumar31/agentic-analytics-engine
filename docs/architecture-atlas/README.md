@@ -95,10 +95,12 @@ to durable user state, and cannot relabel completed evidence. See
 
 ## Provenance and icon attribution
 
-All three diagrams were audited against source snapshot `4da28ee`, which is
-the commit their footers name. Their core topology is still the
-implementation; this README explicitly adds the later role-confirmation
-boundary instead of backdating it into the artwork.
+All three diagrams were re-audited against source snapshot `077fc70`, which
+is the commit their footers name. The audit read each text node in the
+artwork and found the call site behind it; what it checked is listed under
+[What the source snapshot means](#what-the-source-snapshot-means). This
+README still adds the later role-confirmation boundary in prose rather than
+backdating it into the artwork.
 
 Brand marks in the embedded SVGs are from Simple Icons. Their source URLs and
 attribution are recorded in [assets/SOURCES.txt](assets/SOURCES.txt). The
@@ -112,7 +114,44 @@ read the release evidence rather than treating a diagram as proof.
 ## What the source snapshot means
 
 Each diagram's footer names the commit its claims were checked against --
-currently `4da28ee`. The text in these diagrams was verified against
+currently `077fc70`. The text in these diagrams was verified against
 implementation call sites at that revision, not against intent. When the
 architecture moves, the snapshot and the claim move together or the diagram
 is wrong in a way no test will catch.
+
+Nothing in CI reads these diagrams, so the snapshot is only worth the audit
+behind it. What the `077fc70` audit resolved, diagram by diagram:
+
+**01 — from dataset to an inspectable answer.** The five operations in
+"Resolved upload aggregate" are the set `_is_canonical_upload_aggregate`
+admits in `graph/build.py`, literally and in full: `count`, `sum`,
+`average`, `trend`, `rank`. `profile` is the sixth upload operation and is
+deliberately *not* in that set, so a profile question routes to
+`plan_analysis` -- the "Other analysis paths" box -- exactly as drawn. The
+node chain in that box is the graph's own: `plan_analysis`,
+`analysis_worker`, `aggregate_results`, `critique_findings`,
+`followup_round`, `build_visualizations`, `write_report`,
+`verify_publication`. "Build SHA on health, config and runs" is all three:
+`api/models.py` carries it on the health and config models and
+`api/runs.py` on the run. `AnalysisPresentation` is a `Strict` model in
+`presentation/schemas.py`.
+
+**02 — how an uploaded question becomes a contract.** The five routing
+states are `ResolutionState` in `analytics/resolution.py`: `EXACT`,
+`AMBIGUOUS`, `UNRESOLVED`, `UNSUPPORTED`, `UNSAFE`. The split the diagram
+draws between "AMBIGUOUS · LANGUAGE" and "AMBIGUOUS · SEMANTIC" is
+`AI_ELIGIBLE_ISSUES`, which holds the four wording ambiguities a planner
+may settle and excludes `AMBIGUOUS_PERIOD_SEMANTICS`. That exclusion is
+what "a missing business clock is asked, not inferred" names, and
+`ai_eligible` additionally requires the state to be `AMBIGUOUS` at all --
+so "UNRESOLVED · UNSUPPORTED · UNSAFE → no planner request" holds by
+construction.
+
+**03 — where computation and data live.** The ledger verbs are
+`CostLedger.reserve` and `.settle` in `llm/ledger.py`; "retain" is
+`.abandon`, which deliberately leaves a reservation charged rather than
+refunding it. "Remote /mcp is withdrawn when allowed hosts are empty" is
+`_mcp_transport_security` in `api/app.py`: an empty allow-list yields no
+endpoint and a 503, and CI boots a container *with* an allow-list to show
+the configured case still serves. The in-process transport is unaffected,
+which is why the same diagram can say the website makes no network hop.
