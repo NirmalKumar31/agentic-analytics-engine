@@ -124,7 +124,7 @@ serve: ## Serve in recorded-only mode, the safe public posture
 record: data ## Re-record the demo runs (fails if one does not pass acceptance)
 	$(FAKE) $(PY) -m agentic_analytics.cli record
 
-verify: lint typecheck test frontend-test ## Everything CI runs, locally
+verify: lint typecheck test frontend-test ## Lint, types, both test suites, recordings. Not the browser, Docker or audit jobs
 	$(FAKE) $(PY) -m agentic_analytics.cli validate-recordings
 	@echo "\nAll checks passed."
 

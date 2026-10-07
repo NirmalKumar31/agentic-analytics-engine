@@ -28,6 +28,10 @@ classifiers = [
 dependencies = [
     "mcp>=2.2,<3",
     "langgraph>=1.2,<2",
+    # Never imported here. It is langgraph's own dependency, named
+    # explicitly so a resolver cannot pair langgraph 1.2 with a 0.x
+    # langchain-core; `constraints.txt` pins the exact version that was
+    # tested.
     "langchain-core>=1.6,<2",
     "duckdb>=1.4,<2",
     "pyarrow>=21,<26.1",

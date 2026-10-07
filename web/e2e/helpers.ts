@@ -15,7 +15,7 @@ import { expect, test, type APIRequestContext, type Page, type Request } from '@
  * say how many uploads it made -- the number had to be reconstructed from
  * rejection messages in a CI log.
  *
- * So the suite counts itself. `scripts/check-upload-budget.mjs` reads these
+ * So the suite counts itself. `scripts/check-resource-budget.mjs` reads these
  * ledgers after the run and asserts the totals, which makes the budget a
  * thing that fails a build rather than a thing somebody remembers.
  *
@@ -113,7 +113,7 @@ export function ledger(
     where = test.info().titlePath.join(' \u203a ')
   } catch {
     // Outside a test. `project` is then required, and a missing one is
-    // reported by `check-upload-budget.mjs` as an unattributable event.
+    // reported by `check-resource-budget.mjs` as an unattributable event.
   }
   events += 1
   try {
@@ -783,7 +783,7 @@ export async function endSession(page: Page, project?: string): Promise<void> {
     ledger('close', 'end session', project, { session })
   } catch {
     // A session that cannot be closed is a capacity problem for the *next*
-    // test, and `check-upload-budget.mjs` is what reports it: failing here
+    // test, and `check-resource-budget.mjs` is what reports it: failing here
     // would blame teardown for a defect somewhere else.
   }
 }

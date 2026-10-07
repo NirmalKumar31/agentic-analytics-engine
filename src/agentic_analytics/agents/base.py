@@ -26,7 +26,6 @@ from pydantic import BaseModel, ValidationError
 
 from agentic_analytics.llm.base import (
     BudgetError,
-    FailureKind,
     LLMError,
     LLMProvider,
     LLMRequest,
@@ -178,25 +177,6 @@ async def ask_into[ModelT: BaseModel](
 
     finish("success")
     return validated
-
-
-def parse_into[ModelT: BaseModel](
-    model: type[ModelT], payload: dict[str, Any], role: str
-) -> ModelT:
-    """Validate a provider payload into a schema, or raise a clear error.
-
-    Kept for callers that already hold a payload. Prefer `ask_into`, which
-    is observable.
-    """
-    try:
-        return model.model_validate(payload)
-    except ValidationError as exc:
-        log.warning("agent_output_invalid", role=role, errors=exc.error_count())
-        kind: FailureKind = "schema_validation_error"
-        raise LLMError(
-            f"the {role} returned a response that did not match the expected shape",
-            kind=kind,
-        ) from None
 
 
 def schema_of(model: type[BaseModel]) -> dict[str, Any]:

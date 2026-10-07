@@ -130,8 +130,8 @@ findings are semantically right. The injected-pattern checks are what provide
 that, because the generator knows the answer and the agents cannot see it.
 
 **The numeric rate counts findings, not numeric literals.** `verify_numbers`
-checks every figure in a finding and returns one verdict, so 35/35 means 35
-of 35 published findings had all their numbers re-verify — not that 35
+checks every figure in a finding and returns one verdict, so 30/30 means 30
+of 30 published findings had all their numbers re-verify — not that 30
 individual numbers were checked. The name says so now.
 
 Candidate support is *expected* below 1.0 — a run that withholds nothing is
@@ -152,29 +152,29 @@ cases passed                      8 / 8
 injected patterns recovered       6 / 6
 patterns missed                   []
 
-candidate findings                37
-  supported                       35
-  withheld                         2
-candidate support rate            35/37 = 0.946
+candidate findings                38
+  supported                       30
+  withheld                         8
+candidate support rate            30/38 = 0.789
 
-published findings                35
+published findings                30
   unsupported published            0
-publication-gate integrity       35/35 = 1.000
+publication-gate integrity       30/30 = 1.000
 
-findings numerically verified    35/35  = 1.000
-SQL statements read-only         33/33  = 1.000
-tool calls succeeded             35/35  = 1.000
-provenance complete              35/35  = 1.000
-chart fields valid             205/205  = 1.000
+findings numerically verified    30/30  = 1.000
+SQL statements read-only         32/32  = 1.000
+tool calls succeeded             34/34  = 1.000
+provenance complete              30/30  = 1.000
+chart fields valid             192/192  = 1.000
 
-deterministic tool calls          35
+deterministic tool calls          34
 generated SQL calls                0
-resolved without generated SQL   35/35  = 1.000
-statistical tool calls             2
+resolved without generated SQL   34/34  = 1.000
+statistical tool calls             4
 decomposition tool calls           2
 
-provider calls                   193
-engine runtime per question    0.094 s   (excludes model inference)
+provider calls                   187
+engine runtime per question    0.109 s   (excludes model inference)
 ```
 
 The runtime figure is hardware-dependent. The block above is a local run; the

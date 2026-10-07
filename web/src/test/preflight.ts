@@ -49,22 +49,37 @@ function refuse(baseURL: string, reason: string): never {
   );
 }
 
+/**
+ * Is this host the machine the suite is running on?
+ *
+ * Name or literal: `localhost`, the IPv4 loopback block, and `::1` in the
+ * bracketed form a URL hostname is parsed into. `127.0.0.1` is what every
+ * sanctioned run uses; the rest are here so an equivalent spelling is not
+ * mistaken for a remote host.
+ */
+function isLoopback(hostname: string): boolean {
+  const host = hostname.toLowerCase();
+  if (host === "localhost" || host === "::1" || host === "[::1]") return true;
+  return /^127(?:\.\d{1,3}){3}$/.test(host);
+}
+
 /** The base URL the suite will drive, resolved the one way. */
 export function resolveBaseUrl(env: Record<string, string | undefined>): string {
   return env.AAE_E2E_BASE_URL ?? "http://127.0.0.1:8000";
 }
 
 /**
- * Refuse unless the target is reachable and explicitly in fake mode.
+ * Refuse unless the target is local and explicitly in fake mode.
  *
  * Every failure mode refuses rather than warning: unreachable, non-200,
- * unparseable, missing field, and any provider mode other than `fake`.
- * A check that passed when it could not tell would be worse than none,
- * because it would be relied upon.
+ * unparseable, missing field, a remote host, and any provider mode other
+ * than `fake`. A check that passed when it could not tell would be worse
+ * than none, because it would be relied upon.
  */
 export async function assertFakeProvider(
   baseURL: string | undefined,
   probe: Probe,
+  env: Record<string, string | undefined> = {},
 ): Promise<void> {
   if (!baseURL || !baseURL.trim()) {
     throw new PreflightRefusal(
@@ -81,6 +96,37 @@ export async function assertFakeProvider(
   }
   if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
     return refuse(baseURL, `is not an http(s) URL (${parsed.protocol})`);
+  }
+
+  /*
+    The fake-provider check cannot keep this suite off the deployment,
+    because the deployment is in fake mode too.
+
+    `provider_mode` selects the *ungoverned* provider. The paid path is
+    gated separately, on `ai_analytics_enabled` plus a key plus a
+    reachable ledger -- which is why `render.yaml` ships
+    `AAE_PROVIDER_MODE=fake` and still serves AI Analytics. Production
+    therefore answers `/api/health` with exactly the value this gate is
+    looking for, and a stray `AAE_E2E_BASE_URL` would send the suite's
+    uploads, analyses and session deletions at the live site with every
+    check passing.
+
+    So the host is checked as well, and before the probe rather than
+    after it: the probe is itself a request, and the point is not to make
+    it against somewhere this suite was never meant to touch. Every
+    sanctioned run is already loopback -- CI boots a container and points
+    at `127.0.0.1:8000`. A deployment is tested by the hosted sweep in
+    `web/hosted/`, which has its own gate on `AAE_HOSTED_SHA`.
+  */
+  if (!isLoopback(parsed.hostname) && env.AAE_E2E_ALLOW_REMOTE !== "1") {
+    return refuse(
+      baseURL,
+      `is not a loopback address (${parsed.hostname}).\n` +
+        "A deployment answers /api/health with provider_mode=fake as well, " +
+        "so that check alone cannot tell it apart from a local server.\n" +
+        "Use the hosted sweep in web/hosted/ to test a deployment, or set " +
+        "AAE_E2E_ALLOW_REMOTE=1 if you really mean this host",
+    );
   }
 
   const target = new URL("/api/health", parsed).toString();

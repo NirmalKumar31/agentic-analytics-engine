@@ -49,7 +49,7 @@ describe("the e2e provider preflight", () => {
     // silently permitted.
     for (const mode of ["cloud", "openai", "anthropic", "local", "Fake", "FAKE", ""]) {
       const probe = vi.fn().mockResolvedValue(ok({ provider_mode: mode }));
-      await expect(assertFakeProvider("http://h", probe)).rejects.toThrow(
+      await expect(assertFakeProvider("http://127.0.0.1:8000", probe)).rejects.toThrow(
         PreflightRefusal,
       );
     }
@@ -64,7 +64,7 @@ describe("the e2e provider preflight", () => {
 
   it("refuses a non-200 health response", async () => {
     const probe = vi.fn().mockResolvedValue({ status: 503, body: "" });
-    await expect(assertFakeProvider("http://h", probe)).rejects.toThrow(
+    await expect(assertFakeProvider("http://127.0.0.1:8000", probe)).rejects.toThrow(
       /answered \/api\/health with HTTP 503/,
     );
   });
@@ -73,21 +73,21 @@ describe("the e2e provider preflight", () => {
     // A proxy or a login page answering 200 with HTML must not read as a
     // pass just because the request succeeded.
     const probe = vi.fn().mockResolvedValue({ status: 200, body: "<html>hi</html>" });
-    await expect(assertFakeProvider("http://h", probe)).rejects.toThrow(
+    await expect(assertFakeProvider("http://127.0.0.1:8000", probe)).rejects.toThrow(
       /not JSON/,
     );
   });
 
   it("refuses JSON that is not an object", async () => {
     const probe = vi.fn().mockResolvedValue({ status: 200, body: '"ok"' });
-    await expect(assertFakeProvider("http://h", probe)).rejects.toThrow(
+    await expect(assertFakeProvider("http://127.0.0.1:8000", probe)).rejects.toThrow(
       /not an object/,
     );
   });
 
   it("refuses a health payload with no provider_mode at all", async () => {
     const probe = vi.fn().mockResolvedValue(ok({ status: "ok" }));
-    await expect(assertFakeProvider("http://h", probe)).rejects.toThrow(
+    await expect(assertFakeProvider("http://127.0.0.1:8000", probe)).rejects.toThrow(
       /reports no provider_mode/,
     );
   });
@@ -132,22 +132,85 @@ describe("the e2e provider preflight", () => {
     );
   });
 
-  it("has no bypass: no environment value makes a cloud provider acceptable", async () => {
-    // Asserted on the function's shape rather than on documentation. A
-    // bypass is the flag that gets set once while debugging and left set.
+  it("refuses a remote host even when it reports fake", async () => {
+    // The case the provider check cannot catch. `render.yaml` ships
+    // `AAE_PROVIDER_MODE=fake` and the deployment still serves AI
+    // Analytics, so production answers with exactly the value this gate
+    // wants. Without the host check the suite would upload, analyse and
+    // delete sessions against the live site, passing every assertion.
+    const probe = vi.fn().mockResolvedValue(ok({ provider_mode: "fake" }));
+    await expect(
+      assertFakeProvider("https://agentic-analytics-engine.onrender.com", probe),
+    ).rejects.toThrow(PreflightRefusal);
+  });
+
+  it("names the hosted sweep rather than only refusing", async () => {
+    const probe = vi.fn().mockResolvedValue(ok({ provider_mode: "fake" }));
+    await expect(
+      assertFakeProvider("https://example.com", probe),
+    ).rejects.toThrow(/hosted sweep|AAE_E2E_ALLOW_REMOTE/);
+  });
+
+  it("refuses a remote host before it sends the probe", async () => {
+    // The probe is itself a request. Refusing after it would still have
+    // touched the host this gate exists to stay away from.
+    const probe = vi.fn().mockResolvedValue(ok({ provider_mode: "fake" }));
+    await expect(assertFakeProvider("https://example.com", probe)).rejects.toThrow(
+      PreflightRefusal,
+    );
+    expect(probe).not.toHaveBeenCalled();
+  });
+
+  it("accepts every spelling of the local machine", async () => {
+    for (const url of [
+      "http://127.0.0.1:8000",
+      "http://127.0.0.2:8000",
+      "http://localhost:8000",
+      "http://LOCALHOST:8000",
+      "http://[::1]:8000",
+    ]) {
+      const probe = vi.fn().mockResolvedValue(ok({ provider_mode: "fake" }));
+      await expect(assertFakeProvider(url, probe)).resolves.toBeUndefined();
+    }
+  });
+
+  it("allows a remote host only when it is asked for explicitly", async () => {
+    const probe = vi.fn().mockResolvedValue(ok({ provider_mode: "fake" }));
+    await expect(
+      assertFakeProvider("https://example.com", probe, { AAE_E2E_ALLOW_REMOTE: "1" }),
+    ).resolves.toBeUndefined();
+    expect(probe).toHaveBeenCalledTimes(1);
+  });
+
+  it("the remote opt-in does not also excuse a cloud provider", async () => {
+    // Two independent gates. Asking for a remote host must not buy a
+    // waiver on the one that keeps the suite off a paid provider.
+    const probe = vi.fn().mockResolvedValue(ok({ provider_mode: "cloud" }));
+    await expect(
+      assertFakeProvider("https://example.com", probe, { AAE_E2E_ALLOW_REMOTE: "1" }),
+    ).rejects.toThrow(/provider_mode=cloud/);
+  });
+
+  it("has no bypass: nothing in the environment makes a cloud provider acceptable", async () => {
+    // A bypass is the flag that gets set once while debugging and left
+    // set, so these are named and refused rather than merely absent.
+    //
+    // `assertFakeProvider` does read one environment value -- the remote
+    // host opt-in -- so this can no longer claim the function ignores the
+    // environment altogether. What it claims instead is narrower and is
+    // the part that matters: no value, including that opt-in, makes a
+    // provider mode other than `fake` acceptable.
     const probe = vi.fn().mockResolvedValue(ok({ provider_mode: "cloud" }));
     for (const key of [
       "AAE_E2E_ALLOW_CLOUD",
       "AAE_E2E_SKIP_PREFLIGHT",
       "CI",
       "AAE_PROVIDER_MODE",
+      "AAE_E2E_ALLOW_REMOTE",
     ]) {
-      vi.stubEnv(key, "1");
-      await expect(assertFakeProvider("http://h", probe)).rejects.toThrow(
-        PreflightRefusal,
-      );
-      vi.unstubAllEnvs();
+      await expect(
+        assertFakeProvider("http://127.0.0.1:8000", probe, { [key]: "1" }),
+      ).rejects.toThrow(PreflightRefusal);
     }
-    expect(assertFakeProvider.length).toBe(2);
   });
 });

@@ -27,7 +27,7 @@ Every number here came from a run. Nothing is estimated.
 | 2 | Chart bounding box ≥ 90% of content width at each of the six widths | `golden.spec.ts` — `fractionOfContainer` at all six. The threshold was `> 0.8` and is tightened here to the brief's 0.9: measured, it is 90% at phone-small and 98% at the other five, in all three engines |
 | 3 | `scrollWidth - clientWidth ≤ 1` in every state | `visualReview.spec.ts` (40 cells), `landing.spec.ts`, `golden.spec.ts`, `terminalStates.spec.ts`, `informationArchitecture.spec.ts` |
 | 4 | Table contained: scrolls within its own wrapper, never the page | `report.spec.ts`, and requirement 3 above is what would fail if it escaped |
-| 5 | Exactly one finding expanded on arrival at mobile widths | `findingFold.test.tsx` (both sides of the threshold, and that a Compare pane never folds); `report.spec.ts` drives a recorded run with six findings at 390px. It folds only where there is something to fold — see D4 |
+| 5 | Exactly one finding expanded on arrival at mobile widths | **Withdrawn — see D4.** The presentation contract publishes at most two highlights, so the fold's threshold of three was unreachable. `highlightsAreNotFolded.test.tsx` pins the cap and that every published highlight is on screen at 390px |
 | 6 | No resident technical material on the default report canvas | `visualReview.spec.ts` (every cell), `terminalStates.spec.ts`, `evidence.spec.ts`, `informationArchitecture.test.tsx` — all via `onCanvas`, which excludes the hidden print appendix |
 | 7 | No duplicated panel heading text in one view | `evidence.spec.ts` "no heading appears twice"; `printAppendix.test.tsx` "names each region once, not three times" |
 | 8 | Evidence drawer traps focus; Escape closes and returns focus | `accessibility.spec.ts` "the provenance drawer restores focus and closes on Escape" and "tabbing does not trap"; `components.test.tsx` for the focus-restore unit behaviour |
@@ -136,19 +136,25 @@ Two parts of the mockup's header are deliberately not implemented:
     links on a single short column, which is the chrome this redesign
     removes.
 
-**D4 — One finding expanded on arrival at phone widths. Fixed, conditionally.**
-Implemented where there is something to fold: below 640px, with more than
-three findings, the first is shown and the rest fold into a `<details>`
-labelled "n more findings". The engine's uploaded path publishes two
-one-line rows — "Lowest: North 11,770" — and folding one of those would
-hide a line to save a line, so it does not. A recorded run publishes six
-full-sentence findings, which is the case the mockup was drawn from, and
-those fold.
+**D4 — One finding expanded on arrival at phone widths. Built, then withdrawn.**
+The fold shipped first: below 640px, with more than three findings, the
+first was shown and the rest collapsed into a `<details>` labelled "n more
+findings". The threshold was never reachable. The presentation contract
+emits at most two highlights for any shape it builds — highest and lowest —
+so nothing the engine publishes has three.
 
-It is a `<details>` so that it is reachable by keyboard and so that the
-print cascade expands it: the paper copy is never the folded one.
-`findingFold.test.tsx` pins both sides of the threshold and that a Compare
-pane never folds; `report.spec.ts` drives a recorded run at 390px.
+It looked alive only because the recordings of the time carried no
+presentation snapshot, so the report fell back to listing the engine's own
+findings. `presentation/fields.py` and `recordings/record.py` were
+corrected for that, and the branch had nothing left to fold.
+
+Keeping it would have left dead markup, a dead constant, a dead media query
+and a disclosure a keyboard user could reach and nobody could explain, so
+it was removed. `highlightsAreNotFolded.test.tsx` asserts the cap over
+payloads the pipeline actually produced: if the contract starts emitting
+more, it fails and says so, which is the signal to build the fold again —
+in that order. Raise the cap, produce a recording that reaches it, then
+build the fold.
 
 **D5 — Chart marks are outlined in print. The fills are still the embedding
 theme's.**

@@ -95,8 +95,8 @@ to durable user state, and cannot relabel completed evidence. See
 
 ## Provenance and icon attribution
 
-The first three diagrams were audited against source snapshot
-5180381eee6ea80919ed521329ccccc1b9adec5e. Their core topology is still the
+All three diagrams were audited against source snapshot `4da28ee`, which is
+the commit their footers name. Their core topology is still the
 implementation; this README explicitly adds the later role-confirmation
 boundary instead of backdating it into the artwork.
 

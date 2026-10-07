@@ -1,8 +1,14 @@
 import { type Page } from "@playwright/test";
 
+import { advertiseAi } from "./compareHelpers";
 import { expect, reportFor, test } from "./fixtures";
 
 import { onCanvas, openApp } from "./helpers";
+import {
+  INLINE_DISCLOSURE_CLASS,
+  MIN_TOUCH_PX,
+  STANDALONE_DISCLOSURE_SELECTOR,
+} from "../src/test/touchTargets";
 
 /**
  * Golden layout tests: the report at every width it has to survive.
@@ -225,22 +231,42 @@ test.describe("touch targets on a phone", () => {
     // On the shared upload rather than the demo warehouse, and replayed:
     // the size of a hit area does not depend on which dataset produced the
     // report behind it, so this does not need an admission of its own.
-    await page.setViewportSize({ width: 390, height: 844 });
+    /*
+      The phone width is set *after* the report, not before it.
+
+      `reportFor` resets the shared session when the report it wants is
+      not already on screen, and that reset deliberately restores the
+      viewport the page started with -- one test's phone width left
+      behind is a layout no later test chose. So setting 390px first and
+      calling `reportFor` second threw the 390px away whenever the reset
+      ran, and this test measured a 1280px desktop while asserting a
+      floor that `responsive.css` only promises below 640px.
+
+      It passed anyway, because the test before it in this file leaves
+      the same report on screen and `reportFor` then takes its fast path
+      and skips the reset. Run this file with `-g`, reorder it, or shard
+      it, and the slow path returns: three summaries at 19, 19 and 25px,
+      and a failure that blames the stylesheet for a width nobody asked
+      about. Setting the viewport last is true on both paths.
+    */
     await reportFor(page, "What is the total revenue by region?");
+    await page.setViewportSize({ width: 390, height: 844 });
     await page.getByTestId("inspect-evidence").click();
     await expect(page.getByTestId("evidence-drawer")).toBeVisible();
 
-    const standalone = await page.evaluate(() =>
-      [...document.querySelectorAll("details:not(.disclosure) > summary")]
-        .map((el) => {
-          const box = (el as HTMLElement).getBoundingClientRect();
-          return {
-            text: (el.textContent ?? "").trim().slice(0, 30),
-            h: Math.round(box.height),
-            w: Math.round(box.width),
-          };
-        })
-        .filter((entry) => entry.w > 0),
+    const standalone = await page.evaluate(
+      (selector) =>
+        [...document.querySelectorAll(selector)]
+          .map((el) => {
+            const box = (el as HTMLElement).getBoundingClientRect();
+            return {
+              text: (el.textContent ?? "").trim().slice(0, 30),
+              h: Math.round(box.height),
+              w: Math.round(box.width),
+            };
+          })
+          .filter((entry) => entry.w > 0),
+      STANDALONE_DISCLOSURE_SELECTOR,
     );
 
     expect(
@@ -251,7 +277,7 @@ test.describe("touch targets on a phone", () => {
       expect(
         entry.h,
         `"${entry.text}" is ${entry.h}px tall`,
-      ).toBeGreaterThanOrEqual(44);
+      ).toBeGreaterThanOrEqual(MIN_TOUCH_PX);
     }
   });
 
@@ -259,9 +285,31 @@ test.describe("touch targets on a phone", () => {
     page,
   }) => {
     await page.setViewportSize({ width: 390, height: 844 });
-    await openApp(page);
+    /*
+      Advertised, so the sweep sees the controls a keyed deployment has.
 
-    const small = await page.evaluate(() => {
+      Without this the landing renders with `model_inference_remote:
+      false` and the privacy disclosure -- the one control the floor's
+      exemption was written for -- does not exist on the page. CI has no
+      provider key and production has one, so this sweep was measuring a
+      strictly smaller page than the one visitors touch, and the gap was
+      invisible in exactly the way a missing element always is: nothing
+      fails, the count just quietly drops.
+
+      Before `openApp`, which is when the application asks for its
+      configuration. `compareHelpers` documents why, and
+      `compareSetup.spec.ts` pins the ordering.
+    */
+    await advertiseAi(page);
+    await openApp(page);
+    // The route can fail silently, and a sweep over a page missing its
+    // riskiest control passes. Prove the control is there before
+    // measuring anything.
+    await expect(
+      page.locator(`details.${INLINE_DISCLOSURE_CLASS}`).first(),
+    ).toBeVisible();
+
+    const small = await page.evaluate(({ exemptClass, floor }) => {
       const offenders: { tag: string; label: string; w: number; h: number }[] =
         [];
       const controls = document.querySelectorAll<HTMLElement>(
@@ -286,15 +334,26 @@ test.describe("touch targets on a phone", () => {
         }
         // WCAG 2.2 SC 2.5.8 exempts a target that sits in a line of
         // text, because its height is set by the line rather than by the
-        // control. The privacy disclosure is a link inside a sentence:
-        // giving it a 44px block would break the paragraph, so the
-        // standard does not ask for it.
+        // control. Two ways to be that: inline inside a prose element,
+        // or inside a `<details>` the author declared inline.
+        //
+        // The second is not redundant. `<details>` is not permitted
+        // content for `<p>`, so the privacy disclosure -- the control
+        // this exemption was written for -- can never have a `p`
+        // ancestor, and the prose sniff structurally cannot see it. See
+        // `touchTargets.ts`; `responsive.css` exempts the same class.
+        //
+        // Both halves are still required: a declared class with a
+        // block `display` is a block control and gets no exemption,
+        // which is also why an *open* disclosure, whose summary becomes
+        // `display: block`, has to meet the floor.
         if (style.display === "inline" || style.display === "inline-block") {
           const inProse = el.closest("p, li, figcaption") !== null;
-          if (inProse) continue;
+          const declaredInline = el.closest(`details.${exemptClass}`) !== null;
+          if (inProse || declaredInline) continue;
         }
         // The shorter side is what a thumb has to hit.
-        if (Math.min(box.width, box.height) < 44) {
+        if (Math.min(box.width, box.height) < floor) {
           offenders.push({
             tag: el.tagName,
             label: (el.textContent ?? "").trim().slice(0, 30),
@@ -304,11 +363,11 @@ test.describe("touch targets on a phone", () => {
         }
       }
       return offenders;
-    });
+    }, { exemptClass: INLINE_DISCLOSURE_CLASS, floor: MIN_TOUCH_PX });
 
     expect(
       small,
-      `controls below 44px: ${small.map((o) => `${o.tag}"${o.label}" ${o.w}x${o.h}`).join(", ")}`,
+      `controls below ${MIN_TOUCH_PX}px: ${small.map((o) => `${o.tag}"${o.label}" ${o.w}x${o.h}`).join(", ")}`,
     ).toEqual([]);
   });
 });
