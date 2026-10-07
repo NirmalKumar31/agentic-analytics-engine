@@ -73,7 +73,7 @@ test.describe("motion restraint", () => {
     // has a plain canvas. Stacking contours over graph paper would have
     // been two textures behind the same content.
     //
-    // The claim is stronger than the one it replaces -- the field does not
+    // The claim is stronger than the one it replaces: the field does not
     // animate at all, in any phase, so there is no "holds still once a
     // report arrives" case to test. When the storyboard's 48s drift is
     // implemented, this becomes a reduced-motion assertion.
@@ -94,7 +94,7 @@ test.describe("motion restraint", () => {
   test("nothing moves under the pointer", async ({ profiled: page }) => {
     // There are no `.panel` elements left on the report: the landing, the
     // composer and the report are all built without them. The claim is
-    // unchanged -- hovering must not lift or shadow anything, so it is
+    // unchanged, because hovering must not lift or shadow anything, so it is
     // made against the report itself.
     //
     // On the shared session, replayed: what a surface does under the
@@ -133,7 +133,7 @@ test.describe("motion restraint", () => {
   test("nothing wears a coloured halo", async ({ page }) => {
     await openApp(page);
 
-    // `--glow` is gone. It was the old halo -- a blurred translucent wash
+    // `--glow` is gone. It was the old halo, a blurred translucent wash
     // of the accent hue, invisible on a light surface and meaningless to a
     // reader who cannot separate the hue from its background. The bridge
     // in tokens.css kept the name alive, redefined as a solid ring, while
@@ -182,7 +182,7 @@ test.describe("motion restraint", () => {
   test("every tab stop carries a visible ring", async ({ page }) => {
     // Driven with real key presses. `:focus-visible` is gated on keyboard
     // interaction, so calling `element.focus()` from script does not match
-    // it -- an earlier version of this test did exactly that, matched
+    // it, and an earlier version of this test did exactly that, matched
     // nothing, and asserted over an empty list.
     await openApp(page);
     const openDemo = page.getByRole("button", { name: /Commerce demo warehouse/ });

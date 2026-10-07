@@ -20,9 +20,9 @@ import { expect, freshComposer, reportFor, test } from "./fixtures";
  * Two things are being proved here, and they are different claims.
  *
  * **In print media, on every engine.** `emulateMedia` applies the print
- * cascade to a live page, so the structural claims -- the appendix is
+ * cascade to a live page, so the structural claims (the appendix is
  * revealed, every disclosure is expanded, no control survives as a grey
- * rectangle, the chart fits the printable width -- are testable in
+ * rectangle, the chart fits the printable width) are testable in
  * Chromium, Firefox and WebKit alike. Those are the regression gate.
  *
  * **As a PDF, in Chromium only.** `page.pdf()` exists nowhere else;
@@ -32,7 +32,7 @@ import { expect, freshComposer, reportFor, test } from "./fixtures";
  *
  * This replaces `app.spec.ts`'s "prints a complete report as a browser
  * PDF", which asserted the first four bytes and a lower bound on the file
- * size -- a PDF of a blank page passes both, and rendered landscape,
+ * size, because a PDF of a blank page passes both, and rendered landscape,
  * which is not the page this design specifies.
  *
  * The viewport is set to the A4 printable width before each check. Print
@@ -68,7 +68,7 @@ async function reach(page: Page, scenario: Scenario): Promise<void> {
      * and the demo warehouse costs no upload.
      *
      * The routes go on **before** `openApp`. `advertiseAi` answers
-     * `/api/config`, which the application requests as it mounts -- opening
+     * `/api/config`, which the application requests as it mounts, so opening
      * the app first means the real config is already in hand, AI is never
      * advertised, the Compare strategy is unavailable and `startCompare`
      * waits out the whole test timeout. Chromium happened to survive the
@@ -105,7 +105,7 @@ const SCENARIOS: Scenario[] = ["successful", "compare", "refusal", "no-findings"
 /*
  * Print media is emulated per test and must be put back. The `profiled`
  * session outlives the test that borrowed it, and a page left in print
- * media fails every screen assertion after it -- including in other spec
+ * media fails every screen assertion after it, including in other spec
  * files, because the fixture is worker-scoped.
  */
 test.afterEach(async ({ profiled }) => {
@@ -268,7 +268,7 @@ test.describe("the print cascade, applied to a live page", () => {
   test("a dark-themed screen still prints on white", async ({ profiled: page }) => {
     /*
      * `ThemeToggle` always writes `data-theme` on the document element, so
-     * the dark palette is `:root[data-theme="dark"]` -- one attribute more
+     * the dark palette is `:root[data-theme="dark"]`, one attribute more
      * specific than a bare `:root`. A print palette reset written as
      * `:root` alone loses to it however late in the cascade it sits, and
      * the report prints on #0e1113: a solid black sheet, or near-white
@@ -322,7 +322,7 @@ test.describe("the print cascade, applied to a live page", () => {
      * honours; Firefox started the body's background transition anyway and
      * the first frame of the sheet was `rgb(111, 114, 114)`, halfway
      * between the dark canvas and white. `tokens.css` therefore zeroes the
-     * motion durations under `@media print` as well -- the one lever that
+     * motion durations under `@media print` as well, the one lever that
      * does not depend on which style an engine consults when it decides
      * whether a transition begins.
      *

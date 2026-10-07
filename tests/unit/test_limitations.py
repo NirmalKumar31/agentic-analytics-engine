@@ -144,7 +144,7 @@ SUCCESS_ONLY_RULES = frozenset({"engine_canonical", "passed"})
 
 
 def test_the_success_only_allowance_is_not_a_dumping_ground() -> None:
-    """Each entry must still be absent from the prose table -- otherwise
+    """Each entry must still be absent from the prose table, because otherwise
     it is described after all and the exemption is stale."""
     assert not (SUCCESS_ONLY_RULES & known_rules())
 

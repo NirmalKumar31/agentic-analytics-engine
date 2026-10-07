@@ -82,7 +82,7 @@
 
 /* One column.
  *
- * This was `minmax(0, 1fr) 330px` -- a reserved column for the right rail.
+ * This was `minmax(0, 1fr) 330px`, a reserved column for the right rail.
  * The rail is deleted, so from the moment a run existed the layout held
  * 330px of empty canvas down the right of every report, and the content
  * sat off-centre in the remainder. `data-rail` is still set on the element

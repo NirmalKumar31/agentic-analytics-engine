@@ -26,11 +26,11 @@ from typing import Any
 
 #: Canonical decimal text. A leading sign, digits, at most one point, and
 #: an optional exponent. No spaces, no separators, no currency, no percent
-#: -- each of those means something the cell does not say.
+#: Each of those means something the cell does not say.
 _CANONICAL = re.compile(r"^[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?$")
 
 #: A redundant leading zero: `0012345`. A numeric column never produces
-#: one -- the engine writes 12345, so text that carries them came from
+#: one. The engine writes 12345, so text that carries them came from
 #: somewhere that was keeping them, which is what an identifier does.
 #: `0` and `0.5` are unaffected.
 _PADDED = re.compile(r"^[+-]?0\d")

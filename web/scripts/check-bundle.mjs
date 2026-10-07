@@ -9,7 +9,7 @@
  *
  * This reads `dist/` and fails on each. It is a script rather than a vitest
  * case because CI runs `npm run test` *before* `npm run build`: a test that
- * needs the build would either fail there or -- worse -- be written to skip
+ * needs the build would either fail there or, worse, be written to skip
  * when `dist/` is missing, which is a bundle check that never runs. It is
  * wired as its own CI step after the build, the same shape as
  * `check-playwright-skips.mjs`.
@@ -39,7 +39,7 @@
  * seven panels, and because those modules carry their reasoning. The
  * application code shrank, because ten components were deleted and their
  * replacements are smaller. Vega's chunk is byte-identical across the two
- * builds -- its content hash did not change, and still separate.
+ * builds, since its content hash did not change, and still separate.
  */
 
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
@@ -79,7 +79,7 @@ const gz = (logical) =>
 
 // ------------------------------------------------------------- Vega is lazy
 //
-// The charting runtime is 861 kB raw, 296 kB gzipped -- nearly three times
+// The charting runtime is 861 kB raw, 296 kB gzipped, nearly three times
 // the rest of the application. It sits behind a dynamic `import()` in
 // `Chart.tsx` so a reader who never runs an analysis never downloads it.
 // Removing the `await import(...)` is a one-line change that no other test

@@ -182,7 +182,7 @@ def ledger() -> CostLedger:
 # ══════════════════════════════════════════════════════════ A: usage validity
 #
 # `_non_negative_int` mapped absent, negative, boolean and string token
-# counts all to zero. Zero is internally coherent -- 0 + 0 <= 0, nothing
+# counts all to zero. Zero is internally coherent: 0 + 0 <= 0, nothing
 # negative, so the coherence check passed, settlement priced a free call,
 # and the ledger refunded the entire reservation. A response whose usage
 # cannot be read is the one case where the reservation must stand.

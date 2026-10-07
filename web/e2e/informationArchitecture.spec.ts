@@ -4,17 +4,17 @@
  * Where a state can be produced by asking the engine a question, it is
  * produced that way. Three can:
  *
- *   - `refused`     -- a question naming a measure the table does not have.
- *   - `no_findings` -- a filter that matches no rows. This used to come back
+ *   - `refused`:     a question naming a measure the table does not have.
+ *   - `no_findings`: a filter that matches no rows. This used to come back
  *                      `failed`, and the assertion here used to accept any
  *                      of three states because the classification was wrong.
  *                      The engine now completes it and says why.
- *   - `completed`   -- an ordinary mappable question.
+ *   - `completed`:   an ordinary mappable question.
  *
  * The rest cannot be produced locally with the scripted provider and are
  * driven by intercepting the run payload at the network boundary instead:
  * `verification_withheld`, `cancelled`, `quota_stopped`, and `execution_failed`
- * -- the last of which *was* reachable through the empty-filter question
+ * The last of which *was* reachable through the empty-filter question
  * until that was corrected, and now needs a genuine tool error to produce.
  * The backend suite covers that case directly, by making the engine's own
  * SQL execution raise. That is the pattern
@@ -63,7 +63,7 @@ test.describe("the schema inspector tells the truth about ambiguity", () => {
   // Serial, with one upload shared across the three tests.
   //
   // Uploads are rate limited per address, and the whole suite runs three
-  // times, once per engine -- against one container. At one upload per
+  // times, once per engine, against one container. At one upload per
   // test the third engine was refused mid-run and fifteen upload-dependent
   // tests failed, including pre-existing ones that have nothing to do with
   // this file. A profiled dataset does not change between these
@@ -80,7 +80,7 @@ test.describe("the schema inspector tells the truth about ambiguity", () => {
 
   test.afterAll(async () => {
     // The session, not just the page. Closing a browser context does not
-    // free a server-side upload session -- the server holds it until the
+    // free a server-side upload session, because the server holds it until the
     // capability deletes it or the TTL expires, and the TTL outlives a CI
     // run. Three engines leaving their sessions behind is what exhausted
     // the 24-session pool.
@@ -120,8 +120,8 @@ test.describe("the schema inspector tells the truth about ambiguity", () => {
 
     // ADR 0006 refused any control, because a label the engine would not
     // honour is worse than no label. ADR 0007 supplies the honouring, so
-    // this fixture -- an uploaded file, where the reader is the one who
-    // knows what the column means -- now gets the offer.
+    // this fixture (an uploaded file, where the reader is the one who
+    // knows what the column means) now gets the offer.
     await expect(inspector).toContainText(/settle it for this session/i);
     await expect(inspector.getByTestId("role-confirmation").first()).toBeVisible();
     // Still no free-text or dropdown role editing: the choice is between
@@ -161,7 +161,7 @@ test.describe("a dataset with nothing ambiguous in it", () => {
 
   test.afterAll(async () => {
     // The session, not just the page. Closing a browser context does not
-    // free a server-side upload session -- the server holds it until the
+    // free a server-side upload session, because the server holds it until the
     // capability deletes it or the TTL expires, and the TTL outlives a CI
     // run. Three engines leaving their sessions behind is what exhausted
     // the 24-session pool.
@@ -243,7 +243,7 @@ test.describe("terminal states, produced by the engine", () => {
 
   test.afterAll(async () => {
     // The session, not just the page. Closing a browser context does not
-    // free a server-side upload session -- the server holds it until the
+    // free a server-side upload session, because the server holds it until the
     // capability deletes it or the TTL expires, and the TTL outlives a CI
     // run. Three engines leaving their sessions behind is what exhausted
     // the 24-session pool.
@@ -272,8 +272,8 @@ test.describe("terminal states, produced by the engine", () => {
     // Never the word that would send a reader looking for an answer.
     await expect(report).not.toContainText(/\bComplete\b/);
 
-    // The three `.step` assertions that stood here -- Analyse stopped,
-    // Verify idle, Report idle -- went with the five-step pipeline index.
+    // The three `.step` assertions that stood here (Analyse stopped,
+    // Verify idle, Report idle) went with the five-step pipeline index.
     //
     // Their claim is the important half of this test and is **owed by step
     // D**: a run that stopped must show *where* it stopped, and must not

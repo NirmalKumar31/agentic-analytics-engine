@@ -69,7 +69,7 @@ export default defineConfig({
   /*
    * No retries, anywhere.
    *
-   * CI used to retry once. That cannot rescue a run -- the report guard
+   * CI used to retry once. That cannot rescue a run, because the report guard
    * refuses a flaky result outright, because a test that passes only on
    * retry has not demonstrated what it asserts, so the retry could never
    * turn the job green. What it could do is spend the budget again: every

@@ -221,7 +221,7 @@ def display_field_for(
     else:
         kind = SemanticKind.CATEGORY
 
-    # A numeric column used as a grouping has a real order -- ages 18..65
+    # A numeric column used as a grouping has a real order: ages 18..65
     # are a sequence, not an unordered set of labels, and plotting it on
     # a categorical axis is what made a 48-age breakdown unreadable.
     declared = str(getattr(field, "data_type", "") or "").upper()
@@ -324,7 +324,7 @@ def with_unit(text: str, field: DisplayField | None) -> str:
     unit = field.unit
     if unit in _PREFIX_UNITS:
         return f"{unit}{text}"
-    # `%` sits tight against the number; a named unit -- `pp` -- takes a
+    # `%` sits tight against the number; a named unit (`pp`) takes a
     # space, because "0.71pp" reads as a typo and "0.71 pp" reads as a
     # measurement.
     return f"{text}{'' if unit == '%' else ' '}{unit}"
@@ -381,7 +381,7 @@ def display_value(value: Any, field: DisplayField | None) -> str:
     # reads the same in a sentence as in the table beside it. Down a column
     # that rule is not consistency, it is the absence of it. A published
     # breakdown of 48 age groups printed `61.08`, `62.94`, `59.48` and then
-    # `59` -- the one group whose mean happened to be 59.0033, and a
+    # `59`, the one group whose mean happened to be 59.0033, and a
     # reader has to stop and work out whether that cell is a different kind
     # of number. It is not.
     #

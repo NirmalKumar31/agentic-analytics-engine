@@ -4,7 +4,7 @@
  * Inference reports a close call when a numeric column sits in the band
  * where a code list and a genuine count look the same. The engine has been
  * wrong about that in both directions, and nothing in the values settles
- * it -- the person who uploaded the file is the only one who knows.
+ * it, because the person who uploaded the file is the only one who knows.
  *
  * Three things this deliberately does not do:
  *
@@ -70,7 +70,7 @@ export function RoleConfirmation({ field, onApply, disabled = false }: Props) {
   useEffect(() => {
     // `pending` is in the deps because the replacement button is disabled
     // while the request is in flight, and focusing a disabled element does
-    // nothing -- in jsdom and in every browser. Waiting for the request to
+    // nothing, in jsdom and in every browser. Waiting for the request to
     // settle is what makes the focus actually land.
     if (!acted.current || pending) return;
     acted.current = false;
@@ -82,7 +82,7 @@ export function RoleConfirmation({ field, onApply, disabled = false }: Props) {
     setError(null);
     setStatus("");
     // Raised before awaiting. `await` yields, so React can flush the
-    // parent's state update, and run the effect below -- before the
+    // parent's state update, and run the effect below, before the
     // continuation here would reach this line. The effect also runs when
     // `pending` settles, so a late flag would still be seen; raising it
     // here means the first run is the one that acts, rather than relying

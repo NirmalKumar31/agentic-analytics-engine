@@ -132,7 +132,7 @@ def _values(snapshot: ResultSnapshot, column: str) -> list[tuple[int, Decimal]]:
 # cell held 1.0 and the group behind it held two customers. A 120-cell
 # cross-tab divides a population until some of its cells hold almost
 # nothing, and the extremes of such a result are exactly the cells where
-# that has happened -- a superlative *selects* for the thinnest cell,
+# that has happened, because a superlative *selects* for the thinnest cell,
 # because a small denominator is what makes 100% reachable at all.
 #
 # What is published is the number with its population beside it. The group
@@ -298,7 +298,7 @@ def thin_elsewhere_note(
     # Every figure here is one the engine recorded, which is not a style
     # choice: `numbers_resolve` refuses a published sentence carrying a
     # number the cited result does not hold, and it refused the first
-    # version of this one. It stated the floor -- "fewer than 30 matching
+    # version of this one. It stated the floor: "fewer than 30 matching
     # rows each", and thirty is a convention of this module, not a
     # measurement of anything. The count is traceable (it is reported
     # through `derived`), the group total and the smallest population are
@@ -643,7 +643,7 @@ def describe_filter(entry: Any) -> str:
     the evidence drawer, where the raw predicate belongs.
     """
     # A resolved `Filter` already writes its own sentence, and that sentence
-    # is part of its contract -- `row_filters.py` keeps one per kind so the
+    # is part of its contract. `row_filters.py` keeps one per kind so the
     # provenance and the prose cannot drift. Preferred over anything derived
     # here.
     #
@@ -651,7 +651,7 @@ def describe_filter(entry: Any) -> str:
     # branch, `str(entry)` became the column name, and the scope line under
     # a refused run published
     # `CategoryFilter(column='region', value='Atlantis', negated=False, ...)`
-    # -- a dataclass repr, as prose, to a reader.
+    # a dataclass repr, as prose, to a reader.
     own = getattr(entry, "describe", None)
     if callable(own):
         try:
@@ -750,7 +750,7 @@ def numbers_resolve(
       the presentation declared for it, and the scale is on the field where
       both formatters can see it. Only a *declared* scale counts, so this
       admits no number the contract did not say was the same one.
-    * a figure of the cited result's own `statistical_result` -- the
+    * a figure of the cited result's own `statistical_result`, meaning the
       statistic, the p-value, the effect size, the group sizes and their
       total. These are **in** the result; they are simply not in its rows,
       and this function used to read only the rows. The first attempt at a

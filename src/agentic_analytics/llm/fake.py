@@ -133,7 +133,7 @@ class FakeProvider(LLMProvider):
 
         # The subject of each matched hint, and the companions kept apart.
         #
-        # A hint group may name more than one metric -- `return|refund` gives
+        # A hint group may name more than one metric. `return|refund` gives
         # `return_rate` and `refund_amount`, and the second exists so a
         # relationship question has a second variable to correlate. Handing
         # both to every analysis is how a question about return rate by
@@ -183,9 +183,9 @@ class FakeProvider(LLMProvider):
         # A named grouping outranks a relationship verb.
         #
         # This branch used to be first and unconditional, so "Which customer
-        # segments are driving the increase in return rate?" -- the question
+        # segments are driving the increase in return rate?" (the question
         # the home page advertises as "Segmentation with a chi-square test
-        # of independence" -- matched `driv` and was planned as a
+        # of independence") matched `driv` and was planned as a
         # correlation between two metrics. The second metric it reached for
         # was `refund_amount`, so a question about attribution across
         # customer segments was answered with a refund trend, and the
@@ -231,7 +231,7 @@ class FakeProvider(LLMProvider):
         ambiguities: list[str] = []
         if quarters and not years:
             # The specific, actionable version. A quarter with no year
-            # cannot be resolved -- guessing one would analyse data nobody
+            # cannot be resolved, because guessing one would analyse data nobody
             # asked about, so say exactly what to type instead.
             named = " and ".join(f"Q{q}" for q in dict.fromkeys(quarters))
             example = f"Q{quarters[0]} 2025"
@@ -437,7 +437,7 @@ class FakeProvider(LLMProvider):
                     {"time_grain": "quarter"},
                 )
 
-        # 5. A real statistical comparison -- when the question asks whether
+        # 5. A real statistical comparison, when the question asks whether
         #    one thing affects another, and when it compares groups.
         #
         # Segmentation was not in this gate, so reclassifying "Which
@@ -1297,7 +1297,7 @@ def _adhoc_findings(task: dict[str, Any], result: dict[str, Any]) -> list[dict[s
 
 #: Columns that describe a result rather than answer anything. A scalar
 #: finding that reported one of these said "row_count for the selected
-#: scope is 240" to a question about yield -- true, checkable, and not the
+#: scope is 240" to a question about yield: true, checkable, and not the
 #: answer, so the relevance gate withheld it and the run published nothing.
 _PROVENANCE_COLUMNS = frozenset({"row_count", "rows", "n", "count_rows"})
 
@@ -1551,7 +1551,7 @@ def _answers_question(
     # Asked for a total, handed a breakdown. "Total revenue in Q3" is not
     # answered by which category earned the most, however exact that is.
     # Only when the question asks for an aggregate *and* names no
-    # dimension: a driver question -- "why did margin fall" -- names no
+    # dimension: a driver question ("why did margin fall") names no
     # dimension either and breakdowns are precisely its answer, so keying
     # on the absent dimension alone would reject the right answer.
     if (

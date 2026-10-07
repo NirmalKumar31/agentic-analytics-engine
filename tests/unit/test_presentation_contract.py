@@ -369,7 +369,7 @@ def test_a_time_series_states_its_peak_without_enumerating_periods() -> None:
     assert presentation.shape is PresentationShape.TIME_SERIES
     # The peak's period, as a reader reads it rather than as it is stored.
     # This asserted "2010-12" and passed over headlines that said
-    # "2025-12-01T00:00:00" -- a serialisation format shown to a reader.
+    # "2025-12-01T00:00:00", a serialisation format shown to a reader.
     assert "Dec 2010" in presentation.headline
     assert "T00:00:00" not in presentation.headline
     assert presentation.headline.count(";") <= 1
@@ -610,7 +610,7 @@ def test_a_declined_chart_explains_itself_to_the_reader() -> None:
     # belongs in that space.
     assert "no_chart" not in {c.code for c in presentation.caveats}
 
-    # The engine's own reason survives. It names the actual cause -- 200
+    # The engine's own reason survives. It names the actual cause: 200
     # categories, which is better than anything the presentation layer
     # could derive, so only the "nothing was recorded" placeholder is
     # replaced.

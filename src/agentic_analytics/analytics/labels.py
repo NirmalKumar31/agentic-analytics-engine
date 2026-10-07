@@ -133,7 +133,7 @@ class Derivation(StrEnum):
     #:
     #: Not simply the measure's own unit. A difference of two currency
     #: amounts is currency; a difference of two **rates is percentage
-    #: points**, and writing it with a `%` says the wrong thing -- a return
+    #: points**, and writing it with a `%` says the wrong thing: a return
     #: rate moving from 8.51% to 7.80% fell by 0.71 percentage points, not
     #: by 0.71%, which would be a relative change of a hundredth of that.
     DELTA_OF_MEASURE = "delta_of_measure"

@@ -52,7 +52,7 @@ test.describe("the composer, on a dataset with two clocks", () => {
      * can honestly measure.
      *
      * It used to compare the question field's area against the segmented
-     * control's. Cards are deliberately larger than a pill strip -- that is
+     * control's. Cards are deliberately larger than a pill strip, and that is
      * the point of making them look selectable, so the old comparison
      * would now fail for a design that was chosen on purpose, which makes
      * it a measurement of the wrong thing rather than a guard.
@@ -224,7 +224,7 @@ test.describe("the schema side sheet", () => {
     await expect(page.getByTestId("schema-sheet")).toHaveCount(0);
 
     // `toBeFocused` rather than a one-shot read of `document.activeElement`.
-    // The restore is deliberately deferred by a frame -- cleanup runs
+    // The restore is deliberately deferred by a frame, because cleanup runs
     // before React unmounts the sheet, and WebKit moves focus to `<body>`
     // as the focused node inside it disappears, undoing a synchronous
     // restore. A single read raced that frame: it passed on Chromium and

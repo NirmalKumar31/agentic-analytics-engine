@@ -7,7 +7,7 @@ import type { UiMode } from "../lib/types";
  * The `auto` notice is gone. It read "Clear questions are resolved by rules
  * without contacting a model. If the question is genuinely ambiguous, one
  * governed AI planning call may be used; the engine still executes and
- * verifies the calculation deterministically" -- directly under the
+ * verifies the calculation deterministically", directly under the
  * server's own description of Governed Analysis, which says the same thing
  * in different words. Two paragraphs making one claim is how a reader
  * learns that the second paragraph can be skipped.

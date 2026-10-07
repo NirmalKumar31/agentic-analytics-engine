@@ -8,8 +8,8 @@
  *
  * The approved composition, and what each part replaces:
  *
- *   verdict strip       four facts -- contracts, coverage, output, recorded
- *                       route -- read straight from `compareRuns`.
+ *   verdict strip       four facts (contracts, coverage, output, recorded
+ *                       route) read straight from `compareRuns`.
  *   how each got there  one table: route, calls, cost, runtime, contract,
  *                       status. This replaces two `ExecutionLane` stage
  *                       stacks, which restated the same five steps twice.
@@ -56,7 +56,7 @@ export interface CompareSide {
   error: string | null;
   pending: boolean;
   usage?: RunUsage;
-  /** AI off by capability, quota or configuration -- not a failed run. */
+  /** AI off by capability, quota or configuration, not a failed run. */
   unavailable?: boolean;
   children: ReactNode;
 }
@@ -108,7 +108,7 @@ export function CompareWorkspace({
    *
    * Zero, which is the deterministic side: it is the one that always runs,
    * so it is the one that is always there to show. Switching runs nothing
-   * -- both payloads are in memory and the tab chooses which finished
+   * Both payloads are in memory and the tab chooses which finished
    * record is displayed.
    */
   const [shown, setShown] = useState(0);

@@ -43,7 +43,7 @@ export interface ReaderFinding {
  * deliberately looks for a *long* tail rather than counting digits: a
  * p-value written as `2.62e-12` is precision a reader needs, and
  * `0.0391` in a Cramér's V is not a floating-point artefact. What it
- * catches is `9.170305676855895` -- fifteen digits that came from a
+ * catches is `9.170305676855895`, fifteen digits that came from a
  * double, not from a decision.
  */
 const EXCESS_PRECISION = /\d+\.\d{6,}/;
@@ -55,7 +55,7 @@ const ISO_TIMESTAMP = /\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/;
  * An engine identifier in prose.
  *
  * Two or more lower-case words joined by underscores. One underscore is
- * enough -- `return_rate` and `customer_segment` are both two words --
+ * enough, because `return_rate` and `customer_segment` are both two words,
  * and a trailing or leading underscore is not a word at all.
  */
 const SNAKE_CASE = /\b[a-z][a-z0-9]*(?:_[a-z0-9]+)+\b/;

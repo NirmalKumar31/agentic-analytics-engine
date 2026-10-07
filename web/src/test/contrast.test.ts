@@ -11,13 +11,13 @@
  * failed all three surfaces at 3.79, `#6b747b` cleared paper at 4.62 and
  * failed the canvas at 4.16, and only a script that checked every colour
  * against every surface settled it. Three of PR F's five accessibility
- * defects were the same mistake -- a colour that cleared the surface it was
+ * defects were the same mistake: a colour that cleared the surface it was
  * checked against and failed a darker one.
  *
  * So this computes the ratios rather than trusting the comment. It is the
  * cheap half of the discipline: a token failing here is caught before it is
  * ever rendered, while axe stays the check on what a real page composites.
- * Neither replaces the other -- axe sees `opacity` and overlap, this sees
+ * Neither replaces the other: axe sees `opacity` and overlap, this sees
  * combinations no test renders.
  *
  * The thresholds are WCAG 2.2: 4.5:1 for body text (1.4.3) and 3:1 for user
@@ -83,7 +83,7 @@ function aliasTokens(block: string): Record<string, string> {
 /**
  * Follow aliases to the colour they end at.
  *
- * A palette is allowed to say "this token is that token" -- the dark theme
+ * A palette is allowed to say "this token is that token"; the dark theme
  * does exactly that, because the text-safe variants and the vivid colours
  * are the same colour there. Measuring the alias rather than its target
  * would report the token as missing and skip it, which is the failure mode
@@ -126,7 +126,7 @@ const LIGHT = resolve(hexTokens(LIGHT_BLOCK), aliasTokens(LIGHT_BLOCK));
  * **Hexes and aliases compose differently, and conflating them is a bug.**
  *
  * A hex the dark block omits really does inherit the light value, and that
- * is the defect this file was written to catch -- light-surface ochre left
+ * is the defect this file was written to catch: light-surface ochre left
  * sitting on a near-black panel.
  *
  * An *alias* omitted by the dark block does not. `--action: var(--signal)`
@@ -203,7 +203,7 @@ const TEXT_TOKENS = [
 ];
 
 /**
- * Tokens used for rings, borders and chart marks -- things a reader has to
+ * Tokens used for rings, borders and chart marks: things a reader has to
  * perceive to use the interface. WCAG 1.4.11 asks 3:1. These deliberately do
  * *not* have to clear the text threshold: the vivid `--action` is right for
  * a focus ring and wrong for a sentence, which is why the text-safe variants

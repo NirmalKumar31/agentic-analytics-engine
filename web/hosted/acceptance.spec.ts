@@ -4,11 +4,11 @@
  * What this run is evidence about, stated once so the report is not read as
  * more than it is:
  *
- *   it proves   how the deployed build **presents** a run -- layout at
+ *   it proves   how the deployed build **presents** a run (layout at
  *               every width in both themes, hierarchy, reader labels,
  *               readable dates and numbers, the evidence drawer, focus
  *               restoration, reduced motion, print, and the execution
- *               graph -- against the exact commit `preflight.ts` checked.
+ *               graph) against the exact commit `preflight.ts` checked.
  *
  *   it does not prove anything about the engine's own behaviour on the
  *               deployment, because it never makes it run. Classification,
@@ -109,7 +109,7 @@ async function proseOf(
  * never arrived.
  *
  * Planner vocabulary and punctuation are left out for the same reason the
- * browser suite leaves them out -- the canvas legitimately carries prose
+ * browser suite leaves them out, because the canvas legitimately carries prose
  * the engine wrote, so this and `e2e/readerQuality.spec.ts` hold the
  * deployed build and the container to the same standard.
  */
@@ -182,7 +182,7 @@ async function overlappingSiblings(page: Page, selector: string): Promise<string
  *
  * Measured against the content, not against a pixel threshold. A first
  * attempt asserted a 40px minimum and flagged the result table's
- * row-number column -- `#`, then `0`, `1`, `2`, `3` -- at 27px, which is
+ * row-number column (`#`, then `0`, `1`, `2`, `3`) at 27px, which is
  * exactly as wide as it should be. "Too narrow" only means anything
  * relative to what a box is holding.
  */
@@ -238,13 +238,13 @@ async function unreadableProse(
  * Vega is a lazily-loaded 860 kB chunk, so a report is interactive and
  * readable well before its chart exists. Every screenshot of a report in
  * the first production sweep showed a **blank 320px band** where the chart
- * belongs -- the page was fine, the capture was early.
+ * belongs: the page was fine, the capture was early.
  *
  * That is two defects in one. The artefacts were not faithful evidence of
  * the thing they were filed as evidence of; and the `report` case's only
  * chart assertion was that its box is no wider than the column, which an
  * empty box satisfies. So this waits, and then asserts the mark is really
- * there -- a chart that silently stops drawing now fails the cell instead
+ * there, so a chart that silently stops drawing now fails the cell instead
  * of passing it at full width.
  *
  * Returns false when the result legitimately has no chart, which is a
@@ -491,8 +491,8 @@ test.describe("hosted visual acceptance", () => {
      * Reader quality on a recorded run, with no allowance.
      *
      * There used to be one. A recording carried no presentation snapshot,
-     * so the whole report -- headline, findings, chart title, table
-     * headers -- fell back to the engine's own words and the result's own
+     * so the whole report (headline, findings, chart title, table
+     * headers) fell back to the engine's own words and the result's own
      * column names: `return_rate fell from 8.51% in 2025-01-01`. The
      * sweep bounded that to two defect kinds rather than ignoring it.
      *
@@ -506,7 +506,7 @@ test.describe("hosted visual acceptance", () => {
     assertFitForAReader(`recorded report at ${cell.name}`, prose);
 
     // The chart, if the recording produced one: painted, then inside the
-    // column. Measured after it has drawn -- an empty host is the right
+    // column. Measured after it has drawn, because an empty host is the right
     // width and the wrong picture.
     const chart = panel.locator(".chart-host").first();
     if (await chartPainted(page, `report at ${cell.name}`)) {
@@ -552,7 +552,7 @@ test.describe("hosted visual acceptance", () => {
     const graph = region.getByTestId("execution-graph");
     await expect(graph).toBeVisible();
 
-    // One node per call the run actually made -- the recording's own count,
+    // One node per call the run actually made, from the recording's own count,
     // read from the payload rather than assumed.
     const expectedCalls = (recording.events as { type: string }[]).filter(
       (event) => event.type === "mcp_tool_called",
@@ -693,7 +693,7 @@ test.describe("hosted visual acceptance", () => {
      *
      * Both have happened. A call chip rendered at 116px against the
      * 180px prose floor, and an absolutely positioned connector sitting
-     * in a grid gap read as clipped text -- outside the padding box it
+     * in a grid gap read as clipped text, because outside the padding box it
      * counts in `scrollWidth` and not in `clientWidth`, which is this
      * check's exact signature. Two spines in a section that previously
      * held a short table is a new place for both.
@@ -975,8 +975,8 @@ test.describe("hosted visual acceptance", () => {
      * No sideways-scroll assertion here, and that is deliberate.
      *
      * `expectNoOverflow` measures the document against the *screen*
-     * viewport. Under print media the page is a sheet of paper -- around
-     * 816px at 96dpi -- not the 360px phone the reader happened to print
+     * viewport. Under print media the page is a sheet of paper (around
+     * 816px at 96dpi) not the 360px phone the reader happened to print
      * from, so measuring the phone's width against print layout asks a
      * question about a page that does not exist. It failed four cells
      * saying the page scrolled 288px sideways, which was true of the

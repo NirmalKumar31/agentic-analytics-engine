@@ -11,14 +11,14 @@ import { onCanvas, setTheme } from "./helpers";
  *    2024-01-01T00:00:00 to 10.763569457221712 in 2024-04-01T00:00:00"
  *
  * Every number correct. A binary floating-point tail, two stored
- * instants, and `return_rate` in the prose beside them -- three
+ * instants, and `return_rate` in the prose beside them: three
  * serialisation details standing where a number, a date and a name belong.
  * Nothing failed, because nothing was looking.
  *
  * `src/test/readerQuality.test.ts` pins the rules against fixtures. This
  * runs them over the text the browser actually paints, which is the only
- * place the whole pipeline -- engine, presentation, component, stylesheet
- * -- is assembled.
+ * place the whole pipeline (engine, presentation, component, stylesheet)
+ * is assembled.
  *
  * Scoped to primary surfaces. The evidence drawer and the print appendix
  * carry `result_id`s, tool names and hashes on purpose: that is what makes
@@ -59,7 +59,7 @@ async function proseOf(
      * And anything the interface marks as an identifier.
      *
      * `.mono` is the product's own signal that a string is a name rather
-     * than prose -- the dataset strip names the clock column as
+     * than prose, because the dataset strip names the clock column as
      * `order_date` on purpose, because that is what a reader would type
      * into a question and what the schema inspector shows. The rule this
      * spec enforces is that *prose* must not contain engine identifiers,
@@ -121,7 +121,7 @@ test.describe("the report canvas is fit for a reader", () => {
      * The surface the published defect was on, and the one the uploaded
      * sample cannot reproduce.
      *
-     * `profiled`'s columns are single words -- `revenue`, `region`, so a
+     * `profiled`'s columns are single words such as `revenue` and `region`, so a
      * finding about them contains no identifier and this gate passes over
      * the fallback path without noticing. The governed warehouse has a
      * metric called `return_rate` and a dimension called
@@ -130,7 +130,7 @@ test.describe("the report canvas is fit for a reader", () => {
      * 10.97%". That is the sentence a reader was shown.
      *
      * With the presentation built, the headline is "Return rate is highest
-     * for new, at 10.97%" -- the metric as a name, the unit from the
+     * for new, at 10.97%": the metric as a name, the unit from the
      * registry. Remove the presentation and this test fails, which is the
      * point of it.
      */
@@ -280,7 +280,7 @@ test.describe("the report canvas is fit for a reader", () => {
      *
      * `tests/unit/test_reader_labels.py` is what pins the phrases, and a
      * mutation removing the declarations fails two of its cases. Splitting
-     * the claim this way is deliberate -- a test that asserted a phrase it
+     * the claim this way is deliberate, because a test that asserted a phrase it
      * cannot see would pass for the wrong reason.
      */
   });

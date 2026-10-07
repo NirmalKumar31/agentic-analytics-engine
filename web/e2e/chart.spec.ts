@@ -142,7 +142,7 @@ test.describe("the run timeline, on real runs", () => {
    * The claim worth keeping is the one that caught a real defect: the lane
    * described every run with the *upload contract* path's stages, so a
    * working demo run reported "Rule resolver: not reached" and "Contract
-   * validation: not accepted" -- two false statements about a run that
+   * validation: not accepted": two false statements about a run that
    * succeeded. The timeline derives from the events a run actually emitted,
    * so the equivalent assertion is that a successful run has no stage
    * reading as stopped or not-reached.
@@ -223,7 +223,7 @@ test.describe("Compare Both, in a browser", () => {
     /*
      * The same dataset label `compare.spec.ts` uses.
      *
-     * Both files are `sampleCsv()` -- byte-identical data under two
+     * Both files are `sampleCsv()`, byte-identical data under two
      * filenames, and the label exists to stop a comparison being
      * replayed across *different* data, not across two names for the
      * same data. Sharing it means the job admits one comparison over
@@ -298,7 +298,7 @@ test.describe("every colour in a chart comes from the palette", () => {
   for (const theme of ["light", "dark"] as const) {
     test(`in ${theme}`, async ({ profiled: page }) => {
       // Toggled, not seeded: `addInitScript` only takes effect on the next
-      // navigation, and a shared session is never navigated -- the dataset
+      // navigation, and a shared session is never navigated, so the dataset
       // lives in React state and a reload would throw it away.
       await page.setViewportSize({ width: 1440, height: 900 });
       /*
@@ -401,7 +401,7 @@ test.describe("the chart's category labels", () => {
     wide: page,
   }) => {
     // The opposite failure. Flat labels on a wide axis collide, and Vega
-    // resolves a collision by removing labels -- a chart that silently
+    // resolves a collision by removing labels, and a chart that silently
     // loses most of its axis is worse than one read at an angle.
     // The `wide` session: 36 categories, which is the crowded axis this
     // test is about. It replaced a 400-row upload of the ordinary sample

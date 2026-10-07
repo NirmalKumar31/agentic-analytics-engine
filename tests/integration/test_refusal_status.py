@@ -29,7 +29,7 @@ from agentic_analytics.mcp_layer.server import build_server
 from agentic_analytics.warehouse.session import SessionManager, open_upload_session
 
 #: A table with several numeric columns, a numeric flag to group by and a
-#: date column -- enough for a question to be unmappable for each of the
+#: date column, enough for a question to be unmappable for each of the
 #: distinct reasons below.
 HEADER = "Store,Date,Weekly_Sales,Holiday_Flag,Temperature"
 ROWS = [

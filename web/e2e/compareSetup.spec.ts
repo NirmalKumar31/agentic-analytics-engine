@@ -22,7 +22,7 @@ import { openApp } from "./helpers";
  *
  * This is a regression test for a real defect, not a precaution. Swapping
  * two lines in `print.spec.ts` passed on Chromium, which happened to win
- * the race, and timed out **every test in that file** on Firefox -- eleven
+ * the race, and timed out **every test in that file** on Firefox: eleven
  * tests, ninety seconds each, with the eventual message pointing at a
  * missing control rather than at a missing route.
  *
@@ -55,7 +55,7 @@ test.describe("Compare's configuration route", () => {
      *
      * Ordering on its own does not prove this fixture does anything. The
      * local strict server already advertises AI, so Compare is offered
-     * whether or not the route applied -- forcing the handler to fail left
+     * whether or not the route applied. Forcing the handler to fail left
      * all three tests in this file green. The CI container, which has no
      * provider key, is the only place the difference showed. Counting the
      * interceptions is what makes the claim independent of what the server

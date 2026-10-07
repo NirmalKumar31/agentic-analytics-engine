@@ -217,7 +217,7 @@ describe("every terminal state is distinguishable", () => {
     expect(report).toHaveTextContent(expected);
 
     // One heading, once. The defect this guards is a refusal stating its
-    // reason twice -- in a card and again as the display headline --
+    // reason twice, in a card and again as the display headline,
     // which is counted on the headline, not on every occurrence of the
     // word: "withheld" legitimately recurs in a sentence explaining that a
     // claim which cannot be checked is withheld.
@@ -259,7 +259,7 @@ describe("every terminal state is distinguishable", () => {
   });
 
   // The stepper assertion that stood here went with the stepper. Its claim
-  // -- a stopped run is shown stopped at the stage it stopped at -- is owed
+  // (a stopped run is shown stopped at the stage it stopped at) is owed
   // by the step D timeline, from backend events.
 });
 
@@ -423,7 +423,7 @@ describe("the report workspace", () => {
   });
 
   it("stamps nothing rather than a row of placeholders", () => {
-    // A stamp reading "contract — · sha — · — ms" looks like a record and
+    // A stamp reading "contract · sha · ms" with nothing in it looks like a record and
     // holds none.
     workspace(
       run({ query_contract: undefined, build_sha: "unknown", timings: undefined }),
@@ -584,7 +584,7 @@ describe("question examples come from the dataset at hand", () => {
     // The demo session also carries a summary, so App passes null unless the
     // dataset kind is an upload. Gating on the summary's presence alone
     // replaced the curated questions, which demonstrate the governed
-    // metric registry -- with generic ones derived from its tables.
+    // metric registry, with generic ones derived from its tables.
     composer(null);
     const list = screen.getByTestId("question-examples");
     expect(list).toHaveAttribute("data-source", "demo");
@@ -728,7 +728,7 @@ describe("the report card says what it actually is", () => {
 
   it("states a real answer without labelling its own epistemic status", () => {
     /*
-     * This asserted the inverse -- that an answer *is* labelled "Verified
+     * This asserted the inverse: that an answer *is* labelled "Verified
      * answer". That label is gone, and this is the one place in the suite
      * where the claim genuinely changed rather than moving.
      *

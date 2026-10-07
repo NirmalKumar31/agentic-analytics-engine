@@ -11,7 +11,7 @@ import { answerRunWith, ask, onCanvas, openApp, setTheme, watchTraffic } from ".
 /**
  * The acceptance sweep: every approved width, both themes, real payloads.
  *
- * Steps B-H each proved one surface. This proves the composition -- that
+ * Steps B-H each proved one surface. This proves the composition: that
  * the same report, driven by the same engine, holds together at 360px and
  * at 1920px, in light and in dark, without any of the failures a redesign
  * produces quietly:
@@ -29,7 +29,7 @@ import { answerRunWith, ask, onCanvas, openApp, setTheme, watchTraffic } from ".
  *
  * Screenshots are written to `test-results/review/` for the visual half of
  * the review, which is a person looking at them. They are captured in
- * Chromium only -- one set of artefacts, not three, and capturing is not
+ * Chromium only, so one set of artefacts rather than three, and capturing is not
  * an assertion, so the other engines lose no coverage by not writing files.
  *
  * --------------------------------------------------------------- uploads
@@ -212,7 +212,7 @@ const REPORT_QUESTION = "What is the total revenue by region?";
  * The matrix is the size the brief says it is.
  *
  * Every cell below is generated from these three lists, so dropping an
- * entry removes a test rather than failing one -- the suite gets smaller
+ * entry removes a test rather than failing one, so the suite gets smaller
  * and greener at the same time, and the skip guard reconciles discovered
  * against executed, which both fall together. The only thing that catches
  * it is a claim about the size of the matrix itself.
@@ -249,7 +249,7 @@ test.describe("a real report holds at every approved width, in both themes", () 
    * One upload, one admission, twelve cells.
    *
    * Every cell asserts the same report; only the viewport and the theme
-   * change, and neither needs a new dataset or a new run -- `reportFor`
+   * change, and neither needs a new dataset or a new run. `reportFor`
    * admits the question once and replays the captured payload for the
    * other eleven.
    *
@@ -270,7 +270,7 @@ test.describe("a real report holds at every approved width, in both themes", () 
 
         // The answer is above the first viewport break at phone widths: a
         // reader on a phone must not scroll to find out what the answer
-        // was. Asserted where it can fail -- a desktop viewport is tall
+        // was. Asserted where it can fail, because a desktop viewport is tall
         // enough for anything.
         if (viewport.width <= 390) {
           const answer = await profiled.getByTestId("direct-answer").boundingBox();
@@ -325,7 +325,7 @@ test.describe("a real report holds at every approved width, in both themes", () 
 
 test.describe("every terminal state renders itself, in both themes", () => {
   /*
-   * Six states, two widths, two themes -- twenty-four cells and, before
+   * Six states, two widths, two themes: twenty-four cells and, before
    * this, twenty-four uploads. A terminal state is produced by answering
    * the finished run with a committed payload fixture, not by the file
    * that was uploaded, so the dataset is the same every time and the
@@ -333,7 +333,7 @@ test.describe("every terminal state renders itself, in both themes", () => {
    *
    * One test per cell, not one test with twenty-four `test.step`s.
    * Twenty-four cells in a single case do not fit inside a per-test
-   * timeout -- WebKit spent the full two minutes and failed the lot, and
+   * timeout. WebKit spent the full two minutes and failed the lot, and
    * a failure in the first cell stopped the other twenty-three from ever
    * running. Each cell now reports itself, and they still share the one
    * session underneath.
@@ -398,7 +398,7 @@ test.describe("Compare, in both themes", () => {
    * seconds, and two of these four cells exceeded the per-test timeout
    * while a twenty-second assertion was still retrying inside it.
    *
-   * The cells are still four independently reported tests -- a failure at
+   * The cells are still four independently reported tests, so a failure at
    * desktop dark does not hide phone light, and what they assert is
    * unchanged. What they no longer do is rebuild the comparison four times
    * to look at it from four angles. The comparison itself is replayed from

@@ -12,7 +12,7 @@
  * what "on the canvas" means from here on.
  */
 
-/** Is this node outside the print appendix -- that is, on screen? */
+/** Is this node outside the print appendix, that is, on screen? */
 export function onCanvas(node: Element): boolean {
   return node.closest("[data-print-appendix]") === null;
 }
@@ -29,7 +29,7 @@ export function canvasText(el: HTMLElement): string {
 /**
  * Assert that nothing matching `selector` is on the canvas.
  *
- * The weaker claim -- "it is not in the DOM" -- is no longer the right one:
+ * The weaker claim ("it is not in the DOM") is no longer the right one:
  * the appendix legitimately holds a copy. What has to stay true is that the
  * reader is not shown it, and that the appendix carrying it is hidden.
  */

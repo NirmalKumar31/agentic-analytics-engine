@@ -39,7 +39,7 @@ MISSING_PERIOD = "missing_required_period"
 class ConstraintVerdict:
     """Whether the cited results preserved the question's components."""
 
-    #: False when there is no contract to check against -- the governed
+    #: False when there is no contract to check against, as the governed
     #: warehouse, or a question that was never resolved. The caller must
     #: not read `preserved` in that case.
     applicable: bool
@@ -153,7 +153,7 @@ def _compare(
     """`None` when this result carried the whole contract."""
     if required_filters:
         # Compared by type, not by coercion. A categorical filter's value
-        # is text -- `float("G5")` raised and took the whole verification
+        # is text. `float("G5")` raised and took the whole verification
         # down with it, which the expanded corpus found immediately.
         wanted = {_key(f) for f in required_filters}
         have = {_key(f) for f in applied if f.get("column") is not None}

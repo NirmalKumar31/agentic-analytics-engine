@@ -15,7 +15,7 @@ import { expect, freshComposer, test } from "./fixtures";
  *
  * It was not safe. `page.close()` is the ordinary line to write against a
  * test-scoped page, and against a shared one it fails every test that
- * comes after it -- with "Target page, context or browser has been
+ * comes after it, with "Target page, context or browser has been
  * closed", reported in the *victim*, naming a locator that is plainly
  * present in the screenshot. The culprit passes. The upload session it
  * took with it is reported separately, by the budget guard, as a number
@@ -83,7 +83,7 @@ test("the ledger records both real admissions and replays", async ({}, info) => 
 
 test.describe("the shared session", () => {
   // Serial, because the second test is an assertion about what the first
-  // one did -- running them in either order independently proves nothing.
+  // one did, and running them in either order independently proves nothing.
   test.describe.configure({ mode: "serial" });
 
   test("a test cannot close the session it borrowed", async ({ profiled: page }) => {

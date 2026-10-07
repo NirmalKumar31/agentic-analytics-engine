@@ -47,7 +47,7 @@ Operation = Literal["count", "sum", "average", "trend", "rank", "profile"]
 #: every row.
 #:
 #: Two things changed. This is now aligned with the result transport budget
-#: rather than with what fits on a screen -- how many rows a reader wants to
+#: rather than with what fits on a screen. How many rows a reader wants to
 #: scroll is the UI's problem, and the UI may preview fewer without
 #: touching the analytical result. And the engine asks for one more group
 #: than it will accept, so it can *tell* whether a breakdown was cut short
@@ -64,7 +64,7 @@ _OPERATION_PATTERNS: list[tuple[str, Operation]] = [
     (
         # Temporal *intent*, not temporal vocabulary.
         #
-        # This pattern used to include the bare adjectives -- `weekly`,
+        # This pattern used to include the bare adjectives `weekly`,
         # `monthly`, `daily`, `quarterly`, `yearly`, and those are the
         # words measures are named after. `Weekly_Sales`, `monthly_ad_spend`
         # and `daily_active_users` all made every question about them a
@@ -112,7 +112,7 @@ _ASCENDING = re.compile(r"\b(bottom|lowest|smallest|worst|least)\b", re.IGNORECA
 #: total sales" names its grouping without a `by`, and it is one of the
 #: commonest shapes a business question takes. Without them a ranking over
 #: a numeric grouping column resolved to `profile` and the question was
-#: refused -- the engine could rank by a declared dimension but not by a
+#: refused, because the engine could rank by a declared dimension but not by a
 #: store or product id.
 _GROUPING_PHRASE = re.compile(
     r"\b(?:by|per|across|for each|grouped by|group by|split by)\s+"
@@ -465,7 +465,7 @@ class QuestionMapping:
     period_field: str | None = None
     #: Row restrictions the question stated, already resolved to real
     #: columns and finite values. Empty is "no restriction asked for",
-    #: never "one was asked for and dropped" -- that case refuses.
+    #: never "one was asked for and dropped", which refuses instead.
     filters: tuple[Any, ...] = ()
     ascending: bool = False
     confident: bool = True
@@ -530,7 +530,7 @@ class QuestionMapping:
             # raw flag made two identical interpretations hash differently:
             # a paid Compare Both on "the average X by Y" had the cloud plan
             # return `ascending: true` and the rules `false`, the engine
-            # executed both correctly -- same values, same coverage, and
+            # executed both correctly, with the same values, the same coverage, and
             # the page reported "different governed interpretations" over a
             # field that changes nothing. Normalised, so contract identity
             # means what it says.
@@ -809,7 +809,7 @@ def mapping_from_plan(
         # a free-text column cannot: grouping by one puts its raw values
         # into the result as group labels, and from there into a remote
         # prompt.  Checking only `fields` here left that boundary holding
-        # in deterministic mode alone -- an AI plan could group by
+        # in deterministic mode alone, because an AI plan could group by
         # `customer_name` on a question the rules refuse outright.
         if dimension not in _groupable(schema):
             return refuse(
@@ -1255,7 +1255,7 @@ def resolve_question(
 
     # Matched against the question with its column references removed, so
     # a measure's name cannot choose the analysis. `text` is still used for
-    # everything that legitimately reads column references -- the measure,
+    # everything that legitimately reads column references: the measure,
     # the grouping, the filters.
     # Column references are removed, and so is the text a row filter has
     # already claimed. "total revenue with temperature at least 50"
@@ -1350,7 +1350,7 @@ def resolve_question(
                 break
     if not requested_dimensions:
         # Otherwise a dimension the question merely named is still a
-        # grouping -- "returns by category" and "category returns" ask the
+        # grouping, because "returns by category" and "category returns" ask the
         # same thing.
         # A column a filter claimed is not a grouping the question asked
         # for. "total revenue where promo_flag is 1" restricts to one value
@@ -1436,7 +1436,7 @@ def resolve_question(
     #
     # A column the question named as the *grouping* is withheld from the
     # widening that lets a named numeric dimension be aggregated. The
-    # widening is right in itself -- if a question names a numeric column
+    # widening is right in itself. If a question names a numeric column
     # as the thing to measure, the user has said which to use, but it
     # could not tell a measure reference from a grouping reference. So
     # "the average profit by holiday flag", on a table with no `profit`,
@@ -1485,7 +1485,7 @@ def resolve_question(
 
     # A column cannot be both the thing being totalled and the thing being
     # grouped by. This happens when a numeric column was read as a
-    # dimension -- "total units_sold by store_code" matched `units_sold` on
+    # dimension: "total units_sold by store_code" matched `units_sold` on
     # the grouping search first, and then totalled it as well, so the
     # answer was grouped by the very column it was summing.
     if measure is not None and measure in grouping:
@@ -1525,7 +1525,7 @@ def resolve_question(
     if operation == "rank":
         # The same groupable set a breakdown uses. Restricting a ranking to
         # declared dimensions refused "which branch had the highest total"
-        # on any table whose grouping key is numeric -- the breakdown of
+        # on any table whose grouping key is numeric: the breakdown of
         # the same column worked, so the two paths disagreed about what
         # could be grouped.
         rankable = [c for c in _groupable(schema) if c != measure]

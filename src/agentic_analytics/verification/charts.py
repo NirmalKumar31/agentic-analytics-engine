@@ -107,7 +107,7 @@ def build_chart(
     # Axis, legend and tooltip titles are the reader's words.
     #
     # These were the field names, so a published chart carried
-    # `rate_effect` down its y-axis -- the arithmetic naming itself, on the
+    # `rate_effect` down its y-axis, the arithmetic naming itself, on the
     # most primary surface there is. `column_label` is the same source the
     # chart title, the table headers and the headline use, so they cannot
     # disagree about what a column is called. The `field` stays raw,

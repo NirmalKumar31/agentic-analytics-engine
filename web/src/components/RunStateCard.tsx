@@ -3,7 +3,7 @@
  *
  * This was local to `ComparisonView`, which meant the six terminal states
  * were distinguishable in Compare and invisible everywhere else. In
- * single-mode -- the default -- `ReportWorkspace` rendered the report body
+ * single-mode (the default) `ReportWorkspace` rendered the report body
  * with no state card at all, so a refused, quota-stopped, cancelled or
  * failed run looked like an ordinary report that happened to be empty, and
  * the only signal was a generic "the run stopped early" notice.

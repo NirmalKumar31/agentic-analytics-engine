@@ -44,7 +44,7 @@ test.describe("choosing a mode", () => {
      * hid behind that difference until the container found them, and this
      * is the regression test for both.
      *
-     * 1. A radio's accessible name is its label -- the visible mode name
+     * 1. A radio's accessible name is its label, the visible mode name
      *    plus the screen-reader description, and when AI is unavailable
      *    Compare's unavailable message *is* the AI mode's message. So the
      *    Compare radio's name also contains "AI Analytics", and an
@@ -180,7 +180,7 @@ test.describe("AI and Compare, with the API intercepted", () => {
      * Through `compareHelpers`, which owns the comparison route.
      *
      * This test kept its own copy, and that copy started the real
-     * deterministic run with `route.fetch` -- a request the traffic
+     * deterministic run with `route.fetch`, a request the traffic
      * recorder cannot see, so the analysis was made and nothing counted
      * it. `compareWith` records the admission where it happens and
      * remembers the settled payload, so one comparison of this question is
@@ -201,8 +201,8 @@ test.describe("AI and Compare, with the API intercepted", () => {
     /*
      * Two strategies, one report on screen.
      *
-     * They were two labelled regions side by side. A full report -- a
-     * headline, a chart, highlights and a result table -- in half a
+     * They were two labelled regions side by side. A full report (a
+     * headline, a chart, highlights and a result table) in half a
      * laptop's width is not a comparison, so there is a switcher and one
      * report at full width. Each tab is independently identifiable, which
      * is what the two regions were for.
@@ -217,7 +217,7 @@ test.describe("AI and Compare, with the API intercepted", () => {
     // Scoped to the AI pane's state card. An unscoped `getByRole("alert")`
     // matched both this card and the contract-comparison notice, which also
     // carries `role="alert"` when the two interpretations could not be
-    // compared -- a strict-mode violation that appeared on Firefox and not
+    // compared, a strict-mode violation that appeared on Firefox and not
     // on Chromium, because the two engines differ on when the comparison
     // becomes computable. Naming the element is both stable and a stronger
     // claim than "some alert somewhere says this".
@@ -262,7 +262,7 @@ test.describe("AI and Compare, with the API intercepted", () => {
     const ai = await strategyReport(page, "ai");
 
     // The status moved from a pane header into the row of the table that
-    // compares the two strategies. The claim is unchanged -- the AI side's
+    // compares the two strategies. The claim is unchanged; the AI side's
     // own outcome, attributable to that side and machine-readable, and
     // the row is scoped by its header, which is the strategy's name.
     const aiRow = page
@@ -280,7 +280,7 @@ test.describe("AI and Compare, with the API intercepted", () => {
     await expect(card).toContainText(/could not be mapped safely/i);
     await expect(ai.getByTestId("pane-placeholder")).toHaveCount(0);
 
-    // The AI panel wears no Complete badge -- asserted before switching
+    // The AI panel wears no Complete badge, asserted before switching
     // away, because the panel shows one strategy at a time.
     await expect(ai.getByText(/\bComplete\b/)).toHaveCount(0);
 

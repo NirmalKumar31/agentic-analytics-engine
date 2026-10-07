@@ -41,7 +41,7 @@ export function DatasetContextBar({
 }: {
   catalog: DatasetCatalog | null;
   summary: DatasetSummary | null;
-  /** Absent when there is no schema to inspect -- a replayed recording. */
+  /** Absent when there is no schema to inspect, as in a replayed recording. */
   onInspect?: () => void;
 }) {
   if (!catalog) return null;

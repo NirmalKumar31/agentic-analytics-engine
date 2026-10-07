@@ -28,7 +28,7 @@ from agentic_analytics.analytics.semantic import infer_schema
 from agentic_analytics.verification.coverage import check_answer_coverage
 from agentic_analytics.warehouse.session import SessionManager, open_upload_session
 
-#: 120 rows per group, and a capitalised header -- the condition that
+#: 120 rows per group, and a capitalised header, the condition that
 #: distinguishes this from every corpus fixture.
 ROWS = [
     (store, f"2010-{(index % 12) + 1:02d}-05", value, flag)

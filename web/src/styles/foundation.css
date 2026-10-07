@@ -8,7 +8,7 @@
  * big they are*, and nothing in it knows what a report or a finding is.
  *
  * It sits immediately after `reset.css` so every later module, and every
- * override in `states.css` -- can rely on the frame existing and can win
+ * override in `states.css`, can rely on the frame existing and can win
  * over it where a specific surface needs to.
  *
  * Nothing here animates. Motion lives in `motion.css`, which comes later and
@@ -35,7 +35,7 @@
   min-width: 0;
 }
 
-/* The gutter opens in two steps. Phone widths get 16px -- the floor the
+/* The gutter opens in two steps. Phone widths get 16px, the floor the
    responsive tests assert -- and nothing narrower is ever applied. */
 @media (min-width: 768px) {
   :root {
@@ -53,7 +53,7 @@
  *
  * Vertical rhythm as a property of the container, not of every child.
  *
- * The alternative -- a margin on each component -- is how a layout acquires
+ * The alternative (a margin on each component) is how a layout acquires
  * margins that collapse differently depending on what happens to be rendered
  * beside them. A refused run and a completed one would then have different
  * spacing above the question, for no reason anyone chose.
@@ -86,7 +86,7 @@
 /* ---------------------------------------------------------------- type
  *
  * The typographic signature. `--text-display` has exactly one legitimate
- * call site -- the headline answer, and the rule only works while nothing
+ * call site, the headline answer, and the rule only works while nothing
  * else competes at that size.
  *
  * `text-wrap: balance` rather than truncation. An answer is the one thing on
@@ -153,7 +153,7 @@
  *
  * Anything that scrolls inside itself declares it here, together with the
  * `min-width: 0` that lets it. A grid or flex item defaults to `min-width:
- * auto` -- "at least as wide as my content", so a scroll container inside
+ * auto`, "at least as wide as my content", so a scroll container inside
  * one expands to fit rather than scrolling, and takes the page sideways.
  */
 .scroll-x {
@@ -166,7 +166,7 @@
 /* -------------------------------------------------------- print page
  *
  * Page-level print foundations only. How a *report* prints, which
- * disclosures expand, where the evidence appendix begins -- belongs with the
+ * disclosures expand, where the evidence appendix begins, belongs with the
  * report, not here.
  *
  * Two rules carry most of the value. The page gets real margins and a size,
@@ -183,7 +183,7 @@
    * `[data-theme]` as well as `:root`, and this is the whole rule.
    *
    * `ThemeToggle` always writes `data-theme` on the document element, so
-   * the dark palette is stated as `:root[data-theme="dark"]` -- one
+   * the dark palette is stated as `:root[data-theme="dark"]`, one
    * attribute selector more specific than a bare `:root`. A print reset
    * written as `:root` alone *loses to it*, and the page prints on
    * #0e1113: either a solid black sheet or, on a printer that drops

@@ -94,7 +94,7 @@ describe("end-to-end navigation", () => {
     expect(openApp).toMatch(/getByTestId\(['"]app-shell['"]\)/);
     expect(openApp).toMatch(/toBeVisible\(\{\s*timeout:\s*20_000\s*\}\)/);
 
-    // The marker must come from React, not from the served HTML -- a
+    // The marker must come from React, not from the served HTML, because a
     // marker present before mount would make the wait meaningless.
     const html = readFileSync(resolve(process.cwd(), "index.html"), "utf8");
     expect(html).not.toMatch(/app-shell/);

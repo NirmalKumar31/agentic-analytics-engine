@@ -3,7 +3,7 @@
  *
  * This exists because of a near miss. A long-lived server owned by another
  * process was listening on 127.0.0.1:8000, which is exactly this suite's
- * default base URL -- reporting `provider_mode: cloud`. A uvicorn started
+ * default base URL, reporting `provider_mode: cloud`. A uvicorn started
  * with `AAE_PROVIDER_MODE=fake` failed to bind that port, exited, and the
  * health response read back belonged to the other server. The posture you
  * set applies to the server you started, which was not the one answering.

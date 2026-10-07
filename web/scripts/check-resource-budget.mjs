@@ -375,7 +375,7 @@ for (const event of events) {
 
     case 'refused':
       /*
-       * A 429 from the server. Not a budget *estimate* -- the server
+       * A 429 from the server. Not a budget *estimate*; the server
        * stating that a ceiling was reached, which is the condition every
        * other number here is trying to stay away from. Counted as spend:
        * a refused admission was still an admission attempt.

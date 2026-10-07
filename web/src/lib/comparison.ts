@@ -4,10 +4,10 @@
  * Three questions were being answered by one hash comparison, and they are
  * not the same question:
  *
- * 1. **Contract equality** -- did the two planners choose the same
+ * 1. **Contract equality**: did the two planners choose the same
  *    governed request?
- * 2. **Question coverage** -- does that request answer what was asked?
- * 3. **Output equality** -- did the same request produce the same numbers?
+ * 2. **Question coverage**: does that request answer what was asked?
+ * 3. **Output equality**: did the same request produce the same numbers?
  *
  * "Same governed interpretation" only ever meant the first. Two planners
  * agreeing on a contract that drops a grouping agree about the wrong

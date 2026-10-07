@@ -133,7 +133,7 @@ describe("what it must never become", () => {
      * The inherited constraint. A first attempt embedded `ExecutionGraph`
      * on the canvas and two tests refused it: the graph carries the
      * engine's *unedited* stop reason, and it put `run-timeline` back on
-     * the canvas the redesign removed it from. Both still hold -- the
+     * the canvas the redesign removed it from. Both still hold: the
      * flowchart is its own markup over the same derivations, not that
      * component rendered twice.
      */
@@ -316,7 +316,7 @@ describe("the engine's own words stay in the evidence", () => {
      * "stopped here" and no more. A first version added "the reason is in
      * the evidence" as the stage's note, and the refusal screenshot showed
      * that for noise: the state line already said it stopped, the report's
-     * headline *is* the engine's reason -- a refusal's answer is why it
+     * headline *is* the engine's reason, because a refusal's answer is why it
      * refused, and the section carries one control to the full record.
      */
     render(<RunFlowchart events={refused} onShowEvidence={() => undefined} />);
@@ -338,7 +338,7 @@ describe("the engine's own words stay in the evidence", () => {
   it("keeps the reason out of the text alternative as well", () => {
     /*
      * The alternative is prose, so it is the easiest place for engine text
-     * to come back in unnoticed -- `describeGraph` in the evidence sheet
+     * to come back in unnoticed. `describeGraph` in the evidence sheet
      * builds the same sentence *with* the reason, by design, and copying
      * it would have undone this quietly.
      */
@@ -426,8 +426,8 @@ describe("the spine turns horizontal only where it fits as prose", () => {
 
   it("switches at 1440px, not at the usual 768", () => {
     /*
-     * Measured, not chosen. A stage box holding a note -- "a model was
-     * consulted to plan", 29 characters -- has to clear the sweep's 180px
+     * Measured, not chosen. A stage box holding a note ("a model was
+     * consulted to plan", 29 characters) has to clear the sweep's 180px
      * floor for a box with a sentence in it. Six of those need 1080px of
      * track; the track measures 704 at 768px, 960 at 1024 and 1304 from
      * 1440 up, where the reading column caps. 768 and 1024 cannot hold

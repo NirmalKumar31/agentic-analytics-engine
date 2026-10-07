@@ -35,7 +35,7 @@ describe("PlanningAudit", () => {
 describe("a partial contract does not take the drawer with it", () => {
   /*
    * `humanize(contract.operation)` was unguarded, and a contract without
-   * `operation` threw -- React unmounts the subtree, and to a reader the
+   * `operation` threw. React unmounts the subtree, and to a reader the
    * evidence drawer closes itself. It is the same failure mode that made
    * the Compare drawer vanish on a strategy that had not finished, which
    * is why every collection in these components is read defensively.

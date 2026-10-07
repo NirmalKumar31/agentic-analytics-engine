@@ -27,7 +27,7 @@
  * `color` was `#1a1000`, a near-black left over from the palette where
  * `--signal` was a light orange. Against the mineral green it measured
  * below 3:1 and axe failed the landing, the profiled-upload state and the
- * role-confirmation control on it -- one hardcoded hex, three failing
+ * role-confirmation control on it: one hardcoded hex, three failing
  * states, and the surface-versus-surface contrast test could not see it
  * because the pair is a foreground on a *fill*, not on a surface.
  *

@@ -22,7 +22,7 @@
  * come back in a second rendering of the same events.
  *
  * **Pairing is by `task_id` and tool name, not by order.** Four calls
- * dispatched together complete out of order -- observed in the committed
+ * dispatched together complete out of order, observed in the committed
  * `returns-segments` recording, where `task_03` returns before `task_02` --
  * so an index-based pairing attributes one call's row count to another.
  *

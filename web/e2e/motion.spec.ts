@@ -210,7 +210,7 @@ test.describe("with reduced motion asked for", () => {
       await surface.reach(target);
       const animations = await running(target);
       // 1ms budgets, so anything over a frame is an effect that escaped
-      // the reduced-motion block -- an inline duration, a Web Animations
+      // the reduced-motion block: an inline duration, a Web Animations
       // call, or a rule with its own `!important`.
       const perceptible = animations.filter(
         (a) => a.state === "running" && a.duration > 16,
@@ -225,7 +225,7 @@ test.describe("with reduced motion asked for", () => {
   test("the ambient field is a texture, not a thing that drifts", async ({ page }) => {
     // The storyboard's one looping effect, and the only one whose
     // reduced-motion row says "renders static" rather than "swaps
-    // instantly". It is still drawn -- stillness loses nothing, because it
+    // instantly". It is still drawn, and stillness loses nothing, because it
     // is a texture and not information.
     await page.emulateMedia({ reducedMotion: "reduce" });
     await openApp(page);

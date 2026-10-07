@@ -9,7 +9,7 @@
   color: var(--ink-primary);
   font-size: 14px;
 }
-/* These two carried hardcoded pastels -- #ffb0a5 and #ffdf9a -- chosen
+/* These two carried hardcoded pastels (#ffb0a5 and #ffdf9a) chosen
    for a dark background and never revisited when the palette became
    light-first. The warning measured 1.06:1 against the canvas: a refusal
    explaining why nothing was answered, in text the reader cannot see. The

@@ -208,7 +208,7 @@ describe("the report order", () => {
 
   it("names the requested population rather than staying silent", () => {
     // A reader cannot tell silence from an unreported restriction. It says
-    // what the *question* restricted -- how much of that population the
+    // what the *question* restricted: how much of that population the
     // answer covers is the coverage line's job, and conflating the two is
     // how "every row in the dataset" came to sit above a 55% result.
     render_();

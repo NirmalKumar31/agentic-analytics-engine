@@ -448,7 +448,7 @@ export type ChartKind =
 
 /**
  * How the chart was chosen. A pure function of contract and result shape,
- * computed in the engine -- not a model call, which is why identical
+ * computed in the engine, not a model call, which is why identical
  * contracts over identical results now produce identical charts.
  */
 export interface ChartDecision {

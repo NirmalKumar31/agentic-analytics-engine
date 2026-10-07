@@ -2,7 +2,7 @@
  * What automatic routing did, or would have done, with this question.
  *
  * Compare runs the two planners side by side and never said which one
- * `auto` -- the default mode -- would have picked. The fact is useful and
+ * `auto` (the default mode) would have picked. The fact is useful and
  * is already computed: a question the rules settle exactly costs nothing,
  * and that is the substantive difference between the two columns. The
  * owner noticed its absence.
@@ -20,7 +20,7 @@
  * from rules can be reported as such, because `confident` says so and the
  * request count says what it cost. But when the rules could not resolve a
  * question, whether `auto` would escalate to a model or refuse outright
- * depends on which resolution issues are model-eligible -- a decision
+ * depends on which resolution issues are model-eligible, a decision
  * `assess()` makes and this path does not record. Printing a guess there
  * would be inventing the one fact the panel exists to report.
  */

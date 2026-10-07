@@ -10,7 +10,7 @@
  * the sibling directory happens to exist, and fails only when the image is
  * built. That is exactly what happened: the e2e provider preflight was
  * written in `e2e/preflight.ts` and imported from `src/test`, every local
- * gate passed, and CI failed at `RUN npm run build` with TS2307 -- after
+ * gate passed, and CI failed at `RUN npm run build` with TS2307, after
  * the branch was pushed and the PR opened.
  *
  * This turns that into a fast local failure. It is a build-context

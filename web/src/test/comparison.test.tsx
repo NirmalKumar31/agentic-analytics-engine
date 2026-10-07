@@ -197,7 +197,7 @@ describe("compareRuns", () => {
  *
  * Those claims are not lost. They are the run timeline's, derived from the
  * events a run actually emitted rather than from a mode string, and tested
- * in `timeline.test.ts` against captured payloads -- including the two
+ * in `timeline.test.ts` against captured payloads, including the two
  * sequences that showed the old derivation was reading fields the engine
  * does not emit. `compareRuns` keeps the fallback claim directly: see
  * "does not present a fallback as the model independently agreeing" above.
@@ -277,7 +277,7 @@ describe("a run that has not finished has not disagreed", () => {
 describe("the copy matches the layout it describes", () => {
   /*
    * Compare showed two reports side by side and called them panes. The
-   * panes are gone -- a full report in half a laptop's width is not a
+   * panes are gone, because a full report in half a laptop's width is not a
    * comparison, and the verdict copy went on saying "These panes
    * answered different questions" above a switcher with no panes in it.
    *

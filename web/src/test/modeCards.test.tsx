@@ -5,7 +5,7 @@
  * reversing either.
  *
  * The first put four bordered cards on screen carrying four full
- * paragraphs -- more room than the question field they qualify. It was
+ * paragraphs, more room than the question field they qualify. It was
  * replaced by a segmented pill strip, which read as a row of headings:
  * nothing about it said "pick one", the selected state was a background
  * tint, and three of the four purposes were invisible until selected.
@@ -160,7 +160,7 @@ describe("what a screen reader is told", () => {
   it("states a disabled mode's reason exactly once", () => {
     selector("auto", false);
     const reason = /turned off on this deployment/i;
-    // Two disabled cards -- AI and Compare, which depends on it, and one
+    // Two disabled cards, AI and Compare which depends on it, and one
     // element each. It used to be two each: a visible span and a hidden
     // copy, which a screen reader reads twice.
     expect(screen.getAllByText(reason)).toHaveLength(2);

@@ -385,8 +385,8 @@ def compare_diff(T, W=1180):
             t=T,
         ),
     ]
-    # The reclaimed space carries the structured diff -- the thing a reader
-    # opened Compare for -- rather than two results side by side, which
+    # The reclaimed space carries the structured diff (the thing a reader
+    # opened Compare for) rather than two results side by side, which
     # invites picking the preferred number.
     o += [
         diff_table(72, 516, W - 144, T),

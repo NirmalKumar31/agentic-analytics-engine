@@ -25,7 +25,7 @@ test.describe("the run timeline", () => {
    * One real run, three tests.
    *
    * All three assert on the timeline of the same finished deterministic
-   * run -- that the DAG is gone, that five stages are shown and no AI
+   * run: that the DAG is gone, that five stages are shown and no AI
    * stage is, and that each stage's state comes from the engine's own
    * events. Running it three times admitted three analyses to look at one
    * thing three ways. Serial, with the run in `beforeAll`, so each remains

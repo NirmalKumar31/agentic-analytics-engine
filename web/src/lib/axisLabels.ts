@@ -10,7 +10,7 @@
  *
  * The angle is decided from the labels themselves rather than being fixed,
  * because the two failures are opposite. Flat labels on 33 categories
- * collide, and Vega resolves a collision by *dropping* labels -- a chart
+ * collide, and Vega resolves a collision by *dropping* labels, so a chart
  * that silently loses most of its axis is worse than one that is hard to
  * read. Angled labels on four short words waste the reader's time.
  *

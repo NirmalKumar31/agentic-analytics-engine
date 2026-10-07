@@ -419,7 +419,7 @@ def _line_spec(
         # Vega resolves colliding tick labels by *dropping* them, and a
         # time axis that silently loses most of its labels is worse than
         # one that is tight. Greedy keeps as many as fit. Tick count is
-        # left to Vega, which has the width and this does not -- the
+        # left to Vega, which has the width and this does not. The
         # report is laid out at six of them.
         x["axis"] = {"format": time_format, "labelOverlap": "greedy"}
     encoding: dict[str, Any] = {

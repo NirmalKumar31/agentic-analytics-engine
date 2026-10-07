@@ -163,7 +163,7 @@ describe("CompareWorkspace contract diff", () => {
     /*
      * Requirement 17: the caption's agree/differ counts must equal the
      * counts in the table it labels. The failure it guards against is a
-     * caption written beside a table rather than derived from it -- "two
+     * caption written beside a table rather than derived from it: "two
      * fields differ" over three rows, which a reader has no way to
      * resolve and will usually believe.
      *

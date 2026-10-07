@@ -1,8 +1,8 @@
 /**
  * The touch-target floor and its exemption, pinned across both copies.
  *
- * One rule -- "a control a thumb hits is at least 44px on its shorter
- * side, unless it is a disclosure that lives inside a sentence" -- is
+ * One rule, "a control a thumb hits is at least 44px on its shorter
+ * side, unless it is a disclosure that lives inside a sentence", is
  * stated in two languages that cannot read each other. `responsive.css`
  * states it as a selector. `e2e/golden.spec.ts` states it as a sweep over
  * every visible control. They were written separately and they disagreed,
@@ -17,7 +17,7 @@
  * same thing.
  *
  * **Why this is not circular.** It does not check that the exemption is
- * correct -- `golden.spec.ts` measures real boxes in a real browser for
+ * correct. `golden.spec.ts` measures real boxes in a real browser for
  * that. It checks that the two statements of it are about the same class,
  * and that the stylesheet still gives that class the inline `display` the
  * spec's exemption requires. Either one changing alone is the failure

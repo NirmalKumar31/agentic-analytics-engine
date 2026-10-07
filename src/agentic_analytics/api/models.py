@@ -85,7 +85,7 @@ class ServerConfig(BaseModel):
     live_analytics_enabled: bool
     uploads_enabled: bool
     #: Whether the Streamable HTTP MCP endpoint at /mcp is served. False
-    #: means it answers 503 by design -- a network binding with no Host
+    #: means it answers 503 by design, because a network binding with no Host
     #: allow-list withdraws the transport rather than serving it unvalidated.
     #: Reported so an external check can assert the endpoint matches the
     #: policy instead of inferring the policy from the URL it dialled, which

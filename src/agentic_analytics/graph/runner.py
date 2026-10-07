@@ -94,7 +94,7 @@ class RunResult:
     #: against, and is never relabelled by a later confirmation.
     schema_revision: int = 0
     #: The columns whose role mattered to the accepted contract, and where
-    #: that role came from. Only columns the contract used -- a reader does
+    #: that role came from. Only columns the contract used, because a reader does
     #: not need the provenance of a column nothing touched.
     role_evidence: list[dict[str, Any]] = field(default_factory=list)
     #: How this answer should be presented, derived from the contract, the
@@ -273,7 +273,7 @@ class _MetricContract:
     period: tuple[str, str] | None = None
     #: Empty on purpose.
     #
-    # The operation word prefixes the measure in a headline -- "total
+    # The operation word prefixes the measure in a headline, as in "total
     # revenue", "average order value", and a governed metric's name
     # already carries its aggregation. Naming the operation here produced
     # "Aggregate return rate is highest for new", which puts the planner's
@@ -287,12 +287,12 @@ class _MetricContract:
     #: refusal has its own presentation.
     confident: bool = True
     explanation: str = ""
-    #: The metric's declared format -- `percent`, `currency`, `integer`,
-    #: `ratio` or `number` -- read from the registry, never inferred from a
+    #: The metric's declared format (`percent`, `currency`, `integer`,
+    #: `ratio` or `number`) read from the registry, never inferred from a
     #: value's magnitude.
     measure_format: str | None = None
     #: For a statistical test: the metric the question was about, and the
-    #: column it grouped by. Both are declared -- the first from the
+    #: column it grouped by. Both are declared: the first from the
     #: planner's own interpretation, the second from the test's parameters,
     #: and both exist because `rate` and `group` do not say, on their
     #: own, what was measured or what it was measured across.
@@ -684,7 +684,7 @@ async def run_analysis(
                 # A live handle, not a copy. If the caller abandons this run
                 # on a timeout, the trace is the only record of what the
                 # tool loop actually did, and it is thrown away with the
-                # coroutine otherwise -- a timed-out question then reports
+                # coroutine otherwise, and a timed-out question then reports
                 # zero tool calls, which is precisely the case where knowing
                 # them matters most.
                 telemetry["toolset"] = toolset
@@ -864,7 +864,7 @@ def _presentation_for(result: RunResult, state: Any, session: Any | None = None)
         # snapshot: it reads the result's columns, cells and row counts to
         # say what the answer is. The demo warehouse does not produce one --
         # it resolves through the metric registry and executes different
-        # tools -- while still setting `query_mapping`. So `mapping` was not
+        # tools, while still setting `query_mapping`. So `mapping` was not
         # None, this guard let it through, and the builder's own "no
         # snapshot" branch returned a FAILURE presentation.
         #

@@ -15,9 +15,9 @@ are rewritten into the strict dialect by
 
 Three endpoints are used, and only these three:
 
-* ``GET  /v1/models/{model}``        -- resolve the model, no generation
-* ``POST /v1/responses/input_tokens`` -- exact input count, no generation
-* ``POST /v1/responses``            -- the one billable call
+* ``GET  /v1/models/{model}``        resolves the model, no generation
+* ``POST /v1/responses/input_tokens`` gives an exact input count, no generation
+* ``POST /v1/responses``            is the one billable call
 
 Contracts reviewed 2026-09-27 against:
   https://developers.openai.com/api/docs/guides/text

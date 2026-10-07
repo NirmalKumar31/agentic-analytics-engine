@@ -122,7 +122,7 @@ export function App() {
         setSession(await api.confirmSchemaRoles(session.session_id, revision, changes));
       } catch (reason) {
         if (reason instanceof ApiError && reason.status === 409) {
-          // The schema moved under this view -- another tab, or this one
+          // The schema moved under this view, from another tab or this one
           // racing itself. Reload rather than retry: the column list being
           // shown is no longer the one the server has.
           try {
@@ -242,7 +242,7 @@ export function App() {
                   // demo session also carries a summary, so gating on its
                   // presence alone replaced the curated demo questions --
                   // which exist to demonstrate the governed metric registry
-                  // -- with generic ones derived from its tables.
+                  // with generic ones derived from its tables.
                   session?.catalog.dataset_kind === "upload"
                     ? session.summary
                     : null

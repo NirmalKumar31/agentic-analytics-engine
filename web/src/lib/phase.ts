@@ -137,7 +137,7 @@ export function phaseOf(inputs: PhaseInputs): Phase {
   if (busy) return "profiling";
   // An error with no dataset is a failed upload, and the visitor is back
   // at the choice. Saying `failed` here would replace the thing they need
-  // to see -- the upload control -- with a dead end.
+  // to see (the upload control) with a dead end.
   if (error) return "choose_dataset";
   return "choose_dataset";
 }

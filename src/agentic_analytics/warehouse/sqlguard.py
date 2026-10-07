@@ -162,7 +162,7 @@ def check_sql(sql: str, *, allowed_tables: set[str], max_length: int = 8000) -> 
         raise SQLGuardError(f"SQL failed to parse: {exc}") from None
     except RecursionError:
         # sqlglot parses by recursive descent, so a deeply nested expression
-        # exhausts the Python stack during parsing -- before any structural
+        # exhausts the Python stack during parsing, before any structural
         # check could run. Catching it here turns a crash into a refusal.
         raise SQLGuardError("the query nests too deeply to parse; simplify it") from None
 

@@ -14,7 +14,7 @@ import { baseUrl } from "./hosted/preflight";
  * `hosted/fixtures.ts` aborts anything that would reach a billed endpoint.
  *
  * It is not part of CI. CI cannot know which commit a deployment is serving
- * -- Render redeploys on its own schedule, and a sweep filed against the
+ * Render redeploys on its own schedule, and a sweep filed against the
  * wrong SHA is worse than no sweep. `hosted/preflight.ts` reads
  * `/api/health` and refuses unless the build matches `AAE_HOSTED_SHA`.
  *
@@ -55,8 +55,8 @@ export default defineConfig({
    * Named, so two sweeps do not overwrite each other's evidence.
    *
    * A hosted acceptance run is filed against one deployment. Running the
-   * same suite against a second one -- a local build of the branch and the
-   * live service, which is the normal pair -- wrote both into one file and
+   * same suite against a second one (a local build of the branch and the
+   * live service, which is the normal pair) wrote both into one file and
    * the checker then reconciled whichever finished last. The default keeps
    * the single-target case simple; `AAE_HOSTED_REPORT` separates the pair.
    */

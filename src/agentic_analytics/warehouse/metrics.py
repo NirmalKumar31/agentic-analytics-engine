@@ -46,9 +46,9 @@ class MetricDef(BaseModel):
 
     # How this metric decomposes into per-segment drivers.
     #
-    #   additive -- the total is the sum of the parts, so each segment's
+    #   additive: the total is the sum of the parts, so each segment's
     #               contribution is simply its own change.
-    #   ratio    -- the two sums the rate is built from. A weighted average
+    #   ratio:    the two sums the rate is built from. A weighted average
     #               has no additive split, so a shift-share decomposition is
     #               used instead; without these fields a driver analysis of a
     #               rate would be wrong rather than merely unavailable.

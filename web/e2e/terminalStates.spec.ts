@@ -75,7 +75,7 @@ async function withState(page: Page, name: StateName) {
  * Drive the shared session to `name`, and give it back afterwards.
  *
  * This uploaded `states.csv` for every one of the sixteen tests in this
- * file -- sixteen datasets per engine for a set of outcomes produced by
+ * file: sixteen datasets per engine for a set of outcomes produced by
  * answering the finished run with a committed payload, not by the file.
  * The upload is the `profiled` fixture's, made once per engine; the route
  * is installed per test and removed in `finally`, because one left behind
@@ -91,7 +91,7 @@ async function runWith(page: Page, name: StateName) {
 /*
  * The route comes off after every test. On a shared session a route is not
  * discarded with the context, so one left installed would answer the next
- * test's run with this test's payload -- a terminal-state fixture quietly
+ * test's run with this test's payload, and a terminal-state fixture quietly
  * standing in for a real run.
  */
 test.afterEach(async () => {
@@ -147,8 +147,8 @@ test.describe("each terminal state, at desktop and phone widths", () => {
         ).trim();
         expect(headline.length).toBeGreaterThan(0);
         // The canvas, not the whole report element. For a state whose
-        // headline is derived from the stop reason -- quota-stopped is one
-        // -- the same words legitimately appear again in the print
+        // headline is derived from the stop reason (quota-stopped is one
+        //) the same words legitimately appear again in the print
         // appendix, which is the unedited record.
         const canvas = await page.evaluate(() => {
           const panel = document.querySelector('[data-testid="report-panel"]')!;
@@ -232,7 +232,7 @@ test.describe("a refusal leads with what to do about it", () => {
     const raw = String(fixture("refused").stopped_reason ?? "");
     expect(raw.length).toBeGreaterThan(0);
 
-    // Not on the canvas -- the appendix is excluded, because the unedited
+    // Not on the canvas, since the appendix is excluded, because the unedited
     // reason is required to be in it.
     const canvas = await page.evaluate(() => {
       const panel = document.querySelector('[data-testid="report-panel"]')!;

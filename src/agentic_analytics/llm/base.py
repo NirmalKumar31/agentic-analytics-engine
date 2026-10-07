@@ -28,7 +28,7 @@ from pydantic import BaseModel, Field
 #: The distinction is load-bearing for evaluation. "The model returned
 #: something the schema rejected" and "the HTTP request timed out" are
 #: completely different statements about a model, and collapsing both into
-#: one error type, which is what happened -- makes a report that cannot
+#: one error type, which is what happened, makes a report that cannot
 #: answer the question it claims to answer.
 FailureKind = Literal[
     "transport_error",

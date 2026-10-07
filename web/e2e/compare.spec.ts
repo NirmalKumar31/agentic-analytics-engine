@@ -313,7 +313,7 @@ test.describe("the Compare evidence drawer", () => {
     page.on("request", (request) => {
       // Only requests the *page* makes. `page.request` calls have no frame,
       // and this file's own AI-mirroring route handler uses one to read the
-      // real deterministic run -- counting the harness's fetch as the
+      // real deterministic run, so counting the harness's fetch as the
       // application's would fail a claim about the application.
       if (request.frame() === null) return;
       if (request.url().includes("/api/")) requests.push(request.url());

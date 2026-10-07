@@ -195,7 +195,7 @@ describe("the e2e provider preflight", () => {
     // A bypass is the flag that gets set once while debugging and left
     // set, so these are named and refused rather than merely absent.
     //
-    // `assertFakeProvider` does read one environment value -- the remote
+    // `assertFakeProvider` does read one environment value, the remote
     // host opt-in, so this can no longer claim the function ignores the
     // environment altogether. What it claims instead is narrower and is
     // the part that matters: no value, including that opt-in, makes a

@@ -38,7 +38,7 @@ export function PlanningAudit({
 }) {
   // Optional: a run that is still in flight has no `events` at all, and
   // the drawer renders this component for whichever strategy a reader
-  // selects -- finished or not.
+  // selects, finished or not.
   const event = (run.events ?? []).find(
     (item) => item.type === "contract_resolved",
   );

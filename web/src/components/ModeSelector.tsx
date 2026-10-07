@@ -123,7 +123,7 @@ export function ModeSelector({
    * The earlier objection to cards was real and is answered rather than
    * reversed: the version before the pill strip put four full paragraphs
    * on screen, occupying more room than the question field they modify.
-   * A card now carries **one sentence** -- the description's first, so it
+   * A card now carries **one sentence**, the description's first, so it
    * cannot disagree with the full text, and the full explanations, the
    * taxonomy and the AI quota note all sit behind one disclosure.
    *

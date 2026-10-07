@@ -41,7 +41,7 @@ describe("phaseOf", () => {
 
   it("keeps the upload control in view after a failed upload", () => {
     // Reporting `failed` here would replace the thing the visitor needs
-    // to see -- the upload control -- with a dead end.
+    // to see (the upload control) with a dead end.
     expect(phaseOf(inputs({ error: "that file was not readable" }))).toBe(
       "choose_dataset",
     );

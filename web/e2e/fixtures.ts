@@ -40,7 +40,7 @@ import {
  * widths, 16 more rendered terminal states that are produced by
  * intercepting a response, not by the file.
  *
- * The product holds no session across a page load -- `App.tsx` keeps it in
+ * The product holds no session across a page load. `App.tsx` keeps it in
  * React state, and the capability cookie alone cannot restore it, so
  * reusing a server-side session means keeping the *page* alive. That is
  * what this fixture does: worker-scoped, so with `workers: 1` there is one
@@ -50,7 +50,7 @@ import {
  *
  * A shared page is shared state, so isolation is explicit rather than
  * implied. `profiled` hands back a page reset to the composer through the
- * product's own "Start over" control -- not a test-only endpoint, and not a
+ * product's own "Start over" control, not a test-only endpoint, and not a
  * fresh upload. A test that needs a different dataset *shape*, or that
  * leaves the session unusable, uses the ordinary `page` fixture and pays
  * for its own upload; that is a deliberate choice each time, visible in the
@@ -110,7 +110,7 @@ async function resetToComposer(page: Page): Promise<void> {
    * Sheets first, then the control.
    *
    * A side sheet puts a scrim over the header, so "Start over" is in the
-   * document and not clickable -- Playwright waits for actionability and
+   * document and not clickable, so Playwright waits for actionability and
    * the test times out pointing at a button that is plainly visible in the
    * screenshot. Reversing these two is what fixed it.
    */
@@ -127,7 +127,7 @@ async function resetToComposer(page: Page): Promise<void> {
    * "Start over" clears the run, not the mode. A test that selected
    * "Compare planning strategies" left the primary control reading
    * "Compare strategies", so the next test's wait for "Run analysis" timed
-   * out and reported a *disabled* button -- the button it was waiting for
+   * out and reported a *disabled* button, the button it was waiting for
    * did not exist. Mode is the one piece of composer state that survives a
    * reset, so it is reset explicitly.
    */
@@ -192,7 +192,7 @@ async function resetToComposer(page: Page): Promise<void> {
  * `profiled` is the ordinary 200-row sample and carries most of the suite.
  * The others exist because a test needs data the sample cannot express:
  *
- *   wide          36 categories over 400 rows -- a long table and a
+ *   wide          36 categories over 400 rows: a long table and a
  *                 high-cardinality chart
  *   twoSeries     two dimensions, so the chart carries a colour encoding
  *   twoClocks     two date columns, so the composer must ask which is the
@@ -215,9 +215,9 @@ interface WorkerFixtures {
    * nothing and saves an admission per spec. Each one still asserts its own
    * thing; they just stop paying separately for the same result.
    *
-   * A test that needs the warehouse *opened*, rather than open -- the
+   * A test that needs the warehouse *opened*, rather than open (the
    * landing, the phase transition out of `choose_dataset`, the in-flight
-   * timeline of a run nobody has performed yet -- takes a page of its own.
+   * timeline of a run nobody has performed yet) takes a page of its own.
    */
   demo: Page;
   profiled: Page;
@@ -264,8 +264,8 @@ function session(name: string, csv: () => string): WorkerSession {
        * This page is worker-scoped: one upload serves every test in the
        * file, and the server-side session behind it is handed back once,
        * in the teardown below. An individual test calling `page.close()`
-       * -- a reasonable-looking line, and the ordinary thing to write
-       * against a test-scoped page -- destroys the shared resource for
+       * (a reasonable-looking line, and the ordinary thing to write
+       * against a test-scoped page) destroys the shared resource for
        * every test that comes after it. They then fail with "Target page,
        * context or browser has been closed", which names the symptom in
        * the *victim* and says nothing about the culprit; the leaked
@@ -405,7 +405,7 @@ export const test = base.extend<{ page: Page }, WorkerFixtures>({
  *
  * It does not replace the engine where the engine is the subject. A refusal,
  * a stopped timeline, a run in flight, a schema-role confirmation, a
- * comparison -- those call `ask` or `startCompare` directly and get a real
+ * comparison; those call `ask` or `startCompare` directly and get a real
  * analysis, because what they assert is how the engine *behaves*, not how a
  * result *renders*. `docs` in `e2e/UPLOADS.md` lists every remaining real
  * analysis and why it is one.
@@ -413,7 +413,7 @@ export const test = base.extend<{ page: Page }, WorkerFixtures>({
 /*
  * Keyed by dataset *and* question, not by question alone.
  *
- * Two pages can ask the same question of different data -- `golden.spec.ts`
+ * Two pages can ask the same question of different data. `golden.spec.ts`
  * asks the demo warehouse what `chart.spec.ts` asks a 200-row upload, and
  * a question-keyed cache would replay one dataset's result on the other's
  * session, so the test would assert against a report for a file it never
@@ -423,7 +423,7 @@ export const test = base.extend<{ page: Page }, WorkerFixtures>({
  * better than keying on the page would: every spec that opens the *demo
  * warehouse* is looking at the same data, on its own page, in its own file.
  * One of them admits the question and the rest replay it. That is where
- * most of the remaining admissions were -- five separate real runs of
+ * most of the remaining admissions were: five separate real runs of
  * "What is the total revenue by region?" against one unchanging warehouse.
  *
  * The identity comes from the context strip, which is the application's own
@@ -510,7 +510,7 @@ export async function reportFor(
      * Applied after the reset and before the report renders.
      *
      * `motion.spec.ts` needs `prefers-reduced-motion` active *while* the
-     * report appears -- an entrance that has already started keeps its
+     * report appears, because an entrance that has already started keeps its
      * original duration, and the reset puts media emulation back so that
      * one spec cannot leave the shared session under a preference the next
      * never asked for. Passing it here is the only point that satisfies
@@ -590,8 +590,8 @@ export async function reportFor(
  * Everything a replay has to keep, checked at the moment of capture.
  *
  * A capture is served back to the application as though the engine had
- * produced it, so a capture taken too early -- while the run is still
- * going, or from an error body -- would be replayed for the rest of the
+ * produced it, so a capture taken too early (while the run is still
+ * going, or from an error body) would be replayed for the rest of the
  * job as a finished result. These are the fields `RunPayload` in
  * `src/lib/types.ts` declares non-optional, plus the ones that carry the
  * provenance and the terminal classification the redesign asserts on. A

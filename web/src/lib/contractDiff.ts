@@ -83,7 +83,7 @@ const CANONICAL_FIELDS: Array<[string, (c: CanonicalContract) => string]> = [
   ["Sort order", (c) => (c.ascending ? "ascending" : "descending")],
 ];
 
-/** How many canonical fields are compared at all — the `m` in "n of m". */
+/** How many canonical fields are compared at all: the `m` in "n of m". */
 export const COMPARED_FIELD_COUNT = CANONICAL_FIELDS.length;
 
 /**
@@ -91,7 +91,7 @@ export const COMPARED_FIELD_COUNT = CANONICAL_FIELDS.length;
  *
  * `identical` and `different` are claims about two things that exist.
  * `not_recorded` is the absence of one or both, and it is a separate state
- * because an absence is not an agreement -- a report that said
+ * because an absence is not an agreement. A report that said
  * `contracts: identical` over two panes whose own appendices each read "no
  * contract was accepted" contradicted itself on the same page. That is the
  * worst kind of defect in a product whose argument is that it does not
@@ -141,7 +141,7 @@ export function contractDifferences(
   const left = canonicalOf(deterministic);
   const right = canonicalOf(ai);
   // An absent contract yields no differences, and the caller must not read
-  // that as agreement -- `contractComparison` is what distinguishes them.
+  // that as agreement. `contractComparison` is what distinguishes them.
   if (!left || !right) return [];
 
   const out: ContractDifference[] = [];

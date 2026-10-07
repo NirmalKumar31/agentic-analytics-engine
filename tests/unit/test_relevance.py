@@ -91,7 +91,7 @@ def proportions_test(group_column: str = "first_delivery_status") -> ResultSnaps
 # ------------------------------------------------- the shipping question
 
 #: What the planner declared for "do shipping delays appear to affect
-#: repeat purchasing?" -- verified against a real run, not invented.
+#: repeat purchasing?", verified against a real run and not invented.
 SHIPPING = {
     "analysis_type": "correlation",
     "metrics": ("repeat_purchase_rate", "late_delivery_rate", "avg_delivery_days"),
@@ -366,7 +366,7 @@ def test_every_relationship_type_promotes_a_test(kind: str) -> None:
 #: The AI run's own candidate set for the shipping question, reconstructed
 #: from its activity trace: fifteen calls, no statistical test, and five
 #: breakdowns of the subject metric by five different cuts. The whole
-#: defect is visible in this list -- one of these is the answer and
+#: defect is visible in this list: one of these is the answer and
 #: nothing in the old scoring could tell which.
 def ai_shipping_candidates() -> list[ResultSnapshot]:
     return [
@@ -573,7 +573,7 @@ class TestFewerCutsWhereNoneWasNamed:
         assert relevance.extra_cut_penalty(declared, declared) == 0.0
         # Only one of the three named, and still no demerit for the others:
         # this term is about what the question *asked for*, not about how
-        # well the cuts match -- that is the dimension term's business.
+        # well the cuts match, because that is the dimension term's business.
         assert relevance.extra_cut_penalty(declared, ("region",)) == 0.0
         # Nothing named: each cut past the first is docked.
         assert relevance.extra_cut_penalty(declared, ()) == relevance.EXTRA_CUT * 2

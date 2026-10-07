@@ -12,7 +12,7 @@ import { expect, test, type APIRequestContext, type Page, type Request } from '@
  * two ceilings this suite can exhaust: `max_active_upload_sessions` (24 by
  * default) and `uploads_per_ip_per_hour` (200 in CI). Both were exhausted
  * on the first push of the redesign branch, and nothing in the suite could
- * say how many uploads it made -- the number had to be reconstructed from
+ * say how many uploads it made; the number had to be reconstructed from
  * rejection messages in a CI log.
  *
  * So the suite counts itself. `scripts/check-resource-budget.mjs` reads these
@@ -51,7 +51,7 @@ const LEDGER = join(
  * ledger that is half this job and half another one reports totals that
  * belong to neither.
  *
- * So the outer wrapper pins an id -- in CI, the run id and the attempt,
+ * So the outer wrapper pins an id: in CI, the run id and the attempt,
  * so a re-run of the same workflow is a different job, and every record
  * carries it. `scripts/check-resource-budget.mjs` refuses a ledger that
  * holds more than one, or one that is not the job it was asked about.
@@ -125,7 +125,7 @@ export function ledger(
         /*
          * Durable and unique across workers.
          *
-         * A worker restart, which a single failing test causes -- starts
+         * A worker restart, which a single failing test causes, starts
          * a new process with its own counter, so a plain integer would
          * repeat within one engine's ledger and a duplicate-detection rule
          * would either fire on honest data or be too weak to fire at all.
@@ -213,7 +213,7 @@ export function twoDimensionCsv(rows = 240): string {
  *
  * Two date columns, so the ambiguity signals have something real to report.
  * Every assertion here is about a property of the composed screen rather
- * than about an element existing -- "the composer is the largest control",
+ * than about an element existing: "the composer is the largest control",
  * "the landing is not also on screen", because element-existence is what
  * the previous suite checked and it is what let a panel-in-a-panel layout
  * pass review.
@@ -393,7 +393,7 @@ export const CAPTURE_HEADER = 'x-aae-e2e-capture'
 /**
  * `capture`: a remembered real response. `committed`: a payload in the
  * repository. `harness`: a response the suite synthesised while
- * orchestrating a *real* run -- Compare's `POST /api/comparisons` is
+ * orchestrating a *real* run. Compare's `POST /api/comparisons` is
  * answered here while the deterministic analysis behind it is issued to
  * the container, which costs nothing itself and must be accompanied by
  * the server-backed request it stands for.
@@ -404,7 +404,7 @@ export type FixtureSource = 'capture' | 'committed' | 'harness'
  * Choose an analysis mode the way a reader does: by its label.
  *
  * The radio input is covered by its own `<label>`, which is how the
- * control is built -- the label carries the visible name and the
+ * control is built: the label carries the visible name and the
  * screen-reader description, and clicking it is what selects the mode.
  * Playwright's `.check()` clicks the *input*, and Firefox's hit-testing
  * reports the label as intercepting those pointer events, so the click is
@@ -418,7 +418,7 @@ export type FixtureSource = 'capture' | 'committed' | 'harness'
  * the container does not: with AI and Compare unavailable both options
  * carry the `.unavailable` class, and the label's box sits differently.
  * That is a configuration difference exposing a wrong interaction, not a
- * product defect -- a reader clicking the label has always worked.
+ * product defect, because a reader clicking the label has always worked.
  *
  * The selection is asserted rather than assumed, which `.check()` only did
  * implicitly.
@@ -439,7 +439,7 @@ export async function selectMode(
  *
  * Three specs had their own copy of this, and all three were fragile in
  * the same way: the application asks for its configuration on mount and
- * can ask again -- after a reset, or while a test is being torn down --
+ * can ask again (after a reset, or while a test is being torn down)
  * and `route.fetch()` hands back an `APIResponse` owned by a request
  * context that teardown disposes. A late request then failed with
  * `apiResponse.json: Response has been disposed`, which Playwright
@@ -472,8 +472,8 @@ export async function routeConfig(
  * Headers for a response this suite is answering, with the payload behind
  * it registered in the same breath.
  *
- * A spec that fulfils a billed route by hand -- `dualmode.spec.ts`'s quota
- * 429, `accessibility.spec.ts`'s refused AI run -- must say so, or the
+ * A spec that fulfils a billed route by hand (`dualmode.spec.ts`'s quota
+ * 429, `accessibility.spec.ts`'s refused AI run) must say so, or the
  * accounting counts it as the container answering and the build fails on a
  * ceiling nobody reached. Registering and declaring in one call is the
  * only way to make the two impossible to get out of step.
@@ -574,7 +574,7 @@ export function ledgerHarnessRequest(path: string, status: number, detail: strin
  * calling `release()`, so the route went away and the marker did not, and
  * every later real analysis in that worker was recorded as a free replay.
  * Two of them were: `visualReview`'s "a real report holds at every approved
- * width" and `timeline`'s refused run -- enough to put the job over its
+ * width" and `timeline`'s refused run, enough to put the job over its
  * analysis budget while the guard reported it passing. The suite lied to
  * its own accounting and the accounting believed it. (The figures are in
  * `e2e/UPLOADS.md`, beside the runs they were taken from; they are not
@@ -584,8 +584,8 @@ export function ledgerHarnessRequest(path: string, status: number, detail: strin
  * So accounting is a property of the network boundary. Every billed POST
  * gets a sequence number on its way out and exactly one response entry on
  * its way back, classified by a header the server cannot send. Nothing a
- * test does -- forgetting a cleanup, clicking "Run analysis" instead of
- * calling `ask()`, installing a route in a `beforeAll` -- can change the
+ * test does (forgetting a cleanup, clicking "Run analysis" instead of
+ * calling `ask()`, installing a route in a `beforeAll`) can change the
  * classification, because none of it is consulted.
  */
 export function watchTraffic(page: Page): void {
@@ -657,8 +657,8 @@ export const watchForRefusals = watchTraffic
 /**
  * Render a finished run from a committed payload, with no analysis at all.
  *
- * A terminal state -- refused, no findings, withheld, quota-stopped,
- * failed, cancelled -- is produced by *answering* a finished run with a
+ * A terminal state (refused, no findings, withheld, quota-stopped,
+ * failed, cancelled) is produced by *answering* a finished run with a
  * fixture. The earlier version still started a real analysis to obtain a
  * run id and then threw its result away, which cost one of the container's
  * 200 analyses per IP per hour for every cell of a 24-cell matrix.
@@ -667,7 +667,7 @@ export const watchForRefusals = watchTraffic
  * receives the fixture; the engine is never asked to compute anything. That
  * is honest about what these tests are: assertions about how a state
  * *renders*, not about how it is reached. The tests that are about reaching
- * one -- `app.spec.ts`'s refusal, `timeline.spec.ts`'s stopped stage --
+ * one (`app.spec.ts`'s refusal, `timeline.spec.ts`'s stopped stage)
  * still drive the real engine.
  *
  * Returns a function that removes both routes. A route left installed would
@@ -679,7 +679,7 @@ export async function answerRunWith(
   /**
    * Where the payload came from. `committed` is a fixture in the
    * repository; `capture` is a real response this run remembered. The
-   * guard holds both to the same rule -- a replay must name a payload that
+   * guard holds both to the same rule: a replay must name a payload that
    * was registered, and keeps them apart in the accounting, because a
    * committed fixture is evidence about *rendering* and a capture is
    * evidence about rendering something the engine really produced.
@@ -820,7 +820,7 @@ export async function ask(page: Page, question: string): Promise<void> {
    *
    * While a run is in flight the question field is not in the document at
    * all, so `fill()`, which has no timeout of its own and falls back to
-   * the test's -- waits two minutes and is then reported as "Target page,
+   * the test's, waits two minutes and is then reported as "Target page,
    * context or browser has been closed", because that is what the timeout
    * teardown does to the context. The name of the test that actually
    * caused it does not appear anywhere in that message. A bounded wait
@@ -837,7 +837,7 @@ export async function ask(page: Page, question: string): Promise<void> {
    *
    * The composer is a controlled textarea, so a render landing just after
    * the fill can revert it to whatever the component's state still holds.
-   * Closing a side sheet is one way to produce that render -- focus
+   * Closing a side sheet is one way to produce that render, because focus
    * restoration happens asynchronously, and the result was an empty
    * field, a disabled run button, and a diagnostic that correctly reported
    * both without saying why.
@@ -862,7 +862,7 @@ export async function ask(page: Page, question: string): Promise<void> {
   /*
    * By test id, not by label.
    *
-   * The action is named per mode now -- "Run governed analysis",
+   * The action is named per mode now: "Run governed analysis",
    * "Run deterministic analysis", "Run with AI", "Compare both
    * planners", so a name regex here would have to be kept in step with
    * four strings in a component, in every spec that drives a run.
@@ -942,7 +942,7 @@ export async function openDemoViaApi(request: APIRequestContext): Promise<string
  * settled", which is not what any of these tests assert about, and it put
  * 63 call sites one stalled request away from a two-minute hang. The
  * deterministic ready state is the application's own: the shell mounted.
- * That is both narrower and a stronger signal -- `load` can fire before
+ * That is both narrower and a stronger signal, because `load` can fire before
  * React has rendered anything.
  */
 export async function openApp(page: Page): Promise<void> {
@@ -968,14 +968,14 @@ export async function openApp(page: Page): Promise<void> {
   const baseUrl = process.env.AAE_E2E_BASE_URL ?? 'http://127.0.0.1:8000';
   await page.evaluate((url) => window.location.assign(url), new URL('/', baseUrl).href);
   // `app-shell` is on the shell root, which React renders unconditionally,
-  // so its presence means the bundle parsed, executed and mounted -- not
+  // so its presence means the bundle parsed, executed and mounted, not
   // merely that bytes arrived. `index.html` contains only `<div id="root">`
   // and the module script, so the marker cannot exist before mount.
   //
   // Not `getByRole("banner")`: the provenance drawer also renders a
   // `<header>`, so that locator can match twice and fail strict mode for a
   // reason unrelated to readiness. Not `<body>` or a piece of copy either
-  // -- one exists before React runs and the other moves when wording does.
+  // One exists before React runs and the other moves when wording does.
   //
   // Bounded, so a server that never answers fails the test instead of
   // hanging it: 30s on the navigation and 20s on the app-shell wait. The

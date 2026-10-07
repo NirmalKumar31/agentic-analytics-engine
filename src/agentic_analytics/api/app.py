@@ -1149,7 +1149,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             try:
                 if mode is RunMode.AI:
                     # The one governed construction site. Preflight runs
-                    # here -- ledger health, model resolution, an exact
+                    # here: ledger health, model resolution, an exact
                     # pricing entry, so a run that cannot be bounded is
                     # refused before its first billable request.
                     assert ledger is not None
@@ -1240,7 +1240,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             except asyncio.CancelledError:
                 # The dataset was deleted, replaced or expired. Mark it and
                 # end the stream, so a browser waiting on SSE is told rather
-                # than left hanging -- then re-raise, or the task is never
+                # than left hanging, then re-raise, or the task is never
                 # actually cancelled and `cancel_session` waits for a run
                 # that has decided to continue.
                 record.cancelled = True
@@ -1345,7 +1345,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         #
         # The two runs answer the same question against the same rows, and a
         # confirmation landing between their starts would give them different
-        # schemas -- then present them side by side as a like-for-like
+        # schemas, then present them side by side as a like-for-like
         # comparison. Capturing once is what makes the comparison mean what
         # the page says it means.
         shared_roles = session.role_confirmation_snapshot()
@@ -1547,12 +1547,12 @@ def _mcp_transport_security(
 
     Three cases, and none of them quietly exposes an unprotected endpoint:
 
-    * **Local development** -- the server binds to loopback, so only this
+    * **Local development**: the server binds to loopback, so only this
       machine can reach it. Protection is enabled with a localhost allow-list,
       which is what the SDK would do on its own.
-    * **Network binding with an allow-list** -- protection is enabled with the
+    * **Network binding with an allow-list**: protection is enabled with the
       declared hostnames.
-    * **Network binding without one** -- the remote MCP endpoint is disabled
+    * **Network binding without one**: the remote MCP endpoint is disabled
       rather than served with Host validation off. The agent still reaches
       analytics, because it connects to the server object in-process; what is
       withdrawn is the publicly reachable transport.

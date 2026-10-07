@@ -78,7 +78,7 @@ export function terminalPresentation(
         // needs to know what to change about the question.
         headline: reason || "This question could not be mapped to your data",
         // "the full stop reason" read as a sentence about punctuation on a
-        // rendered screen -- `stop_reason` is the field's name, not a phrase.
+        // rendered screen. `stop_reason` is the field's name, not a phrase.
         explanation: reason
           ? "Nothing was published. The engine's unedited reason is in the evidence."
           : null,
@@ -132,7 +132,7 @@ export function terminalPresentation(
        * "Nothing partial has been kept" is a claim about the payload, and
        * it was stated unconditionally. A run that failed after publishing
        * something would have carried it over a visible chart and result
-       * table -- the page contradicting itself in the one state where a
+       * table, the page contradicting itself in the one state where a
        * reader most needs to trust what it says.
        *
        * So it is said only when it is true, and the alternative says what

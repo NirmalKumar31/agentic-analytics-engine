@@ -13,7 +13,7 @@
  *                        derived from findings, results and the contract.
  *
  * Redesigning only the presentation path would have left the demo warehouse
- * -- the first thing most visitors open -- on the old seven-panel report,
+ * (the first thing most visitors open) on the old seven-panel report,
  * which is the half-migrated composition this work exists to remove.
  *
  * So the view takes a `ReportModel` and neither branch knows which source
@@ -73,7 +73,7 @@ export interface ReportModel {
   terminalState?: string;
   /** Deprecated alias of `answer`, kept so both names read naturally. */
   headline?: string;
-  /** Population, observations, period, coverage -- whatever was recorded. */
+  /** Population, observations, period, coverage: whatever was recorded. */
   context: string | null;
   summary: string | null;
   chart: ChartSpec | null;
@@ -90,7 +90,7 @@ export interface ReportModel {
    * The exact coverage, for the partial notice.
    *
    * "This is a partial breakdown" without numbers is a hedge. The numbers
-   * are what make it actionable -- 25 of 45 groups, 3,575 of 6,435 matching
+   * are what make it actionable: 25 of 45 groups, 3,575 of 6,435 matching
    * rows, and dropping them was a regression this file's first draft
    * introduced and `answerFirst.test.tsx` caught.
    */
@@ -219,7 +219,7 @@ function fromFindings({
    *
    * `rankedAnswer` scores published findings against the metrics and
    * groupings the planner recorded. It is not the strict rule that was
-   * tried before -- that one printed "no published finding answered this
+   * tried before, and that one printed "no published finding answered this
    * question directly" above three verified statements, because it
    * declined whenever the contract tool was absent. This one declines only
    * when the measure the question named appears in no published finding.
@@ -274,7 +274,7 @@ function fromFindings({
     /*
      * `executive_summary` is deliberately not used here. On a real run it
      * reads "Each finding below passed the publication checks and is listed
-     * once, with the results it was checked against" -- a description of
+     * once, with the results it was checked against": a description of
      * how the report was assembled, not a summary of the answer. Under a
      * display-scale headline that is a line the reader has to skip.
      */

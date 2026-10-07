@@ -53,7 +53,7 @@ function run({
 const reportPath = join(dir, 'playwright-results-chromium.json')
   /*
    * The stale case backdates the file the stub just wrote. A report cannot
-   * simply be left over -- the wrapper deletes it before starting, so the
+   * simply be left over. The wrapper deletes it before starting, so the
    * failure being modelled is a reporter that puts an older document at the
    * expected path *during* the run, which is what `--reporter=line`
    * overriding the config's JSON reporter did here once.

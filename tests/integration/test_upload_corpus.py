@@ -145,7 +145,7 @@ def _uploaded_schema(tmp_path: Path, dataset: str) -> dict[str, object]:
     [
         # Names the one additive column: answerable.
         ("total interval_length_m by lithology_code", True),
-        # "depth" is three columns -- two bounds and the span between
+        # "depth" is three columns: two bounds and the span between
         # them. Picking one would be a silent guess about what was meant.
         ("total depth by lithology_code", False),
         # "grade" is two intensities.
@@ -174,7 +174,7 @@ def test_an_interval_table_refuses_a_bound_it_would_have_to_choose(
 def test_an_edge_table_will_not_pick_one_end_of_the_edge(
     tmp_path: Path, question: str, expected_dimension: str | None
 ) -> None:
-    """The row is an edge -- a leg *from* somewhere *to* somewhere, so a
+    """The row is an edge, a leg *from* somewhere *to* somewhere, so a
     question naming one end must be answered with that end, and a question
     naming neither must not be answered with whichever came first in the
     schema."""

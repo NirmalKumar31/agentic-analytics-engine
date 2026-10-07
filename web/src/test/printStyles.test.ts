@@ -5,7 +5,7 @@
  * these rules. The browser suite renders real PDFs and inspects the pages;
  * this is the cheap half that catches a rule deleted by accident.
  *
- * The suite this replaces asserted the old selectors -- `.direct-answer`,
+ * The suite this replaces asserted the old selectors `.direct-answer`,
  * `.answer-text`, `.applied-analysis`, `.contract-diff` and the notice
  * variants, because the screen palette was tuned for a dark background
  * and those blocks printed white on white. None of those blocks exists now,
@@ -52,7 +52,7 @@ describe("the printed page", () => {
   it("wins against the dark palette, which is an attribute selector", () => {
     /*
      * `ThemeToggle` always writes `data-theme` on the document element, so
-     * the dark palette is `:root[data-theme="dark"]` -- one attribute more
+     * the dark palette is `:root[data-theme="dark"]`, one attribute more
      * specific than a bare `:root`. A print reset written as `:root` alone
      * loses to it and the page prints on #0e1113, however late in the
      * cascade it sits.
@@ -127,7 +127,7 @@ describe("the chart", () => {
     /*
      * Vega resolves `--series-*` at embed time and writes the result inline
      * on the SVG, where no print rule reaches it. A chart embedded in dark
-     * mode prints `#54becc` on white -- about 2:1, no discernible boundary,
+     * mode prints `#54becc` on white, about 2:1, no discernible boundary,
      * and WCAG 1.4.11 is about exactly that. A hairline in ink around each
      * mark satisfies it whatever the fill turns out to be.
      */
@@ -275,7 +275,7 @@ describe("screen-only chrome does not print", () => {
      * The sentence that explains a control, not just the control.
      *
      * A PDF printed "opens one drawer with a tab per strategy" underneath
-     * a button print had already hidden -- an instruction about an
+     * a button print had already hidden, an instruction about an
      * interaction its reader cannot perform. The button was in this list;
      * the microcopy explaining it was not.
      */
@@ -392,7 +392,7 @@ describe("the flowchart prints, and its control does not", () => {
      *
      * This asserted that `print.css` carried *no* `.run-flow` rule at all,
      * which stood in for "is not hidden" only while there was nothing
-     * legitimate to say about it on paper. There is now -- a Compare
+     * legitimate to say about it on paper. There is now: a Compare
      * prints one spine per strategy and each has to stay whole across a
      * page break, so the check names what it actually forbids: a rule
      * that takes the flowchart off the page. A proxy that fails on a rule

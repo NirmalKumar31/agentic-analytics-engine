@@ -40,7 +40,7 @@ export function SchemaInspector({
   open?: boolean;
   /**
    * Applies a batch and resolves once the server has accepted it. Absent
-   * for a dataset whose roles are not confirmable -- a demo warehouse, or a
+   * for a dataset whose roles are not confirmable, such as a demo warehouse or a
    * replayed recording, which is what hides the control entirely rather
    * than showing a disabled one.
    */

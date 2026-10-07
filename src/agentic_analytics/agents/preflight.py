@@ -349,8 +349,8 @@ def _check_statistical_test(
     )
     table = contract.table(str(table_name))
     if table is None or table.truncated_columns:
-        # A relation this contract does not fully describe -- a metric model,
-        # or a table whose columns were trimmed -- cannot support a "no such
+        # A relation this contract does not fully describe (a metric model,
+        # or a table whose columns were trimmed) cannot support a "no such
         # column" verdict.
         return None
 

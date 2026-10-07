@@ -24,7 +24,7 @@
  *                  the server's clock, and a skew of a few seconds would
  *                  make the reader's own wait wrong or negative.
  *   work finished  counts of calls returned, findings verified, findings
- *                  withheld, charts drawn -- each of which moves only
+ *                  withheld, charts drawn, each of which moves only
  *                  when an event says so.
  *   why it waits   on an AI run, that the delay is a provider round trip
  *                  and not the engine stalling.

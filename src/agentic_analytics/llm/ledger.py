@@ -421,7 +421,7 @@ class CostLedger:
         except Exception as exc:
             # The money is already counted, so a failure here leaves the
             # ceiling conservative rather than permissive: the worst case
-            # stays charged. It is not refunded later -- the receipt
+            # stays charged. It is not refunded later, because the receipt
             # expires, and with it any way to tell what to give back.
             log.warning("ai_ledger_settle_failed", error_type=type(exc).__name__)
             return "settle_failed"

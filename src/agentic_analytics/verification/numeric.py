@@ -40,7 +40,7 @@ _NUMBER = re.compile(r"[-+]?\d[\d,]*(?:\.\d+)?(?:[eE][-+]?\d+)?")
 
 # Digits glued to letters are part of a name, not a quantity. `Dept3`,
 # `Region2`, `SKU12`, `store_7` are category values, and an uploaded
-# dataset is full of them -- a third of real category columns seem to be
+# dataset is full of them; a third of real category columns seem to be
 # numbered. Read as claims they must appear in the cited results, they do
 # not, and a correct finding is withheld for a numeric mismatch it never
 # made. Requires a leading letter, so `8,120.55` and `-3.2` are untouched.
@@ -67,8 +67,8 @@ _THRESHOLD = re.compile(
 )
 
 # A number in prose is rounded for display. A match is accepted when it is
-# within half of the least significant digit shown, or within 0.5% -- whichever
-# is larger -- of a value that actually exists in a result.
+# within half of the least significant digit shown, or within 0.5% (whichever
+# is larger) of a value that actually exists in a result.
 REL_TOLERANCE = 0.005
 ABS_FLOOR = 0.005
 

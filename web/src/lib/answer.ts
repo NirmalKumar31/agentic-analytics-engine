@@ -46,14 +46,14 @@ export function directAnswer(
  * `directAnswer` only recognises a finding that cites a result produced by
  * a tool executing an accepted contract, and a contract is only accepted
  * for uploaded data. On the governed warehouse it therefore always
- * declines, and the headline fell back to `findings[0]` -- the planner's
+ * declines, and the headline fell back to `findings[0]`, the planner's
  * own first finding, which makes task ordering into editorial ranking.
  *
  * A live run showed what that costs. Asked "Which customer segments are
  * driving the increase in return rate?", the report led with a finding
  * about `refund_amount` over two months, while the finding that compared
- * `return_rate` across `customer_segment` -- the question, answered,
- * verified and published -- sat second.
+ * `return_rate` across `customer_segment`, the question answered,
+ * verified and published, sat second.
  *
  * So findings are scored against the components the planner says the
  * question fixed. The metric is weighted above the grouping because a
@@ -111,7 +111,7 @@ function matchesRequestedMetric(
  *
  * In order of authority: a finding citing the accepted contract's own
  * result; then the best match against what the planner says was asked;
- * then nothing. The last case is deliberate -- `onTopic: false` means no
+ * then nothing. The last case is deliberate, because `onTopic: false` means no
  * published finding was about the measure the question named, and saying
  * so is better than promoting an unrelated fact to the headline.
  *
@@ -252,7 +252,7 @@ export function observationsUsed(snapshot: ResultSnapshot | null): number | null
  *
  * Every phrase here is built from counted values. The report used to say
  * "Population: every row in the dataset" whenever the question stated no
- * filters, and "Rows counted 3,575" from the rows that came back -- for a
+ * filters, and "Rows counted 3,575" from the rows that came back, so for a
  * result holding 25 of 45 groups and 55% of the rows.
  */
 export function coverageScope(snapshot: ResultSnapshot | null): string | null {

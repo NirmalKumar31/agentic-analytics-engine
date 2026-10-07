@@ -50,7 +50,7 @@ export function configBeforeMount(page: Page): boolean | null {
  *
  * Ordering alone is not enough to prove this fixture works. A deployment
  * that already advertises AI, which the local strict server does, and
- * the CI container does not -- offers Compare whether or not the override
+ * the CI container does not, offers Compare whether or not the override
  * applied, so a test that only asserts "Compare is visible" passes over a
  * route that silently did nothing. Forcing the handler to fail locally
  * left all three `compareSetup` tests green, which is how that was found.
@@ -121,7 +121,7 @@ export const AI_RUN_ID = "run_compare_ai";
  * The dataset label for the 200-row sample.
  *
  * `compare.spec.ts` uploads it as `compare.csv` and `chart.spec.ts` as
- * `compare-lanes.csv`, and both call `sampleCsv()` -- the same bytes under
+ * `compare-lanes.csv`, and both call `sampleCsv()`: the same bytes under
  * two names. The label identifies the data, so they share one, and the job
  * admits one comparison over it rather than two.
  */
@@ -130,7 +130,7 @@ export const SAMPLE_CSV_DATASET = "sample-200-row";
 /**
  * One captured deterministic result per question, per worker.
  *
- * Every Compare test started a genuine analysis -- ten in `compare.spec.ts`
+ * Every Compare test started a genuine analysis: ten in `compare.spec.ts`
  * alone, plus the Compare cells in `visualReview`, `print` and `chart` --
  * against a container that allows 200 analyses per IP per hour for all
  * three engines together. What those tests assert is how a comparison is
@@ -182,7 +182,7 @@ export async function compareWith(
    *
    * On the real path this side is answered by the server itself, so it is
    * the unmodified result and `mutate` applies only to the mirrored side.
-   * A replay has to preserve that asymmetry -- serving the mutated payload
+   * A replay has to preserve that asymmetry, so serving the mutated payload
    * to both sides made every scenario agree with itself, so the structured
    * diff had nothing to show and a one-sided refusal refused both sides.
    */
@@ -368,7 +368,7 @@ export async function startCompare(page: Page, question: string) {
    */
   /*
    * Not counted here. Whether a comparison costs a real analysis is known
-   * only inside `compareWith`'s route handler -- the first for a question
+   * only inside `compareWith`'s route handler: the first for a question
    * is real and the rest replay it, so that is where the ledger is
    * written. Counting at the call site reported ten analyses for one.
    */

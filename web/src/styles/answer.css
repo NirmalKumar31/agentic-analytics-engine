@@ -61,8 +61,8 @@
  *
  * Three tiers, and they were two.
  *
- * The answer is `.display`. Everything under it -- the chart, the
- * highlights, the notes, the result table -- is supporting detail, and
+ * The answer is `.display`. Everything under it (the chart, the
+ * highlights, the notes, the result table) is supporting detail, and
  * each band was labelled with `.section-heading` at `--text-md` semibold
  * in primary ink. That is the same size and weight as `.report-summary`
  * and heavier than the finding text it sits above, so four band labels
@@ -73,7 +73,7 @@
  * So inside the report a band label is a *label*: small, medium weight,
  * secondary ink, over a hairline. The answer keeps display scale, the
  * content keeps its own, and the labels stop arguing with both. Scoped to
- * `.report` -- the drawer and the Compare verdict have their own layouts
+ * `.report`; the drawer and the Compare verdict have their own layouts
  * and their headings are doing a different job there.
  */
 .report .section-heading {
@@ -107,7 +107,7 @@
  *
  * On the canvas, not in a card. `.chart-card` paints an inset surface and
  * draws a border, which put the chart in a grey box inside a report that
- * has no other boxes -- the panel composition surviving in one place.
+ * has no other boxes, the panel composition surviving in one place.
  */
 .report-visual {
   margin-block-start: var(--space-6);
@@ -293,7 +293,7 @@
 }
 
 @media print {
-  /* The drawer's contents become a visible appendix in print -- step H
+  /* The drawer's contents become a visible appendix in print, which step H
      builds that. What must not print is the overlay itself: a panel
      floating over the report, with a scrim behind it. */
   .report-actions {
@@ -403,8 +403,8 @@
 /* ------------------------------------------------- one report at a time
  *
  * The two-column grid that stood here is gone. Above 900px it put two full
- * reports -- each with a headline, a chart, highlights and a result table
- * -- into half a laptop's width; below it, they stacked into two long
+ * reports (each with a headline, a chart, highlights and a result table
+ *) into half a laptop's width; below it, they stacked into two long
  * documents a reader had to scroll between. Neither arrangement lets you
  * put one number beside another, which is the only thing a comparison is
  * for.

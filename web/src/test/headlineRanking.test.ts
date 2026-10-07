@@ -7,7 +7,7 @@
  *   "refund_amount rose from 49,863 in 2025-10-01 to 92,372 in 2025-11-01"
  *
  * while the finding that compared `return_rate` across `customer_segment` --
- * the question, answered, verified and published -- was second. Nothing was
+ * the question, answered, verified and published, was second. Nothing was
  * wrong with either finding. The report simply promoted whichever one the
  * planner happened to emit first.
  *
@@ -132,7 +132,7 @@ describe("the headline", () => {
 
   it("says so when no published finding is about the measure asked for", () => {
     const { finding: answer, onTopic } = rankedAnswer([REFUND, CHISQ], RESULTS, ASKED);
-    // The finding is still surfaced -- withholding a verified fact would be
+    // The finding is still surfaced, because withholding a verified fact would be
     // a second mistake, but it is not presented as the answer.
     expect(answer).not.toBeNull();
     expect(onTopic).toBe(false);

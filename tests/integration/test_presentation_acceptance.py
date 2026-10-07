@@ -90,7 +90,7 @@ def _present(dataset: Path, question: str) -> tuple[Any, RunResult]:
         # with a schema this test fetched itself hid a real defect: the
         # graph carries the profile as a dict, the builder read it with
         # `getattr`, found nothing, and a flag came back out as a bare 0
-        # and 1 -- while this test, handing over the object, passed.
+        # and 1, while this test, handing over the object, passed.
         assert result.presentation is not None, result.stopped_reason
         del schema
         return result.presentation, result

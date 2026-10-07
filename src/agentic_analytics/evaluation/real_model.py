@@ -243,8 +243,8 @@ def _observe(
     # --- every claim, published or withheld, for human review.
     #
     # A withheld claim used to be stored with an empty text, which made the
-    # most interesting artifact in the run -- the thing a model said that
-    # the evidence did not support -- impossible to review. The candidate
+    # most interesting artifact in the run (the thing a model said that
+    # the evidence did not support) impossible to review. The candidate
     # is recovered from the task outcomes by id. Synthetic data, so finding
     # text is safe to keep; raw rows and prompts are not stored anywhere.
     candidates = {finding.finding_id: finding for task in result.tasks for finding in task.findings}
@@ -522,7 +522,7 @@ async def evaluate_question(
 #: `question_key` is deliberately stable: a checkpoint has to recognise the
 #: same question across invocations. The ledger was handed that same string
 #: as its run id, which conflated two different identities. Asking the same
-#: question twice then consumed one run slot rather than two -- `admit_run`
+#: question twice then consumed one run slot rather than two, because `admit_run`
 #: is idempotent per run id and correctly reported `already_admitted` --
 #: and both invocations accumulated against one per-run cost cap. A paid
 #: re-run must be a new run.

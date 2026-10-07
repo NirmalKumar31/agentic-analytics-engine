@@ -129,7 +129,7 @@ export const test = base.extend<{
 
       /*
        * Everything else. Not continued, not fulfilled with something
-       * plausible -- recorded and aborted, so the test fails naming what
+       * plausible, being recorded and aborted, so the test fails naming what
        * it tried to send rather than quietly spending.
        */
       violations.get(page)?.push(`${method} ${url.pathname}`);

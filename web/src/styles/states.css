@@ -149,7 +149,7 @@
  * resident once a report exists, so document order is already right.
  *
  * Left in place, they put the terminal state *above the dataset context
- * strip* -- outside the reading column, full width, before the reader had
+ * strip*: outside the reading column, full width, before the reader had
  * been told which file this was about. A refusal appeared as a banner
  * floating over the top of the page.
  */
@@ -166,7 +166,7 @@
   display: grid;
   /* An implicit `auto` track resolves to the widest item's max-content, so
    * a `white-space: nowrap` data table sized this column to 1080px inside a
-   * 280px container and the whole page scrolled sideways on a phone -- past
+   * 280px container and the whole page scrolled sideways on a phone, past
    * the point where `.table-wrap`'s own `overflow: auto` could ever clip,
    * because the wrap was being handed the blown-out width too. `minmax(0,
    * 1fr)` lets the track shrink to the container, which puts the scrolling

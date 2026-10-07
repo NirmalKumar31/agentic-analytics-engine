@@ -34,7 +34,7 @@ from agentic_analytics.verification.typing import as_number
 ENUMERATED_GROUPS = 12
 #: Groups that read as a sentence. Above this, enumerating them produced a
 #: semicolon run that trailed off in "and further groups in the cited
-#: result" -- a paragraph that repeated the table badly and said nothing the
+#: result": a paragraph that repeated the table badly and said nothing the
 #: table did not already say. Beyond this the answer describes the
 #: breakdown's shape and leaves the enumeration to the table.
 PROSE_GROUPS = 4
@@ -365,7 +365,7 @@ def canonical_answer(
 
     # The visitor has to have said what to measure. "How much?" resolves
     # to a count of rows, which the engine can compute and which is not an
-    # answer to a question that never named a column -- volunteering one
+    # answer to a question that never named a column, because volunteering one
     # turned four questions the corpus requires be refused into confident
     # answers. A named measure is the difference between answering and
     # guessing what was meant.
@@ -409,7 +409,7 @@ def canonical_answer(
         # Every requested cut, in order. Reading the singular projection
         # here meant a two-cut answer had no dimension at all, fell through
         # to the scalar path, failed its one-row check and published
-        # nothing -- a correct two-dimensional result with an empty report.
+        # nothing: a correct two-dimensional result with an empty report.
         columns = [resolve_result_column(str(d), snapshot.columns) for d in dimensions]
         if any(column is None for column in columns):
             return None
@@ -478,7 +478,7 @@ def canonical_answer(
         # "Highest" and "lowest" are claims about every group, so they are
         # only made when the result holds every group. A breakdown cut
         # short describes what it has instead, and never implies it is the
-        # whole picture -- the same overclaim that once reported the tenth
+        # whole picture, the same overclaim that once reported the tenth
         # of a top-ten list as the minimum.
         coverage = snapshot.group_coverage
         whole = coverage.complete if coverage is not None else True

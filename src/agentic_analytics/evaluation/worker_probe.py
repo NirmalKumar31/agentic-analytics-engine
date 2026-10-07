@@ -190,7 +190,7 @@ class ClaimReport:
     claimed_change: dict[str, Any] | None
     evidence_cells: list[dict[str, Any]]
 
-    # -- reference integrity, checked here against the known results
+    # reference integrity, checked here against the known results
     result_ids_valid: bool = False
     evidence_cell_count: int = 0
     evidence_rows_valid: bool = False
@@ -198,13 +198,13 @@ class ClaimReport:
     #: The model may echo a cell's value. When it does, is the echo right?
     evidence_values_copied: int = 0
     evidence_values_correct: int = 0
-    #: Cells naming a field of `statistical_result` -- `p_value`,
-    #: `effect_size` -- rather than a column of the row grid. Counted apart
+    #: Cells naming a field of `statistical_result` (`p_value`,
+    #: `effect_size`) rather than a column of the row grid. Counted apart
     #: from an invalid column because it is not the same mistake: the value
     #: really is in the result, and `EvidenceCell` has no way to address it.
     statistical_field_references: int = 0
 
-    # -- the real gates, run unmodified
+    # the real gates, run unmodified
     claim_shape_ok: bool = False
     claim_shape_rule: str = ""
     numeric_ok: bool = False
@@ -309,7 +309,7 @@ def probe_cases() -> list[ProbeCase]:
     # between them, a 0.4% gap and no test. The honest outputs are a bare
     # descriptive fact or nothing at all. What must *not* appear is a claim
     # that one group is higher in any way that generalises, or any use of
-    # the word "significant" -- the claim-shape gate blocks the latter, so
+    # the word "significant". The claim-shape gate blocks the latter, so
     # this case also checks that the gate is load-bearing against a real
     # model rather than only against the scripted one.
     inconclusive = ResultSnapshot(

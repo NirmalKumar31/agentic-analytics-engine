@@ -150,7 +150,7 @@ def _convert(node: dict[str, Any], *, path: str) -> dict[str, Any]:
         elif key in ("required", "additionalProperties"):
             # Both are decided below, from the converted properties, so a
             # value carried over from the source would be overwritten or --
-            # worse -- survive in a node that no longer matches it.
+            # worse, survive in a node that no longer matches it.
             continue
         elif key in _KEPT_KEYWORDS or key.startswith("$"):
             out[key] = value

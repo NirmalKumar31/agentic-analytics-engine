@@ -537,7 +537,7 @@ def build_graph(ctx: RunContext) -> Any:
             #
             # This used to fall through to `_canonical_for`, which cannot build
             # an answer out of no rows, and the abort below reported "the
-            # executed result could not be turned into a direct answer" -- a
+            # executed result could not be turned into a direct answer", which is a
             # reason `_outcome_from_reason` does not recognise, so the run came
             # back `failed`. A reader asking about a region that is not in
             # their file was told the system broke.
@@ -1132,7 +1132,7 @@ def build_graph(ctx: RunContext) -> Any:
         stopped = str(state.get("stopped_reason") or "")
         if stopped:
             # A refusal is stated once. The mapping stage already writes a
-            # precise, actionable sentence -- "the question restricts to
+            # precise, actionable sentence: "the question restricts to
             # '3 to 9' but does not say which column that applies to; name
             # the column, for example ...", and a generic "the run
             # stopped early" on top of it adds nothing a reader can use.
@@ -1141,7 +1141,7 @@ def build_graph(ctx: RunContext) -> Any:
                 limitations.append(f"The question was not answered: {stopped}.")
         if ctx.out_of_time():
             # Organising is the only thing the model does here, so a run
-            # that is out of time still gets its report -- written by the
+            # that is out of time still gets its report, written by the
             # engine from the findings that passed verification. Losing
             # verified findings because the *presentation* step had no
             # budget left would be the wrong trade in both directions: it

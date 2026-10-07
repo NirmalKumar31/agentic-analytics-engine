@@ -21,7 +21,7 @@ const ROLE_LABEL: Record<string, string> = {
  * What the engine worked out about an uploaded file, before any question.
  *
  * Every role here is inferred from column types and cardinality, which the
- * panel says plainly — an inferred measure is not a governed metric, and
+ * panel says plainly: an inferred measure is not a governed metric, and
  * conflating the two would be inventing business semantics.
  */
 export function DatasetSummary({
@@ -86,7 +86,7 @@ export function DatasetSummary({
                 <tr
                   key={field.name}
                   // Marked on the row, not only on the role, because the
-                  // whole inference is the close call -- the type and
+                  // whole inference is the close call: the type and
                   // cardinality beside it are the evidence for it.
                   data-ambiguous={field.ambiguous ? "true" : undefined}
                 >
@@ -185,7 +185,7 @@ export function DatasetSummary({
  *
  * The first version took `measures[0]` and proposed totalling it. On a
  * dataset whose only classified measure is `age`, because the real
- * measure is near-unique and reads as an identifier -- that produced
+ * measure is near-unique and reads as an identifier, which produced
  * "What is total age by team_size?" and "Which team_size contributes most
  * to age?". Both are reproducible arithmetic and neither is a question
  * anyone wants answered.
@@ -193,7 +193,7 @@ export function DatasetSummary({
  * So a sum is suggested only for a column whose name reads as a quantity,
  * an average is offered for one that reads as an attribute, and a
  * contribution question, which only makes sense over an additive total
- * -- is offered for neither unless the engine is confident.
+ * is offered for neither unless the engine is confident.
  *
  * A column the reader confirmed as a quantity counts as an attribute here.
  * Confirming clears the additivity guess, because asserting "this is a
@@ -206,7 +206,7 @@ export function DatasetSummary({
  * Confirmed fields come first. `dimensions.find(usable)` took whatever the
  * schema listed first, so confirming a column as a category changed
  * nothing on screen whenever an ordinary dimension happened to precede it
- * -- the reader answered the one question the engine could not and got no
+ * The reader answered the one question the engine could not and got no
  * acknowledgement anywhere they were looking. Candidates are therefore
  * ordered confirmed-first, independently for measures and dimensions, and
  * in schema order inside each group so the result is deterministic rather

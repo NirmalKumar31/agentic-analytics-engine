@@ -29,7 +29,7 @@ from agentic_analytics.llm.fake import FakeProvider
 # Terms that would give the answer away if an agent saw them. Entity names
 # that legitimately appear in the data (a category, a carrier) are excluded:
 # the agent is supposed to find those in query results. What must never
-# appear is the *expectation* -- the pattern id, the answer-key prose, or the
+# appear is the *expectation*: the pattern id, the answer-key prose, or the
 # benchmark's stated direction.
 BANNED_SUBSTRINGS: list[str] = [
     *(p.pattern_id for p in PATTERNS),
@@ -138,7 +138,7 @@ def test_benchmark_expectations_never_reach_a_provider(
     """The case objects carry the expected answers; only the question travels."""
     corpus = "\n".join(_visible_text(r) for r in captured).lower()
     for case in CASES:
-        # The question travels -- that is the input. Nothing else does.
+        # The question travels, because that is the input. Nothing else does.
         assert case.question.lower() in corpus, "the question itself should reach the agents"
         if case.notes and len(case.notes) > 40:
             assert case.notes.lower() not in corpus, case.case_id

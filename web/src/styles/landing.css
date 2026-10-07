@@ -2,7 +2,7 @@
  * The landing surface.
  *
  * One stacking context: the ambient field at the back, everything else
- * above it. No panel, no card, no rail -- the old landing was a bordered
+ * above it. No panel, no card, no rail. The old landing was a bordered
  * `.panel` inside a grid that also reserved 330px for a right rail, and the
  * rail is gone rather than emptied.
  */
@@ -22,7 +22,7 @@
  * with its reduced-motion tests in step I, and an unguarded ambient
  * animation is exactly the kind of thing that ships and then cannot be
  * turned off. Tracked as a known deviation from the storyboard, not from
- * the mockups -- the approved compositions are static.
+ * the mockups, because the approved compositions are static.
  */
 .analytical-field {
   position: absolute;

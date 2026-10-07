@@ -56,7 +56,7 @@ def _findings_reporting(published: list[PublishedFinding], metric: str) -> list[
 
 
 #: Tools whose results are a movement through time. A `claimed_change` on
-#: anything else is a difference between two segments -- "Apparel exceeds
+#: anything else is a difference between two segments: "Apparel exceeds
 #: Toys", which has a sign but is not a direction of travel.
 TEMPORAL_TOOLS = frozenset({"analyze_timeseries", "compare_periods", "decompose_change"})
 

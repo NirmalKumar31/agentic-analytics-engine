@@ -70,7 +70,7 @@ describe("frontend component architecture", () => {
 
   it("keeps terminal reasons visible and planning policy explicit", () => {
     // The stop reason moved out of TerminalState and into RunStateCard,
-    // which names the state as well as the reason -- "Quota limit reached."
+    // which names the state as well as the reason: "Quota limit reached."
     // rather than "The run stopped early: ...". TerminalState kept the two
     // problems that have no run behind them. The claim is unchanged: a
     // reader still sees why, so both halves are asserted here rather than
@@ -95,7 +95,7 @@ describe("frontend component architecture", () => {
     // Deterministic, not auto. The `auto` notice is gone: it restated the
     // server's own description of Governed Analysis in different words,
     // directly underneath it. The deterministic one stays because it makes
-    // a claim nothing else on the screen makes -- that the *interpretation*
+    // a claim nothing else on the screen makes: that the *interpretation*
     // is scripted in this public demo while the SQL, statistics, tool
     // execution, verification and provenance are real.
     expect(screen.getByText(/interpretation is rule-based/)).toBeVisible();

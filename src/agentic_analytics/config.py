@@ -108,7 +108,7 @@ class Settings(BaseSettings):
     #: How much the model may reason before answering. `low` is deliberate:
     #: the engine does not ask the model to compute anything, only to choose
     #: what to investigate, and reasoning tokens are billed as output. There
-    #: is no sampling setting to configure -- determinism here comes from the
+    #: is no sampling setting to configure. Determinism here comes from the
     #: analytics layer, not from model decoding, so this is the only knob.
     cloud_reasoning_effort: CloudReasoningEffort = "low"
 
@@ -121,7 +121,7 @@ class Settings(BaseSettings):
     #: ordinary budgets; these bound what a single visitor can spend.
     #: Sized for a reasoning model. Its hidden reasoning counts toward
     #: `output_tokens`, so a budget set for a completion model is spent
-    #: several times faster than the visible answers suggest -- the first
+    #: several times faster than the visible answers suggest, because the first
     #: real run exhausted 16,000 output tokens across 23 calls and
     #: published nothing, because verification had none left.
     #:

@@ -224,7 +224,7 @@ def field(x, y, w, h, T, op=".5", focus=None):
     Three layers at different densities so a large canvas reads as composed
     rather than empty. No glow, no particles, no gradient behind text."""
     o = []
-    # layer 1 — broad, faintest
+    # layer 1: broad, faintest
     o.append(
         f'<g opacity="{float(op) * 0.45}" stroke="{T["signal"]}" fill="none" stroke-width=".6">'
     )
@@ -234,7 +234,7 @@ def field(x, y, w, h, T, op=".5", focus=None):
             f'<path d="M{x} {yy} C {x + w * 0.3} {yy - 26}, {x + w * 0.6} {yy + 22}, {x + w} {yy - 12}"/>'
         )
     o.append("</g>")
-    # layer 2 — denser mid band
+    # layer 2: denser mid band
     o.append(
         f'<g opacity="{float(op) * 0.8}" stroke="{T["signal"]}" fill="none" stroke-width=".7">'
     )
@@ -245,7 +245,7 @@ def field(x, y, w, h, T, op=".5", focus=None):
             f'<path d="M{x} {yy} C {x + w * 0.25} {yy - amp}, {x + w * 0.55} {yy + amp}, {x + w} {yy - amp * 0.5}"/>'
         )
     o.append("</g>")
-    # sparse coordinate ticks with labels — the motif reads as measurement
+    # sparse coordinate ticks with labels, so the motif reads as measurement
     o.append(f'<g opacity="{float(op) * 0.9}" font-family="{MONO}">')
     for cx, cy, lab in [
         (0.14, 0.26, "0.18"),
@@ -263,7 +263,7 @@ def field(x, y, w, h, T, op=".5", focus=None):
         )
     o.append("</g>")
     # Localised signal near the primary action: a slight rise in contour
-    # density in otherwise empty canvas. Three lines, not seven — the first
+    # density in otherwise empty canvas. Three lines, not seven, because the first
     # attempt read as a scribble, which is noise wearing the costume of
     # restraint. It is placed in clear space and never crosses type.
     if focus:

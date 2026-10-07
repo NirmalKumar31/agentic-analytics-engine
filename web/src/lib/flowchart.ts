@@ -10,7 +10,7 @@
  *
  * So this derives a flowchart: the stage spine with its labels, the arrows
  * between them, and the tool calls that `compute` fanned out into. Same
- * two derivations the evidence sheet's graph uses -- `timelineOf` and
+ * two derivations the evidence sheet's graph uses, `timelineOf` and
  * `toolCallsOf`, so the canvas and the sheet cannot disagree about what
  * happened.
  *
@@ -75,7 +75,7 @@ export const STAGE_STATE_LABEL: Record<StageState, string> = {
  * What a stage's detail says on the canvas, or nothing.
  *
  * `stage.unedited` is set by `timeline.ts` for exactly the one case that
- * quotes the engine, so this does not match on a string prefix -- a prefix
+ * quotes the engine, so this does not match on a string prefix. A prefix
  * match is not a contract, and the first thing to change the engine's
  * wording would have put its text back on the canvas silently.
  *
@@ -83,7 +83,7 @@ export const STAGE_STATE_LABEL: Record<StageState, string> = {
  * first version substituted "the reason is in the evidence", and the
  * refusal screenshot showed why that is noise: the box already said
  * "stopped here" in its state line, the report's own headline *is* the
- * engine's reason -- a refusal's answer is why it refused, and the
+ * engine's reason, because a refusal's answer is why it refused, and the
  * section carries one control to the full record. Four ways of saying the
  * same thing, three of them in the same box.
  */
@@ -138,7 +138,7 @@ export function flowchartOf(events: RunEvent[]): Flowchart {
  * list of labels does not, so the arrangement is restated in prose rather
  * than leaving a screen reader to reconstruct it from positions. Built
  * from the same sanitised model the picture is built from, so it cannot
- * describe a run the picture does not show -- including not carrying
+ * describe a run the picture does not show, including not carrying
  * engine text the picture declined to carry.
  */
 export function describeFlow(stages: FlowStage[], calls: FlowCall[]): string {

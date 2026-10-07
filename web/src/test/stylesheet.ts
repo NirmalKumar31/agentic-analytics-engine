@@ -32,7 +32,7 @@ export function moduleSource(specifier: string): string {
 }
 
 /**
- * Every module concatenated in import order — what the bundler emits, and
+ * Every module concatenated in import order, which is what the bundler emits and
  * therefore what the cascade actually is.
  */
 export function stylesheet(): string {

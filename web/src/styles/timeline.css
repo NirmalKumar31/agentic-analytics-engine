@@ -172,7 +172,7 @@
 /* ============================================= the run flowchart
  *
  * On the report canvas, under the answer. It replaces a row of six
- * unlabelled dots -- honest, derived from events, and not a diagram: a
+ * unlabelled dots: honest, derived from events, and not a diagram. A
  * reader could not tell which stage was which or what followed what.
  *
  * Two parts, and the split is a layout decision with a reason. The spine
@@ -184,7 +184,7 @@
  * sixth of the track is too narrow to read a tool name in, and an
  * absolutely positioned fan broke at every width the spine reflows at.
  *
- * Connectors are pseudo-elements with `content: ""` -- geometry, not
+ * Connectors are pseudo-elements with `content: ""`: geometry, not
  * glyphs, so nothing is announced to a screen reader, which reads the
  * ordered list and the text alternative instead.
  */
@@ -466,7 +466,7 @@
  * connectors move from below each box to beside it.
  *
  * **1440px, and the number is measured rather than chosen.** A stage box
- * has to be at least 180px wide -- the hosted sweep's floor for a box
+ * has to be at least 180px wide, the hosted sweep's floor for a box
  * holding a sentence, which the note on a stage is: "a model was
  * consulted to plan" is 29 characters. Six of them plus the reading
  * column's own padding needs 1080px of track, and the track measures 704
@@ -485,7 +485,7 @@
  * **`screen and`, which is load-bearing.** A printed sheet is around
  * 816px of paper laid out from whatever viewport the reader printed from,
  * so at 1440px this query still matched on paper while `print.css` had
- * turned the track back into a column -- a column of full-width boxes
+ * turned the track back into a column, a column of full-width boxes
  * with the *row* connectors still applied, which printed four arrowheads
  * floating against the right margin. Scoping it here is one word and it
  * takes the matching connector geometry with it, which overriding
@@ -498,7 +498,7 @@
     /* No gap, and the connector lives in the node's own padding instead.
      *
      * With a gap, the arrow was drawn from `inset-inline-start: 100%`
-     * into the space between the columns -- outside the node's padding
+     * into the space between the columns, outside the node's padding
      * box, which puts it in `scrollWidth` and nowhere in `clientWidth`.
      * The hosted sweep failed eight cells on "li.run-flow-node holds
      * 148px in 122px": a box reported as holding more than it can show,
@@ -585,7 +585,7 @@
  * engine actually proposed, in the order it proposed them.
  *
  * **State is in the words, not only in the mark.** Each node prints its
- * own outcome -- "returned 24 rows", "refused before execution: …", so a
+ * own outcome: "returned 24 rows", "refused before execution: …", so a
  * monochrome print, a reader who cannot separate the hues, and a screen
  * reader all get the same four distinctions the colours draw.
  *
@@ -714,7 +714,7 @@
  * The stage sequence alone was enough for a deterministic run and not for
  * an AI one: the engine can sit on one stage for half a minute while a
  * provider thinks, and an unchanged picture is what a hung request looks
- * like too. These three lines are the difference -- the stage in words,
+ * like too. These three lines are the difference: the stage in words,
  * the elapsed wall clock, and the work that has finished.
  *
  * Nothing here animates. There is no bar to animate: a percentage would

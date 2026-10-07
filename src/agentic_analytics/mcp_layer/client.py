@@ -40,7 +40,7 @@ _REDACT_KEYS = frozenset({"session_id", "session_key", "remote_inference"})
 #: back: `input_value={'question': '...', 'session_key': '...'}`. Every tool
 #: call carries the capability, so that clause is a copy of the secret in a
 #: string that is stored in evaluation artifacts, shown in the run trace and
-#: -- now that failures are fed back -- put into the next prompt. Observed
+#: (now that failures are fed back) put into the next prompt. Observed
 #: for real: a warehouse run produced 36 of these, each ending in a fragment
 #: of the session key. The useful half of the message is the part before it.
 _INPUT_VALUE = re.compile(r"input_value=.*?(?=,\s*input_type=|\]|$)", re.DOTALL)
