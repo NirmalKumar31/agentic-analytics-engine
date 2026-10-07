@@ -218,6 +218,11 @@ It identifies the exact deployed commit, the ten-job CI run, the 156-cell
 hosted browser sweep, the 60-check API acceptance run and one bounded paid
 Compare canary. The evidence below is retained as the earlier v0.1.0 record.
 
+[`RELEASE-EVIDENCE-capacity-2026-10-07.md`](RELEASE-EVIDENCE-capacity-2026-10-07.md)
+records a separate bounded production concurrency check. It checks isolation,
+cleanup and restart behaviour; it does not establish a throughput figure or a
+load limit.
+
 `docs/RELEASE-EVIDENCE-v0.1.0.md` records the v0.1.0 measurements: a
 55-check credential-free acceptance run against production, and one
 authorised comparison request whose deterministic and AI halves both

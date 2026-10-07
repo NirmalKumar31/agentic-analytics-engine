@@ -14,6 +14,9 @@ overview. The files below separate current behaviour from historical evidence.
 - [Production audit, 6 October 2026](RELEASE-EVIDENCE-production-2026-10-06.md):
   initial evidence for `f98b890` and the zero-spend follow-up for the current
   deployment
+- [Production capacity rehearsal, 7 October 2026](RELEASE-EVIDENCE-capacity-2026-10-07.md):
+  a bounded concurrency and isolation check against the current deployment;
+  not a throughput result
 - [Architecture decision records](adr/): decisions that still constrain the
   implementation
 

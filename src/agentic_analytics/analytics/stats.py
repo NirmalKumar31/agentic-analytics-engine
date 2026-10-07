@@ -10,10 +10,10 @@ is the difference between "the agent says the difference is significant" and
 from __future__ import annotations
 
 import math
+from functools import lru_cache
 from typing import Any, Literal
 
 import numpy as np
-from scipy import stats as sps
 
 from agentic_analytics.analytics.execute import fetch_rows, held_connection, run_query
 from agentic_analytics.analytics.filters import Filter, build_where
@@ -91,6 +91,21 @@ MIN_GROUP_SIZE = 2
 MIN_CORRELATION_PAIRS = 10
 MAX_GROUPS = 12
 MAX_CORRELATION_COLUMNS = 8
+
+
+@lru_cache(maxsize=1)
+def _scipy_stats() -> Any:
+    """Load SciPy only when a statistical task is actually requested.
+
+    Most reports do not use a statistical test. Importing this module is also
+    part of the real-model evaluator's startup path, where eager SciPy import
+    delayed the first checkpoint and made a slow local environment look like a
+    stalled model call. The calculations below still use the same SciPy
+    routines; only their import is deferred.
+    """
+    from scipy import stats
+
+    return stats
 
 
 class StatsError(ValueError):
@@ -338,6 +353,7 @@ def _two_proportion_z(
     if se_pooled == 0:
         raise StatsError("both groups have an identical constant rate; the test is undefined")
     z = (p_a - p_b) / se_pooled
+    sps = _scipy_stats()
     p_value = float(2 * sps.norm.sf(abs(z)))
 
     se_diff = math.sqrt(p_a * (1 - p_a) / n_a + p_b * (1 - p_b) / n_b)
@@ -430,7 +446,7 @@ def _welch_t_test(
     (name_a, n_a, mean_a, sd_a), (name_b, n_b, mean_b, sd_b) = stats_rows
     if min(n_a, n_b) < 2:
         raise StatsError("each group needs at least two rows")
-    res = sps.ttest_ind_from_stats(
+    res = _scipy_stats().ttest_ind_from_stats(
         mean1=mean_a,
         std1=sd_a,
         nobs1=n_a,
@@ -451,7 +467,7 @@ def _welch_t_test(
     # Welch-Satterthwaite degrees of freedom.
     denom = (sd_a**2 / n_a) ** 2 / (n_a - 1) + (sd_b**2 / n_b) ** 2 / (n_b - 1)
     df = ((sd_a**2 / n_a + sd_b**2 / n_b) ** 2 / denom) if denom > 0 else float(n_a + n_b - 2)
-    crit = float(sps.t.ppf(0.5 + confidence_level / 2, df)) if df > 0 else 0.0
+    crit = float(_scipy_stats().t.ppf(0.5 + confidence_level / 2, df)) if df > 0 else 0.0
     diff = mean_a - mean_b
     pooled_sd = math.sqrt(((n_a - 1) * sd_a**2 + (n_b - 1) * sd_b**2) / (n_a + n_b - 2))
     d = diff / pooled_sd if pooled_sd > 0 else 0.0
@@ -534,7 +550,7 @@ def _one_way_anova(
     if ss_within <= 0 or df_within <= 0:
         raise StatsError("within-group variance is zero; the F test is undefined")
     f_stat = (ss_between / df_between) / (ss_within / df_within)
-    p_value = float(sps.f.sf(f_stat, df_between, df_within))
+    p_value = float(_scipy_stats().f.sf(f_stat, df_between, df_within))
     eta_sq = ss_between / (ss_between + ss_within)
 
     result = StatisticalResult(
@@ -596,7 +612,7 @@ def _chi_square(
     for r, c, n in raw:
         table[row_levels.index(str(r)), col_levels.index(str(c))] = float(n)
 
-    chi2, p_value, _dof, expected = sps.chi2_contingency(table)
+    chi2, p_value, _dof, expected = _scipy_stats().chi2_contingency(table)
     n_total = float(table.sum())
     min_dim = min(table.shape) - 1
     cramers_v = math.sqrt(chi2 / (n_total * min_dim)) if min_dim > 0 and n_total else 0.0
@@ -677,11 +693,11 @@ def _correlation(
         raise StatsError("a variable is constant; correlation is undefined")
 
     if test_type == "spearman_correlation":
-        res = sps.spearmanr(x, y)
+        res = _scipy_stats().spearmanr(x, y)
         r, p_value = float(res.statistic), float(res.pvalue)
         name, effect_name = "Spearman rank correlation", "rho"
     else:
-        res = sps.pearsonr(x, y)
+        res = _scipy_stats().pearsonr(x, y)
         r, p_value = float(res.statistic), float(res.pvalue)
         name, effect_name = "Pearson correlation", "r"
 
@@ -691,7 +707,7 @@ def _correlation(
         # Fisher z transform.
         z = math.atanh(r)
         se = 1.0 / math.sqrt(n - 3)
-        crit = float(sps.norm.ppf(0.5 + confidence_level / 2))
+        crit = float(_scipy_stats().norm.ppf(0.5 + confidence_level / 2))
         ci = (math.tanh(z - crit * se), math.tanh(z + crit * se))
 
     warnings = [

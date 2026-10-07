@@ -66,8 +66,12 @@ def test_current_docs_do_not_repeat_superseded_claims() -> None:
         "The two figures are the same script, not a changed one",
         "times ten states",
         "120 cells, each with a screenshot",
+        "resource envelope has not been measured against the running instance\n  under load",
     ):
         assert stale not in current
+
+    assert "bounded production concurrency check passed on 7 October" in current
+    assert "not a load or throughput measurement" in current
 
 
 def test_design_package_identifies_itself_as_historical() -> None:
