@@ -3,7 +3,7 @@
  *
  * This was local to `ComparisonView`, which meant the six terminal states
  * were distinguishable in Compare and invisible everywhere else. In
- * single-mode -- the default -- `ReportWorkspace` rendered the report body
+ * single-mode (the default) `ReportWorkspace` rendered the report body
  * with no state card at all, so a refused, quota-stopped, cancelled or
  * failed run looked like an ordinary report that happened to be empty, and
  * the only signal was a generic "the run stopped early" notice.
@@ -20,7 +20,7 @@ import type { RunState } from "../lib/runState";
  *
  * All four tones are mapped. The previous version sent anything that was
  * not `error` to `warn`, which was correct while every non-verified state
- * was a problem -- and became wrong once `no_findings` existed, because
+ * was a problem, and became wrong once `no_findings` existed, because
  * "the analysis found nothing to claim" is an outcome, not a warning.
  */
 const TONE_CLASS: Record<RunState["tone"], string> = {

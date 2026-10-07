@@ -80,8 +80,8 @@ def held_connection(
     query instead of this one's.
     """
     # Read at call time rather than bound as a default argument, so the
-    # ceiling is one value that a deployment -- or a test proving the wait
-    # really is bounded -- can actually change.
+    # ceiling is one value that a deployment, or a test proving the wait
+    # really is bounded, can actually change.
     timeout_seconds = LOCK_WAIT_SECONDS if timeout_seconds is None else timeout_seconds
     if not session.lock.acquire(timeout=timeout_seconds):
         raise QueryError(

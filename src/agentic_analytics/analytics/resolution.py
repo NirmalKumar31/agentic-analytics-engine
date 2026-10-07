@@ -45,7 +45,7 @@ class ResolutionIssue(StrEnum):
     #: A grouping was asked for and no column matches it.
     UNRESOLVED_DIMENSION = "unresolved_dimension"
     #: The question names a column whose role is genuinely unclear from the
-    #: data -- an integer that could be a code or a count.
+    #: data: an integer that could be a code or a count.
     AMBIGUOUS_COLUMN_ROLE = "ambiguous_column_role"
     #: Several columns could be the measure and the question picked none.
     COMPETING_MEASURE_CANDIDATES = "competing_measure_candidates"

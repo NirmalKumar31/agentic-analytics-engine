@@ -17,13 +17,13 @@ thought to look for; not asking for prose means there is nothing to catch.
 
 What the model still decides, and why that is safe:
 
-* **Selection and ordering** -- cannot introduce a claim, because every
+* **Selection and ordering**: cannot introduce a claim, because every
   candidate is already verified.
-* **Section grouping** -- which findings belong together. The *heading* is
+* **Section grouping**, which findings belong together. The *heading* is
   not the model's: a label short enough to look like a label is still long
   enough to assert something, so the engine derives it from the kind of
   evidence in the group.
-* **Next questions** -- questions rather than assertions, and filtered for
+* **Next questions**: questions rather than assertions, and filtered for
   numbers and causal phrasing so one cannot smuggle in a conclusion.
 
 Limitations are engine-owned. The model is not asked for them at all.
@@ -199,7 +199,7 @@ def _assemble(
 #:
 #: It used to be the first few findings' sentences joined together, which
 #: printed each of them again under Key findings and a third time in its
-#: section. Anything generated here -- even a count -- is prose the
+#: section. Anything generated here, even a count, is prose the
 #: publication gate cannot check, so the summary describes the document
 #: rather than the dataset and every factual sentence lives in exactly one
 #: place.

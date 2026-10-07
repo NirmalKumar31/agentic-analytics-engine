@@ -54,7 +54,7 @@ class RunRecord:
     result: RunResult | None = None
     error: str | None = None
 
-    #: Set when a run was stopped because its dataset went away -- deleted,
+    #: Set when a run was stopped because its dataset went away, whether deleted,
     #: replaced, or expired. Distinct from `failed`: nothing went wrong with
     #: the analysis, the thing it was analysing was withdrawn, and a reader
     #: should not be told the engine broke.

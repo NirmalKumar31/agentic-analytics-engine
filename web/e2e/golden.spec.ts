@@ -28,9 +28,9 @@ import {
  *
  * Six widths, because each one breaks something different: 360 and 390
  * are phones, 768 a tablet, 1024 a small laptop, 1440 and 1920 desktops.
- * The assertions are properties rather than pixel baselines -- a chart
+ * The assertions are properties rather than pixel baselines, so a chart
  * occupies most of its container, nothing overflows the page, the answer
- * precedes the technical detail -- so they survive a copy change that a
+ * precedes the technical detail, so they survive a copy change that a
  * screenshot baseline would not.
  */
 
@@ -86,7 +86,7 @@ test.describe("the report at every supported width", () => {
     //
     // A test per breakpoint opened a demo session each, and the server
     // keeps a bounded pool of them: later tests found no dataset, so no
-    // report, so no chart -- the same bounded-resource failure that made
+    // report, so no chart: the same bounded-resource failure that made
     // this suite silently skip before the guard was added.
     //
     // Resizing an existing report is also the stronger test: it exercises
@@ -226,8 +226,8 @@ test.describe("touch targets on a phone", () => {
     // rather than a link inside a sentence. The inline privacy disclosure
     // is exempt under WCAG 2.2 SC 2.5.8; this one is not.
     //
-    // It is inside the evidence drawer now, which is where a phone meets it
-    // -- and a drawer is exactly where a cramped target hurts most.
+    // It is inside the evidence drawer now, which is where a phone meets it,
+    // and a drawer is exactly where a cramped target hurts most.
     // On the shared upload rather than the demo warehouse, and replayed:
     // the size of a hit area does not depend on which dataset produced the
     // report behind it, so this does not need an admission of its own.
@@ -338,8 +338,8 @@ test.describe("touch targets on a phone", () => {
         // or inside a `<details>` the author declared inline.
         //
         // The second is not redundant. `<details>` is not permitted
-        // content for `<p>`, so the privacy disclosure -- the control
-        // this exemption was written for -- can never have a `p`
+        // content for `<p>`, so the privacy disclosure (the control
+        // this exemption was written for) can never have a `p`
         // ancestor, and the prose sniff structurally cannot see it. See
         // `touchTargets.ts`; `responsive.css` exempts the same class.
         //

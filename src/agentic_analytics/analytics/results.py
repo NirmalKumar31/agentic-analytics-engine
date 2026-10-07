@@ -105,11 +105,11 @@ class GroupCoverage(BaseModel):
     separately and a reader-facing claim is computed from them, never
     guessed:
 
-    * ``query_limit`` -- the LIMIT the engine put in the SQL.
-    * transport truncation -- ``ResultSnapshot.truncated``, unchanged.
-    * a UI preview cap -- the frontend's business, and never allowed to
+    * ``query_limit``: the LIMIT the engine put in the SQL.
+    * transport truncation: ``ResultSnapshot.truncated``, unchanged.
+    * a UI preview cap: the frontend's business, and never allowed to
       change any number here.
-    * ``complete`` -- whether every group the question asked for is present.
+    * ``complete``: whether every group the question asked for is present.
     """
 
     #: Whether every requested group is in this result.
@@ -189,14 +189,14 @@ class ResultSnapshot(BaseModel):
     # and the reconciliation flag to say anything about it.
     decomposition: dict[str, Any] | None = None
     #: Set for an uploaded dataset when model inference is remote. Redaction
-    #: happens in `compact()` -- the one representation handed to an agent --
+    #: happens in `compact()`, the one representation handed to an agent,
     #: rather than at each call site, so a new agent role cannot forget it.
     #: The stored snapshot keeps every value: the visitor sees their own
     #: file in full, and numeric verification still checks against the truth.
     withhold_cells: bool = False
     #: Declared type per column, as the engine produced it. Present so a
-    #: cell holding numeric text can be read as a number when -- and only
-    #: when -- the column it came from is numeric. Absent on artifacts
+    #: cell holding numeric text can be read as a number when, and only
+    #: when the column it came from is numeric. Absent on artifacts
     #: written before this field existed, which read as "nothing declared"
     #: and therefore as "no coercion", the safe direction.
     column_types: dict[str, str] = Field(default_factory=dict)
@@ -208,7 +208,7 @@ class ResultSnapshot(BaseModel):
     #: names the engine's own output.
     column_lineage: dict[str, dict[str, str]] = Field(default_factory=dict)
     #: Present for a grouped aggregate. Absent means "this result is not a
-    #: grouped answer", never "it is complete" -- a caller must not read a
+    #: grouped answer", never "it is complete". A caller must not read a
     #: missing value as a completeness guarantee.
     group_coverage: GroupCoverage | None = None
 

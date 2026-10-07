@@ -7,14 +7,14 @@
  *   "refund_amount rose from 49,863 in 2025-10-01 to 92,372 in 2025-11-01"
  *
  * while the finding that compared `return_rate` across `customer_segment` --
- * the question, answered, verified and published -- was second. Nothing was
+ * the question, answered, verified and published, was second. Nothing was
  * wrong with either finding. The report simply promoted whichever one the
  * planner happened to emit first.
  *
  * The cause: `directAnswer` only recognises a finding citing a result from a
  * tool that executed an accepted contract, and a contract is only accepted
- * for uploaded data. On the governed warehouse -- which is what the public
- * deployment serves -- it always declines, and the fallback was
+ * for uploaded data. On the governed warehouse, which is what the public
+ * deployment serves. It always declines, and the fallback was
  * `findings[0]`. Task ordering had become editorial ranking.
  *
  * These fixtures are the shape of that run: a refund trend first, a segment
@@ -132,8 +132,8 @@ describe("the headline", () => {
 
   it("says so when no published finding is about the measure asked for", () => {
     const { finding: answer, onTopic } = rankedAnswer([REFUND, CHISQ], RESULTS, ASKED);
-    // The finding is still surfaced -- withholding a verified fact would be
-    // a second mistake -- but it is not presented as the answer.
+    // The finding is still surfaced, because withholding a verified fact would be
+    // a second mistake, but it is not presented as the answer.
     expect(answer).not.toBeNull();
     expect(onTopic).toBe(false);
   });

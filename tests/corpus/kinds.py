@@ -90,7 +90,7 @@ class Family(StrEnum):
     BOUNDARY_SIZED = "boundary_sized"
     #: A row describes a *span*, not a point: a depth interval, a
     #: departure-to-arrival window. The bound columns read as numbers or
-    #: dates and are not measures -- "total from_depth_m" is meaningless,
+    #: dates and are not measures, so "total from_depth_m" is meaningless,
     #: and an average over an intensity needs weighting by the span it was
     #: measured over. No other family puts a range in the grain.
     INTERVAL_GRAINED = "interval_grained_rows"

@@ -256,7 +256,7 @@ class TestNoInternalFormInAReaderString:
 # to it. That leaves the question nothing was asking: does
 # `display_fields_for` actually *look the derivation up*?
 #
-# It did not, and a mutation proved the gap -- replacing the lookup in
+# It did not, and a mutation proved the gap: replacing the lookup in
 # `build.py` with `derivation = None` reintroduced the whole defect and
 # every test above still passed, because each of them supplies the
 # derivation itself. The committed recordings did not catch it either:

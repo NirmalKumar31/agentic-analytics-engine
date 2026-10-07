@@ -3,7 +3,7 @@
  *
  * Contour lines and a few coordinate ticks: the same geometry as the product
  * mark, at page scale. It exists so a mostly-empty first screen reads as
- * composed rather than unfinished, and it appears **only here** -- never
+ * composed rather than unfinished, and it appears **only here**, never
  * behind a report, where anything decorative competes with the one thing on
  * the page that matters.
  *

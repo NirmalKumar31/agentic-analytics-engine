@@ -69,9 +69,9 @@ export default defineConfig({
   /*
    * No retries, anywhere.
    *
-   * CI used to retry once. That cannot rescue a run -- the report guard
+   * CI used to retry once. That cannot rescue a run, because the report guard
    * refuses a flaky result outright, because a test that passes only on
-   * retry has not demonstrated what it asserts -- so the retry could never
+   * retry has not demonstrated what it asserts, so the retry could never
    * turn the job green. What it could do is spend the budget again: every
    * retried test re-uploads its dataset and re-runs its analyses, against a
    * container that allows 200 analyses and 200 uploads per IP per hour for

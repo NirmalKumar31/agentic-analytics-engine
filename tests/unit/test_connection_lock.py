@@ -130,7 +130,7 @@ def test_every_connection_use_goes_through_the_bounded_helper() -> None:
     from pathlib import Path
 
     root = Path(__file__).resolve().parents[2] / "src" / "agentic_analytics"
-    # The code form, with its colon -- prose about the pattern is fine.
+    # The code form, with its colon; prose about the pattern is fine.
     offenders = [
         path.relative_to(root).as_posix()
         for path in root.rglob("*.py")

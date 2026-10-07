@@ -109,11 +109,11 @@ class QuestionOutcome:
     planner_tasks_after_cleanup: int = 0
     tasks_redirected_by_engine: int = 0
     #: Metric tasks the planner left without a metric name. Executable --
-    #: the worker has the catalogue -- but worth counting, because it is the
+    #: the worker has the catalogue, but worth counting, because it is the
     #: planner leaving a field the schema asks for.
     tasks_without_a_named_metric: int = 0
     #: Verified claims suppressed because an identical sentence was already
-    #: published. Not a verification rejection -- these passed every gate --
+    #: published. Not a verification rejection. These passed every gate --
     #: so they are counted apart from `withheld_findings`.
     duplicate_published_findings_removed: int = 0
     redirect_reasons: list[str] = field(default_factory=list)
@@ -243,8 +243,8 @@ def _observe(
     # --- every claim, published or withheld, for human review.
     #
     # A withheld claim used to be stored with an empty text, which made the
-    # most interesting artifact in the run -- the thing a model said that
-    # the evidence did not support -- impossible to review. The candidate
+    # most interesting artifact in the run (the thing a model said that
+    # the evidence did not support) impossible to review. The candidate
     # is recovered from the task outcomes by id. Synthetic data, so finding
     # text is safe to keep; raw rows and prompts are not stored anywhere.
     candidates = {finding.finding_id: finding for task in result.tasks for finding in task.findings}
@@ -289,7 +289,7 @@ def _observe(
             # What the cited cells actually hold, resolved by the engine.
             # Reviewing a claim means comparing its wording to the numbers
             # it rests on, and `EvidenceCell.value` is usually unset because
-            # a model rarely echoes it -- so without this a reviewer has the
+            # a model rarely echoes it, so without this a reviewer has the
             # claim and no way to check it short of re-running the whole
             # evaluation.
             "resolved_cells": _resolve_cells(
@@ -522,7 +522,7 @@ async def evaluate_question(
 #: `question_key` is deliberately stable: a checkpoint has to recognise the
 #: same question across invocations. The ledger was handed that same string
 #: as its run id, which conflated two different identities. Asking the same
-#: question twice then consumed one run slot rather than two -- `admit_run`
+#: question twice then consumed one run slot rather than two, because `admit_run`
 #: is idempotent per run id and correctly reported `already_admitted` --
 #: and both invocations accumulated against one per-run cost cap. A paid
 #: re-run must be a new run.
@@ -560,7 +560,7 @@ def environment_fingerprint(cfg: Settings) -> dict[str, Any]:
         "think": cfg.ollama_think if cfg.provider_mode == "local" else None,
         # What was actually sent. A hardcoded `temperature: 0.0` used to
         # sit here and was never sent to the cloud provider at all --
-        # sampling fields are refused by the transport -- so the artifact
+        # sampling fields are refused by the transport, so the artifact
         # asserted a setting that was not in effect. A record that states
         # a configuration nobody applied is worse than one that omits it.
         "sampling_fields_sent": "none",

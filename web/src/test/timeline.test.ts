@@ -198,7 +198,7 @@ describe("a refusal, as the engine actually emits it", () => {
     const stages = timelineOf(refusal());
     const stopped = stages.filter((stage) => stage.state === "stopped");
     expect(stopped).toHaveLength(1);
-    // Compute. The contract resolved -- `contract_resolved` fired -- and
+    // Compute. The contract resolved, so `contract_resolved` fired, and
     // the failure came when the engine tried to turn that contract into an
     // executable task, which is what `analysis_task_failed` reports.
     expect(stopped[0]!.id).toBe("compute");

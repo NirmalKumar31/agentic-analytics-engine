@@ -23,13 +23,13 @@ import { ask, inDrawer, onCanvas, openApp, waitForReport } from "./helpers";
  *
  * Scoped to serious and critical violations. Minor and moderate findings
  * are real but are frequently stylistic or advisory, and a gate that
- * fails on them gets disabled within a week -- at which point it protects
+ * fails on them gets disabled within a week, at which point it protects
  * nothing. Starting strict on the two severities that block a user, and
  * tightening later, is the version that survives.
  *
  * Nothing here is excluded to make the scan pass. If a rule ever has to
  * be, the exclusion names the rule, names the element, says why, and is
- * recorded in LIMITATIONS with a follow-up -- because a silent exclusion
+ * recorded in LIMITATIONS with a follow-up, because a silent exclusion
  * is indistinguishable from a bug.
  */
 
@@ -115,7 +115,7 @@ test.describe("accessibility", () => {
     // schema sheet open over it. The sheet is where the field table lives,
     // which is the part most likely to have a contrast or
     // header-association problem, and it is not in the document at all
-    // until a reader asks for it -- so a single scan of the default screen
+    // until a reader asks for it, so a single scan of the default screen
     // would never see it.
     await expect(page.getByTestId("composer")).toBeVisible();
     await scan(page, "profiled upload, schema closed");
@@ -137,8 +137,8 @@ test.describe("accessibility", () => {
     /*
      * Through `reportFor`, which admits it once and remembers the payload.
      *
-     * A refusal is as real a result as an answer -- the engine classified
-     * it -- and the dark-mode scan below needs the same refused DOM in the
+     * A refusal is as real a result as an answer. The engine classified
+     * it, and the dark-mode scan below needs the same refused DOM in the
      * other palette. Captured here, replayed there, one admission between
      * them.
      */
@@ -160,7 +160,7 @@ test.describe("accessibility", () => {
      *
      * In fake mode a run finishes in well under a second, so the window is
      * held open by delaying the status poll rather than by racing it. The
-     * responses are the server's own -- nothing is fabricated; they simply
+     * responses are the server's own. Nothing is fabricated; they simply
      * arrive late, which is what a slow run looks like to the page.
      *
      * `onCanvas`, because the print appendix holds a hidden copy of the
@@ -184,7 +184,7 @@ test.describe("accessibility", () => {
      * in flight when the test ended, so the next test found a composer
      * that was *visible and disabled*. `fill()` waits for actionability,
      * so it waited out the whole two-minute test timeout and then
-     * reported "Target page, context or browser has been closed" -- which
+     * reported "Target page, context or browser has been closed", which
      * is the teardown, not the cause. The failure was in this test and
      * was reported against the one after it.
      */
@@ -194,7 +194,7 @@ test.describe("accessibility", () => {
       await expect(onCanvas(page, '[data-testid="run-timeline"]')).toBeVisible();
 
       /*
-       * And while it runs there is no composer at all -- which is the
+       * And while it runs there is no composer at all, which is the
        * mechanism behind the failure this test used to cause in the test
        * after it.
        *
@@ -205,7 +205,7 @@ test.describe("accessibility", () => {
        * own. That is the two-minute hang: Playwright then tears the
        * context down and reports "Target page, context or browser has
        * been closed", which reads as though a sibling test had closed the
-       * shared page. It had not -- every test after the failure kept
+       * shared page. It had not, and every test after the failure kept
        * using the same session and passed in a few seconds each.
        *
        * The window is small (the previous run's last poll, arriving after
@@ -275,7 +275,7 @@ test.describe("accessibility", () => {
      *
      * This file used to install its own `/api/config` override and its own
      * `/api/comparisons` handler, the second of which issued the real
-     * deterministic run with `route.fetch` -- a request the traffic
+     * deterministic run with `route.fetch`, a request the traffic
      * recorder cannot see, because `route.fetch` produces no page event.
      * The comparison it answered was counted instead, which happened to
      * give the right total and the wrong reason, and the duplicated setup
@@ -285,7 +285,7 @@ test.describe("accessibility", () => {
      * request is actually made, and it remembers the settled payload, so
      * the first comparison of a question in the job is real and this one
      * replays it. The AI side is mutated into a refusal, which is the
-     * surface this scan exists for -- a state card for a refused lane,
+     * surface this scan exists for: a state card for a refused lane,
      * beside a finished one.
      */
     await advertiseAi(page);
@@ -317,8 +317,8 @@ test.describe("accessibility", () => {
   }) => {
     // Every scan above runs in the default colour scheme, which on CI is
     // light. So the dark palette was never scanned, and a token left
-    // undefined in the dark block -- which inherits the light value rather
-    // than being absent -- went unnoticed: #855c17 ochre on a near-black
+    // undefined in the dark block, which inherits the light value rather
+    // than being absent, went unnoticed: #855c17 ochre on a near-black
     // surface at 2.92:1, carried by a warning notice, an ambiguous-field
     // tag and a stopped workflow step.
     //
@@ -332,17 +332,17 @@ test.describe("accessibility", () => {
     // `emulateMedia({ colorScheme: "dark" })` changes nothing. The first
     // version of this test did exactly that, scanned the light palette, and
     // passed while the dark-mode defect it was written for was still
-    // present -- confirmed by removing the fix and watching this test stay
+    // present, confirmed by removing the fix and watching this test stay
     // green.
     // Reset first: the previous scan leaves the evidence drawer open, and a
-    // side sheet puts a scrim over the header -- the theme toggle is then
+    // side sheet puts a scrim over the header, so the theme toggle is then
     // visible, enabled and un-clickable, which Playwright reports as a
     // timeout pointing at a button that is plainly there.
     /*
      * Both states replayed, in the dark palette.
      *
      * axe reads the live accessibility tree and composites the real
-     * colours, so what it needs is a rendered page -- not a run the engine
+     * colours, so what it needs is a rendered page, not a run the engine
      * performed for the second time. The refusal and the report were both
      * already admitted by the two tests above; this asserts the same two
      * DOMs under the other palette, which is a presentation difference and
@@ -487,7 +487,7 @@ test.describe("keyboard operation", () => {
 
     // On the canvas. The first `details` in the *document* is the planning
     // audit inside the print appendix, which is `hidden` and therefore not
-    // focusable -- the test would be asserting that a keyboard user can
+    // focusable, so the test would be asserting that a keyboard user can
     // operate a control no keyboard user can reach.
     const details = onCanvas(page, "details").first();
     if ((await details.count()) === 0) return;
@@ -517,7 +517,7 @@ test.describe("keyboard operation", () => {
     // they left it. It also has to be exercised this way to be portable.
     // WebKit does not focus a button on click, so a click-opened drawer
     // captures `document.activeElement` as `<body>` and "restoring" it is
-    // a no-op -- the test failed on WebKit while the behaviour was
+    // a no-op. The test failed on WebKit while the behaviour was
     // correct, because a mouse user never had focus on the opener to
     // return to.
     await opener.focus();

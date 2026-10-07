@@ -1,5 +1,5 @@
 /**
- * How this analysis ran — on the report, under the answer.
+ * How this analysis ran, on the report and under the answer.
  *
  * This replaces the canvas summary, which was six unlabelled dots, a line
  * of counts and a control. The counts were true and the dots were honestly
@@ -15,16 +15,16 @@
  * a diagram does not replace it.
  *
  * **What is deliberately still not here.** The evidence sheet's graph
- * carries the engine's unedited text -- a stopped stage's reason, a failed
- * call's error -- and that was the stated reason an earlier attempt to put
+ * carries the engine's unedited text: a stopped stage's reason, a failed
+ * call's error, and that was the stated reason an earlier attempt to put
  * the graph on the canvas was refused by two tests. It is still the rule.
  * `lib/flowchart.ts` sanitises both, the canvas says "stopped here" and
  * points at the evidence, and the engine's exact words stay one control
- * away where an auditor wants them. The per-call *audit* rows -- arguments,
- * durations, the agent that reached for the tool -- stay there too.
+ * away where an auditor wants them. The per-call *audit* rows (arguments,
+ * durations, the agent that reached for the tool) stay there too.
  *
  * **On a Compare report.** One of these per strategy, under "How each
- * strategy got there", headed by the strategy name -- see the `strategy`
+ * strategy got there", headed by the strategy name. See the `strategy`
  * prop. Not merged into a single annotated spine: a merged diagram would
  * draw a run neither strategy made.
  *
@@ -52,7 +52,7 @@ export function RunFlowchart({
    * Which strategy this diagram belongs to, on a Compare report.
    *
    * A Compare draws one of these per strategy, under the section that
-   * already asks "How each strategy got there" -- so the heading here
+   * already asks "How each strategy got there", so the heading here
    * names the strategy instead of repeating the question, and drops a
    * level to sit under that one. Two sections both headed "How this
    * analysis ran" would be two headings a reader cannot tell apart, in

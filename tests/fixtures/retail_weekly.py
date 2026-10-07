@@ -4,7 +4,7 @@ Derived, not redistributed: the real evidence file is third-party data and
 is not in this repository. What is reproduced here is every property that
 mattered, because each one defeated a different assumption in the tests:
 
-* more than 25 groups -- 45 of them, past the old `GROUP_LIMIT`;
+* more than 25 groups: 45 of them, past the old `GROUP_LIMIT`;
 * a numeric grouping key whose values recur across many rows, which the
   classifier read as a measure and averaged;
 * case-preserving underscore headers, which the result aliaser lowercases;

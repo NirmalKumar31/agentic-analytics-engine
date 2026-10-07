@@ -15,7 +15,7 @@
  *
  * **There is deliberately no completion fraction.** A percentage needs a
  * denominator, and the number of tool calls a run will make is not known
- * until it has made them -- the planner decides, and a follow-up round can
+ * until it has made them. The planner decides, and a follow-up round can
  * add more. Any bar would be either a guess or a timer, and a bar that
  * advances on a timer is indistinguishable from one that advances because
  * work was done. That is the single claim this product cannot afford to

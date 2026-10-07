@@ -3,7 +3,7 @@
  *
  * What was here was a `<section class="panel">` headed **ASK**, containing a
  * strategy selector, a planning disclosure, a three-row textarea, a run
- * button and a flat list of example questions -- six stacked things of
+ * button and a flat list of example questions: six stacked things of
  * roughly equal weight, inside a bordered box, under a stepper.
  *
  * The composer is the one interaction on this screen, so it is the one
@@ -13,7 +13,7 @@
  * control sits beside the run button because it modifies that action.
  *
  * Suggestions are grouped by what they ask for, which is how a reader
- * chooses one -- "I want a trend" rather than "I want the second item".
+ * chooses one: "I want a trend" rather than "I want the second item".
  */
 
 import { ModeSelector, RUN_LABELS } from "./ModeSelector";
@@ -52,7 +52,7 @@ export function QuestionComposer({
    *
    * This offered `config.demo_questions` unconditionally, so someone who
    * had just uploaded their own file was given three questions about the
-   * demo warehouse's gross margin -- naming columns their file does not
+   * demo warehouse's gross margin, naming columns their file does not
    * contain. Clicking one produced a refusal, which read as the engine
    * failing rather than the suggestion being wrong.
    *

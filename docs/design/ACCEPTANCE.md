@@ -1,4 +1,4 @@
-# Visual acceptance — `feat/visual-redesign`
+# Visual acceptance: `feat/visual-redesign`
 
 **Historical implementation record.** This document reconciles the original
 redesign branch. Later interaction, presentation and hosted-acceptance work is
@@ -23,24 +23,24 @@ Every number here came from a run. Nothing is estimated.
 
 | # | Requirement | Proved by |
 |---|---|---|
-| 1 | Answer and context above the first viewport break at 360 and 390 | `visualReview.spec.ts` — `report-{phone-small,phone}-{light,dark}` measure the answer's box against the viewport height |
-| 2 | Chart bounding box ≥ 90% of content width at each of the six widths | `golden.spec.ts` — `fractionOfContainer` at all six. The threshold was `> 0.8` and is tightened here to the brief's 0.9: measured, it is 90% at phone-small and 98% at the other five, in all three engines |
+| 1 | Answer and context above the first viewport break at 360 and 390 | `visualReview.spec.ts`: `report-{phone-small,phone}-{light,dark}` measure the answer's box against the viewport height |
+| 2 | Chart bounding box ≥ 90% of content width at each of the six widths | `golden.spec.ts`: `fractionOfContainer` at all six. The threshold was `> 0.8` and is tightened here to the brief's 0.9: measured, it is 90% at phone-small and 98% at the other five, in all three engines |
 | 3 | `scrollWidth - clientWidth ≤ 1` in every state | `visualReview.spec.ts` (40 cells), `landing.spec.ts`, `golden.spec.ts`, `terminalStates.spec.ts`, `informationArchitecture.spec.ts` |
 | 4 | Table contained: scrolls within its own wrapper, never the page | `report.spec.ts`, and requirement 3 above is what would fail if it escaped |
-| 5 | Exactly one finding expanded on arrival at mobile widths | **Withdrawn — see D4.** The presentation contract publishes at most two highlights, so the fold's threshold of three was unreachable. `highlightsAreNotFolded.test.tsx` pins the cap and that every published highlight is on screen at 390px |
-| 6 | No resident technical material on the default report canvas | `visualReview.spec.ts` (every cell), `terminalStates.spec.ts`, `evidence.spec.ts`, `informationArchitecture.test.tsx` — all via `onCanvas`, which excludes the hidden print appendix |
+| 5 | Exactly one finding expanded on arrival at mobile widths | **Withdrawn, see D4.** The presentation contract publishes at most two highlights, so the fold's threshold of three was unreachable. `highlightsAreNotFolded.test.tsx` pins the cap and that every published highlight is on screen at 390px |
+| 6 | No resident technical material on the default report canvas | `visualReview.spec.ts` (every cell), `terminalStates.spec.ts`, `evidence.spec.ts`, `informationArchitecture.test.tsx`, all via `onCanvas`, which excludes the hidden print appendix |
 | 7 | No duplicated panel heading text in one view | `evidence.spec.ts` "no heading appears twice"; `printAppendix.test.tsx` "names each region once, not three times" |
 | 8 | Evidence drawer traps focus; Escape closes and returns focus | `accessibility.spec.ts` "the provenance drawer restores focus and closes on Escape" and "tabbing does not trap"; `components.test.tsx` for the focus-restore unit behaviour |
-| 9 | Compare matrix readable at 390px | `visualReview.spec.ts` — `compare-phone-{light,dark}`; `compare.spec.ts` |
-| 10 | `prefers-reduced-motion` honoured by every effect in the storyboard | `motion.spec.ts` — 12 tests, measured with `document.getAnimations()` rather than against a selector list |
-| 11 | axe on landing, upload, active run, report, compare, refusal, no-findings, evidence-open, mobile | `accessibility.spec.ts` — nine scans, plus a dark-mode scan the brief does not ask for |
+| 9 | Compare matrix readable at 390px | `visualReview.spec.ts`: `compare-phone-{light,dark}`; `compare.spec.ts` |
+| 10 | `prefers-reduced-motion` honoured by every effect in the storyboard | `motion.spec.ts`: 12 tests, measured with `document.getAnimations()` rather than against a selector list |
+| 11 | axe on landing, upload, active run, report, compare, refusal, no-findings, evidence-open, mobile | `accessibility.spec.ts`: nine scans, plus a dark-mode scan the brief does not ask for |
 | 12 | Chromium, Firefox and WebKit under the reconciling guard | `scripts/check-playwright-skips.mjs`, run per engine with an explicit allowed-skip count |
 | 13 | Bundle delta measured; Vega stays lazy-loaded | `scripts/check-bundle.mjs` (built output, CI step after the build) and `lazyVega.test.ts` (source) |
 | 14 | One terminal state per run, six separate tests | `terminalStates.test.tsx`, `terminalStates.spec.ts` |
-| 15 | No failure vocabulary on a `completed` state | `terminalStates.test.tsx` "a completed run never wears failure language" — all four words, with a control asserting a run that *did* fail still names itself. This existed only as a single `/failed/i` check in one browser test |
+| 15 | No failure vocabulary on a `completed` state | `terminalStates.test.tsx` "a completed run never wears failure language", covering all four words, with a control asserting a run that *did* fail still names itself. This existed only as a single `/failed/i` check in one browser test |
 | 16 | Compare renders one evidence trigger; tabs issue no request | `compare.spec.ts` "is one control, with a tab per strategy" / "switching tabs changes the panel and issues no request" |
-| 17 | On divergence, the structured diff's caption equals its table | `contractDiff.test.tsx` — 17 cases, two of which read the caption's numbers back out of the DOM and compare them with the rendered rows |
-| 18 | The design-package consistency audit runs green | `docs/design/generators/audit_mockups.py` — 346 checks |
+| 17 | On divergence, the structured diff's caption equals its table | `contractDiff.test.tsx`: 17 cases, two of which read the caption's numbers back out of the DOM and compare them with the rendered rows |
+| 18 | The design-package consistency audit runs green | `docs/design/generators/audit_mockups.py`: 346 checks |
 
 ## 2. The comparative measures, re-measured
 
@@ -58,7 +58,7 @@ browser reports on a real report at 1440px, not counts of CSS rules:
 
 "Rounded container" is counted as a visible element with a non-zero border
 radius *and* a border or background, excluding anything whose radius makes it
-a circle or a pill — a status dot is deliberately round and is not a
+a circle or a pill. A status dot is deliberately round and is not a
 container. `visualReview.spec.ts` holds the ceiling at 12 on every cell.
 
 ## 3. Bundle
@@ -78,23 +78,23 @@ panels. The application code shrank, because ten components were deleted and
 their replacements are smaller. Vega's content hash is unchanged across the
 two builds and it is still behind a dynamic `import()`.
 
-## 4. Deviations from the approved mockups — and what was done
+## 4. Deviations from the approved mockups, and what was done
 
 These were found by comparing rendered screens against
 `docs/design/mockups/`. All six were acted on. Two are closed in part, and
 this says exactly which part.
 
-**D1 — Chart x-axis labels rotated 90° on uploaded datasets. Fixed.**
+**D1. Chart x-axis labels rotated 90° on uploaded datasets. Fixed.**
 The mockup shows horizontal labels. The engine's bar specification sets no
 `labelAngle`, so Vega applied its own default and turned every label
-vertical — four short words at 1920px read sideways — while the
+vertical (four short words at 1920px read sideways) while the
 demo-warehouse specifications set `-30` and looked as intended. The product
 was rotating labels two different ways depending on which path drew the
 chart.
 
 The angle is now decided from the labels: flat for eight or fewer
 categories of twelve characters or less, `-30` otherwise. The two failures
-are opposite — flat labels on 33 categories collide, and Vega resolves a
+are opposite: flat labels on 33 categories collide, and Vega resolves a
 collision by *dropping* labels, so a chart that silently loses most of its
 axis is worse than one read at an angle. It is applied through
 `config.axisX`, which a specification's own `axis.labelAngle` overrides, so
@@ -102,11 +102,11 @@ the specifications that already made this decision keep it.
 `axisLabels.test.ts` covers the rule; `chart.spec.ts` covers that it reaches
 the rendered SVG.
 
-**D2 — The provenance stamp is back on the report footer. Fixed.**
+**D2. The provenance stamp is back on the report footer. Fixed.**
 `contract a7c31a · sha 5913f6e · 21 ms`, beside the one control, and it
 prints. The earlier reading was that requirement 6 forbids anything
-technical on the canvas; that requirement names the panels it is about —
-the activity log, the stage list, the planning audit, the DAG — and this is
+technical on the canvas; that requirement names the panels it is about
+(the activity log, the stage list, the planning audit, the DAG) and this is
 none of them. It is the identity of what produced the numbers, in the same
 register as the dataset strip that names the file, and it is three facts
 rather than four so that it answers "can I refer to this run later" without
@@ -115,8 +115,8 @@ beginning to explain the run.
 It renders nothing rather than a row of placeholders: a stamp reading
 `contract — · sha — · — ms` looks like a record and holds none.
 
-**D3 — Chart header: the title is fixed, the rest is declined.**
-The title was 13px/500 in `--ink-secondary` — a grey whisper over the
+**D3. Chart header: the title is fixed, the rest is declined.**
+The title was 13px/500 in `--ink-secondary`, a grey whisper over the
 element a reader is most likely to screenshot. It is now a `<figcaption>`
 at semibold in `--ink-primary`. `<figcaption>` rather than the `<h4>` it
 was, because the document's headings run h1, h2: the h4 was a skipped level
@@ -136,11 +136,11 @@ Two parts of the mockup's header are deliberately not implemented:
     links on a single short column, which is the chrome this redesign
     removes.
 
-**D4 — One finding expanded on arrival at phone widths. Built, then withdrawn.**
+**D4. One finding expanded on arrival at phone widths. Built, then withdrawn.**
 The fold shipped first: below 640px, with more than three findings, the
 first was shown and the rest collapsed into a `<details>` labelled "n more
 findings". The threshold was never reachable. The presentation contract
-emits at most two highlights for any shape it builds — highest and lowest —
+emits at most two highlights for any shape it builds, highest and lowest,
 so nothing the engine publishes has three.
 
 It looked alive only because the recordings of the time carried no
@@ -152,13 +152,13 @@ Keeping it would have left dead markup, a dead constant, a dead media query
 and a disclosure a keyboard user could reach and nobody could explain, so
 it was removed. `highlightsAreNotFolded.test.tsx` asserts the cap over
 payloads the pipeline actually produced: if the contract starts emitting
-more, it fails and says so, which is the signal to build the fold again —
+more, it fails and says so, which is the signal to build the fold again,
 in that order. Raise the cap, produce a recording that reaches it, then
 build the fold.
 
-**D5 — Chart marks are outlined in print. The fills are still the embedding
+**D5. Chart marks are outlined in print. The fills are still the embedding
 theme's.**
-A chart embedded while the screen was dark printed `#54becc` on white —
+A chart embedded while the screen was dark printed `#54becc` on white,
 about 2:1, which does not meet WCAG 1.4.11, because the bar's boundary
 against the page is not discernible. Neither obvious repair works:
 restating the fill in CSS would collapse a multi-series chart to one
@@ -178,11 +178,11 @@ not the light ramp. Making it so means the chart resolving its palette for
 the medium it is drawn in, which is a change to how `Chart.tsx` embeds
 rather than to how it prints.
 
-**D6 — Compare's diff now carries a counted caption. Fixed.**
+**D6. Compare's diff now carries a counted caption. Fixed.**
 "n of m compared contract fields differ; the rest are identical", where `n`
 is the array the rows are mapped from and `m` is `COMPARED_FIELD_COUNT`,
 the length of the list those rows were selected out of. Neither number is
-written beside the table, so neither can drift from it — which is the
+written beside the table, so neither can drift from it, which is the
 failure the requirement was guarding against. `contractDiff.test.tsx` reads
 both numbers back out of the rendered caption and compares them with the
 rendered rows.
@@ -194,13 +194,13 @@ rendered artefact.
 
 | Found in | Defect |
 |---|---|
-| Dark-mode screenshot | Vega's `view.stroke` default `#ddd` drew a near-white rectangle around every plot on a `#0e1113` canvas — the brightest element on the report, in a colour from neither palette. Invisible in light, which is why it survived. Now tokenised, with `chart.spec.ts` asserting that **every** colour in a rendered chart resolves to a palette token |
+| Dark-mode screenshot | Vega's `view.stroke` default `#ddd` drew a near-white rectangle around every plot on a `#0e1113` canvas, the brightest element on the report, in a colour from neither palette. Invisible in light, which is why it survived. Now tokenised, with `chart.spec.ts` asserting that **every** colour in a rendered chart resolves to a palette token |
 | PDF page 2 | Every continuation page of a result table lost three of its four column names: the headers are `<button>` because the columns sort, and Chromium does not paint a form control inside a repeated header group |
-| PDF appendix | The activity trace printed as an empty bordered box — `animation: stream … both` from `opacity: 0`, restarted by the print layout |
+| PDF appendix | The activity trace printed as an empty bordered box, from `animation: stream … both` from `opacity: 0`, restarted by the print layout |
 | PDF appendix | The planning audit printed as a heading over nothing: Chromium lays a closed `<details>` out and skips painting it |
 | PDF, dark theme | The whole page printed on `#0e1113`: the dark palette is `:root[data-theme="dark"]`, one attribute more specific than the print reset's bare `:root` |
-| Phone screenshot | "Nothing was published. The full stop reason is in the evidence." — `stop_reason` is a field name; on screen it reads as a sentence about punctuation |
-| Writing D2's test | `PlanningAudit` called `humanize(contract.operation)` unguarded, and read `dimensions` and `filters` without a fallback. A contract missing any of them threw, React unmounted the subtree, and to a reader the evidence drawer closed itself — the same failure that once made the Compare drawer vanish on an unfinished strategy |
+| Phone screenshot | "Nothing was published. The full stop reason is in the evidence." `stop_reason` is a field name; on screen it reads as a sentence about punctuation |
+| Writing D2's test | `PlanningAudit` called `humanize(contract.operation)` unguarded, and read `dimensions` and `filters` without a fallback. A contract missing any of them threw, React unmounted the subtree, and to a reader the evidence drawer closed itself, the same failure that once made the Compare drawer vanish on an unfinished strategy |
 | The failure-vocabulary test's own control | A failed run said "Nothing partial has been kept." unconditionally, above the chart, the two highlights and the four-row table its payload still carried. The page contradicted itself in the one state where a reader most needs to trust it. The claim is now made only when it is true |
 
 ## 6. What is not implemented, stated plainly
@@ -215,7 +215,7 @@ described as finished.
   would have to be inferred from magnitudes, and a unit inferred wrongly is
   worse than none.
 - **Printed chart marks are outlined** for contrast, which meets WCAG
-  1.4.11 whatever the fill — but the *fills* keep whichever theme embedded
+  1.4.11 whatever the fill. The *fills* keep whichever theme embedded
   the chart, because Vega resolves `--series-*` at embed time and writes
   them inline. Re-embedding on `beforeprint` does not work: it is
   asynchronous and `page.pdf()` never fires the event.
@@ -230,8 +230,8 @@ described as finished.
 
 ## 7. What the browser suite costs, and how that is known
 
-The three engines share one container's ceilings — 24 live upload sessions,
-200 uploads per IP per hour, 200 analyses per IP per hour — and the first
+The three engines share one container's ceilings (24 live upload sessions,
+200 uploads per IP per hour, 200 analyses per IP per hour) and the first
 push of this branch exhausted all three.
 
 Accounting is taken at the HTTP boundary: every billed `POST` is recorded on

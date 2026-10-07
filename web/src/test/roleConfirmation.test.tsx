@@ -8,7 +8,7 @@
  *     aggregates a column;
  *   - a refusal leaves the prior server state on screen, because showing
  *     the attempted role would claim something the engine did not accept;
- *   - nothing is relabelled locally — the server's response is the session.
+ *   - nothing is relabelled locally; the server's response is the session.
  */
 
 import { render, screen, waitFor } from "@testing-library/react";
@@ -286,8 +286,8 @@ describe("the planning audit", () => {
 
     // Scoped to the column's own entry, not the section.
     //
-    // Asserting against the whole block matched the heading -- "Roles
-    // confirmed for this dataset session" -- so removing the source from
+    // Asserting against the whole block matched the heading: "Roles
+    // confirmed for this dataset session", so removing the source from
     // every entry left the test green. The claim is about what each line
     // says, so each line is what is read.
     const entry = evidence.querySelector("dd");
@@ -359,7 +359,7 @@ describe("what the page offers to ask next", () => {
   it("names a column the reader confirmed as a quantity", () => {
     // Confirming clears the additivity guess, so without the confirmed
     // branch this column matched nothing and the page stopped mentioning
-    // it -- a reader who answered the question got silence back.
+    // it, and a reader who answered the question got silence back.
     const reading = closeCall({
       role: "measure",
       additive: "unknown",
@@ -554,7 +554,7 @@ describe("what a confirmed field does to the offered questions", () => {
   it("orders by the schema, not by however the API listed the roles", () => {
     // The two coincide in every other fixture here, because the helper
     // derives the role lists from `fields`. They need not coincide in a
-    // real payload, and "schema order" is the claim -- so this builds a
+    // real payload, and "schema order" is the claim, so this builds a
     // summary whose `dimensions` array is in the opposite order and
     // asserts the schema still decides.
     const confirmedFirst = confirmedCategory("batch");

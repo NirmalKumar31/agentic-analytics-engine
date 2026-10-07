@@ -43,7 +43,7 @@ REQUIRED_TOP_LEVEL = (
     "metrics",
     # Version 4. A recording is replayed through the live report
     # components, so a key the API serves and the recording omits is a
-    # feature the replay loses without saying so -- silently, because the
+    # feature the replay loses without saying so, silently, because the
     # report still renders. Required by name for that reason.
     #
     # `presentation` is the one that mattered: without it a replayed report

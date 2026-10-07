@@ -260,7 +260,7 @@ def main(argv: list[str]) -> int:
     print(f"      memory, baseline:            {baseline}")
 
     # One cycle: fill the envelope, run two analyses, delete everything.
-    # Repeating it is how a bounded soak is done here -- the readings from
+    # Repeating it is how a bounded soak is done here, because the readings from
     # each cycle are printed for a human to compare, and nothing is
     # asserted about the trend, because three or ten cycles cannot tell an
     # allocator holding pages from a slow leak.

@@ -1,4 +1,4 @@
-# Motion and visual signature — storyboard
+# Motion and visual signature: storyboard
 
 **Historical design specification.** This storyboard guided the redesign; it
 is not a current acceptance report. Current production evidence is in
@@ -21,7 +21,7 @@ motion that makes a number harder to read while it moves.
 
 ---
 
-## 1 · Landing — the analytical field
+## 1 · Landing: the analytical field
 
 | | |
 |---|---|
@@ -29,7 +29,7 @@ motion that makes a number harder to read while it moves.
 | **Elements** | One SVG layer of 7 contour paths and 5 sparse coordinate marks, behind all content |
 | **Property** | `transform: translateX` on the contour group; `opacity` on the marks |
 | **Duration / easing** | 60s linear loop for drift; marks fade 2s `ease-in-out`, staggered |
-| **Stateful?** | Ambient, looping — the **only** looping effect in the product |
+| **Stateful?** | Ambient, looping; the **only** looping effect in the product |
 | **Reduced motion** | Field renders static. It is a texture, not information, so stillness loses nothing |
 | **Performance** | Pauses on `visibilitychange`; removed from the DOM once a dataset exists |
 
@@ -50,7 +50,7 @@ The field is landing-only. It does not appear behind a report, ever.
 **No scanning animation.** The file is not "analysed" theatrically; the profile
 either returned or it did not.
 
-## 3 · Active run — the illuminated trace
+## 3 · Active run: the illuminated trace
 
 | | |
 |---|---|
@@ -58,7 +58,7 @@ either returned or it did not.
 | **Elements** | Five stage nodes, four connectors |
 | **Property** | Connector `stroke-dashoffset` draws the trace; node `fill` and `transform: scale(1→1.08→1)` |
 | **Duration / easing** | Connector 400ms `ease-out`; node settle 180ms |
-| **Stateful?** | Stateful — each stage holds its state until the backend changes it. Motion **stops** when the run ends |
+| **Stateful?** | Stateful; each stage holds its state until the backend changes it. Motion **stops** when the run ends |
 | **Reduced motion** | Nodes change colour and label only; no travelling trace, no scale |
 | **Performance** | `stroke-dashoffset` is composited; no layout |
 
@@ -80,7 +80,7 @@ An AI interpretation node appears only when a model call actually occurred.
 Order is deliberate: **the answer settles before the chart draws**, because the
 answer is the thing being reported.
 
-## 5 · Compare — convergence into a verdict
+## 5 · Compare: convergence into a verdict
 
 | | |
 |---|---|
@@ -104,7 +104,7 @@ and must not state a false one.
 | **Elements** | Desktop: right edge sheet. Mobile: bottom sheet. Scrim over the canvas |
 | **Property** | `transform: translateX(100%→0)` desktop, `translateY(100%→0)` mobile; scrim `opacity` 0→.4 |
 | **Duration / easing** | 240ms in `cubic-bezier(.2,.8,.25,1)`, 180ms out |
-| **Stateful?** | Stateful — open or closed |
+| **Stateful?** | Stateful: open or closed |
 | **Reduced motion** | Appears and disappears instantly; scrim still renders |
 | **Performance** | `will-change: transform` only while animating, removed on completion |
 
@@ -117,7 +117,7 @@ and it is tested.
 page *brighter* behind the drawer in dark mode. Light `#121619` at .30, dark
 `#000000` at .62.
 
-## 6a · Evidence drawer — switching strategy tabs
+## 6a · Evidence drawer: switching strategy tabs
 
 Compare opens the same drawer with one tab per strategy, reached by a single
 **Inspect both traces** control.
@@ -128,9 +128,9 @@ Compare opens the same drawer with one tab per strategy, reached by a single
 | **Elements** | The active-tab underline; the trace panel below it |
 | **Property** | Underline `transform: translateX` + `width` to the new tab; panel `opacity` 0→1 |
 | **Duration / easing** | Underline 160ms `cubic-bezier(.2,.8,.25,1)`; panel 120ms `linear` |
-| **Stateful?** | Stateful — which tab is active |
+| **Stateful?** | Stateful: which tab is active |
 | **Reduced motion** | Underline jumps; panel swaps with no fade |
-| **Performance** | Both traces are already in memory. **Switching tabs issues no request and re-runs nothing** — the drawer is a view onto two finished runs |
+| **Performance** | Both traces are already in memory. **Switching tabs issues no request and re-runs nothing**; the drawer is a view onto two finished runs |
 
 The panel does not slide horizontally. A sliding panel implies the two traces
 are points on a continuum; they are two independent records of two independent
@@ -158,7 +158,7 @@ state into another.
 
 The accent rule's colour is the only thing that varies across the six states,
 and it is the only place severity is expressed. **The primary action keeps the
-signal colour in every state** — a recovery button drawn in the warning colour
+signal colour in every state**, so a recovery button drawn in the warning colour
 reads as the hazard rather than the exit from it.
 
 ## 8 · Theme transition
@@ -173,7 +173,7 @@ reads as the hazard rather than the exit from it.
 | **Reduced motion** | Instant swap |
 | **Performance** | Chart series re-read their tokens; no re-render of data |
 
-The chart ramp switches to its dark variant — both are already
+The chart ramp switches to its dark variant, and both are already
 dichromacy-verified.
 
 ---
@@ -190,7 +190,7 @@ three places: the landing background, the mark itself, and the run timeline's
 connectors. Nowhere else.
 
 **Typographic signature.** The headline answer is the only display-scale type
-in the product — 34px/700, sentence case, never truncated, never all-caps. One
+in the product: 34px/700, sentence case, never truncated, never all-caps. One
 per page. That single rule is what makes a report recognisable at a glance.
 
 **Chart annotation.** A hairline leader from the data point to a short bold

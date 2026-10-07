@@ -112,7 +112,7 @@ def test_every_rule_the_engine_can_emit_has_prose() -> None:
     #
     # Scanned independently of `known_rules`. An earlier version of this
     # filtered the scan *by* `known_rules`, which made it a subset by
-    # construction -- it could not report a rule that was missing from the
+    # construction. It could not report a rule that was missing from the
     # table, which is the only thing it exists to report.
     undescribed = _assigned_rules_in_source() - known_rules() - SUCCESS_ONLY_RULES
     assert not undescribed, (
@@ -144,7 +144,7 @@ SUCCESS_ONLY_RULES = frozenset({"engine_canonical", "passed"})
 
 
 def test_the_success_only_allowance_is_not_a_dumping_ground() -> None:
-    """Each entry must still be absent from the prose table -- otherwise
+    """Each entry must still be absent from the prose table, because otherwise
     it is described after all and the exemption is stale."""
     assert not (SUCCESS_ONLY_RULES & known_rules())
 

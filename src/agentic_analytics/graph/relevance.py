@@ -312,8 +312,8 @@ def score(
             # breakdown is real and correct and it is not what was asked.
             #
             # Only when the question declared dimensions at all. Where it
-            # declared none -- "do shipping delays affect repeat
-            # purchasing?" names no breakdown -- the planner chose the cut,
+            # declared none ("do shipping delays affect repeat
+            # purchasing?" names no breakdown) the planner chose the cut,
             # and penalising it would punish the planner for answering.
             total -= 2.0
 
@@ -325,21 +325,21 @@ def score(
     # chart bonus and the tool tie-break decided the headline. Asked "do
     # shipping delays appear to affect repeat purchasing?", five breakdowns
     # scored within half a point of each other and `customer_segment` won
-    # on 0.2 of tool ordering. `first_delivery_status` -- the delay cut,
-    # the one the question was about -- came third.
+    # on 0.2 of tool ordering. `first_delivery_status`, the delay cut and
+    # the one the question was about, came third.
     #
     # The signal was there and was not being read. The interpretation
     # declares `metrics = (repeat_purchase_rate, late_delivery_rate,
     # avg_delivery_days)`: the first is the subject being measured and the
     # rest are the companions it is being related to. A cut whose name
     # shares a subject word with a companion is how that relationship is
-    # expressed as a breakdown -- `first_delivery_status` shares `delivery`
+    # expressed as a breakdown. `first_delivery_status` shares `delivery`
     # with two of them, and `customer_segment` and `first_carrier` share
     # nothing with any.
     #
     # Declared-to-declared, like every other term here: the planner's own
     # `metrics` against the result's own parameters. Nothing reads the
-    # question's wording, which stays the rule -- matching a cut against
+    # question's wording, which stays the rule, because matching a cut against
     # the raw text is how a selector starts answering questions nobody
     # asked. Below the declared-cut weight, so a cut the question actually
     # named still wins outright.
@@ -347,8 +347,8 @@ def score(
 
     # Fewer cuts, where the question named none.
     #
-    # The same run put a 120-row three-way cross-tab -- customer segment by
-    # acquisition channel by region -- one tie-break above the answer. Each
+    # The same run put a 120-row three-way cross-tab (customer segment by
+    # acquisition channel by region) one tie-break above the answer. Each
     # further cut narrows the claim and multiplies the groups, so on a
     # question that asked for no breakdown at all the coarsest result that
     # still says something is the one to lead with; the cross-tab answers a
@@ -367,7 +367,7 @@ def score(
     # receives, and that is deliberate: the absence of the bonus *is* the
     # demotion, and a second explicit penalty for the same fact would be
     # two weights for one signal. What had to be true for that to work was
-    # that `charted` tells the truth -- a chart that silently dropped the
+    # that `charted` tells the truth. A chart that silently dropped the
     # third cut of a three-cut result used to earn this bonus. See
     # `analytics/charts.py`.
     if snapshot.result_id in charted:

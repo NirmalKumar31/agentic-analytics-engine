@@ -181,7 +181,7 @@ def display_fields_for(
 
     # The metric's declared format, for the measure column only.
     #
-    # A governed metric says what it is -- `format: percent` for a rate --
+    # A governed metric says what it is (`format: percent` for a rate)
     # and that is the only honest source for a unit. Never inferred from
     # magnitude: 10.97 is a percentage because the registry says so, not
     # because it happens to be small.
@@ -214,8 +214,8 @@ def display_fields_for(
             continue
         seen.add(name)
 
-        # A contract dimension can name a tool's own output column -- a
-        # timeseries grouped by `period` is the common case -- so the
+        # A contract dimension can name a tool's own output column, so a
+        # timeseries grouped by `period` is the common case, so the
         # derivation is consulted here too. It used to be read in the
         # second loop only, and a dimension named `period` therefore took
         # the fallback path and came back a CATEGORY holding an instant.
@@ -262,8 +262,8 @@ def display_fields_for(
 
         # A column the analytics tools derived is described from the
         # contract, because its own values cannot say what it is. The
-        # profile has no entry for it -- it did not exist before the query
-        # ran -- so the evidence rules below saw a nameless numeric column
+        # profile has no entry for it. It did not exist before the query
+        # ran, so the evidence rules below saw a nameless numeric column
         # and declined, which is how `period` became a CATEGORY holding an
         # ISO instant and `change_abs` lost the measure's currency.
         derivation = derived(name)
@@ -432,7 +432,7 @@ def _caveats(
     #
     # The headline names the group and now states its population too (see
     # `thin_extreme_note`), and this is the same fact under "What to be
-    # careful about" -- which is the one place in the report that is *for*
+    # careful about", which is the one place in the report that is *for*
     # things qualifying the answer. It is not a repeat of the no-chart
     # wording problem: a missing chart is a fact about empty space and
     # belongs in that space, while an estimate resting on two rows
@@ -485,7 +485,7 @@ def _caveats(
         )
 
     # No `no_chart` caveat. It used to be here *as well as* inline where the
-    # chart would be, so a reader was told the same thing twice -- once
+    # chart would be, so a reader was told the same thing twice, once
     # under the answer and once under "What to be careful about", which is
     # for things that qualify the answer. A missing chart does not qualify
     # an answer; it is a fact about the space where a chart is not. That
@@ -594,15 +594,15 @@ def build_presentation(
         # An empty result is not an unsummarisable one. "The analysis
         # produced a result that could not be summarised as an answer"
         # blames the engine for what is usually a filter that matched
-        # nothing -- a value spelled differently, a period outside the
-        # file's range -- and sends the reader looking for a fault in the
+        # nothing: a value spelled differently, a period outside the
+        # file's range, and sends the reader looking for a fault in the
         # product instead of at the restriction they asked for.
         #
         # So the empty case says what happened and names the predicates,
         # through the same `describe_filter` the scope line uses. The
         # sentence itself is not new: `graph/build.py` has written it into
         # `report.limitations` for a long time, where only the
-        # pre-presentation rendering path showed it -- a path that was
+        # pre-presentation rendering path showed it, a path that was
         # being reached by accident, because `scope_for` raised on a
         # resolved filter object and `_presentation_for` swallows every
         # exception by design.

@@ -236,7 +236,7 @@ class TestItOnlyEverDescribesAGroupTheAnswerNamed:
 
     def test_a_ranking_names_only_the_end_it_asked_for(self) -> None:
         # Ordered descending, so row 0 is the top and the thin group is at
-        # the far end -- which this answer never mentions.
+        # the far end, which this answer never mentions.
         snapshot = breakdown([200, 180, 2], [0.9, 0.8, 0.1])
         named = named_extreme_rows(
             snapshot, "repeat_purchase_rate", PresentationShape.RANKING, ascending=False

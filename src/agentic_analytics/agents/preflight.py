@@ -130,8 +130,8 @@ def preflight(
     # The mirror of the rule above, and the one a real run needed. On the
     # demo warehouse the planner kept reaching for `aggregate_for_question`,
     # which maps a question onto one table's raw columns. The server refused
-    # every call -- correctly, since "revenue" is a metric-layer definition
-    # and not a column -- but only after a round trip, with a message about
+    # every call, correctly, since "revenue" is a metric-layer definition
+    # and not a column, but only after a round trip, with a message about
     # ambiguous columns rather than about the layer being bypassed.
     if tool == "aggregate_for_question" and contract.has_metrics:
         return PreflightRejection(
@@ -349,8 +349,8 @@ def _check_statistical_test(
     )
     table = contract.table(str(table_name))
     if table is None or table.truncated_columns:
-        # A relation this contract does not fully describe -- a metric model,
-        # or a table whose columns were trimmed -- cannot support a "no such
+        # A relation this contract does not fully describe (a metric model,
+        # or a table whose columns were trimmed) cannot support a "no such
         # column" verdict.
         return None
 

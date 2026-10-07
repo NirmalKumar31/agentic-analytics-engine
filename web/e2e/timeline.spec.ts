@@ -25,7 +25,7 @@ test.describe("the run timeline", () => {
    * One real run, three tests.
    *
    * All three assert on the timeline of the same finished deterministic
-   * run -- that the DAG is gone, that five stages are shown and no AI
+   * run: that the DAG is gone, that five stages are shown and no AI
    * stage is, and that each stage's state comes from the engine's own
    * events. Running it three times admitted three analyses to look at one
    * thing three ways. Serial, with the run in `beforeAll`, so each remains
@@ -43,7 +43,7 @@ test.describe("the run timeline", () => {
      *
      * All three tests assert on the timeline of the same finished
      * deterministic run. Each used to perform its own, so one thing was
-     * looked at three ways at three times the price -- and the warehouse's
+     * looked at three ways at three times the price, and the warehouse's
      * answer to this question is the same one five other specs are looking
      * at, so the job admits it once in total. The payload is a real run's,
      * events included, which is what these assertions read.

@@ -20,7 +20,7 @@ test.describe("the page a visitor lands on", () => {
     ).toBeVisible();
     // The badge states what produced what is on screen. Nothing has been
     // produced yet, so asserting a mode here would be asserting a result
-    // that does not exist -- which is what it used to do, and what a
+    // that does not exist, which is what it used to do, and what a
     // visitor reasonably read as a claim about their run.
     await expect(page.locator(".mode-pill")).toHaveCount(0);
   });
@@ -74,8 +74,8 @@ test.describe("a recorded run", () => {
 
   /*
    * "prints a complete report as a browser PDF" was here. It asserted the
-   * first four bytes were `%PDF` and the file was over 1kB -- a PDF of a
-   * blank page passes both -- and it rendered landscape, which is not the
+   * first four bytes were `%PDF` and the file was over 1kB, so a PDF of a
+   * blank page passes both, and it rendered landscape, which is not the
    * page `foundation.css` specifies.
    *
    * `print.spec.ts` carries the claim now, for four states rather than one,
@@ -110,8 +110,8 @@ test.describe("the demo warehouse", () => {
      * The status poll is held back for the first few replies.
      *
      * "Progress is visible while it runs" is a claim about a window that
-     * is open for a few hundred milliseconds -- in fake mode a demo run
-     * finishes in well under a second -- so asserting it against an
+     * is open for a few hundred milliseconds. In fake mode a demo run
+     * finishes in well under a second, so asserting it against an
      * unmodified run is a race, and WebKit won it: by the time the
      * assertion looked, the report had replaced the timeline and the
      * failure read "element(s) not found" over a screenshot of a finished
@@ -199,7 +199,7 @@ test.describe("uploading a file", () => {
      * Closing the sheet is two things: the sheet leaves the document, and
      * focus returns to the control that opened it. Waiting only for the
      * first let the test type into the composer while the render that does
-     * the second was still pending -- and that render reverted the
+     * the second was still pending, and that render reverted the
      * controlled textarea to its empty state. The failure read "the run
      * button stayed disabled: field is empty, phase ready_to_ask", on
      * WebKit in CI and on Firefox locally, and it passed in isolation
@@ -215,7 +215,7 @@ test.describe("uploading a file", () => {
     const answered = page.locator(".finding-item");
     expect(await answered.count()).toBeGreaterThan(0);
     // Against the answer, not the first ranked highlight. A highlight is a
-    // label and a figure -- "Highest: West  12,330" -- and asserting the
+    // label and a figure, "Highest: West  12,330", and asserting the
     // question's nouns against it was really asserting the presentation
     // builder's phrasing. The answer is where the claim belongs.
     await expect(page.getByTestId("direct-answer")).toContainText(
@@ -242,7 +242,7 @@ test.describe("uploading a file", () => {
     await expect(page.locator("body")).toHaveAttribute("data-phase", "refused");
     // The activity log keeps the engine's own reason verbatim.
     // The actionable part, not the engine's framing of its own difficulty.
-    // The raw reason -- "the question could not be mapped safely: ..." --
+    // The raw reason ("the question could not be mapped safely: ...")
     // is in the evidence drawer, verbatim.
     await expect(
       page.getByTestId("report-panel"),
@@ -260,7 +260,7 @@ test.describe("uploading a file", () => {
     // used to be the same raw string repeated in three phrasings; it is
     // now said once, so the assertion is on the reader-facing wording and
     // on there being exactly one of it.
-    // The engine's framing -- "could not be mapped safely" -- is no longer
+    // The engine's framing ("could not be mapped safely") is no longer
     // the headline: it is the raw record, kept verbatim in the evidence
     // drawer. What the canvas records is that this was a refusal, said
     // once, in the engine's actionable words.
@@ -372,7 +372,7 @@ test.describe("the session boundary", () => {
       expect(bobCookie?.value).not.toBe(aliceCookie?.value);
     } finally {
       // Alice's session, back to the server. Closing her context does not
-      // free it -- the server holds an upload session until the capability
+      // free it. The server holds an upload session until the capability
       // deletes it, and a suite that leaves them behind is what exhausted
       // the pool.
       for (const page of alice.pages()) await endSession(page);

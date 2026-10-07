@@ -13,8 +13,8 @@
  * from this component.
  *
  * It is a modal sheet because it is a disclosure over the argument, not a
- * place to go. Focus behaviour -- in on open, contained while open, back to
- * the trigger on close -- comes from `SideSheet`, which is shared with the
+ * place to go. Focus behaviour (in on open, contained while open, back to
+ * the trigger on close) comes from `SideSheet`, which is shared with the
  * schema inspector precisely so there is one implementation of the part
  * that is easy to get wrong and invisible when it is.
  */
@@ -106,7 +106,7 @@ export function EvidenceBody({
    * paragraph the reader cannot reach. CSS alone is not enough to open
    * one: Chromium lays a closed `<details>` out but skips painting it, so
    * the planning audit printed as a heading over an empty block while
-   * `getComputedStyle` reported `display: block` on its body -- a defect
+   * `getComputedStyle` reported `display: block` on its body, a defect
    * that only looking at the rendered page could find. Opening it in the
    * markup is engine-independent.
    */
@@ -129,7 +129,7 @@ export function EvidenceBody({
    * Every collection is read defensively, and that is not belt-and-braces.
    *
    * A run payload that is still `running` carries no `findings`, no
-   * `rejected` and no `events` -- the API answers with the run's identity
+   * `rejected` and no `events`, because the API answers with the run's identity
    * and its status and nothing else. `run.findings.flatMap(...)` threw on
    * exactly that payload, React unmounted the subtree, and the evidence
    * drawer *vanished* the moment a reader switched to a strategy that had

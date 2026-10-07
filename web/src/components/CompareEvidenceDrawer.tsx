@@ -3,7 +3,7 @@
  *
  * It replaces two persistent per-strategy evidence buttons. Two buttons
  * implied two destinations and made the reader choose a side before reading
- * anything; one control with two tabs says what it is -- two records of the
+ * anything; one control with two tabs says what it is: two records of the
  * same question.
  *
  * **Switching tabs issues no request and re-runs nothing.** Both runs have

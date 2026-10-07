@@ -3,14 +3,14 @@
  *
  * The production image builds the frontend from a narrower context than a
  * checkout: the Dockerfile copies `web/src`, the three tsconfigs,
- * `vite.config.ts` and `index.html` -- and nothing else. `npm run build`
+ * `vite.config.ts` and `index.html`, and nothing else. `npm run build`
  * runs `tsc -b`, which type-checks all of `src`, `src/test` included.
  *
  * So a file under `src/` that reaches outside it compiles locally, where
  * the sibling directory happens to exist, and fails only when the image is
  * built. That is exactly what happened: the e2e provider preflight was
  * written in `e2e/preflight.ts` and imported from `src/test`, every local
- * gate passed, and CI failed at `RUN npm run build` with TS2307 -- after
+ * gate passed, and CI failed at `RUN npm run build` with TS2307, after
  * the branch was pushed and the PR opened.
  *
  * This turns that into a fast local failure. It is a build-context

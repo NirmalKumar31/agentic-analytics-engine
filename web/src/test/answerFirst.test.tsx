@@ -208,7 +208,7 @@ describe("the report order", () => {
 
   it("names the requested population rather than staying silent", () => {
     // A reader cannot tell silence from an unreported restriction. It says
-    // what the *question* restricted -- how much of that population the
+    // what the *question* restricted: how much of that population the
     // answer covers is the coverage line's job, and conflating the two is
     // how "every row in the dataset" came to sit above a 55% result.
     render_();
@@ -227,7 +227,7 @@ describe("the report order", () => {
 
   it("does not repeat the answer in the findings list below", () => {
     const { container } = render_();
-    // One published finding, and it is the answer -- so the ranked list
+    // One published finding, and it is the answer, so the ranked list
     // beneath has nothing left to rank and does not render at all.
     expect(container.querySelectorAll(".finding-item")).toHaveLength(0);
     // The answer appears once.
@@ -291,7 +291,7 @@ describe("the report empty states", () => {
     const results = { res_1: snapshot({ tool_name: "profile_table" }) };
     render(<ReportUnderTest {...base} findings={[finding()]} results={results} />);
     // A published finding citing a profile rather than the executed
-    // contract is not the answer to the question -- but it is the engine's
+    // contract is not the answer to the question, but it is the engine's
     // own first published statement, and leading with it in the engine's
     // words beats leading with a sentence about the absence of an answer.
     // The alternative shipped briefly in step E and read "No published

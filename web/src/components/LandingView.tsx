@@ -12,7 +12,7 @@
  * It gave upload and the prepared data equal weight, side by side, which
  * made the visitor choose between two things before understanding either.
  * Bringing your own data is the primary path and is now the primary
- * affordance -- a drop target you can also click. The prepared datasets are
+ * affordance: a drop target you can also click. The prepared datasets are
  * an alternative offered underneath it, in a list, which is what "or" means.
  *
  * And its small print was styled as small print. What may leave the server is

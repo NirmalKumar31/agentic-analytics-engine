@@ -12,7 +12,7 @@ import { ask, closeCallCsv, endSession, inDrawer, openApp, suggestedQuestions, u
  * that a keyboard reaches the control, that focus lands on something that
  * can actually take it, that the announcement is in the accessible tree,
  * or that the thing fits on a phone. Each of those failed at least once
- * during development in a way jsdom reported as green -- the focus
+ * during development in a way jsdom reported as green: the focus
  * restoration was focusing a disabled button, which jsdom and every
  * browser both treat as a no-op.
  *
@@ -61,7 +61,7 @@ function watchRequests(page: Page): { offOrigin: string[]; provider: string[] } 
  * The inspector used to be a `<details>` resident on the canvas and this
  * helper opened the disclosure. It is a side sheet now, reached from the
  * dataset context strip, so the gate moved up a level: what is asserted is
- * the same claim -- a reader is told the ambiguity *count* without opening
+ * the same claim, so a reader is told the ambiguity *count* without opening
  * anything, and the field-by-field detail is behind one control.
  *
  * Idempotent, because the sheet persists across the tests in a serial
@@ -81,7 +81,7 @@ async function openInspector(page: Page) {
 /**
  * Close it again.
  *
- * The sheet is modal -- it has a scrim, and focus is contained -- so the
+ * The sheet is modal. It has a scrim, and focus is contained, so the
  * page behind it cannot be used until it is closed. That is the real
  * sequence a reader follows: settle the column, close the schema, ask the
  * question. Idempotent, so a test can declare what it needs without
@@ -116,7 +116,7 @@ test.describe("settling a close call", () => {
 
   test.afterAll(async () => {
     // The session, not just the page. Closing a browser context does not
-    // free a server-side upload session -- the server holds it until the
+    // free a server-side upload session, because the server holds it until the
     // capability deletes it or the TTL expires, and the TTL outlives a CI
     // run. Three engines leaving their sessions behind is what exhausted
     // the 24-session pool.
@@ -277,8 +277,8 @@ test.describe("settling a close call", () => {
 
   test("confirming again brings the question back, and running it groups by the column", async () => {
     // Ordered last in this group deliberately. Running an analysis replaces
-    // the composer with the report workspace, so the inspector -- and the
-    // control inside it -- is no longer reachable: a reset asserted after a
+    // the composer with the report workspace, so the inspector, and the
+    // control inside it, is no longer reachable: a reset asserted after a
     // run has nothing to click. This is also the only place the
     // reset-then-confirm-again path is exercised, which is why the run is
     // reached through it rather than from a second upload.
@@ -343,7 +343,7 @@ test.describe("what the engine then does with it", () => {
 
   test.afterAll(async () => {
     // The session, not just the page. Closing a browser context does not
-    // free a server-side upload session -- the server holds it until the
+    // free a server-side upload session, because the server holds it until the
     // capability deletes it or the TTL expires, and the TTL outlives a CI
     // run. Three engines leaving their sessions behind is what exhausted
     // the 24-session pool.
@@ -426,7 +426,7 @@ test.describe("confirming the reading the engine already had", () => {
 
   test.afterAll(async () => {
     // The session, not just the page. Closing a browser context does not
-    // free a server-side upload session -- the server holds it until the
+    // free a server-side upload session, because the server holds it until the
     // capability deletes it or the TTL expires, and the TTL outlives a CI
     // run. Three engines leaving their sessions behind is what exhausted
     // the 24-session pool.
@@ -459,8 +459,8 @@ test.describe("confirming the reading the engine already had", () => {
 
 test.describe("when the server refuses", () => {
   /*
-   * Each of these tests uploads its own dataset -- they mutate the schema
-   * revision, so they cannot share one -- and a server-side upload session
+   * Each of these tests uploads its own dataset. They mutate the schema
+   * revision, so they cannot share one, and a server-side upload session
    * is not freed by the test ending. Three engines leaving theirs behind is
    * what exhausted the 24-session pool.
    */
@@ -562,8 +562,8 @@ test.describe("when the server refuses", () => {
 
 test.describe("the control at every width", () => {
   /*
-   * Each of these tests uploads its own dataset -- they mutate the schema
-   * revision, so they cannot share one -- and a server-side upload session
+   * Each of these tests uploads its own dataset. They mutate the schema
+   * revision, so they cannot share one, and a server-side upload session
    * is not freed by the test ending. Three engines leaving theirs behind is
    * what exhausted the 24-session pool.
    */
@@ -621,8 +621,8 @@ test.describe("the control at every width", () => {
 
 test.describe("accessibility of the control", () => {
   /*
-   * Each of these tests uploads its own dataset -- they mutate the schema
-   * revision, so they cannot share one -- and a server-side upload session
+   * Each of these tests uploads its own dataset. They mutate the schema
+   * revision, so they cannot share one, and a server-side upload session
    * is not freed by the test ending. Three engines leaving theirs behind is
    * what exhausted the 24-session pool.
    */

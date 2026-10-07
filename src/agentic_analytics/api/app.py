@@ -241,7 +241,7 @@ DEMO_QUESTIONS: list[dict[str, str]] = [
         # rose most, and the groups that contributed most to the overall
         # change through their rate *and* their share. A suggested question
         # is a promise about what the engine will do, and that one could not
-        # keep it -- it is kept in `tests/unit/test_question_intent.py` as
+        # keep it. It is kept in `tests/unit/test_question_intent.py` as
         # the case that must surface its own ambiguity instead.
         "question": (
             "Which customer segment has the highest return rate, and are the "
@@ -273,7 +273,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     upload_limiter = RateLimit(cfg.uploads_per_ip_per_hour, 3600.0)
     analysis_limiter = RateLimit(cfg.analyses_per_ip_per_hour, 3600.0)
     analysis_capacity = Capacity(cfg.max_concurrent_analyses)
-    # Opened once. `None` means AI is not offered -- there is deliberately no
+    # Opened once. `None` means AI is not offered. There is deliberately no
     # in-memory fallback, because process-local counters are exactly the
     # control the durable ledger exists to replace.
     ledger = open_ledger(cfg.ai_quota_redis_url) if cfg.ai_analytics_enabled else None
@@ -315,7 +315,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     # binds to localhost. A container binds to every interface, so the Host
     # allow-list has to be configured explicitly with the hostnames the
     # deployment answers on. A network binding that declares none does not
-    # get the endpoint served without validation -- it gets no endpoint at
+    # get the endpoint served without validation. It gets no endpoint at
     # all, a 503, which is what `mcp_enabled` below carries. Analysis is
     # unaffected, because it was never using this transport.
     allowed_hosts = cfg.mcp_allowed_host_list
@@ -431,7 +431,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         return response
 
     # No CORS middleware. The frontend is served from this same origin, so
-    # there is no cross-origin consumer to permit -- and the API is not
+    # there is no cross-origin consumer to permit, and the API is not
     # credential-free as an earlier comment here claimed: it authorises on an
     # HttpOnly capability cookie, which is exactly the kind of ambient
     # credential a permissive origin policy exists to protect. A future
@@ -574,7 +574,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             # Available wherever live analysis is, because the rules are
             # always available. A deployment with no cloud planner answers
             # every question the rules can resolve and says precisely what
-            # it could not resolve -- which is a weaker product, not a
+            # it could not resolve, which is a weaker product, not a
             # broken one, and so not a reason to withhold the mode.
             available=cfg.live_analytics_enabled,
             label="Governed Analysis",
@@ -1149,8 +1149,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             try:
                 if mode is RunMode.AI:
                     # The one governed construction site. Preflight runs
-                    # here -- ledger health, model resolution, an exact
-                    # pricing entry -- so a run that cannot be bounded is
+                    # here: ledger health, model resolution, an exact
+                    # pricing entry, so a run that cannot be bounded is
                     # refused before its first billable request.
                     assert ledger is not None
                     provider = await open_governed_cloud_provider(
@@ -1175,7 +1175,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                     # Automatic routing needs a way to build the cloud
                     # planner, not a built one. Constructing it is the
                     # ledger admission, so a question the rules resolve
-                    # must never reach this -- and an exact question never
+                    # must never reach this, and an exact question never
                     # does, which is what makes the default affordable.
                     #
                     # Availability is checked in the condition above,
@@ -1240,7 +1240,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             except asyncio.CancelledError:
                 # The dataset was deleted, replaced or expired. Mark it and
                 # end the stream, so a browser waiting on SSE is told rather
-                # than left hanging -- then re-raise, or the task is never
+                # than left hanging, then re-raise, or the task is never
                 # actually cancelled and `cancel_session` waits for a run
                 # that has decided to continue.
                 record.cancelled = True
@@ -1345,7 +1345,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         #
         # The two runs answer the same question against the same rows, and a
         # confirmation landing between their starts would give them different
-        # schemas -- then present them side by side as a like-for-like
+        # schemas, then present them side by side as a like-for-like
         # comparison. Capturing once is what makes the comparison mean what
         # the page says it means.
         shared_roles = session.role_confirmation_snapshot()
@@ -1547,12 +1547,12 @@ def _mcp_transport_security(
 
     Three cases, and none of them quietly exposes an unprotected endpoint:
 
-    * **Local development** -- the server binds to loopback, so only this
+    * **Local development**: the server binds to loopback, so only this
       machine can reach it. Protection is enabled with a localhost allow-list,
       which is what the SDK would do on its own.
-    * **Network binding with an allow-list** -- protection is enabled with the
+    * **Network binding with an allow-list**: protection is enabled with the
       declared hostnames.
-    * **Network binding without one** -- the remote MCP endpoint is disabled
+    * **Network binding without one**: the remote MCP endpoint is disabled
       rather than served with Host validation off. The agent still reaches
       analytics, because it connects to the server object in-process; what is
       withdrawn is the publicly reachable transport.

@@ -1,4 +1,4 @@
-# 0006 — A schema-role override needs the backend, so the redesign only reports ambiguity
+# 0006: A schema-role override needs the backend, so the redesign only reports ambiguity
 
 Status: superseded by [0007](0007-session-scoped-role-confirmation.md)
 Date: 2026-10-01
@@ -13,8 +13,8 @@ Date: 2026-10-01
 
 ## Context
 
-`infer_schema()` assigns each uploaded column a role — measure, dimension,
-time, identifier — from its type, its null fraction and how many distinct
+`infer_schema()` assigns each uploaded column a role (measure, dimension,
+time, identifier) from its type, its null fraction and how many distinct
 values it holds. For most columns that is unambiguous. For some it cannot
 be decided from the data at all.
 
@@ -61,7 +61,7 @@ the frontend-only version is a lie.
 A label the engine does not honour is worse than no label. If the
 inspector lets someone mark `Store` as a dimension and the resolver still
 treats it as a measure, the interface has invited a correction and then
-ignored it — and the resulting answer carries a user-confirmed role in the
+ignored it, and the resulting answer carries a user-confirmed role in the
 UI and an inferred role in the computation. That is a provenance defect,
 not a cosmetic one.
 
@@ -100,6 +100,6 @@ is already restructuring every section of the interface.
 - The deferred change has a clear boundary and can be scheduled on its
   own: it is a backend contract change with a small amount of UI attached,
   not a redesign increment.
-- Nothing in this decision blocks the redesign. The data it needs —
-  `ambiguous` per field, `ambiguities` per schema — is already computed and
+- Nothing in this decision blocks the redesign. The data it needs,
+  `ambiguous` per field and `ambiguities` per schema, is already computed and
   already crosses the API.

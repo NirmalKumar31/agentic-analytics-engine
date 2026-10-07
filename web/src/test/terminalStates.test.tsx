@@ -17,7 +17,7 @@
  *                                      changed
  *
  * The last three are derived because the server classifies them from how a
- * run *ended* -- a raise, a budget exception, a withdrawn dataset -- and a
+ * run *ended*: a raise, a budget exception, a withdrawn dataset, and a
  * scripted provider cannot be made to raise them from a question. The
  * derivation is one dictionary of fields, written down beside the fixture.
  */
@@ -81,14 +81,14 @@ describe("each state is rendered once, inside the report", () => {
     show(name);
     const report = screen.getByTestId("report-panel");
 
-    // One headline, and it is inside the report column -- not a banner
+    // One headline, and it is inside the report column, not a banner
     // above the dataset strip, which is where an `order: -2` rule in
     // states.css used to put the state card.
     const answers = screen.getAllByTestId("direct-answer");
     expect(answers).toHaveLength(1);
     expect(report.contains(answers[0]!)).toBe(true);
 
-    // And the headline is said once -- on the canvas. The print appendix
+    // And the headline is said once, on the canvas. The print appendix
     // is a second, hidden copy of the evidence drawer, and for a state whose
     // headline is derived from the stop reason the same words legitimately
     // appear there too.
@@ -104,7 +104,7 @@ describe("a completed run that published nothing is not a refusal", () => {
    * The distinction these states exist for. "No findings" is a `completed`
    * run: the engine executed the contract and had nothing to claim. It was
    * carrying the eyebrow "Not answered", which is the language of a run
-   * that declined -- and once a reader has read that, the difference
+   * that declined, and once a reader has read that, the difference
    * between the two is gone.
    */
   it("says the execution completed, in those words", () => {
@@ -148,7 +148,7 @@ describe("a refusal leads with what to do about it", () => {
     ).trim();
 
     // The raw stop reason begins "the question could not be mapped
-    // safely: ..." -- mid-sentence, lower case, describing the engine's
+    // safely: ...", mid-sentence, lower case, describing the engine's
     // difficulty rather than the reader's next move.
     expect(run.stopped_reason).toMatch(/could not be mapped safely/i);
     expect(headline).not.toMatch(/^the question could not be mapped safely/i);
@@ -179,7 +179,7 @@ describe("the engine's internal framing stays out of the canvas", () => {
    * The rule is about *framing*, not about every string the engine wrote.
    *
    * A refusal's raw reason begins "the question could not be mapped
-   * safely: ..." -- mid-sentence, lower case, describing the engine's own
+   * safely: ...", mid-sentence, lower case, describing the engine's own
    * difficulty. That must not be the headline. The remainder is the
    * actionable part and belongs on the canvas, which is exactly what
    * requirement 4 asks for.
@@ -256,7 +256,7 @@ describe("a completed run never wears failure language", () => {
    * The brief names four words that must not appear on a `completed`
    * state: `failed`, `error`, `went wrong`, `problem`. Each is a word a
    * reader takes as "something broke, your result may be wrong", and two
-   * of the six states -- `completed` with findings, and `no_findings` --
+   * of the six states (`completed` with findings, and `no_findings`)
    * are runs where nothing broke at all.
    *
    * This existed only as a single `/failed/i` check in one browser test.
@@ -295,8 +295,8 @@ describe("a completed run never wears failure language", () => {
 describe("a failure does not contradict what is on the page", () => {
   /*
    * The copy said "Nothing partial has been kept" unconditionally, and the
-   * derived `failed` fixture -- a real completed payload with exactly the
-   * fields the API sets for that outcome -- renders a chart, two findings
+   * derived `failed` fixture (a real completed payload with exactly the
+   * fields the API sets for that outcome) renders a chart, two findings
    * and a full result table underneath it. A reader is told nothing was
    * kept while looking at what was kept.
    */

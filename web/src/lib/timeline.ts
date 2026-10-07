@@ -3,7 +3,7 @@
  *
  * This replaces a static agent DAG. That diagram drew the same five boxes
  * and the same arrows for every run, lit a few of them, and was on screen
- * before anything had happened -- a picture of the architecture presented
+ * before anything had happened: a picture of the architecture presented
  * where a reader was looking for a picture of *their run*.
  *
  * Two rules make the difference, and both are the point of this file:
@@ -60,7 +60,7 @@ export interface Stage {
    * `data.reason` straight through: "stopped: the question could not be
    * mapped safely: the question asks about 'gross margin', which is not a
    * column of this table". That belongs in the evidence sheet, where an
-   * auditor wants the engine's exact words -- and not on the report
+   * auditor wants the engine's exact words, and not on the report
    * canvas, which is the one surface that carries no unedited engine
    * text. A surface that cannot take it has to be able to *tell*, which
    * is what this flag is for; the alternative was matching on the
@@ -105,7 +105,7 @@ function count(events: RunEvent[], type: EventType): number {
  *
  * `model_calls` on `contract_resolved`, which is the engine's own count of
  * planning requests. Absent or zero means no. Anything other than a number
- * means the event did not say, which is also no -- an unparseable field is
+ * means the event did not say, which is also no, because an unparseable field is
  * not evidence that a call happened.
  */
 export function modelPlanned(events: RunEvent[]): boolean {
@@ -121,7 +121,7 @@ export function modelPlanned(events: RunEvent[]): boolean {
  * `events` is the only input.
  *
  * There is deliberately no `finished` flag. Whether the run is over is
- * itself an event -- `run_completed` -- so taking it as a parameter would
+ * itself an event, `run_completed`, so taking it as a parameter would
  * let a caller tell the timeline something the engine had not said, which
  * is the one thing this derivation exists to prevent.
  */
@@ -145,7 +145,7 @@ export function timelineOf(events: RunEvent[]): Stage[] {
    * Neither emits `plan_generated`, `analysis_task_started` or
    * `finding_proposed`. A derivation keyed only on those names reported a
    * successful upload as "plan in progress, compute not reached, verify 1
-   * verified" -- three stages disagreeing with each other about one run.
+   * verified": three stages disagreeing with each other about one run.
    *
    * So each stage accepts every event that genuinely evidences it.
    */
@@ -198,7 +198,7 @@ export function timelineOf(events: RunEvent[]): Stage[] {
   // successful task, followed by `report_started`/`report_completed` and
   // `run_completed`. There is no `run_failed`, so reading only the terminal
   // list showed a refused run as having computed, verified and published
-  // normally -- observed against a real refusal, not assumed.
+  // normally, observed against a real refusal and not assumed.
   const computeStopped = Boolean(taskFailed) && !computed;
   add(
     "compute",

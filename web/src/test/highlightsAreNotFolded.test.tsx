@@ -6,8 +6,8 @@
  *
  * The fold showed one highlight below 640px and hid the rest behind a
  * `<details>`, above a threshold of three. **The presentation contract
- * emits at most two highlights for any shape it builds** -- highest and
- * lowest -- so the threshold was never met. It looked alive only because
+ * emits at most two highlights for any shape it builds**: highest and
+ * lowest, so the threshold was never met. It looked alive only because
  * the published recordings carried no presentation snapshot and the report
  * fell back to listing the engine's own findings, which is the defect
  * `presentation/fields.py` and `recordings/record.py` were corrected for.
@@ -67,7 +67,7 @@ const highlightCount = () => document.querySelectorAll(".finding-item").length;
  *
  * `fromPresentation` lists `presentation.highlights`, which is what every
  * completed run produces. `fromRun` lists the engine's own findings and is
- * reached only when no presentation could be built -- a refusal or a
+ * reached only when no presentation could be built, such as a refusal or a
  * failure, which publish at most one. Some committed payloads here predate
  * the presentation snapshot and still exercise that path, which is why
  * they are kept and why the counts are asserted against the right source.

@@ -36,7 +36,7 @@ const seen = new WeakMap<
  * Did the configuration route exist before the application asked for it?
  *
  * `null` when `advertiseAi` was never called for this page, or when the
- * page never requested the config -- so a test cannot pass by forgetting
+ * page never requested the config, so a test cannot pass by forgetting
  * to set either up.
  */
 export function configBeforeMount(page: Page): boolean | null {
@@ -49,8 +49,8 @@ export function configBeforeMount(page: Page): boolean | null {
  * How many times the override actually answered `/api/config`.
  *
  * Ordering alone is not enough to prove this fixture works. A deployment
- * that already advertises AI -- which the local strict server does, and
- * the CI container does not -- offers Compare whether or not the override
+ * that already advertises AI, which the local strict server does, and
+ * the CI container does not, offers Compare whether or not the override
  * applied, so a test that only asserts "Compare is visible" passes over a
  * route that silently did nothing. Forcing the handler to fail locally
  * left all three `compareSetup` tests green, which is how that was found.
@@ -72,7 +72,7 @@ export function configInterceptions(page: Page): number | null {
  * only that a radio did not appear.
  *
  * This is not hypothetical. Reordering these two lines in `print.spec.ts`
- * passed on Chromium -- which happened to win the race -- and timed out
+ * passed on Chromium, which happened to win the race, and timed out
  * every test in the file on Firefox. `configBeforeMount` in
  * `compareSetup.spec.ts` pins the ordering so it cannot come back.
  */
@@ -121,7 +121,7 @@ export const AI_RUN_ID = "run_compare_ai";
  * The dataset label for the 200-row sample.
  *
  * `compare.spec.ts` uploads it as `compare.csv` and `chart.spec.ts` as
- * `compare-lanes.csv`, and both call `sampleCsv()` -- the same bytes under
+ * `compare-lanes.csv`, and both call `sampleCsv()`: the same bytes under
  * two names. The label identifies the data, so they share one, and the job
  * admits one comparison over it rather than two.
  */
@@ -130,7 +130,7 @@ export const SAMPLE_CSV_DATASET = "sample-200-row";
 /**
  * One captured deterministic result per question, per worker.
  *
- * Every Compare test started a genuine analysis -- ten in `compare.spec.ts`
+ * Every Compare test started a genuine analysis: ten in `compare.spec.ts`
  * alone, plus the Compare cells in `visualReview`, `print` and `chart` --
  * against a container that allows 200 analyses per IP per hour for all
  * three engines together. What those tests assert is how a comparison is
@@ -162,7 +162,7 @@ export async function compareWith(
    * Which data the comparison is over, named by the caller.
    *
    * The cache was keyed by the question alone, and `compare.spec.ts` asks
-   * the same question of the demo warehouse and of an uploaded file -- so
+   * the same question of the demo warehouse and of an uploaded file, so
    * "Compare over an uploaded dataset" was answered with the warehouse's
    * result. Every assertion still passed; what it stopped proving was the
    * thing in its own name.
@@ -182,7 +182,7 @@ export async function compareWith(
    *
    * On the real path this side is answered by the server itself, so it is
    * the unmodified result and `mutate` applies only to the mirrored side.
-   * A replay has to preserve that asymmetry -- serving the mutated payload
+   * A replay has to preserve that asymmetry, so serving the mutated payload
    * to both sides made every scenario agree with itself, so the structured
    * diff had nothing to show and a one-sided refusal refused both sides.
    */
@@ -240,7 +240,7 @@ export async function compareWith(
      * Capturing opportunistically in the AI-side route handler missed:
      * that branch is only reached if a test drives that side to the end,
      * and three of `compare.spec.ts`'s ten tests assert on the verdict and
-     * stop -- so each of those paid for a real analysis before the cache
+     * stop, so each of those paid for a real analysis before the cache
      * ever filled. Polling here costs the *first* comparison a second of
      * waiting and is certain; every later one replays it.
      */
@@ -305,7 +305,7 @@ export async function compareWith(
      * One read at a time, shared between concurrent polls.
      *
      * This handler runs on every poll, and a response read through the
-     * request context is disposed when a route is fulfilled -- so
+     * request context is disposed when a route is fulfilled, so
      * re-reading it on the next poll failed with "Response has been
      * disposed", which surfaced as the AI side never finishing.
      *
@@ -368,8 +368,8 @@ export async function startCompare(page: Page, question: string) {
    */
   /*
    * Not counted here. Whether a comparison costs a real analysis is known
-   * only inside `compareWith`'s route handler -- the first for a question
-   * is real and the rest replay it -- so that is where the ledger is
+   * only inside `compareWith`'s route handler: the first for a question
+   * is real and the rest replay it, so that is where the ledger is
    * written. Counting at the call site reported ten analyses for one.
    */
   await page.getByLabel("Business question").fill(question);

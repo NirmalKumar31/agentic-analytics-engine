@@ -2,7 +2,7 @@
  * Production evidence: an AI run with status `refused` wore a COMPLETE
  * badge and rendered an empty pane, beside a deterministic answer that had
  * worked. Two components each derived the state for themselves and both
- * were wrong -- one read "a run object exists" as success, the other
+ * were wrong: one read "a run object exists" as success, the other
  * rendered a report only for the literal string `completed`.
  */
 
@@ -127,7 +127,7 @@ describe("Compare Both terminal states", () => {
       .map((n) => n.getAttribute("data-state"));
 
   /*
-   * The full reports are behind a strategy switcher now -- one at a time,
+   * The full reports are behind a strategy switcher now, one at a time,
    * at full width, rather than two in half a laptop's width each. So a
    * state card that belongs to a strategy is read by selecting it.
    *
@@ -157,7 +157,7 @@ describe("Compare Both terminal states", () => {
       />,
     );
     expect(paneStates()).toEqual(["completed_verified", "refused"]);
-    // The reason is on screen, not only in the activity log -- and it is
+    // The reason is on screen, not only in the activity log, and it is
     // attributed to the strategy that refused.
     expect(strategy("ai")).toHaveTextContent(/could not be mapped/i);
     expect(screen.queryByTestId("pane-placeholder")).toBeNull();

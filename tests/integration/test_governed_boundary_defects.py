@@ -182,8 +182,8 @@ def ledger() -> CostLedger:
 # ══════════════════════════════════════════════════════════ A: usage validity
 #
 # `_non_negative_int` mapped absent, negative, boolean and string token
-# counts all to zero. Zero is internally coherent -- 0 + 0 <= 0, nothing
-# negative -- so the coherence check passed, settlement priced a free call,
+# counts all to zero. Zero is internally coherent: 0 + 0 <= 0, nothing
+# negative, so the coherence check passed, settlement priced a free call,
 # and the ledger refunded the entire reservation. A response whose usage
 # cannot be read is the one case where the reservation must stand.
 
@@ -521,7 +521,7 @@ async def test_a_cancelled_call_does_not_restore_ambiguous_allowance(
 #
 # The counting endpoint is documented as taking "the same payload you would
 # send to responses.create". `reasoning` was stripped from it, so the count
-# was taken over a request the model never receives -- and reasoning effort
+# was taken over a request the model never receives, and reasoning effort
 # can change the hidden instructions the model is given, which is input.
 #   https://developers.openai.com/api/docs/guides/token-counting
 

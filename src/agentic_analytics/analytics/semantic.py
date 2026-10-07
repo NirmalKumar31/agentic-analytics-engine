@@ -57,7 +57,7 @@ MAX_DIMENSION_CARDINALITY = 200
 #
 # The absolute ceiling was 12, and that was the blind spot. A sales table
 # with 45 stores over 6,435 rows has a `Store` column that repeats 143
-# times per value -- 0.7% distinct, about as categorical as data gets --
+# times per value (0.7% distinct, about as categorical as data gets)
 # and it was classified as a *measure* because 45 > 12. The engine then
 # summed store numbers: "which store had the highest total sales" became
 # the total of store ids grouped by holiday flag, and "average profit by
@@ -86,12 +86,12 @@ MAX_NUMERIC_DIMENSION_SHARE = 0.2
 # dimension, which is the distinction that matters.
 #
 # This is a heuristic and it has a known failure: a genuinely
-# low-cardinality quantity in a very large table -- `qty` between 1 and 40
-# across 100,000 rows -- reads as a dimension here. That direction is the
+# low-cardinality quantity in a very large table: `qty` between 1 and 40
+# across 100,000 rows, reads as a dimension here. That direction is the
 # safe one. A quantity misread as a dimension is still aggregatable when
 # the question names it, so "total qty by region" is unaffected; a key
 # misread as a measure is not recoverable, and produced "the average
-# profit by Store is 23" -- the mean of the store numbers -- for a table
+# profit by Store is 23" (the mean of the store numbers) for a table
 # with no profit column at all.
 KEY_DIMENSION_MAX_DISTINCT = 200
 KEY_DIMENSION_MAX_SHARE = 0.02
@@ -106,7 +106,7 @@ NAMED_KEY_DIMENSION_DISTINCT = 25
 #: Cardinality cannot settle this band and pretending otherwise would be
 #: dishonest: a branch number recurring across 20 rows and a basket size
 #: recurring across 12 are indistinguishable from the data. So the name is
-#: allowed to tip a decision it is not allowed to make -- which is why
+#: allowed to tip a decision it is not allowed to make, which is why
 #: `basket_size` and `units` stay measures while `outlet_no` and `postcode`
 #: become groupings, and why a column called `qty` is unaffected however
 #: its values happen to be distributed.
@@ -546,7 +546,7 @@ SEQUENCE_MIN_UNIQUENESS = 0.5
 #: overrules the name. Below this it is treated as an identifier.
 KEY_NAME_MIN_REPEATS = 10
 #: Years read as a dimension. A four-digit integer inside this window,
-#: spanning at most a couple of centuries, is a calendar year -- summing it
+#: spanning at most a couple of centuries, is a calendar year, and summing it
 #: is meaningless and grouping by it is the common request.
 YEAR_MIN, YEAR_MAX, YEAR_MAX_SPAN = 1900, 2100, 200
 
@@ -719,7 +719,7 @@ def _classify(
     uniqueness = distinct_count / max(row_count, 1)
     if uniqueness >= IDENTIFIER_UNIQUENESS and row_count >= MIN_ROWS_FOR_CARDINALITY_RULES:
         # One row per value. Grouping by it returns the rows, so it is a
-        # label rather than a category -- and on a remote run those labels
+        # label rather than a category, and on a remote run those labels
         # would be uploaded cells travelling as group keys.
         return (
             "identifier",

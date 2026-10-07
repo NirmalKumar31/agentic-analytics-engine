@@ -53,7 +53,7 @@ class EventType(StrEnum):
     BUDGET_EXCEEDED = "budget_exceeded"
     RUN_COMPLETED = "run_completed"
     RUN_FAILED = "run_failed"
-    #: The dataset went away while the analysis was running -- deleted,
+    #: The dataset went away while the analysis was running, whether deleted,
     #: replaced or expired. Separate from `run_failed` because nothing went
     #: wrong with the analysis, and a browser watching the stream should not
     #: be told the engine broke.

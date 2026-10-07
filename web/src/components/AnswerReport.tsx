@@ -64,8 +64,8 @@ function Finding({
  *
  * The approved mockup carries this line and the implementation dropped it,
  * on the reading that requirement 6 forbids technical material on the
- * default canvas. That requirement names the panels it is about -- the
- * activity log, the stage list, the planning audit, the DAG -- and this is
+ * default canvas. That requirement names the panels it is about: the
+ * activity log, the stage list, the planning audit, the DAG, and this is
  * none of them: it is the identity of what produced the numbers above it,
  * in the same register as the dataset strip that names the file.
  *
@@ -89,7 +89,8 @@ function ReportStamp({ run }: { run: RunPayload | null }) {
   ].filter((part): part is string => part !== null);
 
   // Nothing rather than a line of placeholders: a stamp that says
-  // "contract — · sha — · — ms" is worse than no stamp, because it looks
+  // A stamp reading "contract · sha · ms" with nothing in it is worse than
+  // no stamp at all, because it looks
   // like a record and holds none.
   if (parts.length === 0) return null;
 
@@ -121,7 +122,7 @@ export function AnswerReport({
    * Inside a Compare pane.
    *
    * The question is stated once at the top of the comparison, and the
-   * comparison has one evidence control for both strategies -- so a pane
+   * comparison has one evidence control for both strategies, so a pane
    * repeats neither. Without this the screen carried the question three
    * times and three "Show work" buttons, which is the duplication Compare
    * exists to remove.
@@ -134,8 +135,8 @@ export function AnswerReport({
    *
    * It showed one highlight on arrival below 640px and hid the rest behind
    * a `<details>`, above a threshold of three. **The presentation contract
-   * emits at most two highlights for every shape it builds** -- highest
-   * and lowest -- so the threshold was never met and the branch never ran
+   * emits at most two highlights for every shape it builds**: highest
+   * and lowest, so the threshold was never met and the branch never ran
    * in product output. It appeared to work only because the published
    * recordings carried no presentation snapshot and the report fell back
    * to listing the engine's own findings, which is the defect
@@ -147,7 +148,7 @@ export function AnswerReport({
    * query and a disclosure control a keyboard user could reach.
    *
    * If the contract later emits more than three reader-facing highlights,
-   * a fold is the right answer again -- and the order is: raise the cap,
+   * a fold is the right answer again, and the order is: raise the cap,
    * produce a recording through the normal pipeline that reaches it, then
    * build the fold against that.
    */

@@ -8,13 +8,13 @@ what happens when the columns are called `spend_usd` and `campaign_channel`.
 
 So these vary on the axes that actually stress planning and tool selection:
 
-* **vocabulary** -- no shared column names across datasets, and none of them
+* **vocabulary**: no shared column names across datasets, and none of them
   matches the demo warehouse's metric layer;
-* **shape** -- wide and narrow, long and short, one with a deliberately
+* **shape**: wide and narrow, long and short, one with a deliberately
   awkward schema;
-* **types** -- integers, floats, dates, booleans, high-cardinality strings,
+* **types**: integers, floats, dates, booleans, high-cardinality strings,
   and one column that looks numeric but is an identifier;
-* **format** -- one is Parquet rather than CSV.
+* **format**: one is Parquet rather than CSV.
 
 They are small on purpose. This evaluation is about decision quality, and a
 model makes the same planning mistakes on 5,000 rows as on five million.
@@ -43,7 +43,7 @@ class EvalQuestion:
     text: str
     #: aggregate | grouped | ranking | trend | statistical | ambiguous |
     #: unsupported. Used to read the results by category rather than to
-    #: score an expected answer -- there is no answer key here.
+    #: score an expected answer. There is no answer key here.
     kind: str
     #: What a competent run would do. Not asserted; recorded next to what
     #: actually happened, so a human can see the gap.

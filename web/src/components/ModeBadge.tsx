@@ -12,7 +12,7 @@ export type BadgeMode = ExecutionMode | 'compare_live'
  * Which badge belongs on screen.
  *
  * A replay is always a replay. Otherwise the selected mode decides, because
- * it is what the next run will be -- deriving this from the deployment's
+ * it is what the next run will be, and deriving this from the deployment's
  * capabilities would label a deterministic run "AI live" on any deployment
  * that merely offers AI.
  */
@@ -50,7 +50,7 @@ const LABELS: Record<BadgeMode, { label: string; tone: string; title: string }> 
     // Renamed with the rest of the vocabulary. The selector offers
     // "Compare planning strategies" and the report heading reads
     // "Planning strategies compared", but this badge kept saying
-    // "Compare both" -- in the header, on every comparison run. The
+    // "Compare both", in the header, on every comparison run. The
     // rename missed it because the label lives in a lookup table
     // rather than in the markup, so a grep over JSX did not see it.
     label: 'Comparing strategies',

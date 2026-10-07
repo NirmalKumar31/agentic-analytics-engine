@@ -178,7 +178,7 @@ def test_a_zero_finding_run_states_why_it_published_nothing(
 # The defect: a filter matching no rows came back `outcome: failed`, reason
 # "the executed result could not be turned into a direct answer". The SQL ran
 # and the table held no matching rows, which is a result. Reporting it as a
-# failure told a reader the system broke when it worked -- the exact
+# failure told a reader the system broke when it worked, the exact
 # confusion this module's docstring says the outcome vocabulary exists to
 # prevent.
 

@@ -34,7 +34,7 @@ from tests.corpus.kinds import Domain, Family, Outcome, QuestionKind
 ALLOWED: dict[QuestionKind, frozenset[Outcome]] = {
     # ── row restrictions ────────────────────────────────────────────────
     # A resolvable restriction must be answered, because the alternative
-    # the engine used to choose -- answering without it -- is the defect
+    # the engine used to choose (answering without it) is the defect
     # these kinds exist to catch.
     QuestionKind.NUMERIC_RANGE: frozenset({Outcome.VERIFIED_ANSWER}),
     QuestionKind.STRICT_BOUND: frozenset({Outcome.VERIFIED_ANSWER}),
@@ -58,7 +58,7 @@ ALLOWED: dict[QuestionKind, frozenset[Outcome]] = {
     QuestionKind.PERIOD_SENSITIVE: frozenset({Outcome.VERIFIED_ANSWER, Outcome.NO_FINDINGS}),
     # A refusal counts. Terminology that cannot be mapped to a column is
     # ambiguous in substance, and a refusal naming what to say instead is
-    # more honest than picking whichever column seemed closest -- which is
+    # more honest than picking whichever column seemed closest, which is
     # the only other way to answer "how long do fixes take in each team?"
     QuestionKind.SYNONYM: frozenset(
         {Outcome.VERIFIED_ANSWER, Outcome.NO_FINDINGS, Outcome.SAFE_REFUSAL}
@@ -95,7 +95,7 @@ class Case:
 
 #: Questions per dataset, by kind. Only the kinds a shape can support.
 #:
-#: The wording is deliberately uneven -- some questions name columns
+#: The wording is deliberately uneven: some questions name columns
 #: exactly, some use the words a person would actually use, some name a
 #: column that does not exist. That unevenness is the test.
 _QUESTIONS: dict[str, dict[QuestionKind, str]] = {
@@ -422,8 +422,8 @@ _QUESTIONS: dict[str, dict[QuestionKind, str]] = {
     },
     # ── two interval-grained matrices ───────────────────────────────────
     # The measure named in the answerable questions is deliberately the
-    # only additive column on each table. The bound columns -- depths,
-    # scheduled times -- are left for the ambiguous and synonym cases,
+    # only additive column on each table. The bound columns (depths,
+    # scheduled times) are left for the ambiguous and synonym cases,
     # which is where a shape like this actually goes wrong.
     "geology_core_assays": {
         QuestionKind.ANSWERABLE: "total interval_length_m by lithology_code",
@@ -465,8 +465,8 @@ _QUESTIONS: dict[str, dict[QuestionKind, str]] = {
 #: Kept apart from `_QUESTIONS` because they exercise a different thing.
 #: The other kinds ask whether the engine maps a question to the right
 #: columns; these ask whether a restriction it mapped actually reached the
-#: query. That failure is invisible in the output -- a dropped filter
-#: returns real numbers for a population nobody asked about -- so each
+#: query. That failure is invisible in the output: a dropped filter
+#: returns real numbers for a population nobody asked about, so each
 #: case here is either answered with the restriction applied or refused.
 _FILTER_QUESTIONS: dict[str, dict[QuestionKind, str]] = {
     "retail_orders": {

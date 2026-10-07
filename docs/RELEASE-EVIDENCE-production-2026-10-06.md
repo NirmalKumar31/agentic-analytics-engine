@@ -1,4 +1,4 @@
-# Production audit — 6 October 2026
+# Production audit: 6 October 2026
 
 This record is intentionally narrow: what was checked, against which commit,
 what it cost, and what it does not prove.

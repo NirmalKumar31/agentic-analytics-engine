@@ -25,8 +25,8 @@ log = get_logger(__name__)
 #: output is constrained to them and a model cannot return a value the
 #: validator will refuse.
 #:
-#: It did. A live run's visualiser chose `categorical` -- a reasonable word
-#: for a nominal axis, and not one Vega-Lite has -- and
+#: It did. A live run's visualiser chose `categorical`, a reasonable word
+#: for a nominal axis, and not one Vega-Lite has, and
 #: `verification/charts.py` rejected the specification:
 #: "encoding type 'categorical' is not allowed". The refusal was correct;
 #: the chart was still lost. Constraining the schema prevents the mistake
@@ -154,7 +154,7 @@ def _default_title(snapshot: ResultSnapshot) -> str:
         return column_label(str(metric))
     # Hand-written SQL and statistical tests carry no metric parameters, so
     # the result's own columns are the only honest description of what it
-    # shows -- labelled, because "arrived_late by customer_segment" is a
+    # shows, labelled, because "arrived_late by customer_segment" is a
     # chart title a reader was actually shown.
     if len(snapshot.columns) >= 2:
         return f"{column_label(snapshot.columns[1])} by {column_label(snapshot.columns[0]).lower()}"

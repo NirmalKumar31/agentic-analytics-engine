@@ -34,7 +34,7 @@ from agentic_analytics.warehouse.session import SessionManager, open_demo_sessio
 
 #: Every wait in this test is bounded, including the test's own. A
 #: regression here is a hang, and a hanging test in CI is the same outage in
-#: a different place -- so the bounds are written with `asyncio.wait_for`
+#: a different place, so the bounds are written with `asyncio.wait_for`
 #: and `Thread.join(timeout=...)` rather than a `pytest.mark.timeout`, which
 #: needs a plugin CI does not install and would silently not apply.
 OUTER_TIMEOUT = 120.0

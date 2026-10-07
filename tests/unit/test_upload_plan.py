@@ -256,7 +256,7 @@ def test_the_mapping_is_serialisable_and_says_it_is_rule_based() -> None:
 
 
 def test_resolution_is_deterministic() -> None:
-    """Same question, same schema, same plan -- every time."""
+    """Same question, same schema, same plan, every time."""
     first = resolve_question("total revenue by region", SCHEMA).as_dict()
     for _ in range(20):
         assert resolve_question("total revenue by region", SCHEMA).as_dict() == first

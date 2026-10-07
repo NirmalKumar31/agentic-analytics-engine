@@ -16,12 +16,12 @@ reaching the worker. This module collects them into one bounded contract.
 
 Two things are kept apart on purpose:
 
-* the **semantic interface** -- metrics and the dimensions they accept. For
+* the **semantic interface**: metrics and the dimensions they accept. For
   a metric tool the worker names `revenue` and `acquisition_channel` and
   never learns, or needs to learn, that those live in different relations.
   Resolving that is what the metric layer is for, and a worker that
   reasoned about the join would be doing the engine's job badly.
-* the **physical schema** -- tables, columns and types. This matters for
+* the **physical schema**: tables, columns and types. This matters for
   `profile_table`, `run_readonly_sql` and the upload tools, which do address
   real columns.
 
@@ -88,7 +88,7 @@ MAX_COLUMNS_PER_TABLE = 40
 #: How many metrics are described in full. The demo warehouse defines
 #: twenty, which is 4,800 characters of definition on every one of the six
 #: decisions a task is allowed. The rest are still *named*, and still valid
-#: to call -- what is narrowed is the description, never the permission.
+#: to call. What is narrowed is the description, never the permission.
 MAX_DETAILED_METRICS = 8
 
 

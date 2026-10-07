@@ -1,4 +1,4 @@
-# Release evidence — v0.1.0
+# Release evidence: v0.1.0
 
 What was measured against the deployed service, by whom, and what it does
 not cover. Figures are transcribed from captures held under gitignored
@@ -38,7 +38,7 @@ python scripts/live_acceptance.py https://agentic-analytics-engine.onrender.com
 
 It needs no credential, because the deployment needs none for this path.
 
-## 2. Paid hosted acceptance — one Compare Both run
+## 2. Paid hosted acceptance: one Compare Both run
 
 Exactly one request. No retry was attempted or permitted.
 
@@ -52,7 +52,7 @@ Question: *"What is the total invoice_amount?"*
 |---|---|---|
 | Status | `completed` | `completed` |
 | Provider | `scripted` | `cloud`, `gpt-6-luna` |
-| Published | 1 finding — **2,960** | 1 finding — **2,960.0** |
+| Published | 1 finding, **2,960** | 1 finding, **2,960.0** |
 | Input / output tokens | 6,728 / 693 | 5,895 / 1,087 |
 | Provider attempts | 11 (scripted, no network) | 8 |
 | Ledger cost | **0 µ$** | **1,160 µ$ = $0.001160** |
@@ -70,8 +70,8 @@ total; zero unsupported publications; zero irrelevant publications; every
 cited evidence cell resolved to its exact result; finding identifiers
 unique within each run.
 
-A leak scan over the whole capture — both event streams and the full JSON
-— found no API key, `Authorization` value, Redis URL, internal hostname,
+A leak scan over the whole capture, both event streams and the full JSON,
+found no API key, `Authorization` value, Redis URL, internal hostname,
 capability cookie or private filesystem path, and **no uploaded row
 reference anywhere in the output**.
 
@@ -130,13 +130,13 @@ This is broad tested coverage, **not a guarantee for every possible
 dataset.** The corpus is 230 questions its authors chose against data its
 authors generated. A question that is ambiguous, unsupported by the data,
 or insufficiently evidenced is expected to be refused or reported as a
-limitation rather than answered — that behaviour, not universal
+limitation rather than answered. That behaviour, not universal
 correctness, is what the corpus demonstrates.
 
 ## 5. What was not exercised
 
 - **Hosted AI-off rollback was not manually exercised.** The documented
-  procedure — set `AAE_AI_ANALYTICS_ENABLED=false` and redeploy — is
+  procedure, which is to set `AAE_AI_ANALYTICS_ENABLED=false` and redeploy, is
   covered by automated isolation tests, not by a rehearsal against this
   deployment.
 - **Hosted Redis-counter persistence across a web-service restart was not

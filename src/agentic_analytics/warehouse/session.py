@@ -6,9 +6,9 @@ token is the only thing that authorises access to that session's data.
 
 Two identifiers, deliberately separate:
 
-* ``session_id`` -- a public opaque handle. It appears in MCP resource URIs
+* ``session_id``: a public opaque handle. It appears in MCP resource URIs
   and in tool arguments. On its own it authorises nothing.
-* ``session_key`` -- the private capability. It travels in an HttpOnly cookie
+* ``session_key``: the private capability. It travels in an HttpOnly cookie
   to the browser and is injected by the MCP client into every tool call. A
   model never chooses it and it is redacted from the trace.
 
@@ -588,7 +588,7 @@ class SessionManager:
     #
     # A session may not be closed while an analysis can still use its DuckDB
     # connection, so whoever tears one down has to stop the runs first. The
-    # manager deliberately knows nothing about runs -- making it depend on
+    # manager deliberately knows nothing about runs, and making it depend on
     # the run registry, which already depends on sessions, would be a cycle.
     # Instead it answers "which sessions are you about to close?", and the
     # application layer cancels those sessions' runs before asking it to

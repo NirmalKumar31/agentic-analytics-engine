@@ -4,20 +4,20 @@
  *
  * The palette's contrast was documented and not enforced. `tokens.css`
  * records the measurements in a comment, and axe checks whatever the browser
- * suite happens to render -- which is six states out of a much larger set.
+ * suite happens to render, which is six states out of a much larger set.
  * A token that fails on a surface no scanned state uses passes both.
  *
  * That gap has cost real time. `--ink-muted` took three attempts: `#79828a`
  * failed all three surfaces at 3.79, `#6b747b` cleared paper at 4.62 and
  * failed the canvas at 4.16, and only a script that checked every colour
  * against every surface settled it. Three of PR F's five accessibility
- * defects were the same mistake -- a colour that cleared the surface it was
+ * defects were the same mistake: a colour that cleared the surface it was
  * checked against and failed a darker one.
  *
  * So this computes the ratios rather than trusting the comment. It is the
  * cheap half of the discipline: a token failing here is caught before it is
  * ever rendered, while axe stays the check on what a real page composites.
- * Neither replaces the other -- axe sees `opacity` and overlap, this sees
+ * Neither replaces the other: axe sees `opacity` and overlap, this sees
  * combinations no test renders.
  *
  * The thresholds are WCAG 2.2: 4.5:1 for body text (1.4.3) and 3:1 for user
@@ -83,7 +83,7 @@ function aliasTokens(block: string): Record<string, string> {
 /**
  * Follow aliases to the colour they end at.
  *
- * A palette is allowed to say "this token is that token" -- the dark theme
+ * A palette is allowed to say "this token is that token"; the dark theme
  * does exactly that, because the text-safe variants and the vivid colours
  * are the same colour there. Measuring the alias rather than its target
  * would report the token as missing and skip it, which is the failure mode
@@ -117,7 +117,7 @@ const LIGHT = resolve(hexTokens(LIGHT_BLOCK), aliasTokens(LIGHT_BLOCK));
  * Dark: the overrides, composed onto the light palette.
  *
  * The dark block redefines a subset. Everything it does not mention keeps
- * its `:root` value, because that is how the cascade works -- so the palette
+ * its `:root` value, because that is how the cascade works, so the palette
  * a reader in dark mode actually gets is light overlaid with the overrides.
  * Reading the block alone reports the rest as absent, which hides exactly
  * the failure this is looking for: a colour tuned for a light surface that
@@ -126,14 +126,14 @@ const LIGHT = resolve(hexTokens(LIGHT_BLOCK), aliasTokens(LIGHT_BLOCK));
  * **Hexes and aliases compose differently, and conflating them is a bug.**
  *
  * A hex the dark block omits really does inherit the light value, and that
- * is the defect this file was written to catch -- light-surface ochre left
+ * is the defect this file was written to catch: light-surface ochre left
  * sitting on a near-black panel.
  *
  * An *alias* omitted by the dark block does not. `--action: var(--signal)`
  * declared on `:root` is a substitution performed where the token is used,
  * against whatever `--signal` holds on the element then. Under
  * `[data-theme="dark"]` that is the dark signal, so the alias follows the
- * override without being restated -- and restating it is how a palette
+ * override without being restated, and restating it is how a palette
  * drifts, because a later edit that forgets one alias leaves a single
  * component wearing the old hue.
  *
@@ -203,7 +203,7 @@ const TEXT_TOKENS = [
 ];
 
 /**
- * Tokens used for rings, borders and chart marks -- things a reader has to
+ * Tokens used for rings, borders and chart marks: things a reader has to
  * perceive to use the interface. WCAG 1.4.11 asks 3:1. These deliberately do
  * *not* have to clear the text threshold: the vivid `--action` is right for
  * a focus ring and wrong for a sentence, which is why the text-safe variants
@@ -214,7 +214,7 @@ const TEXT_TOKENS = [
  * expressed by position and spacing, so they are decorative under 1.4.11 and
  * exempt. Measured, they sit at 1.26-2.85:1. Holding a divider to the
  * component threshold would mean darkening every hairline in the interface
- * to satisfy a rule that does not apply to it -- and the honest reason they
+ * to satisfy a rule that does not apply to it, and the honest reason they
  * are listed here at all is so that nobody re-adds them believing they were
  * overlooked.
  */
@@ -293,7 +293,7 @@ describe("interface colours clear 3:1 on every surface", () => {
  * It went wrong exactly there. `.btn.primary` carried `color: #1a1000`, a
  * near-black left from the palette where `--signal` was a light orange.
  * Against the mineral green it fell below 3:1, and axe failed three
- * browser states on it, while all 87 assertions here passed -- because
+ * browser states on it, while all 87 assertions here passed, because
  * none of them was looking at that pair.
  *
  * Each entry is (foreground token, fill token). Adding a filled control

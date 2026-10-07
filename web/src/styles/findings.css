@@ -138,7 +138,7 @@ pre.sql {
 /* The phone-width fold that stood here is gone with its markup.
  *
  * It hid every highlight but the first behind a `<details>` below 640px,
- * above a threshold of three -- and the presentation contract emits at
+ * above a threshold of three, and the presentation contract emits at
  * most two highlights for any shape, so the threshold was never met in
  * product output. The branch looked alive only because the published
  * recordings carried no presentation snapshot and the report fell back to

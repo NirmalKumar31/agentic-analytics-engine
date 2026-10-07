@@ -191,13 +191,13 @@ describe("compareRuns", () => {
  * planner fallback was not reported as the model agreeing, and that
  * computation was marked skipped when the request was refused first.
  *
- * The panel is gone -- it restated the same five steps a third time, after
- * the stepper and the agent diagram had each already said them -- and
+ * The panel is gone. It restated the same five steps a third time, after
+ * the stepper and the agent diagram had each already said them, and
  * Compare now states how each strategy got there in a single table.
  *
  * Those claims are not lost. They are the run timeline's, derived from the
  * events a run actually emitted rather than from a mode string, and tested
- * in `timeline.test.ts` against captured payloads -- including the two
+ * in `timeline.test.ts` against captured payloads, including the two
  * sequences that showed the old derivation was reading fields the engine
  * does not emit. `compareRuns` keeps the fallback claim directly: see
  * "does not present a fallback as the model independently agreeing" above.
@@ -206,7 +206,7 @@ describe("compareRuns", () => {
 describe("a run that has not finished has not disagreed", () => {
   // Seen against a real governed Compare run: the deterministic pane
   // finished, the AI pane still said "running", and the header announced
-  // "Different governed interpretations -- these panes answered different
+  // "Different governed interpretations. These panes answered different
   // questions". They had not. The AI run had no contract yet, and a missing
   // contract was read as a different one. Both planners went on to produce
   // the identical figure.
@@ -277,8 +277,8 @@ describe("a run that has not finished has not disagreed", () => {
 describe("the copy matches the layout it describes", () => {
   /*
    * Compare showed two reports side by side and called them panes. The
-   * panes are gone -- a full report in half a laptop's width is not a
-   * comparison -- and the verdict copy went on saying "These panes
+   * panes are gone, because a full report in half a laptop's width is not a
+   * comparison, and the verdict copy went on saying "These panes
    * answered different questions" above a switcher with no panes in it.
    *
    * Found by reading a production screenshot, which is the only place a

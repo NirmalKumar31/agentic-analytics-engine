@@ -70,7 +70,7 @@ export function ReportWorkspace({
   // a refused, quota-stopped, cancelled or failed run rendered the report
   // body as though it were an ordinary answer. The state comes first,
   // because when it is not `completed_verified` it is the most useful thing
-  // on the screen -- and `showsReport` decides whether there is a report
+  // on the screen, and `showsReport` decides whether there is a report
   // worth putting under it. A refusal has one; a failure does not.
   const state = runState(run);
   return (

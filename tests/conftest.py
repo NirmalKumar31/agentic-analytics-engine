@@ -22,7 +22,7 @@ from agentic_analytics.warehouse.session import AnalysisSession, open_demo_sessi
 # `Settings` loads `.env` by default, which is right for running the
 # application and wrong for testing it: a developer who has configured AI
 # mode locally gets a different suite from CI, where no `.env` exists. That
-# is the worst direction for the difference to run -- it hid nothing until
+# is the worst direction for the difference to run. It hid nothing until
 # someone put a real credential in the file, and then twenty tests failed
 # for reasons unrelated to any change.
 #

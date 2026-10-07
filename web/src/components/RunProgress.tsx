@@ -24,7 +24,7 @@
  *                  the server's clock, and a skew of a few seconds would
  *                  make the reader's own wait wrong or negative.
  *   work finished  counts of calls returned, findings verified, findings
- *                  withheld, charts drawn -- each of which moves only
+ *                  withheld, charts drawn, each of which moves only
  *                  when an event says so.
  *   why it waits   on an AI run, that the delay is a provider round trip
  *                  and not the engine stalling.
@@ -33,7 +33,7 @@
  * a denominator, and how many calls a run will make is decided by the
  * planner as it goes. Any bar would be a guess or a timer, and a bar that
  * advances on a timer cannot be told apart from one that advances because
- * work was done -- which is the one claim this product cannot afford to
+ * work was done, which is the one claim this product cannot afford to
  * get wrong. See `lib/runProgress.ts`.
  */
 

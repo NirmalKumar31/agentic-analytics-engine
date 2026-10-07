@@ -78,7 +78,7 @@ async def test_valid_json_that_violates_the_schema_is_a_schema_failure() -> None
     assert isinstance(raised, LLMError)
     call = seen[0]
     assert call.stage == "schema_validation_error"
-    # Transport and JSON both worked -- that is the whole point.
+    # Transport and JSON both worked, which is the whole point.
     assert call.transport_ok is True
     assert call.json_object_ok is True
     assert call.schema_validation_ok is False

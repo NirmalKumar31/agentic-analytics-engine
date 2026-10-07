@@ -1,4 +1,4 @@
-# Release evidence — schema-role confirmation and documentation closeout
+# Release evidence: schema-role confirmation and documentation closeout
 
 This document records the evidence at the merge of the session-scoped
 schema-role confirmation work. It separates what was executed, what was not,
@@ -28,9 +28,9 @@ automatically additive.
 | Python | 2,194 passed; 89% branch coverage |
 | Targeted role semantics | 81 tests across semantic, session, API, execution, corpus and in-flight boundaries |
 | Frontend unit | 453 passed |
-| Browser — Chromium | 96 discovered, 96 passed, 0 skips |
-| Browser — Firefox | 96 discovered, 95 passed, 1 declared PDF skip |
-| Browser — WebKit | 96 discovered, 95 passed, 1 declared PDF skip |
+| Browser: Chromium | 96 discovered, 96 passed, 0 skips |
+| Browser: Firefox | 96 discovered, 95 passed, 1 declared PDF skip |
+| Browser: WebKit | 96 discovered, 95 passed, 1 declared PDF skip |
 | Browser accounting | every discovered test reconciled; no failed, timed-out, interrupted, unattributable or retry-rescued flaky test accepted |
 | Accessibility | serious/critical axe violations: 0 in both role-control states on all three engines |
 | Mutations | 19 effective mutations caught; 2 behaviour-equivalent mutations excluded rather than counted |

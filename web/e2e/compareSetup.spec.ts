@@ -22,7 +22,7 @@ import { openApp } from "./helpers";
  *
  * This is a regression test for a real defect, not a precaution. Swapping
  * two lines in `print.spec.ts` passed on Chromium, which happened to win
- * the race, and timed out **every test in that file** on Firefox -- eleven
+ * the race, and timed out **every test in that file** on Firefox: eleven
  * tests, ninety seconds each, with the eventual message pointing at a
  * missing control rather than at a missing route.
  *
@@ -38,7 +38,7 @@ test.describe("Compare's configuration route", () => {
     /*
      * Polled, not sampled once. `openApp` resolves on the app shell being
      * mounted, and the `request` event for `/api/config` is delivered on
-     * its own turn of the event loop -- so reading the record immediately
+     * its own turn of the event loop, so reading the record immediately
      * can see `null` ("not asked yet") rather than the ordering. Polling
      * distinguishes "has not happened yet" from "happened in the wrong
      * order", which is the thing being asserted.
@@ -55,7 +55,7 @@ test.describe("Compare's configuration route", () => {
      *
      * Ordering on its own does not prove this fixture does anything. The
      * local strict server already advertises AI, so Compare is offered
-     * whether or not the route applied -- forcing the handler to fail left
+     * whether or not the route applied. Forcing the handler to fail left
      * all three tests in this file green. The CI container, which has no
      * provider key, is the only place the difference showed. Counting the
      * interceptions is what makes the claim independent of what the server
@@ -74,7 +74,7 @@ test.describe("Compare's configuration route", () => {
      * The consequence, stated separately: the ordering is only interesting
      * because of what it enables. A deployment with no AI key advertises
      * `compare_available: false`, and without the route the radio is
-     * disabled -- which is what every timed-out test was waiting on.
+     * disabled, which is what every timed-out test was waiting on.
      */
     await advertiseAi(page);
     await openApp(page);

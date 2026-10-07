@@ -83,7 +83,7 @@ test.describe("the landing's hierarchy", () => {
      * Polled, not sampled once.
      *
      * `openApp` waits for the application shell, which is React having
-     * mounted -- not for the stylesheet to have been applied. Measured in
+     * mounted, not for the stylesheet to have been applied. Measured in
      * that window the headline reports the user-agent's 16px and the
      * assertion fails on a page that is perfectly correct a frame later.
      * It held under a single-spec run and failed once in a full suite,

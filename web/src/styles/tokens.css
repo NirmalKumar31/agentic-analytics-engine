@@ -4,15 +4,15 @@
  * ## Mineral & Ink
  *
  * This palette replaces the warm cream-and-orange one. That change is not a
- * preference. The old surfaces were paper-coloured -- #ece7df canvas, #faf7f1
- * paper -- and a warm cast on every surface is a claim: it says the thing you
+ * preference. The old surfaces were paper-coloured: #ece7df canvas, #faf7f1
+ * paper, and a warm cast on every surface is a claim: it says the thing you
  * are reading is a document someone composed. This product publishes computed
  * results, withholds claims it cannot verify, and refuses questions it cannot
  * answer honestly. The surface should read as neutral ground that the engine
  * has not editorialised.
  *
  * So: a cool neutral canvas, near-black ink, and exactly one saturated colour
- * doing the work -- a mineral green that means *the engine is speaking*. A
+ * doing the work: a mineral green that means *the engine is speaking*. A
  * second, a burnt red, means *caution*. Nothing else is saturated. Roughly
  * ninety per cent of any screen is neutral, so the few coloured things on it
  * are the ones that carry meaning: the answer, a verdict, a refusal.
@@ -23,8 +23,8 @@
  *
  * ## Two rules that keep this honest as it grows
  *
- * A value used twice becomes a token. A token that encodes a meaning -- "this
- * is a warning" -- is named for the meaning, not the colour, so dark mode can
+ * A value used twice becomes a token. A token that encodes a meaning ("this
+ * is a warning") is named for the meaning, not the colour, so dark mode can
  * change the hue without changing what it says.
  *
  * ## Contrast is measured, not asserted
@@ -356,7 +356,7 @@
  * palette is applied, not animated. Firefox is not. Asked to print a page
  * whose body carries `transition: background-color var(--motion-panel)`,
  * it starts the transition anyway and the first frame of the printed sheet
- * is `rgb(111, 114, 114)` -- exactly halfway between the dark canvas and
+ * is `rgb(111, 114, 114)`, exactly halfway between the dark canvas and
  * white. Per the transitions spec the after-change style governs, and
  * after the change there is no transition to run; Firefox consults the
  * screen's.

@@ -2,7 +2,7 @@
  * The wrapper must run the guard even when Playwright fails.
  *
  * `.check.mjs`, not `.test.mjs`: vitest's default glob claims `*.test.*`
- * anywhere in the project, and it cannot run this -- it is a plain Node
+ * anywhere in the project, and it cannot run this. It is a plain Node
  * script that spawns processes, not a vitest suite. Named this way it
  * stays out of vitest's way and keeps its own CI step.
  *
@@ -53,7 +53,7 @@ function run({
 const reportPath = join(dir, 'playwright-results-chromium.json')
   /*
    * The stale case backdates the file the stub just wrote. A report cannot
-   * simply be left over -- the wrapper deletes it before starting -- so the
+   * simply be left over. The wrapper deletes it before starting, so the
    * failure being modelled is a reporter that puts an older document at the
    * expected path *during* the run, which is what `--reporter=line`
    * overriding the config's JSON reporter did here once.

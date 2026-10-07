@@ -3,8 +3,8 @@
  *
  * Step H's rule, stated once: **a reader who prints a report must not get
  * less than a reader who clicks through it.** On screen the technical
- * record lives behind one control -- "Show work" for a single run, "Inspect
- * both traces" for a Compare -- and a control is not a thing that exists on
+ * record lives behind one control: "Show work" for a single run, "Inspect
+ * both traces" for a Compare, and a control is not a thing that exists on
  * paper. Without an appendix, printing is a silent loss of provenance that
  * looks like a clean document.
  *
@@ -117,7 +117,7 @@ describe("a printed report carries the evidence the screen hid", () => {
   });
 
   it("opens every disclosure, because paper has none", () => {
-    // Not a CSS claim -- `print.css` makes one too, and it is not enough.
+    // Not a CSS claim; `print.css` makes one too, and it is not enough.
     // Chromium lays a closed `<details>` out and then skips painting it, so
     // the planning audit printed as a heading over an empty block while
     // `getComputedStyle` reported `display: block` on its body.
@@ -148,7 +148,7 @@ describe("a printed report carries the evidence the screen hid", () => {
      * when it stands alone on the canvas during a run. In the evidence
      * drawer it sits inside a section that is already labelled "Run
      * progress" and carries a visible heading saying the same, so a screen
-     * reader announced the name three times -- and once the appendix
+     * reader announced the name three times, and once the appendix
      * rendered the drawer's body unconditionally, every report had two
      * identical headings in its document.
      */

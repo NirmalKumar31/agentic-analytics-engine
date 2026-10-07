@@ -62,7 +62,7 @@ class AnalysisState(TypedDict, total=False):
     query_mapping: Any
     #: The inferred schema for a single uploaded table, as a plain dict.
     #: Carried so question coverage can re-read what the question asked
-    #: for without consulting the contract that answered it -- deriving
+    #: for without consulting the contract that answered it, because deriving
     #: requirements from the contract is what made the first coverage gate
     #: vacuous.
     upload_schema: dict[str, Any]

@@ -5,7 +5,7 @@ extension, its declared content type and its bytes. So none of those are
 trusted:
 
 * the size ceiling is enforced while streaming, not from a header,
-* the format is decided by content, not by the extension -- though "by
+* the format is decided by content, not by the extension, though "by
   content" means different things for the two formats, and the distinction
   is stated rather than glossed: **Parquet** has a real signature (``PAR1``
   at both ends) and self-describing metadata, so it is genuinely validated.

@@ -3,7 +3,7 @@
  *
  * A horizontal sequence on a wide screen, a vertical one on a phone. Each
  * stage carries its own state, and every state comes from an event the
- * backend emitted -- see `lib/timeline.ts` for the derivation and for why
+ * backend emitted. See `lib/timeline.ts` for the derivation and for why
  * the AI interpretation stage is conditional.
  *
  * It does not animate a travelling trace. The storyboard allows one, and it

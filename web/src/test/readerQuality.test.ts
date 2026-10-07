@@ -112,7 +112,7 @@ describe("the two forms a filter published", () => {
   });
 
   it("catches percentage points written as a percentage", () => {
-    // Not a reader-quality rule -- this is here to record that it is not
+    // Not a reader-quality rule. This is here to record that it is not
     // one. The two readings differ by two orders of magnitude and no
     // pattern over the rendered string can tell them apart; the unit has
     // to be right at the presentation layer, which is where

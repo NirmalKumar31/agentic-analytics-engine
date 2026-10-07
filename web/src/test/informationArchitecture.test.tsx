@@ -10,7 +10,7 @@
  *      published nothing is never labelled "Complete", and "withheld by
  *      verification" is not the same thing as "found nothing to claim".
  *   3. Compare says what automatic routing did, or says it is not
- *      recorded -- never a guessed route.
+ *      recorded, never a guessed route.
  *   4. The report leads with the answer.
  *   5. The schema inspector and the technical audit are disclosures, so
  *      neither sits permanently between a reader and the thing they came
@@ -141,7 +141,7 @@ describe("an inferred role the data cannot settle", () => {
     // The note used to say a role could not be set here because one would
     // have to be validated and audited to mean anything. That is now what
     // happens, so the note would be describing a limitation that no longer
-    // exists -- and promising less than the product does is still wrong.
+    // exists, and promising less than the product does is still wrong.
     const confirmable = summary([
       field("Store", "measure", {
         ambiguous: true,
@@ -217,7 +217,7 @@ describe("every terminal state is distinguishable", () => {
     expect(report).toHaveTextContent(expected);
 
     // One heading, once. The defect this guards is a refusal stating its
-    // reason twice -- in a card and again as the display headline --
+    // reason twice, in a card and again as the display headline,
     // which is counted on the headline, not on every occurrence of the
     // word: "withheld" legitimately recurs in a sentence explaining that a
     // claim which cannot be checked is withheld.
@@ -259,7 +259,7 @@ describe("every terminal state is distinguishable", () => {
   });
 
   // The stepper assertion that stood here went with the stepper. Its claim
-  // -- a stopped run is shown stopped at the stage it stopped at -- is owed
+  // (a stopped run is shown stopped at the stage it stopped at) is owed
   // by the step D timeline, from backend events.
 });
 
@@ -413,7 +413,7 @@ describe("the report workspace", () => {
     const stamp = screen.getByTestId("report-stamp");
 
     // The short forms, not the whole hash: this is a reference a reader can
-    // quote, not the record itself -- which is in the evidence drawer.
+    // quote, not the record itself, which is in the evidence drawer.
     expect(stamp).toHaveTextContent("a7c31a");
     expect(stamp).toHaveTextContent("5913f6e");
     expect(stamp).toHaveTextContent("412 ms");
@@ -423,7 +423,7 @@ describe("the report workspace", () => {
   });
 
   it("stamps nothing rather than a row of placeholders", () => {
-    // A stamp reading "contract — · sha — · — ms" looks like a record and
+    // A stamp reading "contract · sha · ms" with nothing in it looks like a record and
     // holds none.
     workspace(
       run({ query_contract: undefined, build_sha: "unknown", timings: undefined }),
@@ -434,7 +434,7 @@ describe("the report workspace", () => {
   it("keeps the planning audit off the report canvas entirely", () => {
     // It used to be a closed disclosure resident under every report. A
     // closed disclosure is still a thing in the reading order, still a tab
-    // stop, and still the last thing on the page -- so the claim is now
+    // stop, and still the last thing on the page, so the claim is now
     // stronger: it is not on the canvas at all, and lives in the evidence
     // drawer with everything else the canvas gave up.
     workspace(audited);
@@ -583,8 +583,8 @@ describe("question examples come from the dataset at hand", () => {
   it("keeps the curated questions when there is no uploaded schema", () => {
     // The demo session also carries a summary, so App passes null unless the
     // dataset kind is an upload. Gating on the summary's presence alone
-    // replaced the curated questions -- which demonstrate the governed
-    // metric registry -- with generic ones derived from its tables.
+    // replaced the curated questions, which demonstrate the governed
+    // metric registry, with generic ones derived from its tables.
     composer(null);
     const list = screen.getByTestId("question-examples");
     expect(list).toHaveAttribute("data-source", "demo");
@@ -728,7 +728,7 @@ describe("the report card says what it actually is", () => {
 
   it("states a real answer without labelling its own epistemic status", () => {
     /*
-     * This asserted the inverse -- that an answer *is* labelled "Verified
+     * This asserted the inverse: that an answer *is* labelled "Verified
      * answer". That label is gone, and this is the one place in the suite
      * where the claim genuinely changed rather than moving.
      *
@@ -741,7 +741,7 @@ describe("the report card says what it actually is", () => {
      * What must not happen is the opposite failure, which the original
      * caught: a refusal or a failure wearing the answer's clothes. The two
      * tests above assert that directly, and they are stronger than this one
-     * was -- they check the whole report, not one element.
+     * was. They check the whole report, not one element.
      */
     present("breakdown", "Revenue by region: North $1.00.");
     const report = screen.getByTestId("report-panel");
@@ -783,7 +783,7 @@ describe("the report card says what it actually is", () => {
 describe("the comparison is named the same thing everywhere", () => {
   it("does not call it \"Compare both\" in the header badge", () => {
     // The rename covered the selector, the run button and the report
-    // heading, and missed this one -- so the header said "Compare both" on
+    // heading, and missed this one, so the header said "Compare both" on
     // every comparison run, which is the string that prompted the rename.
     // It was missed because the label lives in a lookup table rather than
     // in markup, so reading the JSX did not show it.

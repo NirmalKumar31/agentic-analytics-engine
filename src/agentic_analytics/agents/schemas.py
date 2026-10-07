@@ -20,7 +20,7 @@ from agentic_analytics.llm.strict_schema import decode_json_object
 #:
 #: Accepts the object itself or a string holding its JSON. The second form
 #: exists because OpenAI strict Structured Outputs cannot express an object
-#: with arbitrary keys -- `additionalProperties: false` is mandatory there,
+#: with arbitrary keys. `additionalProperties: false` is mandatory there,
 #: and on an object with no declared properties it permits only `{}`. The
 #: schema sent to that provider asks for a string; every other provider
 #: still answers with an object, and both validate here.
@@ -233,8 +233,8 @@ class Verdict(BaseModel):
     #: Which gate decided this, as a stable identifier rather than prose.
     #: `causal_from_observational`, `significance_without_test`,
     #: `no_evidence`, `missing_result`, `numeric_mismatch`, `critic`, or
-    #: `critic_unavailable`. Anything reading a verdict programmatically --
-    #: the benchmark, the UI -- keys off this rather than matching on the
+    #: `critic_unavailable`. Anything reading a verdict programmatically
+    #: (the benchmark, the UI) keys off this rather than matching on the
     #: wording, which is written for a person and may change.
     rule: str = ""
     # Set when deterministic arithmetic, not the critic, settled the matter.

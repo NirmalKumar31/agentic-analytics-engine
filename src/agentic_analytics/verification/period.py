@@ -14,9 +14,9 @@ the question names" and never looked at the dates.
 Two levels of strictness, because questions name periods with two levels of
 precision:
 
-* **A resolved window** -- "Q3 2025" -- gives real dates, so a finding's
+* **A resolved window** ("Q3 2025") gives real dates, so a finding's
   dates either fall inside it or they do not.
-* **A bare quarter** -- "Q3", no year -- names no dates at all, but it does
+* **A bare quarter** ("Q3", no year) names no dates at all, but it does
   name months 7 to 9. A finding dated October is in Q4 whatever year it is,
   so this is still checkable and still worth checking.
 

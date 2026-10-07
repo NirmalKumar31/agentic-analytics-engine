@@ -2,7 +2,7 @@
  * The resource budget must fail on each condition it exists to catch.
  *
  * `check-resource-budget.mjs` is the only thing standing between this suite
- * and the ceilings that took PR #46's browser job down twice -- once on
+ * and the ceilings that took PR #46's browser job down twice, once on
  * upload sessions, once on analyses. It then passed a job that was over its
  * analysis budget, because the suite's own accounting mislabelled real runs
  * as replays and the guard believed it. A guard whose failure paths are
@@ -326,7 +326,7 @@ test('too many admissions across the job fails, even when each engine is fine', 
    * per-engine one, so with three engines the per-engine rule always fires
    * first and this one could never be seen to work. The guard does not
    * care how many engines a ledger holds, which is what makes the case
-   * expressible -- and the day a fourth engine is added, the job rule is
+   * expressible, and the day a fourth engine is added, the job rule is
    * the one that has to hold.
    */
   const r = run({

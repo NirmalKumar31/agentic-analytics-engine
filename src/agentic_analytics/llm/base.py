@@ -28,7 +28,7 @@ from pydantic import BaseModel, Field
 #: The distinction is load-bearing for evaluation. "The model returned
 #: something the schema rejected" and "the HTTP request timed out" are
 #: completely different statements about a model, and collapsing both into
-#: one error type -- which is what happened -- makes a report that cannot
+#: one error type, which is what happened, makes a report that cannot
 #: answer the question it claims to answer.
 FailureKind = Literal[
     "transport_error",
@@ -200,7 +200,7 @@ def sanitize_provider_error(exc: BaseException) -> str:
     text = str(exc).lower()
     # By type first, then by message. `asyncio.TimeoutError` and
     # `httpx.ReadTimeout` both stringify to the empty string, so a
-    # message-only test classified them as a generic failure -- which is how
+    # message-only test classified them as a generic failure, which is how
     # a run that hung for twenty minutes got reported as "call failed".
     if isinstance(exc, TimeoutError) or "timeout" in name.lower():
         return "the language model did not respond in time"

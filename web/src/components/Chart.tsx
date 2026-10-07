@@ -52,7 +52,7 @@ export function Chart({ chart, snapshot, onOpenProvenance }: Props) {
    * listed it as a dependency of the embed effect. That looked equivalent
    * and was not: the first embed ran with the initial state of `0`, so the
    * specification was built with `Math.max(240, 0 - 32)` and the chart
-   * rendered 240px wide inside a 976px card -- the "tiny chart in a large
+   * rendered 240px wide inside a 976px card, the "tiny chart in a large
    * empty card" this redesign exists to fix, reintroduced by the fix for
    * it. Re-embedding on the later state change raced with the first
    * embed's promise and did not reliably win.
@@ -140,7 +140,7 @@ export function Chart({ chart, snapshot, onOpenProvenance }: Props) {
                *
                * `view.stroke` defaults to `#ddd`, a light grey chosen for a
                * white page and never revisited. In dark mode it rendered as
-               * a near-white rectangle on a #0e1113 canvas -- the brightest
+               * a near-white rectangle on a #0e1113 canvas, the brightest
                * thing on the report, outlining the chart like a selection
                * box, in a colour from neither palette. In light mode the
                * same value is almost invisible against #f2f4f1, which is
@@ -162,8 +162,8 @@ export function Chart({ chart, snapshot, onOpenProvenance }: Props) {
               },
               /*
                * `axisX` rather than `axis`, and config rather than the
-               * spec: a specification that set its own `axis.labelAngle`
-               * -- which the demo warehouse's do -- overrides config and
+               * spec: a specification that set its own `axis.labelAngle`,
+               * which the demo warehouse's do, overrides config and
                * keeps the decision it made.
                */
               ...(labelAngle === null
@@ -178,7 +178,7 @@ export function Chart({ chart, snapshot, onOpenProvenance }: Props) {
               // `range.category` below only applies where a *colour
               // encoding* exists. A single-series bar or line has none, so
               // every such chart in the product was drawn in Vega's own
-              // default `#4c78a8` -- a blue from neither palette, unchanged
+              // default `#4c78a8`, a blue from neither palette, unchanged
               // between light and dark, and never measured for contrast
               // against the plot surface. Observed on a real report, not
               // inferred: the token range was right and simply never

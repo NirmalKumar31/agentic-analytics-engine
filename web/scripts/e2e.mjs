@@ -5,7 +5,7 @@
  * and the `&&` is the bug: Playwright's non-zero exit short-circuits it, so
  * the guard never runs on exactly the runs that most need checking. On PR
  * #46 the browser job failed with 71 Chromium failures and the guard
- * produced no verdict at all -- no reconciliation, no skip accounting, no
+ * produced no verdict at all: no reconciliation, no skip accounting, no
  * flake check. The one thing the pipeline could say was "something failed".
  *
  * So: the two halves run unconditionally, their outcomes are reported
@@ -15,7 +15,7 @@
  *
  * The stale-report problem is handled before Playwright starts. The report
  * is deleted first, so a crash that writes nothing cannot leave the
- * previous run's JSON for the guard to approve -- which has happened here
+ * previous run's JSON for the guard to approve, which has happened here
  * once already, with `--reporter=line` overriding the config's JSON
  * reporter and the guard reading a file from the run before.
  */
@@ -54,7 +54,7 @@ const playwrightOk = playwright.status === 0
 /*
  * The report must be newer than the run that was supposed to write it. A
  * file left by an earlier run is not evidence about this one, and the
- * delete above only covers the case where the file existed -- a reporter
+ * delete above only covers the case where the file existed, and a reporter
  * misconfigured to write somewhere else would leave a *stale* file at the
  * expected path that the delete never saw.
  */
@@ -71,13 +71,13 @@ const guard = spawnSync('node', ['scripts/check-playwright-skips.mjs', REPORT], 
 /*
  * And the resource budget, also unconditionally.
  *
- * The two guards answer different questions -- "did every test run and
- * reconcile" and "what did the run cost the server" -- and a failing run
+ * The two guards answer different questions: "did every test run and
+ * reconcile" and "what did the run cost the server", and a failing run
  * needs both answered. A job that fails on 71 assertions *and* exhausted
  * the analysis ceiling has two problems, and reporting one of them sends
  * the next hour in the wrong direction.
  *
- * `--scope engine`: everything one invocation can know by itself -- a 429
+ * `--scope engine`: everything one invocation can know by itself, such as a 429
  * it was served, a session it did not hand back, its own totals. The
  * job-wide totals and the engine roll-call need the last engine to have
  * finished, so CI runs the same script once more with `--scope job` after

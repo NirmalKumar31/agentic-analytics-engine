@@ -46,14 +46,14 @@ export function directAnswer(
  * `directAnswer` only recognises a finding that cites a result produced by
  * a tool executing an accepted contract, and a contract is only accepted
  * for uploaded data. On the governed warehouse it therefore always
- * declines, and the headline fell back to `findings[0]` -- the planner's
+ * declines, and the headline fell back to `findings[0]`, the planner's
  * own first finding, which makes task ordering into editorial ranking.
  *
  * A live run showed what that costs. Asked "Which customer segments are
  * driving the increase in return rate?", the report led with a finding
  * about `refund_amount` over two months, while the finding that compared
- * `return_rate` across `customer_segment` -- the question, answered,
- * verified and published -- sat second.
+ * `return_rate` across `customer_segment`, the question answered,
+ * verified and published, sat second.
  *
  * So findings are scored against the components the planner says the
  * question fixed. The metric is weighted above the grouping because a
@@ -111,7 +111,7 @@ function matchesRequestedMetric(
  *
  * In order of authority: a finding citing the accepted contract's own
  * result; then the best match against what the planner says was asked;
- * then nothing. The last case is deliberate -- `onTopic: false` means no
+ * then nothing. The last case is deliberate, because `onTopic: false` means no
  * published finding was about the measure the question named, and saying
  * so is better than promoting an unrelated fact to the headline.
  *
@@ -132,7 +132,7 @@ export function rankedAnswer(
 
   if (!interpretation || (interpretation.metrics ?? []).length === 0) {
     // Nothing to rank against. The engine's own first finding leads, as
-    // before -- this is not worse than it was, it is just not better.
+    // before. This is not worse than it was, it is just not better.
     return { finding: findings[0] ?? null, onTopic: true };
   }
 
@@ -180,7 +180,7 @@ export function answerResult(
  *
  * Read from the engine's measured coverage when present. The fallback sums
  * the result's own `row_count` column, which is right only when every group
- * is present -- and that is exactly what coverage records, so the fallback
+ * is present, and that is exactly what coverage records, so the fallback
  * is used only for a result that carries no coverage block at all.
  *
  * Deliberately not `snapshot.row_count`: that is the number of rows in the
@@ -252,7 +252,7 @@ export function observationsUsed(snapshot: ResultSnapshot | null): number | null
  *
  * Every phrase here is built from counted values. The report used to say
  * "Population: every row in the dataset" whenever the question stated no
- * filters, and "Rows counted 3,575" from the rows that came back -- for a
+ * filters, and "Rows counted 3,575" from the rows that came back, so for a
  * result holding 25 of 45 groups and 55% of the rows.
  */
 export function coverageScope(snapshot: ResultSnapshot | null): string | null {
@@ -293,7 +293,7 @@ export function isComplete(snapshot: ResultSnapshot | null): boolean | null {
 /**
  * How the population was restricted, in the reader's terms.
  *
- * Empty means no restriction was asked for -- which the caller states as
+ * Empty means no restriction was asked for, which the caller states as
  * "every row", never as silence, because a reader cannot tell an
  * unrestricted answer from an unreported restriction.
  */

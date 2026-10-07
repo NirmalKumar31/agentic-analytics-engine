@@ -4,10 +4,10 @@
  * Three questions were being answered by one hash comparison, and they are
  * not the same question:
  *
- * 1. **Contract equality** -- did the two planners choose the same
+ * 1. **Contract equality**: did the two planners choose the same
  *    governed request?
- * 2. **Question coverage** -- does that request answer what was asked?
- * 3. **Output equality** -- did the same request produce the same numbers?
+ * 2. **Question coverage**: does that request answer what was asked?
+ * 3. **Output equality**: did the same request produce the same numbers?
  *
  * "Same governed interpretation" only ever meant the first. Two planners
  * agreeing on a contract that drops a grouping agree about the wrong
@@ -120,7 +120,7 @@ export function compareRuns(
   // a different one.
   //
   // Falling through to the comparison below read the absence as a
-  // disagreement and announced "Different governed interpretations -- these
+  // disagreement and announced "Different governed interpretations. These
   // panes answered different questions" while the AI pane still read
   // "running". Observed against a real governed run where the two planners
   // went on to produce the identical figure. `base` already says the true
@@ -164,7 +164,7 @@ export function compareRuns(
 
   // Matching answers are not matching runs. Verification is per run, so one
   // mode can publish the same figure while having withheld something the
-  // other published -- and `shareOneResult` would then hide the withheld
+  // other published, and `shareOneResult` would then hide the withheld
   // finding along with the pane that held it. When the two differ in what
   // they withheld, there is something to compare, so both panes stay.
   if ((deterministic.rejected ?? []).length !== (ai.rejected ?? []).length) {

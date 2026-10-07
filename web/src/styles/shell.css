@@ -11,7 +11,7 @@
  *
  * It was two lines tall because it carried a tagline under the product
  * name. Height in a persistent header is paid on every screen, forever, by
- * the content below it -- and what it bought was a sentence nobody reads
+ * the content below it, and what it bought was a sentence nobody reads
  * twice. One line now, 52px, which is the height the approved composition
  * is drawn at. */
 .topbar {
@@ -82,7 +82,7 @@
 
 /* One column.
  *
- * This was `minmax(0, 1fr) 330px` -- a reserved column for the right rail.
+ * This was `minmax(0, 1fr) 330px`, a reserved column for the right rail.
  * The rail is deleted, so from the moment a run existed the layout held
  * 330px of empty canvas down the right of every report, and the content
  * sat off-centre in the remainder. `data-rail` is still set on the element

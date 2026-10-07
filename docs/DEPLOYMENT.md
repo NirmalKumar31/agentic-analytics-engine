@@ -48,7 +48,7 @@ Per-run ceilings for an AI run. Deterministic runs are unaffected.
 | `AAE_AI_MAX_LLM_CALLS` | `64` | Provider attempts, including failures and retries. Allows for the verification tail: one call per proposed finding, on top of planning and the tool loop. |
 | `AAE_AI_MAX_INPUT_TOKENS` | `120000` | |
 | `AAE_AI_MAX_OUTPUT_TOKENS` | `64000` | Sized for a reasoning model, whose hidden reasoning counts toward output. |
-| `AAE_AI_VERIFICATION_OUTPUT_RESERVE` | `24000` | Output tokens only verification may spend. Not extra budget — a claim on part of the ceiling that the proposing stages cannot take. |
+| `AAE_AI_VERIFICATION_OUTPUT_RESERVE` | `24000` | Output tokens only verification may spend. Not extra budget, but a claim on part of the ceiling that the proposing stages cannot take. |
 | `AAE_AI_MAX_RUNTIME_SECONDS` | `180` | |
 | `AAE_AI_MAX_COST_MICRODOLLARS` | `250000` | $0.25. Integer microdollars; money is never a float. |
 
@@ -75,7 +75,7 @@ backstop.
 The daily counter is keyed by UTC date and expires on its own. The lifetime
 total is not keyed by anything and never expires: when it is reached, AI
 stays off until you delete `aae:ai:total` in the Key Value instance
-deliberately. That is the intended behaviour for a public demo — a cap that
+deliberately. That is the intended behaviour for a public demo: a cap that
 rolls over on a schedule can be reached on every schedule, unattended.
 
 The lifetime total counts **worst case, not settled cost**, for any run that
@@ -96,7 +96,7 @@ Edit spend limit, with **Enforce a hard limit** turned on. A spend alert is
 not a limit. Use a project created for this demo rather than the default
 one, so the ceiling cannot be raised by unrelated work sharing it.
 
-OpenAI documents that enforcement is not instantaneous — a small amount of
+OpenAI documents that enforcement is not instantaneous, so a small amount of
 extra usage can be processed while the limit state propagates, so recorded
 spend can slightly exceed the configured amount. Size the limit with that in
 mind rather than treating it as exact.
@@ -106,7 +106,7 @@ https://developers.openai.com/api/docs/guides/spend-limits
 
 Priced from the published rates for `gpt-6-luna`, reviewed 2026-09-27
 (https://developers.openai.com/api/docs/models/gpt-6-luna). Input is billed
-at one of three rates — ordinary, cache read, or cache write — and nothing
+at one of three rates (ordinary, cache read, or cache write) and nothing
 before dispatch can know which, so the application reserves at the dearest
 of them and releases the difference once the provider reports what it
 actually used.
@@ -135,8 +135,9 @@ raised deliberately.
 
 The service runs on Render's **free** instance type: 512 MB, and it spins
 down after 15 minutes without traffic, waking in about a minute. That
-spin-down is the point — this is a portfolio demo, not a service with an
-availability target — and it is safe here because nothing needs to survive
+spin-down is the point, since this is a portfolio demo rather than a service
+with an availability target, and it is safe here because nothing needs to
+survive
 it. The demo warehouse is baked into the image at build time, uploads live
 under `/tmp` for the life of a session, and the AI ledger is in Key Value.
 
@@ -158,8 +159,8 @@ full session table:
 | 6 | 600 MB | killed |
 | 8 | 708 MB | killed |
 
-Memory does not grow across runs — a single session doing twelve analyses
-two at a time plateaus at 391 MB — so the cap is about how many sessions
+Memory does not grow across runs, and a single session doing twelve analyses
+two at a time plateaus at 391 MB, so the cap is about how many sessions
 are *open*, not how much work they do.
 
 Hence `AAE_MAX_CONCURRENT_SESSIONS=3`. A fourth visitor evicts the least
@@ -168,44 +169,44 @@ without raising the plan is how this deployment dies under its first bit
 of attention**, and there is a test asserting the ceiling for that reason.
 
 If you want more than three concurrent visitors, move to a paid instance
-type — `1c-2g` gives 2 GB — and raise the caps together. Paid instances do
+type (`1c-2g` gives 2 GB) and raise the caps together. Paid instances do
 not spin down, so that trades the scale-to-zero away.
 
 ## Checklist
 
 Deterministic first. AI only after the deterministic service is healthy.
 
-1. **Web service** — deploy from `render.yaml`. Docker runtime, health check
+1. **Web service**: deploy from `render.yaml`. Docker runtime, health check
    `/api/ready`, manual deploys.
-2. **Verify deterministic** — `/api/ready` returns 200, `/api/config` shows
+2. **Verify deterministic**: `/api/ready` returns 200, `/api/config` shows
    `deterministic` available and `ai` unavailable with a reason, a demo
    question runs end to end, and `scripts/live_acceptance.py` passes with
    `--expect-api-docs-disabled`.
-3. **Key Value instance** — the public Blueprint resolves the existing
+3. **Key Value instance**: the public Blueprint resolves the existing
    `agentic-research-quota` connection internally. In another workspace,
    replace that service reference with a same-region store you control.
-4. **Provider credential** — create the key with the smallest scope that
+4. **Provider credential**: create the key with the smallest scope that
    works. Put it in the dashboard only.
-5. **Provider-side spend cap** — set a hard monthly cap on the account or
+5. **Provider-side spend cap**: set a hard monthly cap on the account or
    project. Do this *before* enabling AI, not after.
-6. **Verify the model** — confirm the exact identifier is accessible to that
+6. **Verify the model**: confirm the exact identifier is accessible to that
    credential, and that `src/agentic_analytics/llm/pricing.py` has an entry
    for it. An unpriced model is refused at runtime.
-7. **Confirm pricing** — check the entry against the provider's published
+7. **Confirm pricing**: check the entry against the provider's published
    prices and update the `reviewed` date.
-8. **Set the ceilings** — every `AAE_AI_*` value above, deliberately, not by
+8. **Set the ceilings**: every `AAE_AI_*` value above, deliberately, not by
    omission.
-9. **Enable** — `AAE_AI_ANALYTICS_ENABLED=true`, redeploy.
-10. **Verify capabilities** — `/api/config` shows `ai` available and
+9. **Enable**: `AAE_AI_ANALYTICS_ENABLED=true`, redeploy.
+10. **Verify capabilities**: `/api/config` shows `ai` available and
     `compare_available` true.
-11. **One bounded AI question** — a single run. Check the response, the
+11. **One bounded AI question**: a single run. Check the response, the
     recorded usage and cost, and the logs for credential leakage.
-12. **One planning-strategy comparison** — confirm both strategy reports are
+12. **One planning-strategy comparison**: confirm both strategy reports are
     available through the report switcher and that only the AI side consumed
     quota.
-13. **Quota exhaustion** — lower a ceiling temporarily and confirm the 429
+13. **Quota exhaustion**: lower a ceiling temporarily and confirm the 429
     message, then confirm Deterministic Analytics still works.
-14. **Web-restart durability** — restart the web service and confirm the
+14. **Web-restart durability**: restart the web service and confirm the
     daily counter did not reset. This does not test a free Key Value restart,
     which is documented to erase the store.
 

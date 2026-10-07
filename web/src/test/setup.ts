@@ -17,7 +17,7 @@ if (!('EventSource' in globalThis)) {
 }
 
 // jsdom has no ResizeObserver, and `Chart` uses one to size the plot from
-// its container -- which is the mechanism that fixed charts being sized by
+// its container, which is the mechanism that fixed charts being sized by
 // their cardinality. A stub that never fires is correct here: these tests
 // assert report structure, and the plot's measured width is asserted in the
 // browser suite, where there is a real layout to measure.

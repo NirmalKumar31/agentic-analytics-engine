@@ -213,7 +213,7 @@ async def resolve_upload_query_automatically(
     """
     assessment = assess(question, schema)
     # `assess` always runs the resolver, so there is always a contract
-    # here -- an exact one, or the refusing one that carries the reason.
+    # here: an exact one, or the refusing one that carries the reason.
     contract = assessment.deterministic_contract
     assert contract is not None, "assess always runs the resolver"
 
@@ -263,7 +263,7 @@ async def resolve_upload_query_automatically(
 
     # The plan was unusable and the rules had already declined. Neither
     # settled it, so the question is refused with the more specific
-    # reason -- and never silently answered as a different question.
+    # reason, and never silently answered as a different question.
     return AutoResolution(
         mapping=proposed,
         assessment=assessment,
@@ -443,7 +443,7 @@ Emit at most {max_tasks} tasks."""
     # dimensions the metric does not support. A task that cannot run is worse
     # than one fewer task.
     known = {m["name"] for m in metrics}
-    # A dataset with no metric layer -- any upload -- cannot run the
+    # A dataset with no metric layer (any upload) cannot run the
     # metric-based tools at all. Dropping those tasks silently is what a real
     # model's first plan hits: `preferred_tool` defaults to `compute_metric`
     # when a model omits it, every task is then unexecutable, and the run
@@ -491,7 +491,7 @@ Emit at most {max_tasks} tasks."""
             task.table = task.table or (tables[0]["name"] if tables else None)
             task.variables = {**task.variables, "question": question}
         # The mirror of the redirect above. A governed dataset asked for
-        # with an upload tool cannot work -- `aggregate_for_question` maps a
+        # with an upload tool cannot work. `aggregate_for_question` maps a
         # question onto one table's raw columns, and on a warehouse that is
         # both ambiguous and outside the metric layer. Redirecting is only
         # honest when the task already names the metric to use: choosing one
@@ -553,7 +553,7 @@ Emit at most {max_tasks} tasks."""
     if not cleaned and metric_free_dataset and tables:
         # The engine's own plan, used when a provider returned nothing this
         # dataset can execute. Bounded, deterministic, and the same two tasks
-        # the scripted provider would have chosen -- owned here so that every
+        # the scripted provider would have chosen, owned here so that every
         # provider gets the fallback rather than each having to implement it.
         cleaned = _fallback_plan(question, str(tables[0]["name"]), max_tasks)
         if telemetry is not None:

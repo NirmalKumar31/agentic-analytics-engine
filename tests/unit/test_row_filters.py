@@ -165,7 +165,7 @@ def test_an_ambiguous_range_is_refused_rather_than_guessed() -> None:
     """Two equally close candidates is not a coin toss."""
     sch = schema(score_a="BIGINT", score_b="BIGINT", total="DOUBLE")
     resolution = parse_filters("total where score 10 to 20", sch)
-    # Either refusal is honest -- "which of the two" or "which column at
+    # Either refusal is honest: "which of the two" or "which column at
     # all". What must not happen is a filter on one of them.
     assert resolution.refusal is not None
     assert not resolution.filters

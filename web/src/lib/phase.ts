@@ -3,7 +3,7 @@
  *
  * `App` already holds fifteen pieces of mutable state. A sixteenth saying
  * which phase we are in would be one that can disagree with the other
- * fifteen -- and a phase that says `completed` while the run payload says
+ * fifteen, and a phase that says `completed` while the run payload says
  * `refused` is worse than no phase at all, because the interface would
  * then confidently render the wrong thing.
  *
@@ -137,7 +137,7 @@ export function phaseOf(inputs: PhaseInputs): Phase {
   if (busy) return "profiling";
   // An error with no dataset is a failed upload, and the visitor is back
   // at the choice. Saying `failed` here would replace the thing they need
-  // to see -- the upload control -- with a dead end.
+  // to see (the upload control) with a dead end.
   if (error) return "choose_dataset";
   return "choose_dataset";
 }

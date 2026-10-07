@@ -122,7 +122,7 @@ def build_recording(
         # `presentation` among them, now that the layer it comes from is
         # correct. It was held back while a replayed report rendered
         # `Order date None ['2025-01-01', '2025-12-31']` as its scope line
-        # and `2025-01-01T00:00:00` in its period column -- carrying the
+        # and `2025-01-01T00:00:00` in its period column, so carrying the
         # snapshot then would have traded one reader-facing defect for
         # two. Those are fixed at the presentation layer, for live runs and
         # replays alike, so the snapshot is now the better artefact: a

@@ -2,8 +2,8 @@
  * An edge sheet: a disclosure over the page, not a separate destination.
  *
  * Extracted from `ProvenanceDrawer`, which had solved the focus problem
- * properly and privately. Two more surfaces need the same behaviour -- the
- * schema inspector and the evidence drawer -- and the half that is easy to
+ * properly and privately. Two more surfaces need the same behaviour: the
+ * schema inspector and the evidence drawer, and the half that is easy to
  * get wrong is the half that is invisible.
  *
  * What it guarantees:
@@ -25,8 +25,8 @@ import { useCallback, useEffect, useRef, type ReactNode } from "react";
 /**
  * Click handler for a control that opens a sheet.
  *
- * WebKit does not focus a `<button>` when it is clicked -- Safari's
- * long-standing behaviour, not a Playwright artefact -- so
+ * WebKit does not focus a `<button>` when it is clicked, following Safari's
+ * long-standing behaviour, not a Playwright artefact, so
  * `document.activeElement` is `<body>` at the moment the sheet mounts, and
  * the sheet dutifully restores focus to `<body>` on close. A
  * keyboard-and-mouse user is dropped at the top of the document.
@@ -94,7 +94,7 @@ export function SideSheet({
      * Safari leaves buttons out of the tab order by default, so the
      * computed `last` was an element Tab would never reach, the wrap never
      * fired, and focus walked out of the sheet after two presses onto a
-     * page covered by a scrim -- where it simply disappears.
+     * page covered by a scrim, where it simply disappears.
      *
      * Listening for focus *arriving* outside the sheet needs no model of
      * which elements a given engine considers tabbable. Whatever the
@@ -120,8 +120,8 @@ export function SideSheet({
      * `focusin` alone is not enough on WebKit.
      *
      * Safari leaves buttons out of the tab order, so Tab from inside the
-     * sheet can move focus out of the *document* -- to the browser chrome
-     * -- rather than to another element. Nothing receives focus, so
+     * sheet can move focus out of the *document* (to the browser chrome
+     *) rather than to another element. Nothing receives focus, so
      * `focusin` never fires, `document.activeElement` falls back to
      * `<body>`, and the next Tab re-enters the page at the top: on the
      * surface behind the scrim.
@@ -146,13 +146,13 @@ export function SideSheet({
       // Deferred by a frame rather than restored synchronously. Cleanup
       // runs *before* React removes the sheet from the DOM, and WebKit then
       // moves focus to `<body>` as the focused element inside it
-      // disappears -- undoing a synchronous restore. Chromium and Firefox
+      // disappears, undoing a synchronous restore. Chromium and Firefox
       // happen not to, which is why extracting this component from
       // `ProvenanceDrawer` and dropping the deferral passed on two engines
       // and failed on the third.
       //
       // `isConnected` because the opener can itself be unmounted while the
-      // sheet is open -- a new run replaces the strip it lives in. Focusing
+      // sheet is open, because a new run replaces the strip it lives in. Focusing
       // a detached node silently does nothing, which looks exactly like the
       // bug this is fixing.
       const opener = openerRef.current as HTMLElement | null;

@@ -1,4 +1,4 @@
-# Local Stage-1 evaluation — qwen2.5:7b-instruct
+# Local Stage-1 evaluation: qwen2.5:7b-instruct
 
 A seven-question run of the real-model harness against a local model. It is
 behavioural evidence that the governed engine works with a non-scripted
@@ -79,10 +79,10 @@ engine failure: a question may legitimately publish nothing.
 Every published finding was checked against its resolved evidence cells.
 `manual-review.json` carries the per-finding record and these categories:
 
-- **A** — evidence, arithmetic, units, comparison scope and wording all supported.
-- **B** — numerically supported, but the wording or citation carries a semantic
+- **A**: evidence, arithmetic, units, comparison scope and wording all supported.
+- **B**: numerically supported, but the wording or citation carries a semantic
   limitation the deterministic gates do not enforce.
-- **C** — unsupported: a number, entity or direction the cited results do not carry.
+- **C**: a number, entity or direction the cited results do not carry.
 
 **A: 24. B: 7. C: 0.**
 
@@ -90,7 +90,7 @@ The seven B findings are worth reading, because they show exactly what the
 gates do and do not cover:
 
 - three are worded as a range whose endpoints are the same number
-  ("ranges from 43985.05 to 43985.05") — accurate, and the range framing
+  ("ranges from 43985.05 to 43985.05"), accurate, and the range framing
   implies a comparison that was not made;
 - two cite a cell that does not itself contain the claimed number, though
   the number is present elsewhere in the cited result;

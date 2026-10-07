@@ -94,7 +94,7 @@ class RunBudget:
     cached_input_tokens: int = 0
     cache_write_input_tokens: int = 0
     #: Already inside `output_tokens`. Recorded for observability and
-    #: never added to it -- a reasoning model that billed its thinking
+    #: never added to it. A reasoning model that billed its thinking
     #: twice would be over-charged by the engine, not by the provider.
     reasoning_tokens: int = 0
     settlements: int = 0
@@ -439,7 +439,7 @@ class GovernedCloudProvider(LLMProvider):
         # even though it is free. `provider_requests` was declared and
         # reported and never incremented, so the second paid smoke's
         # artifact recorded zero provider requests against fifteen
-        # completions -- a number in a cost record that was simply not
+        # completions, a number in a cost record that was simply not
         # true.
         self.budget.provider_requests += 1
         counted_input = await self._inner.count_input_tokens(request)
@@ -447,7 +447,7 @@ class GovernedCloudProvider(LLMProvider):
         # 2 and 3. Admission. Both ceilings are checked and the allowance
         #    is taken in one atomic step, because the previous shape read
         #    the committed totals, awaited the network, and only then
-        #    recorded anything -- so several concurrent calls each passed
+        #    recorded anything, so several concurrent calls each passed
         #    the same check and together exceeded a ceiling every one of
         #    them individually respected.
         #
@@ -462,7 +462,7 @@ class GovernedCloudProvider(LLMProvider):
         #    priced pessimistically, immediately before dispatch. Nothing
         #    here can know whether an input token will be served from cache,
         #    written to it, or neither, and the three rates differ by more
-        #    than tenfold -- so the dearest one is assumed and the
+        #    than tenfold, so the dearest one is assumed and the
         #    difference is released at settlement.
         worst_case = self._price.reservation_microdollars(counted_input, allowance)
         try:
@@ -730,7 +730,7 @@ async def open_governed_cloud_provider(
             inner,
             ledger,
             # The durable slot is taken here, so no provider request --
-            # not even a free one -- happens for a run the ledger has not
+            # not even a free one, happens for a run the ledger has not
             # authorised.
             admission=RunAdmission(
                 run_id=run_id,

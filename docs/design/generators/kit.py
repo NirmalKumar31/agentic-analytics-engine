@@ -43,7 +43,7 @@ MONO = "ui-monospace, SFMono-Regular, Menlo, monospace"
 
 
 def mark(x, y, c, s=1.0):
-    """The product mark: a measured field — baseline, two risers, one reading."""
+    """The product mark: a measured field of baseline, two risers, one reading."""
     return (
         f'<g transform="translate({x},{y}) scale({s})" fill="none" stroke="{c}" '
         f'stroke-width="1.8" stroke-linecap="round">'

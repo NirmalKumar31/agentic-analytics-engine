@@ -85,7 +85,7 @@ describe("ModeSelector", () => {
     );
     expect(screen.getByRole("radio", { name: /^AI Analytics/ })).toBeDisabled();
     expect(screen.getByRole("radio", { name: /^Compare planning strategies/ })).toBeDisabled();
-    // The reason is text, not colour alone -- on both disabled choices.
+    // The reason is text, not colour alone, on both disabled choices.
     expect(screen.getAllByText(/turned off on this deployment/i)).toHaveLength(
       2,
     );
@@ -189,7 +189,7 @@ describe("CompareWorkspace", () => {
     /*
      * Both reports used to render at once, side by side above 900px.
      * That is where Compare stopped being readable: two full reports --
-     * headline, chart, highlights, result table -- in half a laptop's
+     * headline, chart, highlights, result table, in half a laptop's
      * width, then stacked into two long documents at narrower ones.
      *
      * One at full width now, chosen by a tab. The difference a reader
@@ -344,8 +344,8 @@ describe("CompareWorkspace", () => {
 
   it("shows one shared result instead of rendering it twice", () => {
     // Two identical tables and two identical charts read as two independent
-    // confirmations, and they pushed the planning lanes -- the part that
-    // actually differed -- off the top of the screen.
+    // confirmations, and they pushed the planning lanes (the part that
+    // actually differed) off the top of the screen.
     render(
       <CompareWorkspace
         question="Q"
@@ -365,7 +365,7 @@ describe("CompareWorkspace", () => {
 
     // No side-by-side panes: that is what "shown once" means, and it is
     // the claim `pane-status.length === 0` used to stand for. The status
-    // itself has not gone anywhere -- it is a column in the table that
+    // itself has not gone anywhere. It is a column in the table that
     // compares the two strategies, where both sides now read "Complete",
     // which is more informative than two panes that are not rendered.
     expect(document.querySelectorAll(".compare-report")).toHaveLength(0);
@@ -402,7 +402,7 @@ describe("CompareWorkspace", () => {
         })}
       />,
     );
-    // Not one shared answer, and both results reachable -- each in its own
+    // Not one shared answer, and both results reachable, each in its own
     // strategy's panel. "Not collapsed" is about neither being discarded or
     // presented as the answer, which the switcher preserves: one is shown,
     // the other is one tab away, and neither is called the result.

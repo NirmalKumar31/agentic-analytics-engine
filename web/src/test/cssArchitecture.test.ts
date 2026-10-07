@@ -12,7 +12,7 @@
  *   1. Reordering the imports. The cascade depends on `states.css` and
  *      `motion.css` coming after the baseline modules and `responsive.css`
  *      coming last. Nothing about the file contents says so, and a
- *      reordering produces no error -- just different rendering.
+ *      reordering produces no error, just different rendering.
  *   2. Reintroducing a bridge alias. `--text` and friends no longer exist,
  *      so `var(--text)` now resolves to nothing and the declaration is
  *      dropped. That reads as a missing style, not as a typo.
@@ -20,11 +20,11 @@
  *      where it sits in the cascade. The clearest trap is print: six
  *      modules declare an `@media print` block, and `print.css` has to be
  *      the last of them. A print rule added to `motion.css`, `states.css`
- *      or `responsive.css` -- all of which load after it -- would override
+ *      or `responsive.css`, all of which load after it, would override
  *      the report's print treatment with no error anywhere.
  *
  * These tests fail on each of those. They deliberately do not test that
- * files exist -- that is what the imports already do, and a build error is
+ * files exist, because that is what the imports already do, and a build error is
  * a better signal than a test.
  */
 
@@ -173,7 +173,7 @@ describe("the compatibility bridge is gone", () => {
   it("leaves no var() fallback carrying a stale hardcoded colour", () => {
     // Five call sites read `var(--line, #2a2f3a)` and `var(--accent,
     // #6ea8fe)`. The fallbacks were unreachable, being old-palette dark
-    // values that would have surfaced only if the token vanished -- which
+    // values that would have surfaced only if the token vanished, which
     // is exactly what retiring the alias would have caused.
     const hex = withoutComments(stylesheet()).match(/var\(\s*--[\w-]+\s*,\s*#[0-9a-f]{3,8}/gi);
     expect(hex ?? []).toEqual([]);
@@ -196,7 +196,7 @@ describe("rules stay in the module that owns their place in the cascade", () => 
   it("keeps every print block, with print.css last in the cascade", () => {
     /*
      * Six, in cascade order:
-     *   foundation.css  the printed *page* -- size, margins, colour-adjust,
+     *   foundation.css  the printed *page*: size, margins, colour-adjust,
      *                   and the white palette every later block assumes.
      *   tokens.css      the motion durations, set to zero. It is first in
      *                   the cascade because tokens are inputs, and this
@@ -212,7 +212,7 @@ describe("rules stay in the module that owns their place in the cascade", () => 
      *   timeline.css    the run timeline, which is a record of a run in
      *                   progress and has nothing to say on paper.
      *   answer.css      the answer block's own screen-only affordances.
-     *   print.css       how the report's blocks print -- and last, so that
+     *   print.css       how the report's blocks print, and last, so that
      *                   nothing overrides it.
      *
      * This used to be seven, with the last one at the end of `states.css`,
@@ -220,8 +220,8 @@ describe("rules stay in the module that owns their place in the cascade", () => 
      * treatment. That block's only remaining rules named
      * `.presentation-report .answer-card`, a component deleted in step E,
      * so it was removed rather than refilled. The guarantee is now carried
-     * structurally instead -- `print.css` is the last module that declares
-     * a print block at all -- which is stronger than ordering within one
+     * structurally instead: `print.css` is the last module that declares
+     * a print block at all, which is stronger than ordering within one
      * file, because it cannot be undone by appending to `states.css`.
      */
     const PRINTS = [
@@ -334,7 +334,7 @@ describe("rules stay in the module that owns their place in the cascade", () => 
      * And the chain above it, which is what lets `min-width: 0` matter.
      *
      * `.report-table` and `.report-visual` declare `display: grid` with no
-     * columns, so the implicit track is `auto` -- and an `auto` track takes
+     * columns, so the implicit track is `auto`, and an `auto` track takes
      * its content's max-content width. A five-column result table sized the
      * track to 678px inside a 358px section and the page scrolled 304px
      * sideways at 390px; the scroll container three levels down had already
@@ -380,8 +380,8 @@ describe("rules stay in the module that owns their place in the cascade", () => 
     /*
      * The `--z-*` ladder in tokens.css was declared and entirely unused:
      * every stacking context set a raw number. The surfaces rebuilt in this
-     * redesign adopted it -- the landing field sits on `--z-behind`, the
-     * scrim on `--z-drawer`, the side sheet on `--z-overlay` -- and the two
+     * redesign adopted it: the landing field sits on `--z-behind`, the
+     * scrim on `--z-drawer`, the side sheet on `--z-overlay`, and the two
      * raw 60/61 in `drawer.css` went with that module.
      *
      * Three raw numbers remain, each a local stacking decision inside one
@@ -416,8 +416,8 @@ describe("rules stay in the module that owns their place in the cascade", () => 
      * panels streamed above the report, so the outcome ended up a long
      * scroll below them.
      *
-     * Those panels are gone -- the activity log is in the evidence drawer
-     * and the timeline is not resident once a report exists -- and the
+     * Those panels are gone. The activity log is in the evidence drawer
+     * and the timeline is not resident once a report exists, and the
      * rules then lifted the terminal state *above the dataset context
      * strip*: outside the reading column, before the reader had been told
      * which file it was about.
@@ -487,8 +487,8 @@ describe("the split preserved the stylesheet", () => {
     // That claim is now historical, and modules legitimately grow. An exact
     // total would be "fixed" by bumping the number on every change, which
     // protects nothing. A per-module floor still catches the failure the
-    // count was there for -- a module emptied or half-written by a bad merge
-    // -- without pretending the stylesheet is frozen.
+    // count was there for (a module emptied or half-written by a bad merge
+    //) without pretending the stylesheet is frozen.
     //
     // Step H lowered six of them. Every component deleted in B-G left its
     // selectors behind, and the print suite's "not styled anywhere else

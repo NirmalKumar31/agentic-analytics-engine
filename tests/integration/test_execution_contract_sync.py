@@ -157,7 +157,7 @@ async def test_the_failing_shape_is_refused_before_it_reaches_mcp(
 
         # A table the model invented. The old code raised this inside the
         # MCP client *before* it recorded a trace entry, so the run showed
-        # zero tool calls while the worker burned its whole budget -- which
+        # zero tool calls while the worker burned its whole budget, which
         # is why two questions in the diagnostic run reported 0 calls and a
         # 600-second timeout.
         rejection = preflight("profile_table", {"table": "sales"}, contract)

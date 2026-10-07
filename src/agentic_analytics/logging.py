@@ -39,7 +39,7 @@ def configure_logging(level: str = "INFO", json_output: bool = True) -> None:
         logger_factory=structlog.PrintLoggerFactory(),
         # Not cached. A cached bound logger keeps whichever processor chain
         # was active when it was first used, so `structlog.testing.capture_logs`
-        # cannot intercept it afterwards -- and the assertions that matter
+        # cannot intercept it afterwards, and the assertions that matter
         # most here are the ones proving a credential never reaches a log
         # line. A test that silently stops observing is worse than the
         # negligible cost of rebuilding the chain per call.

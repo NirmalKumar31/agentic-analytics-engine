@@ -141,7 +141,7 @@ LEGITIMATE_GROUP_MAX_DISTINCT = 25
 LEGITIMATE_GROUP_MAX_UNIQUENESS = 0.5
 
 #: ISO dates are excluded wholesale. The engine derives period bounds from
-#: the question -- "Q2 2025" becomes 2025-04-01 to 2025-06-30 -- and those
+#: the question, so "Q2 2025" becomes 2025-04-01 to 2025-06-30, and those
 #: appear in the plan it sends without having been read from any row.
 _ISO_DATE = re.compile(r"^\d{4}-\d{2}-\d{2}")
 

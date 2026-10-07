@@ -9,7 +9,7 @@
  *
  * It is deliberately not the old static DAG. That diagram drew the same
  * five boxes and the same arrows for every run, before anything had
- * happened -- a picture of the architecture standing where a reader was
+ * happened: a picture of the architecture standing where a reader was
  * looking for a picture of their run. The nodes below are per-run, and a
  * run that made four tool calls draws four.
  *
@@ -21,7 +21,7 @@
  * Three states are given their own words rather than their own hue alone:
  * `completed`, `failed`, and `refused before execution`, which is a call
  * `preflight` declined and never sent. Colour carries none of that on its
- * own -- each node says its outcome in text, so the distinction survives a
+ * own, because each node says its outcome in text, so the distinction survives a
  * monochrome print and a reader who cannot separate the colours.
  */
 
@@ -39,7 +39,7 @@ export function ExecutionGraph({
    * Open the text alternative from the start, for the print appendix.
    *
    * Chromium lays a closed `<details>` out but does not paint it, so CSS
-   * alone cannot open one for paper -- the same trap the planning audit
+   * alone cannot open one for paper, the same trap the planning audit
    * hit. Opening it in the markup is engine-independent.
    */
   expanded?: boolean;

@@ -133,8 +133,8 @@ class FakeProvider(LLMProvider):
 
         # The subject of each matched hint, and the companions kept apart.
         #
-        # A hint group may name more than one metric -- `return|refund` gives
-        # `return_rate` and `refund_amount` -- and the second exists so a
+        # A hint group may name more than one metric. `return|refund` gives
+        # `return_rate` and `refund_amount`, and the second exists so a
         # relationship question has a second variable to correlate. Handing
         # both to every analysis is how a question about return rate by
         # customer segment came to lead with a refund trend. The first of
@@ -161,7 +161,7 @@ class FakeProvider(LLMProvider):
 
         # Every quarter named, not just the first. "Q3 and Q2" is a request
         # to compare two periods, and reading only the leading match turned
-        # it into a request about one -- which then failed to resolve at all
+        # it into a request about one, which then failed to resolve at all
         # and was answered as though no period had been named.
         quarters = _QUARTER.findall(question)
         years = _YEAR.findall(question)
@@ -183,9 +183,9 @@ class FakeProvider(LLMProvider):
         # A named grouping outranks a relationship verb.
         #
         # This branch used to be first and unconditional, so "Which customer
-        # segments are driving the increase in return rate?" -- the question
+        # segments are driving the increase in return rate?" (the question
         # the home page advertises as "Segmentation with a chi-square test
-        # of independence" -- matched `driv` and was planned as a
+        # of independence") matched `driv` and was planned as a
         # correlation between two metrics. The second metric it reached for
         # was `refund_amount`, so a question about attribution across
         # customer segments was answered with a refund trend, and the
@@ -196,7 +196,7 @@ class FakeProvider(LLMProvider):
         # chi-square test belongs. The relationship branch still catches
         # what it was written for: "Do shipping delays appear to affect
         # repeat purchasing?" names no grouping, so it is still read as a
-        # relationship question -- and its causal claim is still rejected
+        # relationship question, and its causal claim is still rejected
         # downstream, which is what that example exists to show.
         relationship = _matches(r"affect|impact|relate|associat|correlat|driv", question)
         names_groups = bool(dimensions) or bool(_NAMES_A_BREAKDOWN.search(question))
@@ -231,8 +231,8 @@ class FakeProvider(LLMProvider):
         ambiguities: list[str] = []
         if quarters and not years:
             # The specific, actionable version. A quarter with no year
-            # cannot be resolved -- guessing one would analyse data nobody
-            # asked about -- so say exactly what to type instead.
+            # cannot be resolved, because guessing one would analyse data nobody
+            # asked about, so say exactly what to type instead.
             named = " and ".join(f"Q{q}" for q in dict.fromkeys(quarters))
             example = f"Q{quarters[0]} 2025"
             ambiguities.append(
@@ -244,7 +244,7 @@ class FakeProvider(LLMProvider):
             # Only when the question is actually about time. "The average
             # revenue by region" is not a temporal question, and telling
             # its reader that no time range was given is noise dressed as
-            # a caveat -- it describes the question, not the answer.
+            # a caveat. It describes the question, not the answer.
             ambiguities.append("No explicit time range; the full dataset period is used.")
         # A driver question with no period states what it is missing.
         #
@@ -358,7 +358,7 @@ class FakeProvider(LLMProvider):
         )
 
         # 2. The second target metric, if the question named one, over the
-        #    same period -- this is what makes "revenue up, margin down"
+        #    same period. This is what makes "revenue up, margin down"
         #    visible as two series rather than one claim.
         if len(targets) > 1:
             add(
@@ -437,7 +437,7 @@ class FakeProvider(LLMProvider):
                     {"time_grain": "quarter"},
                 )
 
-        # 5. A real statistical comparison -- when the question asks whether
+        # 5. A real statistical comparison, when the question asks whether
         #    one thing affects another, and when it compares groups.
         #
         # Segmentation was not in this gate, so reclassifying "Which
@@ -1297,7 +1297,7 @@ def _adhoc_findings(task: dict[str, Any], result: dict[str, Any]) -> list[dict[s
 
 #: Columns that describe a result rather than answer anything. A scalar
 #: finding that reported one of these said "row_count for the selected
-#: scope is 240" to a question about yield -- true, checkable, and not the
+#: scope is 240" to a question about yield: true, checkable, and not the
 #: answer, so the relevance gate withheld it and the run published nothing.
 _PROVENANCE_COLUMNS = frozenset({"row_count", "rows", "n", "count_rows"})
 
@@ -1538,7 +1538,7 @@ def _answers_question(
 
     # A description of the table's shape, offered as the answer to a
     # question that asked for something else. It is true and checkable --
-    # the counts come from the profile result -- and it is not an answer to
+    # the counts come from the profile result, and it is not an answer to
     # "total kwh_consumed by tariff_band". The engine falls back to a
     # profile when a question cannot be mapped, and publishing that
     # fallback as a finding presented the fallback as the answer.
@@ -1551,7 +1551,7 @@ def _answers_question(
     # Asked for a total, handed a breakdown. "Total revenue in Q3" is not
     # answered by which category earned the most, however exact that is.
     # Only when the question asks for an aggregate *and* names no
-    # dimension: a driver question -- "why did margin fall" -- names no
+    # dimension: a driver question ("why did margin fall") names no
     # dimension either and breakdowns are precisely its answer, so keying
     # on the absent dimension alone would reject the right answer.
     if (

@@ -121,7 +121,7 @@ test.describe("Compare over the demo warehouse", () => {
       await expect(facts).toContainText(term);
     }
     // And the recorded route, which is a policy decision about which
-    // strategy runs -- never presented as a third strategy.
+    // strategy runs, never presented as a third strategy.
     await expect(facts).toContainText(/recorded route/i);
     expect(
       await page.getByTestId("pane-status").count(),
@@ -256,7 +256,7 @@ test.describe("Compare over an uploaded dataset", () => {
     }), SAMPLE_CSV_DATASET);
     await startCompare(page, "What is the total revenue by region?");
 
-    // The refusal's reason is on screen, not only in the trace -- and it
+    // The refusal's reason is on screen, not only in the trace, and it
     // is attributed to the strategy that refused.
     await expect(
       (await strategyReport(page, "ai")).getByTestId("run-state-card"),
@@ -313,7 +313,7 @@ test.describe("the Compare evidence drawer", () => {
     page.on("request", (request) => {
       // Only requests the *page* makes. `page.request` calls have no frame,
       // and this file's own AI-mirroring route handler uses one to read the
-      // real deterministic run -- counting the harness's fetch as the
+      // real deterministic run, so counting the harness's fetch as the
       // application's would fail a claim about the application.
       if (request.frame() === null) return;
       if (request.url().includes("/api/")) requests.push(request.url());

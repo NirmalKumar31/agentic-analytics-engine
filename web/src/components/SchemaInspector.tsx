@@ -5,7 +5,7 @@
  * This was a pass-through that rendered the whole column table as a
  * permanent panel between the upload and the question box. A reader who
  * wanted to ask something had to scroll past twenty rows of inferred
- * metadata to reach the field they came for, every time -- and most
+ * metadata to reach the field they came for, every time, and most
  * readers do not need it at all, because the inference is usually right
  * and the report cites its columns anyway.
  *
@@ -40,8 +40,8 @@ export function SchemaInspector({
   open?: boolean;
   /**
    * Applies a batch and resolves once the server has accepted it. Absent
-   * for a dataset whose roles are not confirmable -- a demo warehouse, or a
-   * replayed recording -- which is what hides the control entirely rather
+   * for a dataset whose roles are not confirmable, such as a demo warehouse or a
+   * replayed recording, which is what hides the control entirely rather
    * than showing a disabled one.
    */
   onConfirmRoles?: (changes: RoleChange[]) => Promise<void>;

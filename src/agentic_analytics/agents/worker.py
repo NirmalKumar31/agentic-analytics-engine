@@ -172,7 +172,7 @@ async def run_task(
     telemetry = ToolLoopTelemetry()
     # Every failed attempt, and the signatures of the calls already known to
     # be bad. Without the second, a worker that cannot see why its call
-    # failed proposes the same one until its budget is gone -- which is
+    # failed proposes the same one until its budget is gone, which is
     # exactly how one real run spent 36 attempts on 36 failures.
     attempts: list[FailedAttempt] = []
     failed_signatures: dict[str, FailedAttempt] = {}
@@ -181,7 +181,7 @@ async def run_task(
         # The run-level time budget used to be read once, when the task
         # started, and never again. Six tasks each taking six model-latency
         # decisions could therefore overrun it by the whole length of a tool
-        # loop -- observed as a 554-second question under a 300-second
+        # loop, observed as a 554-second question under a 300-second
         # budget. Checking here stops the run at its own limit instead of at
         # whatever outer timeout the caller happens to impose.
         if out_of_time is not None and out_of_time():
@@ -364,7 +364,7 @@ async def run_task(
 
     if out_of_time is not None and out_of_time():
         # The tool loop stops at the budget but this call did not, so a run
-        # could overrun by one findings request per task -- six of them on
+        # could overrun by one findings request per task, six of them on
         # the demo warehouse, which is most of the overrun that pushed a
         # question past its ceiling. Stopping here costs claims, never
         # correctness: nothing is published that was not verified.
@@ -398,7 +398,7 @@ async def run_task(
         # A model names its own findings, and it names them `f1`, `f2`,
         # `f3` every time it is asked. Two rounds of findings on one task
         # therefore produce two different claims sharing an id, and
-        # anything that looks a claim up by id afterwards -- verdict
+        # anything that looks a claim up by id afterwards: verdict
         # attribution, duplicate detection, an evaluation artifact --
         # silently pairs one claim's text with another's ruling. A real
         # run recorded the published total and a rejected claim as the

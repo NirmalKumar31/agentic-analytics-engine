@@ -2,7 +2,7 @@
  * A browser pass over a deployment that costs the deployment nothing.
  *
  * The public ceilings are a few uploads an hour and the point of this sweep
- * is presentation, not engine behaviour -- so **not one upload, analysis,
+ * is presentation, not engine behaviour, so **not one upload, analysis,
  * comparison or provider call leaves this harness.** That is enforced
  * rather than intended: every `/api/**` request goes through one handler,
  * anything a staged fixture does not claim is allowed through only if it is
@@ -129,7 +129,7 @@ export const test = base.extend<{
 
       /*
        * Everything else. Not continued, not fulfilled with something
-       * plausible -- recorded and aborted, so the test fails naming what
+       * plausible, being recorded and aborted, so the test fails naming what
        * it tried to send rather than quietly spending.
        */
       violations.get(page)?.push(`${method} ${url.pathname}`);
@@ -235,7 +235,7 @@ export function stageRun(page: Page, payload: Record<string, unknown>): string {
  *
  * The one state the sweep could not reach. A finished report and six
  * terminal states are all staged from payloads; "still running" is not a
- * payload, it is the *absence* of an ending -- and `App` only fetches the
+ * payload, it is the *absence* of an ending, and `App` only fetches the
  * run once the event stream says it is over.
  *
  * So the stream is answered with the first `upTo` events and **no

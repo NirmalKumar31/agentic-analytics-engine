@@ -4,7 +4,7 @@
  * The claim worth testing is not "a spinner appears". It is that every
  * figure on screen moved because the backend reported work, that the
  * elapsed clock is the reader's own wait rather than the server's, and
- * that **no completion fraction exists anywhere** -- because the planner
+ * that **no completion fraction exists anywhere**, because the planner
  * decides how many calls a run makes as it goes, so a denominator would be
  * a guess and a bar advancing on a timer is indistinguishable from one
  * advancing because something happened.
@@ -133,7 +133,7 @@ describe("what the screen shows while a run is in flight", () => {
     /*
      * A real shape, not a contrived one: by the time two calls have
      * returned and a finding is verified, every stage the engine has
-     * reported is complete and the next has not begun -- so no stage is
+     * reported is complete and the next has not begun, so no stage is
      * active. Calling that "Starting" told a reader nothing had happened
      * while the work list beside it said two queries had returned.
      */

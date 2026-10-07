@@ -119,8 +119,8 @@ CASES: list[BenchmarkCase] = [
         pattern_id="late_delivery_repeat_association",
         expect_metrics_all=("repeat_purchase_rate",),
         # No temporal direction. The injected pattern is a difference
-        # *between groups* -- customers whose first delivery was late repeat
-        # less -- not a movement over time, and the repeat rate does in fact
+        # *between groups* (customers whose first delivery was late repeat
+        # less) not a movement over time, and the repeat rate does in fact
         # rise across this window. The old expectation said "down" and passed
         # only because some finding somewhere contained a down word; the
         # signed effect below is the thing the pattern actually asserts.

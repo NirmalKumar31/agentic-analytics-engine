@@ -416,7 +416,7 @@ def test_a_reused_model_finding_id_cannot_collide() -> None:
                 ids.append(finding.finding_id)
 
     # Within a task the model's labels repeat across rounds, so ids repeat
-    # too -- but a claim's identity is now task plus position, which is
+    # too, but a claim's identity is now task plus position, which is
     # what a lookup needs to be unambiguous *within one round*.
     assert len(set(ids)) == 4, sorted(set(ids))
     assert all(":" in i for i in ids)

@@ -29,7 +29,7 @@ from agentic_analytics.presentation.schemas import (
 #
 # A chart is a reader surface, so the figures on it have to read the way
 # the figures beside it do. The axis said `2025-01` where the headline said
-# "Oct 2025", and the tooltip said `2025-10-01T00:00:00` -- a stored
+# "Oct 2025", and the tooltip said `2025-10-01T00:00:00`, a stored
 # instant, on hover, on the primary surface.
 #
 # Written as **declarative format strings only**. Vega-Lite can suffix a
@@ -40,7 +40,7 @@ from agentic_analytics.presentation.schemas import (
 # widening that.
 #
 # So a unit that d3-format cannot express goes in the axis **title**
-# instead -- "Return rate (%)", "Difference from the highest (pp)" -- which
+# instead: "Return rate (%)", "Difference from the highest (pp)", which
 # is declarative, is announced to a screen reader, and says it once rather
 # than on every tick.
 

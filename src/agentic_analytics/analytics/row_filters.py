@@ -50,7 +50,7 @@ _RESTRICTIVE = re.compile(
 )
 
 #: A number the wording could be restricting by. Deliberately excludes
-#: anything that reads as a year or a quarter -- those are the period
+#: anything that reads as a year or a quarter, because those are the period
 #: layer's business, and treating "in 1998" as a numeric filter would
 #: refuse questions the engine already answers correctly.
 _NUMBER = re.compile(r"(?<![\w.])(-?\d{1,3}(?:,\d{3})+(?:\.\d+)?|-?\d+(?:\.\d+)?)(?![\w.])")
@@ -105,7 +105,7 @@ _WORD_OPS: dict[str, Operator] = {
     "fewer than": "<",
     # Equality in words. "where Promo_Flag is 1" is one of the commonest
     # ways a restriction gets written, and without these the parser saw a
-    # restriction it could not map and refused the question -- the safe
+    # restriction it could not map and refused the question, the safe
     # direction, but a refusal for a phrasing the engine understands
     # everywhere else.
     "is": "=",
@@ -135,12 +135,12 @@ _SAFE_VALUE = re.compile(r"^[\w][\w .-]{0,62}$", re.UNICODE)
 #:
 #: This is a closed list rather than "stop at anything suspicious": a
 #: boundary the grammar does not know about ends the value early, which
-#: produces a refusal naming a value the column does not have -- visible and
+#: produces a refusal naming a value the column does not have, visible and
 #: correctable. The opposite error, swallowing a clause, produces a filter
 #: nobody asked for.
 #: A lookahead, so the boundary word is not consumed. Consuming it hid an
 #: `or` from the disjunction guard, and a question that asked for a union
-#: was read as a single filter -- silently widening nothing, but answering a
+#: was read as a single filter, silently widening nothing but answering a
 #: narrower question than the one asked.
 _VALUE_BOUNDARY = (
     r"(?=\s+(?:by|per|grouped\s+by|group\s+by|for|with|where|and|or|only|"
@@ -173,7 +173,7 @@ _EQUALITY = re.compile(
 #: `_restricts` looks for a leftover *number* beside a restrictive word, so
 #: it cannot see `where weather is <something unreadable>`: there is no
 #: number in it. Such a clause used to disappear, and the question was
-#: answered over every row -- the same failure the unknown-column branch
+#: answered over every row, the same failure the unknown-column branch
 #: refuses, arriving by a different route.
 _STATED_CATEGORY = re.compile(
     r"\b(?:where|with|only)\s+(?P<col>[A-Za-z_][\w ]{0,40}?)\s+"
@@ -356,8 +356,8 @@ def _numeric_columns(schema: dict[str, Any]) -> dict[str, str]:
 
 
 #: How many words before a number a column reference may sit. A filter is
-#: spoken beside its value -- "people aged 30 to 40", "team size under 10"
-#: -- so a column named further back is describing something else.
+#: spoken beside its value: "people aged 30 to 40", "team size under 10",
+#: so a column named further back is describing something else.
 _LOCALITY = 2
 
 
@@ -401,7 +401,7 @@ def _resolve_column(phrase: str, columns: dict[str, str]) -> tuple[str | None, b
     # than one column may appear in it: "average annual revenue by region
     # for people aged 30 to 40" mentions both `annual_revenue` and `age`.
     # They are not equally good candidates. The column a range belongs to
-    # is the one spoken next to it -- "aged" here -- and `annual_revenue`
+    # is the one spoken next to it: "aged" here, and `annual_revenue`
     # is the measure, mentioned earlier and about to be aggregated.
     #
     # So candidates are ranked by how close their mention sits to the
@@ -416,7 +416,7 @@ def _resolve_column(phrase: str, columns: dict[str, str]) -> tuple[str | None, b
             continue
         best = -1
         # Where this column's words last appear as a run. A column can be
-        # several words -- `monthly_ad_spend` is three -- so matching one
+        # several words. `monthly_ad_spend` is three, so matching one
         # token at a time can never find it.
         for index in range(len(tokens)):
             width = len(parts)
@@ -436,8 +436,8 @@ def _resolve_column(phrase: str, columns: dict[str, str]) -> tuple[str | None, b
 
     # And the mention has to sit next to the number, not merely somewhere
     # before it. Without this, "average annual revenue for tenure 30 to 40"
-    # binds the range to `annual_revenue` -- the measure, named five words
-    # earlier -- because no `tenure` column exists to outrank it. Filtering
+    # binds the range to `annual_revenue`, the measure, named five words
+    # earlier, because no `tenure` column exists to outrank it. Filtering
     # revenue by 30 to 40 is a confidently wrong answer; refusing is right.
     positions = {c: i for c, i in positions.items() if i >= len(tokens) - _LOCALITY}
     if not positions:
@@ -647,7 +647,7 @@ def parse_filters(
             # A restriction was stated and could not be bound to a column.
             #
             # This used to `continue`, so the clause vanished and the
-            # question was answered over every row -- "average sleep where
+            # question was answered over every row: "average sleep where
             # mood is good" returned the average for everyone, confidently,
             # on a table with no mood column. That is not a slightly worse
             # answer, it is an answer to a different question, and it is

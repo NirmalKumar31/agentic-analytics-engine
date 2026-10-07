@@ -1,4 +1,4 @@
-# 0004 — A deterministic presentation contract
+# 0004: A deterministic presentation contract
 
 Status: accepted
 Date: 2026-10-01
@@ -19,7 +19,7 @@ only guess at, and every guess it had to make was wrong somewhere:
 - **Whether an axis is ordered.** 48 ages were plotted as unordered labels,
   because nothing told the chart that ages form a sequence.
 - **Whether a breakdown is complete.** Completeness was being inferred, and
-  every available signal inferred it wrongly — a top-25 of 45 stores,
+  every available signal inferred it wrongly: a top-25 of 45 stores,
   covering 3,575 of 6,435 rows, read as the complete breakdown.
 - **What a unit is.** Nothing distinguished a percentage from a ratio, or
   said that "revenue" implies no currency.
@@ -31,10 +31,10 @@ them.
 ## Decision
 
 The engine returns a typed `AnalysisPresentation` alongside the existing
-payload. It is derived only from things the run already proved — the
+payload. It is derived only from things the run already proved: the
 accepted `QueryContract`, the verified `ResultSnapshot`, `QuestionCoverage`,
 `GroupCoverage`, the published findings, the chart decision and the
-provenance cells — and it is built by a pure function with no model call.
+provenance cells. It is built by a pure function with no model call.
 
 Four properties make it a contract rather than a convenience.
 
@@ -44,7 +44,7 @@ rather than trusted: `numbers_resolve` requires each number in the headline
 and secondary summary to be a cell of the cited result, a recorded coverage
 count, or a declared difference recomputed from two cells. Nothing else can
 be stated. This matters because the failure mode was never invented numbers
-— it was *real* cells in a false sentence, such as calling the tenth row of
+It was *real* cells in a false sentence, such as calling the tenth row of
 a top-ten list "the lowest".
 
 **It never claims more than the analysis supports.** "Highest" is said only
@@ -54,7 +54,7 @@ axis and an explicit statement that no trend was tested.
 
 **Its display metadata requires converging evidence.** A column becomes a
 boolean only when every value present is `0` or `1`, or the type is
-declared boolean — not merely when it has two values, which would relabel a
+declared boolean, not merely when it has two values, which would relabel a
 two-store table "Off" and "On". A percentage needs both a name token and a
 compatible observed range, so a `rate` holding `0.03` is not formatted as
 `3%`. Currency is never inferred from a name.
@@ -69,7 +69,7 @@ whose numbers are already computed and verified.
 
 The contract says what a result *means* for presentation. It carries no
 colours, no layout and no component names, and it does not choose the
-chart — `analytics.charts.chart_for` already does that, and a second
+chart, because `analytics.charts.chart_for` already does that, and a second
 selector would let the report and the chart disagree about what was drawn.
 
 ## A limit worth recording
@@ -81,7 +81,7 @@ string, because they are structurally identical: dense integer ranges whose
 values each recur. Any rule separating them would be a guess about naming
 presented as inference.
 
-So the prose is uniform — both get the same "highest … lowest" sentence —
+So the prose is uniform, and both get the same "highest … lowest" sentence,
 and the only consequence of the ordered flag is a numeric chart axis, which
 is a true statement about position and not about meaning. If the two should
 read differently, that requires a signal the engine does not currently
@@ -99,7 +99,7 @@ have, and it is a product decision rather than an inference.
 - Archived recordings render without being rewritten. The compatibility
   adapter repeats what a run published verbatim, sets
   `compatibility_derived`, and leaves unrecorded coverage as `None` rather
-  than guessing — because "not recorded" and "complete" were conflated
+  than guessing, because "not recorded" and "complete" were conflated
   once already.
 - The frontend still renders from `finding.text` until a later change
   consumes this field. Shipping the contract first means the renderer can

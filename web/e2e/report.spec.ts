@@ -69,7 +69,7 @@ test.describe("the chart draws in the measured palette", () => {
       /*
        * The defect: `config.range.category` only applies where a *colour
        * encoding* exists. A single-series bar or line has none, so every
-       * such chart was drawn in Vega's own default `#4c78a8` -- a blue from
+       * such chart was drawn in Vega's own default `#4c78a8`, a blue from
        * neither palette, identical in both themes, and never measured
        * against the plot surface. The token range was right and was simply
        * never reached.
@@ -238,7 +238,7 @@ test.describe("the report canvas is only what the brief allows", () => {
   }) => {
     /*
      * The live stream is what arrived; `run.events` is the engine's
-     * complete record. On a finished run they were not the same -- a
+     * complete record. On a finished run they were not the same, and a
      * streamed `contract_resolved` that never landed left the plan stage
      * reading "active" underneath a published report.
      */
@@ -264,13 +264,13 @@ test.describe("a recorded report on a phone", () => {
      *
      * It could only ever do that because the recording carried **no
      * presentation snapshot**, so the report fell back to the engine's own
-     * finding prose -- which is the defect `presentation/fields.py` and
+     * finding prose, which is the defect `presentation/fields.py` and
      * `recordings/record.py` were corrected for. With the snapshot carried,
      * a recorded run renders the way a live one does: a headline, at most
      * two highlights, and the table.
      *
      * The presentation layer emits two highlights for every shape it
-     * builds -- highest and lowest -- and the fold's threshold was three,
+     * builds, highest and lowest, and the fold's threshold was three,
      * so the branch never ran in product output. It has been **removed**
      * rather than kept for a constructed test model, which would have left
      * dead markup and a disclosure a keyboard user could reach.

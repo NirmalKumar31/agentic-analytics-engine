@@ -3,7 +3,7 @@
  *
  * It is reproducible arithmetic and not a question anyone wants answered.
  * It happened because the builder took `measures[0]` and proposed totalling
- * it — and on that dataset the only classified measure was `age`, since the
+ * it, and on that dataset the only classified measure was `age`, since the
  * real measure is near-unique and reads as an identifier.
  */
 

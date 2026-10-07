@@ -183,7 +183,7 @@ def test_segment_return_rates_match_an_independent_query(warehouse_dir: Path) ->
     segments = {segment for segment, _ in rows}
     assert {"loyal", "new", "returning", "vip"} <= segments
 
-    # Every rate is a percentage, and the ordering is total -- the claim a
+    # Every rate is a percentage, and the ordering is total, which is the claim a
     # segmentation answer makes is "this group is highest", so there has to
     # be a highest.
     for segment, rate in rows:

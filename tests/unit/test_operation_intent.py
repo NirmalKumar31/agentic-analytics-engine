@@ -179,7 +179,7 @@ def _resolved(question: str, rows: list[tuple[object, ...]], header: str):
 HEADER = "Store,Date,Weekly_Sales,Holiday_Flag"
 #: Sized past the cardinality threshold on purpose. Below it an integer
 #: column stays a measure rather than becoming a dimension, so a handful
-#: of rows cannot express "group by a flag" at all -- a six-row version of
+#: of rows cannot express "group by a flag" at all. A six-row version of
 #: this fixture refused while the real 6,435-row table worked.
 #:
 #: 120 rows per flag. Means 300 and 400; totals 36,000 and 48,000.

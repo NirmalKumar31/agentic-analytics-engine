@@ -16,7 +16,7 @@
  *
  * Everything it needs is on the `DisplayField`. A missing field means the
  * backend declined to describe that column, and the value is then shown as
- * stored -- which is honest, and is what the old path did for every
+ * stored, which is honest, and is what the old path did for every
  * column.
  */
 
@@ -84,7 +84,7 @@ export function periodLabel(value: unknown, grain?: string | null): string {
  * headline and highlights already go through. A whole number carries no
  * decimals; a fractional one carries two. Deliberately *not*
  * `format.ts:formatNumber`, which switches to exponential at the extremes
- * -- that rule has no counterpart on the backend, so a figure near it
+ * That rule has no counterpart on the backend, so a figure near it
  * would be written two ways again.
  */
 function formatFixed(value: number, places: number): string {
@@ -120,7 +120,7 @@ export function withUnit(text: string, field?: DisplayField | null): string {
   if (!field?.unit) return text;
   const unit = field.unit;
   if (PREFIX_UNITS.has(unit)) return `${unit}${text}`;
-  // `%` sits tight against the number; a named unit -- `pp` -- takes a
+  // `%` sits tight against the number; a named unit (`pp`) takes a
   // space, because "0.71pp" reads as a typo and "0.71 pp" reads as a
   // measurement.
   return `${text}${unit === "%" ? "" : " "}${unit}`;
@@ -165,7 +165,7 @@ export function displayValue(value: unknown, field?: DisplayField | null): strin
   /*
    * The declared scale, before formatting.
    *
-   * A two-proportion test's `rate` is `successes / n` -- stored as
+   * A two-proportion test's `rate` is `successes / n`, stored as
    * 0.5045 and written as 50.46%. The backend applied it and this did
    * not, so one report said "Repeat purchase rate is 50.46% for late" in
    * the headline and "0.50%" in the table two inches below. That is the

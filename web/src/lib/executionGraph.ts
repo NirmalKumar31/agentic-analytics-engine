@@ -5,7 +5,7 @@
  * `timeline.ts` derives the six coarse stages. This derives the layer below
  * them: every call the engine proposed, and what became of it. Together
  * they are the execution graph, and the whole claim of both files is that
- * a node exists because an event said so -- never because a stage usually
+ * a node exists because an event said so, never because a stage usually
  * happens, never because enough time has passed.
  *
  * **Four outcomes, and the distinction between them is the point.**
@@ -22,7 +22,7 @@
  * come back in a second rendering of the same events.
  *
  * **Pairing is by `task_id` and tool name, not by order.** Four calls
- * dispatched together complete out of order -- observed in the committed
+ * dispatched together complete out of order, observed in the committed
  * `returns-segments` recording, where `task_03` returns before `task_02` --
  * so an index-based pairing attributes one call's row count to another.
  *

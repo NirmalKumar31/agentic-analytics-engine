@@ -14,7 +14,7 @@
  *   ANSWER                  display scale, unchanged
  *   context line            population · observations · period · coverage
  *   CHART                   vector, full page width, annotation retained
- *   findings                all of them, expanded -- print has no disclosure
+ *   findings                all of them, expanded; print has no disclosure
  *   result table            every row, header repeating across pages
  *   ───────────── page break
  *   APPENDIX: evidence      outcome, route, contract, coverage,
@@ -26,8 +26,8 @@
  * the rule the appendix exists to keep: a reader who prints a report must
  * not get less than a reader who clicks through it.
  *
- * Page-level setup -- size, margins, the ink-on-white palette and
- * `print-color-adjust` -- lives in `foundation.css`, which comes first in
+ * Page-level setup (size, margins, the ink-on-white palette and
+ * `print-color-adjust`) lives in `foundation.css`, which comes first in
  * the cascade. This module is about the report.
  *
  * ---------------------------------------------------------------------
@@ -36,14 +36,14 @@
  *
  * Vega resolves `--series-*` at embed time and writes the result *inline*
  * on the SVG, so the print palette reset cannot reach it. Printed from the
- * dark theme, a single-series bar is `#54becc` on white -- about 2:1,
+ * dark theme, a single-series bar is `#54becc` on white, about 2:1,
  * which does not meet WCAG 1.4.11 for a graphical object.
  *
  * It is not fixed here because the only fixes are worse than the defect:
  * restating the fill in CSS would collapse a multi-series chart to one
  * colour, since no selector can tell the two cases apart; and re-embedding
- * the chart on `beforeprint` is asynchronous -- a dynamic `import()` plus a
- * promise -- so it is not guaranteed to finish before the page is
+ * the chart on `beforeprint` is asynchronous, being a dynamic `import()` plus a
+ * promise, so it is not guaranteed to finish before the page is
  * snapshotted, and `page.pdf()` does not fire `beforeprint` at all, which
  * means the fix could not be tested in this suite.
  *
@@ -66,14 +66,14 @@
    * where it was first.** There it had no effect:
    * `[data-testid="run-flow-open"]` and `.btn` have the same specificity,
    * `controls.css` loads *after* `timeline.css`, and `.btn { display:
-   * inline-flex }` therefore won -- the printed sheet carried a button.
+   * inline-flex }` therefore won, and the printed sheet carried a button.
    * That is the trap `cssArchitecture.test.ts` names, a rule placed in
    * the module that owns its topic rather than the one that owns its
    * place in the cascade, and it is the whole reason `print.css` is last.
    *
    * Its text alternative joins it for a different reason: Chromium lays a
    * closed `<details>` out and does not paint it, so no rule can open one
-   * on paper -- and the prose inside it prints anyway, in the appendix,
+   * on paper, and the prose inside it prints anyway, in the appendix,
    * where `ExecutionGraph` is rendered with `expanded`.
    */
   .topbar,
@@ -198,7 +198,7 @@
      therefore not in the chrome-off list above; its buttons are. */
   /* No `.run-flow-track` rule here, and that is the fix rather than an
      omission. Overriding `grid-auto-flow` on paper left the row's
-     *connectors* in place -- `@media (min-width: 1440px)` matches under
+     *connectors* in place, because `@media (min-width: 1440px)` matches under
      print emulation too -- so a printed column of full-width boxes
      carried four arrowheads against the right margin. The horizontal
      spine is scoped `@media screen` in `timeline.css` instead, which
@@ -315,7 +315,7 @@
     display: block !important;
   }
 
-  /* `:not(summary)` because the summary needs no reverting -- it is
+  /* `:not(summary)` because the summary needs no reverting. It is
      displayed already -- and this rule's `!important` would otherwise
      outrank the appendix's decision to drop a summary that repeats the
      heading above it. */
@@ -366,7 +366,7 @@
    *
    * Chromium does not paint a form control inside a *repeated* header
    * group: the first `<thead>` printed its four column names, and every
-   * continuation page printed the row's box with only `#` in it -- the one
+   * continuation page printed the row's box with only `#` in it, the one
    * cell whose content is plain text. The table looked like it had lost
    * three columns, which is worse than losing the header altogether,
    * because it reads as data rather than as a rendering fault.
@@ -421,8 +421,8 @@
    * The comparison is a summary followed by two reports, and on paper it
    * was breaking in the middle of each.
    *
-   * The verdict -- the headline, the sentence under it and the four facts
-   * -- is one claim and read as one thing, so it must not split. The
+   * The verdict (the headline, the sentence under it and the four facts
+   *) is one claim and read as one thing, so it must not split. The
    * difference table and the strategy report each begin a section a
    * reader navigates to, so each gets a heading that cannot be orphaned
    * at the foot of a page from the content it introduces. And a report is
@@ -511,7 +511,7 @@
     break-before: avoid;
   }
 
-  /* A result table is allowed to run on -- a 25-row preview often must --
+  /* A result table is allowed to run on, as a 25-row preview often must,
      with its header repeated on each sheet. */
   .report-table > .section-heading + * {
     break-before: avoid;

@@ -29,7 +29,7 @@ from agentic_analytics.warehouse.session import open_upload_session
 #: `revenue` repeats across rows and is fractional, so it profiles as a
 #: measure. A near-unique integer would be read as an identifier, and then
 #: the table would have no measure at all and these tests would pass for
-#: the wrong reason -- which is what the first test below checks.
+#: the wrong reason, which is what the first test below checks.
 CSV = "region,revenue,notes,order_ref\n" + "\n".join(
     f"{['North', 'South'][i % 2]},{100 + (i % 12) * 10}.50,,REF-{1000 + i}" for i in range(60)
 )

@@ -134,7 +134,7 @@
 /* A column whose role the data cannot settle.
  *
  * Marked in the ochre that means "true, and you should know something about
- * it" everywhere else in this interface -- not the failure red, because an
+ * it" everywhere else in this interface, not the failure red, because an
  * inferred role being a close call is not an error. The row carries a tint
  * as well as the tag, since a tag alone is easy to miss in a table of
  * twenty columns, and the word "close call" carries the meaning for a
@@ -159,7 +159,7 @@ table.data tr[data-ambiguous="true"] {
   display: block;
   /* `table.data td` sets `white-space: nowrap` so a data row scrolls rather
    * than wraps. This control is prose inside such a cell, and inheriting
-   * that kept its legend and both choice labels on single lines -- which
+   * that kept its legend and both choice labels on single lines, which
    * grew the column and took the page's horizontal overflow at 360px from
    * 258px to 1009px. The sentences wrap; the data rows still do not. */
   white-space: normal;

@@ -337,7 +337,7 @@ export function summarise(report, { requested, allowedSkips }) {
   }
 
   // Flaky is refused outright. There is no allowance, because a test that
-  // passes only on retry has not demonstrated the thing it asserts -- and
+  // passes only on retry has not demonstrated the thing it asserts, and
   // a retry that rescues CI hides exactly the races a browser suite exists
   // to find.
   for (const name of requested) {

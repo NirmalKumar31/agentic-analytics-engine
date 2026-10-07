@@ -37,7 +37,7 @@ describe("end-to-end navigation", () => {
     // Any receiver, not just a variable literally called `page`. The first
     // version of this guard matched `page.goto(` case-sensitively and so
     // missed `alicePage.goto("/")` and `bobPage.goto("/")` in the
-    // two-visitor isolation test -- which the sweep had also missed, for
+    // two-visitor isolation test, which the sweep had also missed, for
     // the same reason.
     const offenders = [];
     for (const name of specFiles()) {
@@ -94,7 +94,7 @@ describe("end-to-end navigation", () => {
     expect(openApp).toMatch(/getByTestId\(['"]app-shell['"]\)/);
     expect(openApp).toMatch(/toBeVisible\(\{\s*timeout:\s*20_000\s*\}\)/);
 
-    // The marker must come from React, not from the served HTML -- a
+    // The marker must come from React, not from the served HTML, because a
     // marker present before mount would make the wait meaningless.
     const html = readFileSync(resolve(process.cwd(), "index.html"), "utf8");
     expect(html).not.toMatch(/app-shell/);

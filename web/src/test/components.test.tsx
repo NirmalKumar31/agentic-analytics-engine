@@ -33,13 +33,13 @@ describe('ResultTable', () => {
  * The `ProvenanceDrawer` suite stood here and went with the component.
  *
  * It was a per-finding drawer, opened from a "Show work" on every published
- * finding card -- six identical cards meant six triggers for six drawers
+ * finding card, and six identical cards meant six triggers for six drawers
  * describing one run. The evidence drawer carries the contract,
  * verification outcomes, cited cells, timings and the trace once, for the
  * report, and `evidence.spec.ts` asserts every one of those is present.
  *
- * Its focus behaviour -- in on open, contained, back to the trigger on
- * close -- moved into `SideSheet` and is asserted there, on both sheets,
+ * Its focus behaviour (in on open, contained, back to the trigger on
+ * close) moved into `SideSheet` and is asserted there, on both sheets,
  * including the two WebKit-only failures the original never caught.
  */
 

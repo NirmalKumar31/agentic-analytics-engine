@@ -77,15 +77,15 @@ class ServerConfig(BaseModel):
     #: recorded | deterministic_live | ai_live. Drives the badge in the UI.
     execution_mode: ExecutionMode
     #: Whether a run on this deployment *can* send prompts to a third-party
-    #: model. False is the strong claim -- nothing derived from a dataset
-    #: leaves this server, in any mode a visitor can pick -- so it is taken
+    #: model. False is the strong claim. Nothing derived from a dataset
+    #: leaves this server, in any mode a visitor can pick, so it is taken
     #: from the published capabilities rather than from a process setting
     #: that no longer decides what a run does.
     model_inference_remote: bool
     live_analytics_enabled: bool
     uploads_enabled: bool
     #: Whether the Streamable HTTP MCP endpoint at /mcp is served. False
-    #: means it answers 503 by design -- a network binding with no Host
+    #: means it answers 503 by design, because a network binding with no Host
     #: allow-list withdraws the transport rather than serving it unvalidated.
     #: Reported so an external check can assert the endpoint matches the
     #: policy instead of inferring the policy from the URL it dialled, which

@@ -168,7 +168,7 @@ def test_an_unknown_metric_is_refused_and_the_real_ones_are_named() -> None:
 
 
 def test_a_dimension_is_checked_against_its_own_metric() -> None:
-    """`category` is a real dimension -- but not of `revenue`.
+    """`category` is a real dimension, but not of `revenue`.
 
     Checking against the union of every metric's dimensions would let this
     through and produce a server error the worker cannot read.

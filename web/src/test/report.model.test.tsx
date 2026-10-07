@@ -12,7 +12,7 @@
  *                         answered through the metric registry
  *
  * A redesign of the presentation path alone would have left the demo
- * warehouse -- the first thing most visitors open -- on the old report.
+ * warehouse (the first thing most visitors open) on the old report.
  */
 
 import { readFileSync, readdirSync } from "node:fs";
@@ -258,7 +258,7 @@ describe("the activity trace reads the fields the engine emits", () => {
 describe("the evidence drawer survives an unfinished payload", () => {
   /*
    * A run that is still `running` carries its identity and its status and
-   * nothing else -- no `findings`, no `rejected`, no `events`.
+   * nothing else: no `findings`, no `rejected`, no `events`.
    *
    * `run.findings.flatMap(...)` threw on exactly that payload. React
    * unmounted the subtree, so the Compare evidence drawer *vanished* the

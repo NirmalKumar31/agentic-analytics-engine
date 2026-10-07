@@ -8,12 +8,12 @@ in it at all.
 The point of the corpus is *semantic* diversity, so the generators differ
 in the things that actually break a question-to-column mapping:
 
-* grain -- one row per entity, per event, per entity-and-period;
-* types -- integers, money, ratios, durations, booleans, categoricals,
+* grain (one row per entity, per event, per entity-and-period;
+* types) integers, money, ratios, durations, booleans, categoricals,
   Likert scales, timestamps, dates, and columns with none of those;
-* distributions -- skewed money, bimodal durations, sparse counters;
-* null patterns -- absent at random, absent by group, absent by period;
-* ambiguity -- several plausible measures, several plausible dates, no
+* distributions: skewed money, bimodal durations, sparse counters;
+* null patterns: absent at random, absent by group, absent by period;
+* ambiguity: several plausible measures, several plausible dates, no
   plausible measure at all.
 
 Deterministic: every generator takes a seed and produces the same bytes for
@@ -590,7 +590,7 @@ def telecom_usage(rng: random.Random, n: int = 400) -> Dataset:
 
 # ─────────────────────────────────────────── cohorts, funnels and panels
 def product_retention_cohorts(rng: random.Random, n: int = 0) -> Dataset:
-    """One row per cohort per period offset -- the shape where "retention"
+    """One row per cohort per period offset, the shape where "retention"
     is a ratio of two columns and not a column of its own."""
     header = ["cohort_month", "period_offset", "cohort_size", "active_users", "feature_adopters"]
     rows: list[list[object]] = []

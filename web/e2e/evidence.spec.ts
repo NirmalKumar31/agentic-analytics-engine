@@ -37,7 +37,7 @@ async function openReport(page: import("@playwright/test").Page) {
    * Every test in this file asks the same question of the same dataset and
    * then inspects the drawer. The ten uploads this replaced differed in
    * nothing but their filename, and the ten analyses differed in nothing at
-   * all -- so the report is produced once and the drawer is closed between
+   * all, so the report is produced once and the drawer is closed between
    * tests rather than the run being repeated.
    */
   await reportFor(page, QUESTION);
@@ -84,7 +84,7 @@ test.describe("the evidence drawer", () => {
     await openReport(page);
     await page.getByTestId("inspect-evidence").click();
     const drawer = page.getByTestId("evidence-drawer");
-    // Either real references or an explicit "none cited" -- never blank.
+    // Either real references or an explicit "none cited", never blank.
     const text = (await drawer.textContent()) ?? "";
     const cited = text.slice(text.indexOf("Cited cells"));
     expect(cited.length).toBeGreaterThan("Cited cells".length + 3);

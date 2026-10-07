@@ -44,7 +44,7 @@ TEST_TYPES: tuple[str, ...] = (
 #: instead of three descriptions drifting apart.
 #:
 #: The Stage-1 run spent six `statistical_test` calls discovering this the
-#: expensive way -- `group_column is required`, `row_column is required`,
+#: expensive way: `group_column is required`, `row_column is required`,
 #: `model (or table) is required`, and one `test_type` that does not exist.
 #: Every one of those facts was already known here.
 TEST_VARIABLES: dict[str, tuple[str, ...]] = {
@@ -751,7 +751,7 @@ def correlation_matrix(
     # `_require_numeric`, not `_check_column`. Existence is not enough: the
     # SQL below casts every column to DOUBLE, so a text column reached
     # DuckDB and came back as `Conversion Error: Could not convert string
-    # 'North' to DOUBLE` -- a database error where a governed refusal
+    # 'North' to DOUBLE`, a database error where a governed refusal
     # belongs. The function two hundred lines above says it plainly: a
     # correlation between two text columns is not a weaker result, it is a
     # meaningless one, and refusing is the only honest outcome.

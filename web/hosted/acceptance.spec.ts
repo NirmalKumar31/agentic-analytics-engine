@@ -4,11 +4,11 @@
  * What this run is evidence about, stated once so the report is not read as
  * more than it is:
  *
- *   it proves   how the deployed build **presents** a run -- layout at
+ *   it proves   how the deployed build **presents** a run (layout at
  *               every width in both themes, hierarchy, reader labels,
  *               readable dates and numbers, the evidence drawer, focus
  *               restoration, reduced motion, print, and the execution
- *               graph -- against the exact commit `preflight.ts` checked.
+ *               graph) against the exact commit `preflight.ts` checked.
  *
  *   it does not prove anything about the engine's own behaviour on the
  *               deployment, because it never makes it run. Classification,
@@ -73,7 +73,7 @@ async function expectNoOverflow(page: Page, where: string): Promise<void> {
  * The report's prose, with the audit surfaces and identifiers removed.
  *
  * `drop` removes further selectors, which is how the two halves of a
- * recorded report are measured apart -- see the report case for why.
+ * recorded report are measured apart. See the report case for why.
  */
 async function proseOf(
   page: Page,
@@ -109,8 +109,8 @@ async function proseOf(
  * never arrived.
  *
  * Planner vocabulary and punctuation are left out for the same reason the
- * browser suite leaves them out -- the canvas legitimately carries prose
- * the engine wrote -- so this and `e2e/readerQuality.spec.ts` hold the
+ * browser suite leaves them out, because the canvas legitimately carries prose
+ * the engine wrote, so this and `e2e/readerQuality.spec.ts` hold the
  * deployed build and the container to the same standard.
  */
 function assertFitForAReader(where: string, text: string): void {
@@ -182,7 +182,7 @@ async function overlappingSiblings(page: Page, selector: string): Promise<string
  *
  * Measured against the content, not against a pixel threshold. A first
  * attempt asserted a 40px minimum and flagged the result table's
- * row-number column -- `#`, then `0`, `1`, `2`, `3` -- at 27px, which is
+ * row-number column (`#`, then `0`, `1`, `2`, `3`) at 27px, which is
  * exactly as wide as it should be. "Too narrow" only means anything
  * relative to what a box is holding.
  */
@@ -238,13 +238,13 @@ async function unreadableProse(
  * Vega is a lazily-loaded 860 kB chunk, so a report is interactive and
  * readable well before its chart exists. Every screenshot of a report in
  * the first production sweep showed a **blank 320px band** where the chart
- * belongs -- the page was fine, the capture was early.
+ * belongs: the page was fine, the capture was early.
  *
  * That is two defects in one. The artefacts were not faithful evidence of
  * the thing they were filed as evidence of; and the `report` case's only
  * chart assertion was that its box is no wider than the column, which an
  * empty box satisfies. So this waits, and then asserts the mark is really
- * there -- a chart that silently stops drawing now fails the cell instead
+ * there, so a chart that silently stops drawing now fails the cell instead
  * of passing it at full width.
  *
  * Returns false when the result legitimately has no chart, which is a
@@ -417,7 +417,7 @@ test.describe("hosted visual acceptance", () => {
      * `:focus-visible` only matches when the browser decides focus should
      * be shown, which a script setting `.focus()` does not always
      * trigger. Pressing Tab is what a keyboard user does, so it is what
-     * this does -- and it also exercises the order, which is the other
+     * this does, and it also exercises the order, which is the other
      * half of focus safety.
      */
     const seen: string[] = [];
@@ -491,8 +491,8 @@ test.describe("hosted visual acceptance", () => {
      * Reader quality on a recorded run, with no allowance.
      *
      * There used to be one. A recording carried no presentation snapshot,
-     * so the whole report -- headline, findings, chart title, table
-     * headers -- fell back to the engine's own words and the result's own
+     * so the whole report (headline, findings, chart title, table
+     * headers) fell back to the engine's own words and the result's own
      * column names: `return_rate fell from 8.51% in 2025-01-01`. The
      * sweep bounded that to two defect kinds rather than ignoring it.
      *
@@ -506,7 +506,7 @@ test.describe("hosted visual acceptance", () => {
     assertFitForAReader(`recorded report at ${cell.name}`, prose);
 
     // The chart, if the recording produced one: painted, then inside the
-    // column. Measured after it has drawn -- an empty host is the right
+    // column. Measured after it has drawn, because an empty host is the right
     // width and the wrong picture.
     const chart = panel.locator(".chart-host").first();
     if (await chartPainted(page, `report at ${cell.name}`)) {
@@ -552,7 +552,7 @@ test.describe("hosted visual acceptance", () => {
     const graph = region.getByTestId("execution-graph");
     await expect(graph).toBeVisible();
 
-    // One node per call the run actually made -- the recording's own count,
+    // One node per call the run actually made, from the recording's own count,
     // read from the payload rather than assumed.
     const expectedCalls = (recording.events as { type: string }[]).filter(
       (event) => event.type === "mcp_tool_called",
@@ -658,7 +658,7 @@ test.describe("hosted visual acceptance", () => {
      *
      * A Compare drew none. The reason was that it has one evidence
      * control for both runs and two stage summaries would be two more
-     * things to read -- which stopped being true on paper, where the only
+     * things to read, which stopped being true on paper, where the only
      * labelled picture of either run was in the evidence appendix. A
      * reader who exported a Compare to PDF got the appendix graph's
      * unlabelled dots, twice, and no flowchart anywhere.
@@ -693,7 +693,7 @@ test.describe("hosted visual acceptance", () => {
      *
      * Both have happened. A call chip rendered at 116px against the
      * 180px prose floor, and an absolutely positioned connector sitting
-     * in a grid gap read as clipped text -- outside the padding box it
+     * in a grid gap read as clipped text, because outside the padding box it
      * counts in `scrollWidth` and not in `clientWidth`, which is this
      * check's exact signature. Two spines in a section that previously
      * held a short table is a new place for both.
@@ -730,7 +730,7 @@ test.describe("hosted visual acceptance", () => {
      * The printed Compare, which is the artefact that started this.
      *
      * The `print` cell prints a single run, so a Compare on paper was
-     * never measured -- and a Compare on paper is what a reader exported.
+     * never measured, and a Compare on paper is what a reader exported.
      * Asserted against the computed style for the reason the single-run
      * print cell gives: a static check on the selector passes whether or
      * not the rule wins.
@@ -762,7 +762,7 @@ test.describe("hosted visual acceptance", () => {
      * thinks, and an unchanged picture is what a hung request looks like
      * too. What is asserted here is that the screen is made of facts: the
      * stage the engine reported, the reader's own elapsed wait, and the
-     * work that has actually finished -- and that there is no completion
+     * work that has actually finished, and that there is no completion
      * fraction anywhere, because the planner decides how many calls a run
      * makes as it goes.
      */
@@ -814,7 +814,7 @@ test.describe("hosted visual acceptance", () => {
      *
      * A first version compared `innerText()` before and after with the
      * elapsed string removed by `String.replace`, which replaces only the
-     * first occurrence -- so once the clock read a value that also appeared
+     * first occurrence, so once the clock read a value that also appeared
      * elsewhere in the block the subtraction took out the wrong text and
      * the comparison failed on one cell in twelve. The assertion was
      * fragile; the product was not. Naming the two figures that must not
@@ -975,8 +975,8 @@ test.describe("hosted visual acceptance", () => {
      * No sideways-scroll assertion here, and that is deliberate.
      *
      * `expectNoOverflow` measures the document against the *screen*
-     * viewport. Under print media the page is a sheet of paper -- around
-     * 816px at 96dpi -- not the 360px phone the reader happened to print
+     * viewport. Under print media the page is a sheet of paper (around
+     * 816px at 96dpi) not the 360px phone the reader happened to print
      * from, so measuring the phone's width against print layout asks a
      * question about a page that does not exist. It failed four cells
      * saying the page scrolled 288px sideways, which was true of the
