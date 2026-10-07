@@ -596,10 +596,11 @@ developer's machine is not the constraint the deployment is.
 ## 10. Deployed, and what the deployment has and has not shown
 
 Live at <https://agentic-analytics-engine.onrender.com>. The production audit
-on 6 October 2026 verified the exact deployed commit, passed all **60**
-credential-free API checks and **156/156** hosted browser cells, and then ran
-one authorised Compare canary for **$0.000158**. Both strategies executed the
-same accepted contract and matched an independent DuckDB result. See
+on 6 October 2026 verified `f98b890`, passed all **60** credential-free API
+checks and **156/156** hosted browser cells, and then ran one authorised
+Compare canary for **$0.000158**. Both strategies executed the same accepted
+contract and matched an independent DuckDB result. A zero-spend follow-up
+covered the current deployed commit on 7 October. See
 [`RELEASE-EVIDENCE-production-2026-10-06.md`](RELEASE-EVIDENCE-production-2026-10-06.md).
 
 The older v0.1.0 evidence below remains useful as a release-specific record.

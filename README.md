@@ -149,7 +149,7 @@ CI publishes the test count for the exact commit it checks, and reconciles
 every discovered browser test, declared skip and retry across Chromium,
 Firefox and WebKit, so no count is frozen here.
 
-The production audit on 6 October 2026 checked the deployed commit:
+The production audit on 6 October 2026 checked `f98b890`:
 
 - all ten CI jobs passed, including Docker and the three browser engines;
 - the credential-free API acceptance script passed 60 checks;
@@ -157,6 +157,10 @@ The production audit on 6 October 2026 checked the deployed commit:
   made no upload, analysis, comparison or provider request;
 - one separately authorised Compare canary passed 41 checks and cost
   **$0.000158**.
+
+On 7 October, a credential-free follow-up ran the same 156-cell browser
+matrix against the current deployed commit `b5a24b5`. It made no upload,
+analysis, comparison or provider request.
 
 These are engineering checks. They are not a claim of universal dataset
 coverage or WCAG conformance. See the

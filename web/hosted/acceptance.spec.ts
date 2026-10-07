@@ -1,5 +1,5 @@
 /**
- * Hosted visual acceptance: nine states, six widths, two themes.
+ * Hosted visual acceptance: thirteen states, six widths, two themes.
  *
  * What this run is evidence about, stated once so the report is not read as
  * more than it is:
