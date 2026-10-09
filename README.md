@@ -5,6 +5,8 @@ engine compiles the question into a typed analytical contract, executes that
 contract locally over DuckDB, verifies the result, and shows the data and SQL
 behind every published number.
 
+https://github.com/user-attachments/assets/d1730a84-6861-4254-97d6-ccab0758a5d4
+
 **Live demo:** [agentic-analytics-engine.onrender.com](https://agentic-analytics-engine.onrender.com/)
 
 A model never executes SQL and never calculates a published value. On the
