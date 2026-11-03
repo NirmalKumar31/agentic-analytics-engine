@@ -33,8 +33,7 @@ from agentic_analytics.logging import get_logger
 from agentic_analytics.verification.claims import check_claim
 from agentic_analytics.verification.coverage import check_answer_coverage
 from agentic_analytics.verification.intent import check_intent
-from agentic_analytics.verification.numeric import verify_numbers
-from agentic_analytics.verification.typing import as_number
+from agentic_analytics.verification.numeric import as_number, verify_numbers
 
 log = get_logger(__name__)
 

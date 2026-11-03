@@ -74,15 +74,10 @@ def test_current_docs_do_not_repeat_superseded_claims() -> None:
     assert "not a load or throughput measurement" in current
 
 
-def test_design_package_identifies_itself_as_historical() -> None:
-    for path in (
-        "docs/design/REDESIGN-BRIEF.md",
-        "docs/design/ACCEPTANCE.md",
-        "docs/design/MOTION-STORYBOARD.md",
-        "docs/design/generators/README.md",
-    ):
-        opening = (ROOT / path).read_text(encoding="utf-8")[:500]
-        assert "historical" in opening.lower(), path
+def test_history_links_pin_the_pre_cleanup_snapshot() -> None:
+    history = (ROOT / "docs/HISTORY.md").read_text(encoding="utf-8")
+    assert "9ce8962e4620c4ba81096cdc06ee96b52f5cac29" in history
+    assert "Historical test counts" in history
 
 
 def test_remote_inference_docs_name_the_question_as_disclosed() -> None:

@@ -40,7 +40,7 @@ def _coerce(value: Any) -> Scalar:
     if isinstance(value, float):
         return None if math.isnan(value) or math.isinf(value) else value
     if isinstance(value, decimal.Decimal):
-        return float(value)
+        return _coerce(float(value)) if value.is_finite() else None
     if isinstance(value, dt.datetime | dt.date):
         return value.isoformat()
     if isinstance(value, dt.timedelta):

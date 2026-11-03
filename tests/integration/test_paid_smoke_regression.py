@@ -28,7 +28,7 @@ from agentic_analytics.analytics.results import ResultSnapshot
 from agentic_analytics.analytics.upload_plan import QuestionMapping
 from agentic_analytics.verification.canonical import canonical_answer
 from agentic_analytics.verification.intent import check_intent
-from agentic_analytics.verification.typing import as_number
+from agentic_analytics.verification.numeric import as_number
 
 FIXTURES = Path(__file__).resolve().parents[1] / "fixtures" / "paid_smoke"
 SMOKE = FIXTURES / "first_smoke_38cfb51.json"

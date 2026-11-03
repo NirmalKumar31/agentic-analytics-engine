@@ -38,7 +38,7 @@ from agentic_analytics.presentation.summarize import (
     thin_elsewhere,
     thin_named,
 )
-from agentic_analytics.verification.typing import as_number
+from agentic_analytics.verification.numeric import as_number
 
 #: Rows the table shows before asking. The complete result stays available
 #: and the scope says how many there are, so this never changes a number.

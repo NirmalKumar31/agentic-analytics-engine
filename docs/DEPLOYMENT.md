@@ -213,12 +213,12 @@ Deterministic first. AI only after the deterministic service is healthy.
 ## What the live deployment has been shown to do
 
 The latest production audit is
-[`RELEASE-EVIDENCE-production-2026-10-06.md`](RELEASE-EVIDENCE-production-2026-10-06.md).
+[`RELEASE-EVIDENCE-production-2026-10-06.md`](https://github.com/NirmalKumar31/agentic-analytics-engine/blob/9ce8962e4620c4ba81096cdc06ee96b52f5cac29/docs/RELEASE-EVIDENCE-production-2026-10-06.md).
 It identifies the exact deployed commit, the ten-job CI run, the 156-cell
 hosted browser sweep, the 60-check API acceptance run and one bounded paid
 Compare canary. The evidence below is retained as the earlier v0.1.0 record.
 
-[`RELEASE-EVIDENCE-capacity-2026-10-07.md`](RELEASE-EVIDENCE-capacity-2026-10-07.md)
+[`RELEASE-EVIDENCE-capacity-2026-10-07.md`](https://github.com/NirmalKumar31/agentic-analytics-engine/blob/9ce8962e4620c4ba81096cdc06ee96b52f5cac29/docs/RELEASE-EVIDENCE-capacity-2026-10-07.md)
 records a separate bounded production concurrency check. It checks isolation,
 cleanup and restart behaviour; it does not establish a throughput figure or a
 load limit.

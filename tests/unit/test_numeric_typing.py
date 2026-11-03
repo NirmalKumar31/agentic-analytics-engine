@@ -11,7 +11,7 @@ from decimal import Decimal
 
 import pytest
 
-from agentic_analytics.verification.typing import as_number, is_numeric_type
+from agentic_analytics.verification.numeric import as_number, is_numeric_type
 
 NUMERIC = "DOUBLE"
 

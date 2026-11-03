@@ -26,7 +26,7 @@ from decimal import Decimal
 from typing import Any
 
 from agentic_analytics.analytics.results import EvidenceCell, ResultSnapshot
-from agentic_analytics.verification.typing import as_number
+from agentic_analytics.verification.numeric import as_number
 
 #: How each operation reads in a sentence.
 #: Groups enumerated in the answer sentence. The rest are in the cited

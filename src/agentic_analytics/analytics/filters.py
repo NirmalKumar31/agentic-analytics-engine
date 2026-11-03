@@ -69,7 +69,7 @@ def build_where(
                 f"cannot filter on {f.column!r}; filterable columns: {sorted(allowed_columns)}"
             )
         column = (column_map or {}).get(f.column, f.column)
-        quoted = f'"{column}"'
+        quoted = '"' + column.replace('"', '""') + '"'
 
         if f.op in _NO_VALUE:
             clauses.append(f"{quoted} IS NULL" if f.op == "is_null" else f"{quoted} IS NOT NULL")

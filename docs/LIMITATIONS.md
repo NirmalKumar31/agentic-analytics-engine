@@ -601,7 +601,7 @@ checks and **156/156** hosted browser cells, and then ran one authorised
 Compare canary for **$0.000158**. Both strategies executed the same accepted
 contract and matched an independent DuckDB result. A zero-spend follow-up
 covered the current deployed commit on 7 October. See
-[`RELEASE-EVIDENCE-production-2026-10-06.md`](RELEASE-EVIDENCE-production-2026-10-06.md).
+[`RELEASE-EVIDENCE-production-2026-10-06.md`](https://github.com/NirmalKumar31/agentic-analytics-engine/blob/9ce8962e4620c4ba81096cdc06ee96b52f5cac29/docs/RELEASE-EVIDENCE-production-2026-10-06.md).
 
 The older v0.1.0 evidence below remains useful as a release-specific record.
 Its authorised comparison published the correct total on both the
@@ -649,7 +649,7 @@ inference:
   demo analyses and three upload sessions completed or were cleanly
   rate-limited, remained isolated, released capacity, and did not restart the
   instance. The exact target and assertions are recorded in
-  [`RELEASE-EVIDENCE-capacity-2026-10-07.md`](RELEASE-EVIDENCE-capacity-2026-10-07.md).
+  [`RELEASE-EVIDENCE-capacity-2026-10-07.md`](https://github.com/NirmalKumar31/agentic-analytics-engine/blob/9ce8962e4620c4ba81096cdc06ee96b52f5cac29/docs/RELEASE-EVIDENCE-capacity-2026-10-07.md).
   This is a breakage check, not a load or throughput measurement. Sustained
   load, latency under load and cold-start latency remain unquantified.
 

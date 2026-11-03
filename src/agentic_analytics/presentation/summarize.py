@@ -42,8 +42,7 @@ from agentic_analytics.presentation.schemas import (
     SemanticKind,
 )
 from agentic_analytics.verification.canonical import format_number, resolve_result_column
-from agentic_analytics.verification.numeric import extract_numbers
-from agentic_analytics.verification.typing import as_number
+from agentic_analytics.verification.numeric import as_number, extract_numbers
 
 #: Groups that can be named in a sentence. Above this the sentence states
 #: the shape of the breakdown and the table carries the groups, because
