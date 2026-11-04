@@ -56,3 +56,23 @@ def test_end_to_end_api():
         assert "mcp:aggregate_question" in body["trace"]
         assert body["evidence"]["result_id"]
         assert len(body["evidence"]["rows"]) == 3
+
+
+def test_walmart_style_upload_and_grouping():
+    # Regression for a multi-thousand-row upload and DD-MM-YYYY dates.
+    header = "Store,Date,Weekly_Sales,Holiday_Flag,Temperature,Fuel_Price,CPI,Unemployment\n"
+    rows = [
+        f"{i % 45 + 1},05-02-2010,{100 + i % 10},{i % 2},68,3.25,211,7.2"
+        for i in range(6435)
+    ]
+    ds = load_data((header + "\n".join(rows) + "\n").encode(), "Walmart_Sales.csv")
+    assert ds.roles["time_fields"] == ["date"]
+    assert "store" in ds.roles["dimensions"]
+    assert "holiday_flag" in ds.roles["dimensions"]
+    assert "weekly_sales" in ds.roles["measures"]
+    assert ds.conn.execute("SELECT COUNT(*) FROM data").fetchone()[0] == 6435
+    result = execute(ds, resolve("What is total Weekly_Sales?", ds))
+    assert result["rows"][0][1] == sum(100 + i % 10 for i in range(6435))
+    trend = execute(ds, resolve("Show monthly Weekly_Sales over time", ds))
+    assert trend["rows"][0][0] == "2010-02"
+    ds.close()
