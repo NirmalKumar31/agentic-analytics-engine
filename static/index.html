@@ -39,8 +39,14 @@ const byId = (id) => document.getElementById(id);
 function clear() { byId('error').textContent=''; byId('answer').textContent=''; byId('results').replaceChildren(); }
 async function request(path, options={}) {
   const response = await fetch(path,options);
-  const data = await response.json();
-  if (!response.ok) throw new Error(typeof data.detail === 'string' ? data.detail : 'Request failed');
+  const body = await response.text();
+  let data;
+  try { data = body ? JSON.parse(body) : null; } catch (_) { data = null; }
+  if (!response.ok) throw new Error(
+    (data && typeof data.detail === 'string' && data.detail) ||
+    ('Server returned HTTP ' + response.status + '. Please retry; if it continues, check the deployment logs.')
+  );
+  if (!data) throw new Error('The server returned an empty response. Please retry.');
   return data;
 }
 function showSession(data) {
@@ -51,8 +57,9 @@ byId('demo').onclick=async()=>{ try { showSession(await request('/api/demo',{met
 byId('file').onchange=async(e)=>{
   if (!e.target.files.length) return;
   const form=new FormData(); form.append('file',e.target.files[0]);
+  sessionId=null; clear(); byId('schema').textContent='Uploading and processing ' + e.target.files[0].name + '…';
   try { showSession(await request('/api/upload',{method:'POST',body:form})); }
-  catch(err) { byId('error').textContent=err.message; }
+  catch(err) { byId('schema').textContent='No dataset selected.'; byId('error').textContent=err.message; }
 };
 byId('form').onsubmit=async(e)=>{
   e.preventDefault(); clear();
