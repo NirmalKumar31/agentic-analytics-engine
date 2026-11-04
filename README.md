@@ -1,94 +1,56 @@
-# Agentic Analytics Engine
+# Agentic Analytics Engine — compact edition
 
-A Python and SQL application that turns business questions into checked analytical
-answers over DuckDB. It supports a built-in demo warehouse and uploaded CSV or
-Parquet data. Answers include the query results and provenance used to support them.
+A small interview friendly analytics app built with Python, DuckDB, LangGraph, and the MCP Python SDK. It accepts one CSV or Parquet table (or the included demo), interprets a business question, executes a controlled SQL aggregate, and publishes the result alongside the exact SQL and an MCP tool trace. Optional AI can propose a structured plan for an ambiguous question; the normal demo does not require an API key.
 
-**[Live demo](https://agentic-analytics-engine.onrender.com/)** ·
-[Walk through the code](docs/WALKTHROUGH.md) · [Setup and deployment](docs/DEPLOYMENT.md)
+## Explain it in one minute
 
-## The project in one explanation
+I built a question to SQL analytics workflow. Python rules identify the requested operation, measure, grouping, and time field. When the wording is clear, no model call is needed. For a genuine ambiguity, an optional AI planner proposes a typed mapping, which is checked against the dataset and the question. A LangGraph workflow invokes an in process MCP analytics tool; that tool builds and validates read only SQL, calculates the result in DuckDB, and records a result snapshot. A final check ensures the answer uses only returned values. The public demo runs without paid AI.
 
-“I built a question-to-analysis application. Python first tries to interpret the
-question using deterministic rules. For supported ambiguities, an AI planner can
-propose a structured interpretation. The application validates that interpretation,
-builds and executes SQL, and checks the results before showing an answer. The
-important separation is that the model helps interpret the request, while code and
-DuckDB calculate the numbers and retain the evidence.”
+## Read these files in order
 
-The default development provider is a scripted fake: it exercises the workflow
-without an API key. It does not demonstrate real-model accuracy. Cloud planning
-requires the configuration described in the deployment guide.
+1. `engine.py`: load data, interpret questions, construct SQL, execute, and verify.
+2. `mcp_server.py`: four typed MCP tools around the engine.
+3. `workflow.py`: three LangGraph nodes, optional AI proposal, MCP client call.
+4. `app.py`: FastAPI endpoints and session handling.
+5. `static/index.html`: small browser interface.
+6. `tests/test_engine.py`: examples and important refusal cases.
 
-## Follow these four stages
-
-| Stage | Start reading here | Responsibility |
-| --- | --- | --- |
-| Interpret | [`analytics/upload_plan.py`](src/agentic_analytics/analytics/upload_plan.py) | Resolve an uploaded-data question to a typed query contract |
-| Validate and calculate | [`analytics/compute.py`](src/agentic_analytics/analytics/compute.py) | Construct supported analytical operations |
-| Execute SQL | [`analytics/execute.py`](src/agentic_analytics/analytics/execute.py) | Guard SQL, bound execution and save result snapshots |
-| Verify and present | [`verification/canonical.py`](src/agentic_analytics/verification/canonical.py) | Check the contract and evidence before publication |
-
-These are reading entry points, not four independent scripts. The
-[walkthrough](docs/WALKTHROUGH.md) explains the supporting modules and the separate
-warehouse workflow.
-
-## How the workflow fits together
+## Flow
 
 ```mermaid
 flowchart TD
-  Q[Question and dataset] --> R{Rule resolver}
-  R -->|Exact| C[Validated analytical contract]
-  R -->|Eligible ambiguity| P[AI planning proposal]
-  P --> V[Local schema and policy validation]
-  V --> C
-  R -->|Unsafe or unsupported| X[Refusal with a reason]
-  C --> D[Guarded DuckDB execution]
-  D --> G{Evidence and coverage checks}
-  G -->|Pass| A[Answer with table, SQL and provenance]
-  G -->|Fail| W[Withhold unsupported answer]
+  Q[Question and dataset] --> R[Rule resolver]
+  R -->|Exact| P[Typed plan]
+  R -->|Ambiguous and AI enabled| A[AI proposal]
+  A --> V[Validate against schema]
+  V --> P
+  R -->|Unsupported| X[Explain refusal]
+  P --> M[MCP analytics tool]
+  M --> S[Guarded SQL in DuckDB]
+  S --> E[Result snapshot]
+  E --> C[Evidence check]
+  C --> O[Answer with SQL and rows]
 ```
 
-The model never executes SQL or supplies published arithmetic. On the upload
-path it proposes a typed interpretation; local code validates and computes it.
-The warehouse workflow can use bounded model calls for planning, proposed findings
-and semantic review, with deterministic publication gates.
+Try: **What are total sales by region?**, **What is average sales by category?**, or **Show monthly sales over time**.
 
-## Run locally
+## Run
 
-Use Python 3.12+ and Node 22 for the web client.
+Requires Python 3.12+.
 
 ```bash
-make bootstrap
-make dev
+pip install -r requirements.txt
+uvicorn app:app --reload
 ```
 
-`make dev` generates demo data, builds the client and serves
-`http://127.0.0.1:8000` in fake-provider mode. Run `make verify` for Python lint,
-types, Python tests, frontend checks and recording validation. Browser, Docker
-and dependency-audit checks are separate targets listed by `make help`.
+Open http://127.0.0.1:8000 and load the demo. Run `pytest -q` for focused checks.
 
-## What is preserved
+To enable optional AI interpretation, set `AAE_AI_ENABLED=true`, `AAE_AI_API_KEY`, and `AAE_AI_MODEL`. The AI receives the question and column names/types, not uploaded rows. The model only proposes a mapping; code validates and calculates it. Keep AI disabled for the public anonymous demo unless you add durable quotas and a provider spending cap.
 
-- Typed analytical contracts, schema validation and conservative ambiguity handling.
-- Guarded SQL, locked DuckDB connections and deterministic metric/statistical calculations.
-- Coverage checks, cited result cells and traceable result snapshots.
-- CSV/Parquet upload sessions, the React client, API and MCP tool boundary.
-- Cloud-provider controls and the shared usage ledger when cloud mode is enabled.
+## Render
 
-A cloud planner receives **the question, schema information and aggregate labels**,
-not unaggregated rows. Near-unique text fields are withheld from grouping. Column
-roles that the data cannot establish require session-scoped confirmation.
+The included `render.yaml` builds the Dockerfile as one web service. After changing the connected Render service to the new commit, deploy manually and check `/api/ready`. The original project is preserved on branch `archive/full-agentic-engine-2026-11-03`.
 
-## Limits and further reading
+## Deliberate scope
 
-This is a bounded analytics application: it does not support arbitrary joins,
-forecasts or causal conclusions. A refusal is preferable to silently answering a
-different question. Session capabilities isolate data but are not user accounts.
-
-- [Code walkthrough and example](docs/WALKTHROUGH.md)
-- [Architecture](docs/ARCHITECTURE.md) and [limitations](docs/LIMITATIONS.md)
-- [Evaluation](docs/EVALUATION.md) and [deployment](docs/DEPLOYMENT.md)
-- [Documentation map](docs/README.md) and [historical evidence](docs/HISTORY.md)
-
-MIT licensed.
+This edition supports one table, count, sum, average, top or bottom ranking, and monthly trends, plus a correlation tool. It refuses unsupported requests rather than guessing. It does not claim arbitrary joins, forecasting, causal analysis, enterprise authentication, or proven real model accuracy. Uploaded sessions live in memory and disappear on restart. The four MCP tools are invoked in process; the public app does not expose an unauthenticated remote MCP endpoint.

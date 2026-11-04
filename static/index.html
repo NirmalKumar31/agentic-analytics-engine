@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Agentic Analytics Engine</title>
+  <style>
+    body {font: 16px system-ui,sans-serif; max-width: 840px; margin: 2rem auto; padding: 0 1rem; color: #15202b; background: #f7f9fc}
+    main {background: white; border: 1px solid #d7e0e8; border-radius: 16px; padding: 1.5rem}
+    h1 {margin-top: 0} button,input {font: inherit; padding: .65rem; margin: .3rem 0}
+    button {background: #1c59bb; border: 0; border-radius: 8px; color: white; cursor: pointer}
+    input[type=text] {width: min(95%,620px)} .hint {color:#4c5d6c}
+    pre {overflow:auto; background:#eef3f8; padding:1rem; border-radius:8px}
+    table {border-collapse:collapse; width:100%; margin:1rem 0} td,th {border:1px solid #ccd6df; padding:.5rem;text-align:left}
+    #error {color:#a92020} details {margin-top:1rem}
+  </style>
+</head>
+<body>
+<main>
+  <h1>Agentic Analytics Engine</h1>
+  <p>Ask a question about a small dataset. The engine shows the SQL and the actual rows behind its answer.</p>
+  <button id="demo">Load demo data</button>
+  <label>Or upload CSV/Parquet <input id="file" type="file" accept=".csv,.parquet"></label>
+  <p class="hint" id="schema">No dataset selected.</p>
+  <form id="form">
+    <label for="question">Question</label><br>
+    <input id="question" type="text" value="What are total sales by region?" required>
+    <button type="submit">Analyze</button>
+  </form>
+  <p id="error" role="alert"></p>
+  <h2 id="answer"></h2>
+  <div id="results"></div>
+  <details><summary>Query and evidence</summary><pre id="sql"></pre><pre id="trace"></pre></details>
+  <p class="hint">Try “What is average sales by category?” or “Show monthly sales over time.” Ambiguous or unsupported requests receive an explanation.</p>
+</main>
+<script>
+let sessionId = null;
+const byId = (id) => document.getElementById(id);
+function clear() { byId('error').textContent=''; byId('answer').textContent=''; byId('results').replaceChildren(); }
+async function request(path, options={}) {
+  const response = await fetch(path,options);
+  const data = await response.json();
+  if (!response.ok) throw new Error(typeof data.detail === 'string' ? data.detail : 'Request failed');
+  return data;
+}
+function showSession(data) {
+  sessionId=data.session_id; clear();
+  byId('schema').textContent='Columns: ' + Object.keys(data.schema.columns).join(', ') + '. Rows: ' + data.schema.rows;
+}
+byId('demo').onclick=async()=>{ try { showSession(await request('/api/demo',{method:'POST'})); } catch(e) { byId('error').textContent=e.message; } };
+byId('file').onchange=async(e)=>{
+  if (!e.target.files.length) return;
+  const form=new FormData(); form.append('file',e.target.files[0]);
+  try { showSession(await request('/api/upload',{method:'POST',body:form})); }
+  catch(err) { byId('error').textContent=err.message; }
+};
+byId('form').onsubmit=async(e)=>{
+  e.preventDefault(); clear();
+  if (!sessionId) { byId('error').textContent='Load demo data or upload a file first.'; return; }
+  try {
+    const data=await request('/api/analyze',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({session_id:sessionId,question:byId('question').value})});
+    byId('answer').textContent=data.answer;
+    const table=document.createElement('table');
+    const head=document.createElement('tr');
+    data.evidence.columns.forEach(c=>{ const th=document.createElement('th'); th.textContent=c; head.appendChild(th); });
+    table.appendChild(head);
+    data.evidence.rows.forEach(row=>{const tr=document.createElement('tr');row.forEach(v=>{const td=document.createElement('td');td.textContent=String(v);tr.appendChild(td);});table.appendChild(tr);});
+    byId('results').appendChild(table);
+    byId('sql').textContent=data.evidence.sql + '\nParameters: ' + JSON.stringify(data.evidence.parameters) + '\nResult ID: ' + data.evidence.result_id;
+    byId('trace').textContent='Workflow: ' + data.trace.join(' → ');
+  } catch(err) { byId('error').textContent=err.message; }
+};
+</script>
+</body>
+</html>

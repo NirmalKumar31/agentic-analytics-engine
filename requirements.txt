@@ -1,0 +1,10 @@
+duckdb>=1.4,<2
+fastapi>=0.118,<1
+uvicorn>=0.34,<1
+python-multipart>=0.0.20,<1
+mcp>=2.2,<3
+langgraph>=1.2,<2
+sqlglot>=30,<31
+httpx>=0.28,<1
+pyarrow>=21,<27
+pytest>=8,<10

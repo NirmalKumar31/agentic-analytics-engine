@@ -1,0 +1,7 @@
+region,category,order_date,sales
+East,Books,2026-01-03,100
+West,Books,2026-01-04,80
+East,Games,2026-01-12,50
+North,Books,2026-02-02,120
+West,Games,2026-02-04,70
+North,Games,2026-02-12,90
