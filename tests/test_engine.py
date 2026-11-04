@@ -72,7 +72,7 @@ def test_walmart_style_upload_and_grouping():
     assert "weekly_sales" in ds.roles["measures"]
     assert ds.conn.execute("SELECT COUNT(*) FROM data").fetchone()[0] == 6435
     result = execute(ds, resolve("What is total Weekly_Sales?", ds))
-    assert result["rows"][0][1] == sum(100 + i % 10 for i in range(6435))
+    assert result["rows"][0][0] == sum(100 + i % 10 for i in range(6435))
     trend = execute(ds, resolve("Show monthly Weekly_Sales over time", ds))
     assert trend["rows"][0][0] == "2010-02"
     ds.close()
