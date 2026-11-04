@@ -7,10 +7,11 @@ import math
 import re
 import secrets
 from dataclasses import dataclass, field
-from datetime import date
+from datetime import date, datetime
 from typing import Any
 
 import duckdb
+import pyarrow as pa
 import sqlglot
 from sqlglot import exp
 
@@ -45,13 +46,24 @@ def _number(value: Any) -> bool:
         return False
 
 
+def _parse_date(value: Any) -> date:
+    text = str(value).strip()[:10]
+    try:
+        return date.fromisoformat(text)
+    except ValueError:
+        try:
+            return datetime.strptime(text, "%d-%m-%Y").date()
+        except ValueError as exc:
+            raise AnalysisError("unsupported date format; use YYYY-MM-DD or DD-MM-YYYY") from exc
+
+
 def _date(value: Any) -> bool:
     if value is None or str(value).strip() == "":
         return True
     try:
-        date.fromisoformat(str(value)[:10])
+        _parse_date(value)
         return True
-    except ValueError:
+    except AnalysisError:
         return False
 
 
@@ -108,7 +120,8 @@ def load_data(raw: bytes, filename: str) -> Dataset:
         values[new] = [row.get(old) for row in records]
         nonempty = [v for v in values[new] if v is not None and str(v).strip()]
         if nonempty and all(_number(v) for v in nonempty):
-            columns[new] = "DOUBLE"
+            # Numeric codes are categories, not amounts to sum.
+            columns[new] = "VARCHAR" if new == "store" or new.endswith("_flag") else "DOUBLE"
         elif nonempty and all(_date(v) for v in nonempty) and ("date" in new or "time" in new):
             columns[new] = "DATE"
         else:
@@ -130,22 +143,22 @@ def load_data(raw: bytes, filename: str) -> Dataset:
     try:
         ddl = ", ".join(ident(n) + " " + t for n, t in columns.items())
         conn.execute("CREATE TABLE data (" + ddl + ")")
-        normalized = []
+        normalized: dict[str, list[Any]] = {name: [] for name in names}
         for record in records:
-            row = []
             for old, new in zip(source_columns, names):
                 value = record.get(old)
                 if value is None or str(value).strip() == "":
-                    row.append(None)
+                    normalized[new].append(None)
                 elif columns[new] == "DOUBLE":
-                    row.append(float(value))
+                    normalized[new].append(float(value))
                 elif columns[new] == "DATE":
-                    row.append(str(value)[:10])
+                    normalized[new].append(_parse_date(value))
                 else:
-                    row.append(str(value)[:500])
-            normalized.append(tuple(row))
-        placeholders = ", ".join("?" for _ in names)
-        conn.executemany("INSERT INTO data VALUES (" + placeholders + ")", normalized)
+                    normalized[new].append(str(value)[:500])
+        # One columnar insert avoids thousands of round trips to DuckDB.
+        conn.register("_upload_rows", pa.table(normalized))
+        conn.execute("INSERT INTO data SELECT * FROM _upload_rows")
+        conn.unregister("_upload_rows")
         conn.execute("SET enable_external_access=false")
         conn.execute("SET lock_configuration=true")
     except Exception:
