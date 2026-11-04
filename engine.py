@@ -206,6 +206,8 @@ def resolve(question: str, dataset: Dataset) -> dict[str, Any]:
         elif len(measures) == 1:
             measure = measures[0]
         elif measures:
+            if re.search(r"\bwhere\b", q):
+                raise AnalysisError("name the measure explicitly when adding a filter")
             return {"state": "ambiguous", "operation": operation, "candidates": measures, "dimension": grouping}
         else:
             raise AnalysisError("no numeric measure is available")
@@ -294,8 +296,8 @@ def execute(dataset: Dataset, plan: dict[str, Any]) -> dict[str, Any]:
         value = filters.get("value")
         if not isinstance(value, str) or not value or len(value) > 100:
             raise AnalysisError("invalid filter value")
-        where = " WHERE " + ident(filters["column"]) + " = ?"
-        params.append(value)
+        where = " WHERE lower(" + ident(filters["column"]) + ") = ?"
+        params.append(value.lower())
     grouping = []
     if op == "trend":
         grouping.append("strftime(date_trunc('month', " + ident(time_field) + "), '%Y-%m') AS period")

@@ -23,6 +23,17 @@ def test_grouped_sum_and_evidence():
     assert "SUM" in result["sql"]
 
 
+def test_filter_and_trend():
+    ds = dataset()
+    filtered = execute(ds, resolve("Total sales by region where category = Books", ds))
+    assert {row[0]: row[1] for row in filtered["rows"]} == {
+        "East": 100, "West": 80, "North": 120
+    }
+    monthly = execute(ds, resolve("Show monthly sales over time", ds))
+    assert [row[0] for row in monthly["rows"]] == ["2026-01", "2026-02"]
+    assert [row[1] for row in monthly["rows"]] == [230, 280]
+
+
 def test_refusals():
     ds = dataset()
     with pytest.raises(AnalysisError):

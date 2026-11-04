@@ -17,3 +17,13 @@ jobs:
       - run: python -m pip install -r requirements.txt
       - run: python -m pytest -q
       - run: python -m compileall -q app.py engine.py mcp_server.py workflow.py
+      - run: docker build -t agentic-analytics-smoke .
+      - name: Container readiness
+        run: |
+          docker run -d --name analytics-smoke -p 8000:8000 agentic-analytics-smoke
+          for attempt in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:8000/api/ready; then exit 0; fi
+            sleep 2
+          done
+          docker logs analytics-smoke
+          exit 1
