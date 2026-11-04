@@ -11,7 +11,6 @@ from datetime import date, datetime
 from typing import Any
 
 import duckdb
-import pyarrow as pa
 import sqlglot
 from sqlglot import exp
 
@@ -155,6 +154,9 @@ def load_data(raw: bytes, filename: str) -> Dataset:
                     normalized[new].append(_parse_date(value))
                 else:
                     normalized[new].append(str(value)[:500])
+        # Import Arrow only while processing an upload, so the web server binds promptly.
+        import pyarrow as pa
+
         # One columnar insert avoids thousands of round trips to DuckDB.
         conn.register("_upload_rows", pa.table(normalized))
         conn.execute("INSERT INTO data SELECT * FROM _upload_rows")
