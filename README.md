@@ -1,12 +1,12 @@
-# Agentic Analytics Engine — compact edition
+# Agentic Analytics Engine
 
-A small interview friendly analytics app built with Python, DuckDB, LangGraph, and the MCP Python SDK. It accepts one CSV or Parquet table (or the included demo), interprets a business question, executes a controlled SQL aggregate, and publishes the result alongside the exact SQL and an MCP tool trace. Optional AI can propose a structured plan for an ambiguous question; the normal demo does not require an API key.
+An analytics application built with Python, DuckDB, LangGraph, and the MCP Python SDK. It accepts one CSV or Parquet table (or the included demo), interprets a business question, executes a controlled SQL aggregate, and publishes the result alongside the exact SQL and an MCP tool trace. Optional AI can propose a structured plan for an ambiguous question; the normal demo does not require an API key.
 
-## Explain it in one minute
+## How it works
 
-I built a question to SQL analytics workflow. Python rules identify the requested operation, measure, grouping, and time field. When the wording is clear, no model call is needed. For a genuine ambiguity, an optional AI planner proposes a typed mapping, which is checked against the dataset and the question. A LangGraph workflow invokes an in process MCP analytics tool; that tool builds and validates read only SQL, calculates the result in DuckDB, and records a result snapshot. A final check ensures the answer uses only returned values. The public demo runs without paid AI.
+The application uses a question-to-SQL analytics workflow. Python rules identify the requested operation, measure, grouping, and time field. When the wording is clear, no model call is needed. For a genuine ambiguity, an optional AI planner proposes a typed mapping, which is checked against the dataset and the question. A LangGraph workflow invokes an in process MCP analytics tool; that tool builds and validates read only SQL, calculates the result in DuckDB, and records a result snapshot. A final check ensures the answer uses only returned values. The public demo runs without paid AI.
 
-## Read these files in order
+## Code map
 
 1. `engine.py`: load data, interpret questions, construct SQL, execute, and verify.
 2. `mcp_server.py`: four typed MCP tools around the engine.
@@ -53,4 +53,4 @@ The included `render.yaml` builds the Dockerfile as one web service. After chang
 
 ## Deliberate scope
 
-This edition supports one table, count, sum, average, top or bottom ranking, and monthly trends, plus a correlation tool. It refuses unsupported requests rather than guessing. It does not claim arbitrary joins, forecasting, causal analysis, enterprise authentication, or proven real model accuracy. Uploaded sessions live in memory and disappear on restart. The four MCP tools are invoked in process; the public app does not expose an unauthenticated remote MCP endpoint.
+The application supports one table, count, sum, average, top or bottom ranking, and monthly trends, plus a correlation tool. It refuses unsupported requests rather than guessing. It does not claim arbitrary joins, forecasting, causal analysis, enterprise authentication, or proven real model accuracy. Uploaded sessions live in memory and disappear on restart. The four MCP tools are invoked in process; the public app does not expose an unauthenticated remote MCP endpoint.
