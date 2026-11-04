@@ -197,7 +197,7 @@ def resolve(question: str, dataset: Dataset) -> dict[str, Any]:
             raise AnalysisError("the grouping after 'by' is not an available dimension")
     elif named_dimensions:
         grouping = named_dimensions[0]
-    if len(named_measures) > 1 or len(named_dimensions) > 1:
+    if len(named_measures) > 1 or (len(named_dimensions) > 1 and grouping is None):
         raise AnalysisError("name one measure and at most one grouping")
     measure = None
     if operation != "count":
